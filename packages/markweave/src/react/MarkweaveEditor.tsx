@@ -18,7 +18,7 @@ import {
   type SlashCommandMenuPosition,
 } from "../plugins/slash-command/slash-runtime";
 import { initialSlashCommandState, reduceSlashCommandState, type SlashCommandState } from "../plugins/slash-command/slash-state";
-import type { MarkweaveSlashCommandUploadHandler } from "../plugins/slash-command/upload";
+import { getDirectUploadResult, type MarkweaveSlashCommandUploadHandler } from "../plugins/slash-command/upload";
 import type { MarkweaveMenuCopyPayload } from "../plugins/table/table-clipboard";
 import { getFirstTableDebugSnapshot, type TableDebugSnapshot } from "../plugins/table/table-debug-snapshot";
 import { focusFirstTableBodyCell } from "../plugins/table/table-focus-position";
@@ -159,7 +159,26 @@ export function useMarkweaveEditorController({
   onTableCopyPayload,
   onUpdate,
 }: MarkweaveEditorControllerOptions = {}): MarkweaveEditorController {
-  const extensions = useMemo(() => createMarkweaveEditorExtensions(), []);
+  const uploadHandlerRef = useRef(onSlashCommandUpload);
+  uploadHandlerRef.current = onSlashCommandUpload;
+  const extensions = useMemo(
+    () =>
+      createMarkweaveEditorExtensions({
+        onImageUpload: (request) => {
+          if (uploadHandlerRef.current) {
+            return uploadHandlerRef.current(request);
+          }
+
+          const directResult = getDirectUploadResult(request);
+          if (!directResult) {
+            throw new Error("File upload requires an upload handler.");
+          }
+
+          return directResult;
+        },
+      }),
+    [],
+  );
   const [selectionSnapshot, setSelectionSnapshot] = useState<EditorSelectionSnapshot | null>(null);
   const [slashState, setSlashState] = useState<SlashCommandState>(initialSlashCommandState);
   const [slashMenuPosition, setSlashMenuPosition] = useState<SlashCommandMenuPosition | null>(null);

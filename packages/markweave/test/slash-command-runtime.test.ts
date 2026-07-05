@@ -408,12 +408,26 @@ describe("slash command runtime", () => {
     expect(bottomPosition.top).toBeGreaterThanOrEqual(frameRect.top);
   });
 
-  it("keeps input-only slash commands from mutating without a chosen emoji or upload result", () => {
-    const editor = createEditor("<p>/emoji</p><p>/image</p>");
-    const emojiCommand = defaultSlashCommandSpecs.find((command) => command.id === "emoji");
+  it("inserts an empty image placeholder without an upload result", () => {
+    const editor = createEditor("<p>/image</p>");
     const imageCommand = defaultSlashCommandSpecs.find((command) => command.id === "image");
 
-    if (!emojiCommand || !imageCommand) {
+    if (!imageCommand) {
+      throw new Error("Expected image slash command.");
+    }
+
+    expect(editor.commands.setTextSelection(textPosition(editor, "/image"))).toBe(true);
+    expect(executeSlashCommand(editor, getNextSlashCommandState(initialSlashCommandState, getSlashCommandContext(editor.state)), imageCommand)).toBe(true);
+    expect(editor.getText()).not.toContain("/image");
+    expect(editor.getJSON().content?.some((node) => node.type === "image" && node.attrs?.src === null)).toBe(true);
+  });
+
+  it("keeps input-only slash commands from mutating without a chosen emoji or upload result", () => {
+    const editor = createEditor("<p>/emoji</p><p>/video</p>");
+    const emojiCommand = defaultSlashCommandSpecs.find((command) => command.id === "emoji");
+    const videoCommand = defaultSlashCommandSpecs.find((command) => command.id === "video");
+
+    if (!emojiCommand || !videoCommand) {
       throw new Error("Expected input-only slash commands.");
     }
 
@@ -421,9 +435,9 @@ describe("slash command runtime", () => {
     expect(executeSlashCommand(editor, getNextSlashCommandState(initialSlashCommandState, getSlashCommandContext(editor.state)), emojiCommand)).toBe(false);
     expect(editor.getText()).toContain("/emoji");
 
-    expect(editor.commands.setTextSelection(textPosition(editor, "/image"))).toBe(true);
-    expect(executeSlashCommand(editor, getNextSlashCommandState(initialSlashCommandState, getSlashCommandContext(editor.state)), imageCommand)).toBe(false);
-    expect(editor.getText()).toContain("/image");
+    expect(editor.commands.setTextSelection(textPosition(editor, "/video"))).toBe(true);
+    expect(executeSlashCommand(editor, getNextSlashCommandState(initialSlashCommandState, getSlashCommandContext(editor.state)), videoCommand)).toBe(false);
+    expect(editor.getText()).toContain("/video");
   });
 
   it("keeps external AI slash commands outside the default executable slash menu", () => {

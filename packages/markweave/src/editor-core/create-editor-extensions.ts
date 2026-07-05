@@ -2,7 +2,6 @@ import CodeBlockLowlight from "@tiptap/extension-code-block-lowlight";
 import Emoji, { emojis } from "@tiptap/extension-emoji";
 import Highlight from "@tiptap/extension-highlight";
 import HorizontalRule from "@tiptap/extension-horizontal-rule";
-import Image from "@tiptap/extension-image";
 import Link from "@tiptap/extension-link";
 import Mathematics from "@tiptap/extension-mathematics";
 import Subscript from "@tiptap/extension-subscript";
@@ -24,6 +23,7 @@ import { MarkweaveCallout } from "../plugins/callout/callout-node";
 import { MarkweaveCodeBlockClickFocus, MarkweaveCodeBlockCollapse, markweaveCodeBlockBehavior } from "../plugins/codeblock/codeblock-behavior";
 import { MarkweaveIndent } from "../plugins/indent/indent-extension";
 import { MarkweaveMarkdownInput } from "../plugins/markdown/markdown-input";
+import { MarkweaveImage } from "../plugins/media/image-node";
 import { MarkweaveAttachment, MarkweaveVideo } from "../plugins/media/media-nodes";
 import { MarkweaveMermaidInlinePreview } from "../plugins/mermaid/mermaid-inline-preview";
 import { MarkweaveTableClipboard } from "../plugins/table/table-clipboard";
@@ -32,15 +32,15 @@ import { MarkweaveTableInteractionLayer } from "../plugins/table/table-interacti
 import { MarkweaveTableKeyboard } from "../plugins/table/table-keyboard";
 import { MarkweaveMarkdownTableInput } from "../plugins/table/table-markdown-input";
 
-const MarkweaveImage = Image.extend({
-  addInputRules() {
-    return [];
-  },
-});
+import type { MarkweaveSlashCommandUploadHandler } from "../plugins/slash-command/upload";
+
+export interface CreateMarkweaveEditorExtensionsOptions {
+  readonly onImageUpload?: MarkweaveSlashCommandUploadHandler;
+}
 
 const markweaveLowlight = createLowlight(common);
 
-export function createMarkweaveEditorExtensions() {
+export function createMarkweaveEditorExtensions(options: CreateMarkweaveEditorExtensionsOptions = {}) {
   return [
     MarkweaveCompositionGuard,
     StarterKit.configure({
@@ -112,6 +112,7 @@ export function createMarkweaveEditorExtensions() {
     MarkweaveImage.configure({
       inline: false,
       allowBase64: true,
+      onUpload: options.onImageUpload,
       HTMLAttributes: {
         class: "markweave-image",
       },

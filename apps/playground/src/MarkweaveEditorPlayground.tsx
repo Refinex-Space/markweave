@@ -116,11 +116,14 @@ export function MarkweaveEditorPlayground() {
         ) : null}
         {lastSlashUploadRequest ? (
           <div className="markweave-debug-ai" data-testid="markweave-debug-slash-upload">
-            <div>Last slash upload request: {lastSlashUploadRequest.kind}</div>
+            <div>
+              Last upload request: {lastSlashUploadRequest.kind} ({lastSlashUploadRequest.trigger})
+            </div>
             <pre>
               {JSON.stringify(
                 {
                   kind: lastSlashUploadRequest.kind,
+                  trigger: lastSlashUploadRequest.trigger,
                   source: {
                     type: lastSlashUploadRequest.source.type,
                     value: lastSlashUploadRequest.source.value,

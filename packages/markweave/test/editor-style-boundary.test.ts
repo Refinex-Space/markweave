@@ -27,6 +27,10 @@ const editorRuntimeSelectors = [
   ".markweave-slash-command-list",
   ".markweave-slash-emoji-grid",
   ".markweave-slash-upload-field",
+  ".markweave-image-node",
+  ".markweave-image-toolbar",
+  ".markweave-image-upload-placeholder",
+  ".markweave-image-resize-handle",
   ".markweave-table-controls",
   ".markweave-table-selection-overlay",
   ".markweave-codeblock-overlay",
@@ -68,6 +72,10 @@ describe("editor style boundary", () => {
     expect(editorCss).toContain(".markweave-slash-trigger");
     expect(editorCss).toContain(".markweave-slash-emoji-grid");
     expect(editorCss).toContain(".markweave-slash-upload-field");
+    expect(editorCss).toContain(".markweave-image-node");
+    expect(editorCss).toContain(".markweave-image-toolbar");
+    expect(editorCss).toContain(".markweave-image-upload-placeholder");
+    expect(editorCss).toContain(".markweave-image-resize-handle");
     expect(editorCss).toContain("z-index: 58");
     expect(editorCss).toContain("scrollbar-color: #d7d7d7 transparent");
     expect(editorCss).toContain(".markweave-video");

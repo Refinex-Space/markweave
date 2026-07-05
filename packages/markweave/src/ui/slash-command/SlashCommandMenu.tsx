@@ -33,11 +33,11 @@ import { isSlashCommandMenuState } from "../../plugins/slash-command/slash-keybo
 import type { SlashCommandMenuPosition } from "../../plugins/slash-command/slash-runtime";
 import type { SlashCommandState } from "../../plugins/slash-command/slash-state";
 import {
-  getDirectUploadResult,
+  detectUploadSource,
+  resolveMarkweaveUploadResult,
   type MarkweaveSlashCommandUploadHandler,
   type MarkweaveUploadRequest,
   type MarkweaveUploadResult,
-  type MarkweaveUploadSource,
 } from "../../plugins/slash-command/upload";
 
 type SlashCommandSelectOptions = { readonly emoji?: string; readonly uploadResult?: MarkweaveUploadResult };
@@ -155,24 +155,6 @@ function groupSlashCommands(commands: readonly SlashCommandSpec[]) {
     .filter((entry) => entry.commands.length > 0);
 }
 
-function detectUploadSource(input: string): MarkweaveUploadSource {
-  const value = input.trim();
-
-  if (value.startsWith("data:")) {
-    return { type: "base64", value };
-  }
-
-  if (/^https?:\/\//i.test(value)) {
-    return { type: "url", value };
-  }
-
-  if (value.startsWith("/")) {
-    return { type: "absolute-path", value };
-  }
-
-  return { type: "relative-path", value };
-}
-
 function getUploadKindLabel(kind: SlashCommandUploadKind) {
   switch (kind) {
     case "image":
@@ -287,17 +269,14 @@ function UploadPanel({
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const submitRequest = async (source: MarkweaveUploadSource) => {
+  const submitRequest = async (source: MarkweaveUploadRequest["source"]) => {
     const request: MarkweaveUploadRequest = {
       kind: uploadKind,
       source,
       trigger: "slash-command",
     };
 
-    const result = onUpload ? await onUpload(request) : getDirectUploadResult(request);
-    if (!result) {
-      throw new Error("File upload requires an upload handler.");
-    }
+    const result = await resolveMarkweaveUploadResult(request, onUpload);
 
     onSelect(command, { uploadResult: result });
   };

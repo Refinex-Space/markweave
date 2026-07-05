@@ -109,6 +109,329 @@
   background: #f6f7f9;
 }
 
+.markweave-editor-surface .markweave-image-node,
+.markweave-editor-surface .markweave-image-figure {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  margin: 1.1em 0;
+  gap: 8px;
+}
+
+.markweave-editor-surface .markweave-image-node[data-align="left"],
+.markweave-editor-surface .markweave-image-figure[data-markweave-image-align="left"] {
+  align-items: flex-start;
+}
+
+.markweave-editor-surface .markweave-image-node[data-align="center"],
+.markweave-editor-surface .markweave-image-figure[data-markweave-image-align="center"] {
+  align-items: center;
+}
+
+.markweave-editor-surface .markweave-image-node[data-align="right"],
+.markweave-editor-surface .markweave-image-figure[data-markweave-image-align="right"] {
+  align-items: flex-end;
+}
+
+.markweave-editor-surface .markweave-image-box {
+  position: relative;
+  max-width: 100%;
+  border: 2px solid transparent;
+  border-radius: 8px;
+  line-height: 0;
+  transition:
+    border-color 120ms ease,
+    box-shadow 120ms ease;
+}
+
+.markweave-editor-surface .markweave-image-node[data-hovered="true"] .markweave-image-box,
+.markweave-editor-surface .markweave-image-node[data-selected="true"] .markweave-image-box {
+  border-color: #3f4650;
+  box-shadow: 0 0 0 1px rgba(47, 52, 59, 0.08);
+}
+
+.markweave-editor-surface .markweave-image-node img.markweave-image {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  height: auto;
+  margin: 0;
+  border-radius: 6px;
+}
+
+.markweave-image-toolbar {
+  position: absolute;
+  z-index: 46;
+  top: -46px;
+  left: 50%;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  height: 38px;
+  border: 1px solid #e1e4e8;
+  border-radius: 17px;
+  background: rgba(255, 255, 255, 0.97);
+  box-shadow: 0 12px 28px rgba(28, 31, 36, 0.14);
+  padding: 0 8px;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateX(-50%) translateY(4px);
+  transition:
+    opacity 120ms ease,
+    transform 120ms ease;
+}
+
+.markweave-image-node[data-hovered="true"] .markweave-image-toolbar,
+.markweave-image-node[data-selected="true"] .markweave-image-toolbar {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateX(-50%) translateY(0);
+}
+
+.markweave-image-toolbar button {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border: 0;
+  border-radius: 11px;
+  background: transparent;
+  color: #626870;
+  cursor: pointer;
+}
+
+.markweave-image-toolbar button:hover,
+.markweave-image-toolbar button[data-active="true"] {
+  background: #f0f1f2;
+  color: #2f343b;
+}
+
+.markweave-image-toolbar-divider {
+  width: 1px;
+  height: 22px;
+  margin: 0 4px;
+  background: #e2e5ea;
+}
+
+.markweave-image-tooltip {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  width: max-content;
+  max-width: 190px;
+  border-radius: 9px;
+  background: #30343a;
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1;
+  padding: 8px 10px;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateX(-50%) translateY(3px);
+  transition:
+    opacity 120ms ease,
+    transform 120ms ease;
+  white-space: nowrap;
+}
+
+.markweave-image-toolbar button:hover .markweave-image-tooltip,
+.markweave-image-toolbar button:focus-visible .markweave-image-tooltip {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+.markweave-image-caption-input {
+  width: min(100%, 520px);
+  border: 0;
+  border-bottom: 1px solid #d7dbe2;
+  outline: none;
+  background: transparent;
+  color: #4b515a;
+  font: inherit;
+  font-size: 13px;
+  line-height: 1.4;
+  padding: 4px 2px 6px;
+  text-align: center;
+}
+
+.markweave-image-caption-input:focus {
+  border-bottom-color: #3f4650;
+}
+
+.markweave-editor-surface .markweave-image-figure figcaption {
+  width: min(100%, 520px);
+  color: #6a7079;
+  font-size: 13px;
+  line-height: 1.45;
+  text-align: center;
+}
+
+.markweave-image-resize-handle {
+  position: absolute;
+  top: 50%;
+  display: block;
+  width: 24px;
+  height: 96px;
+  border: 0;
+  background: transparent;
+  cursor: ew-resize;
+  opacity: 0;
+  transform: translateY(-50%);
+}
+
+.markweave-image-resize-handle::after {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 8px;
+  height: 58px;
+  border-radius: 999px;
+  background: #30343a;
+  content: "";
+  transform: translate(-50%, -50%);
+}
+
+.markweave-image-resize-handle[data-side="left"] {
+  left: 4px;
+}
+
+.markweave-image-resize-handle[data-side="right"] {
+  right: 4px;
+}
+
+.markweave-image-node[data-hovered="true"] .markweave-image-resize-handle,
+.markweave-image-node[data-selected="true"] .markweave-image-resize-handle {
+  opacity: 1;
+}
+
+.markweave-image-upload-placeholder {
+  display: grid;
+  justify-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 218px;
+  border: 2px dashed #c8cdd5;
+  border-radius: 14px;
+  background: #ffffff;
+  box-shadow: none;
+  padding: 30px 28px;
+  color: #4f555e;
+}
+
+.markweave-image-upload-placeholder[data-drag-active="true"] {
+  border-color: #6b7280;
+  background: #fafafa;
+}
+
+.markweave-image-upload-icon {
+  position: relative;
+  display: grid;
+  place-items: center;
+  color: #c6ccd5;
+}
+
+.markweave-image-upload-copy {
+  font-size: 17px;
+  line-height: 1.25;
+}
+
+.markweave-image-upload-copy button {
+  border: 0;
+  background: transparent;
+  color: #3f434a;
+  cursor: pointer;
+  font: inherit;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.markweave-image-upload-note {
+  color: #9aa0a9;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.markweave-image-upload-row {
+  display: grid;
+  grid-template-columns: minmax(160px, 1fr) auto auto;
+  gap: 8px;
+  width: min(100%, 560px);
+  margin-top: 2px;
+}
+
+.markweave-image-upload-row input {
+  min-width: 0;
+  height: 36px;
+  border: 1px solid #d9dee6;
+  border-radius: 10px;
+  outline: none;
+  background: #ffffff;
+  color: #2f343b;
+  font: inherit;
+  font-size: 14px;
+  padding: 0 11px;
+}
+
+.markweave-image-upload-row input:focus {
+  border-color: #6b7280;
+}
+
+.markweave-image-upload-row button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 36px;
+  border: 0;
+  border-radius: 10px;
+  background: #f0f1f2;
+  color: #3f434a;
+  cursor: pointer;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 0 12px;
+}
+
+.markweave-image-upload-row button[data-testid="markweave-image-upload-submit"] {
+  background: #30343a;
+  color: #ffffff;
+}
+
+.markweave-image-upload-row button:disabled {
+  cursor: default;
+  opacity: 0.48;
+}
+
+.markweave-image-upload-error {
+  width: min(100%, 560px);
+  border-radius: 9px;
+  background: #fff1f1;
+  color: #b91c1c;
+  font-size: 12px;
+  line-height: 1.35;
+  padding: 8px 10px;
+}
+
+@media (max-width: 640px) {
+  .markweave-image-toolbar {
+    max-width: calc(100vw - 32px);
+    overflow-x: auto;
+  }
+
+  .markweave-image-upload-placeholder {
+    min-height: 196px;
+    padding: 24px 16px;
+  }
+
+  .markweave-image-upload-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
 .markweave-editor-surface .markweave-attachment {
   display: inline-flex;
   align-items: center;

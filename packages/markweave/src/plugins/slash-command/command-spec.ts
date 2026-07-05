@@ -310,7 +310,6 @@ export const editorSlashCommandSpecs: readonly SlashCommandSpec[] = [
     category: "upload",
     executionKind: "editor",
     icon: "image",
-    inputKind: "upload",
     uploadKind: "image",
     searchTerms: ["image", "picture", "photo", "upload"],
   },

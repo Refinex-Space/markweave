@@ -268,7 +268,6 @@ export function executeSlashCommand(editor: Editor, state: SlashCommandState, co
         return false;
       }
       return editor.chain().focus().deleteRange({ from: deleteFrom, to: deleteTo }).insertContent(options.emoji).run();
-    case "image":
     case "video":
     case "attachment":
       if (!options.uploadResult) {
@@ -326,7 +325,21 @@ export function executeSlashCommand(editor: Editor, state: SlashCommandState, co
       return inserted;
     }
     case "image":
-      return chain.setImage({ src: options.uploadResult?.src ?? "", alt: options.uploadResult?.alt, title: options.uploadResult?.title }).run();
+      return chain
+        .insertContent({
+          type: "image",
+          attrs: options.uploadResult
+            ? {
+                src: options.uploadResult.src,
+                alt: options.uploadResult.alt ?? options.uploadResult.name,
+                title: options.uploadResult.title,
+              }
+            : {
+                src: null,
+                align: "center",
+              },
+        })
+        .run();
     case "video":
       return chain
         .insertContent({
