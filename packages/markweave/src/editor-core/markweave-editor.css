@@ -1,0 +1,1755 @@
+:root:has(.markweave-editor-frame) {
+  scrollbar-gutter: stable;
+}
+
+.markweave-editor-frame {
+  position: relative;
+  min-height: 76vh;
+  color: #1f2328;
+  font-family: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
+  font-synthesis: none;
+  overflow-anchor: none;
+  scrollbar-gutter: stable;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.markweave-editor-frame,
+.markweave-editor-frame * {
+  box-sizing: border-box;
+}
+
+.markweave-floating-toolbar button,
+.markweave-slash-menu button,
+.markweave-table-controls button {
+  font: inherit;
+}
+
+.markweave-editor-surface {
+  width: 100%;
+  min-height: 72vh;
+  padding: 16px 0 40px;
+  outline: none;
+  font-size: 15px;
+  line-height: 1.72;
+}
+
+.markweave-editor-surface > *:first-child {
+  margin-top: 0;
+}
+
+.markweave-editor-surface h1,
+.markweave-editor-surface h2,
+.markweave-editor-surface h3 {
+  position: relative;
+  margin: 1.55em 0 0.55em;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.markweave-editor-surface h1 {
+  font-size: 26px;
+}
+
+.markweave-editor-surface h2 {
+  font-size: 21px;
+}
+
+.markweave-editor-surface h3 {
+  font-size: 18px;
+}
+
+.markweave-editor-surface h1::before,
+.markweave-editor-surface h2::before,
+.markweave-editor-surface h3::before {
+  position: absolute;
+  right: calc(100% + 10px);
+  top: 0.25em;
+  color: #b8bec7;
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.markweave-editor-surface h1::before {
+  content: "H1";
+}
+
+.markweave-editor-surface h2::before {
+  content: "H2";
+}
+
+.markweave-editor-surface h3::before {
+  content: "H3";
+}
+
+.markweave-editor-surface p {
+  margin: 0.65em 0;
+}
+
+.markweave-editor-surface blockquote {
+  margin: 1.1em 0;
+  padding: 10px 14px;
+  border-left: 4px solid #c7ccd5;
+  background: #f5f6f8;
+}
+
+.markweave-editor-surface img.markweave-image,
+.markweave-editor-surface video.markweave-video {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin: 1.1em 0;
+  border-radius: 6px;
+}
+
+.markweave-editor-surface video.markweave-video {
+  border: 1px solid #e1e5eb;
+  background: #f6f7f9;
+}
+
+.markweave-editor-surface .markweave-attachment {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  max-width: 100%;
+  margin: 0.8em 0;
+  border: 1px solid #dfe3ea;
+  border-radius: 6px;
+  background: #ffffff;
+  padding: 7px 10px;
+  color: #2f343b;
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-size: 13px;
+  text-decoration: none;
+}
+
+.markweave-editor-surface .markweave-attachment::before {
+  content: "↗";
+  color: #6b7280;
+  font-size: 12px;
+}
+
+.markweave-editor-surface hr.markweave-separator {
+  height: 1px;
+  margin: 1.25em 0;
+  border: 0;
+  background: #e5e7eb;
+}
+
+.markweave-editor-surface ul,
+.markweave-editor-surface ol {
+  padding-left: 1.55em;
+}
+
+.markweave-editor-surface code {
+  border: 1px solid #dde1e7;
+  border-radius: 4px;
+  background: #f4f5f7;
+  padding: 0.08em 0.32em;
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  font-size: 0.9em;
+}
+
+.markweave-editor-surface pre {
+  position: relative;
+  overflow-x: auto;
+  margin: 1.1em 0;
+  border: 1px solid #dfe3ea;
+  border-radius: 6px;
+  background: #f7f8fa;
+  padding: 14px 16px;
+}
+
+.markweave-editor-surface pre code {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  padding: 0;
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.markweave-editor-surface pre.markweave-code-block {
+  min-height: 46px;
+  margin: 1.05em 0;
+  border: 1px solid #e5e8ee;
+  border-radius: 6px;
+  background: #ffffff;
+  padding: 13px 148px 13px 16px;
+  color: #3c4148;
+}
+
+.markweave-editor-surface pre.markweave-code-block code {
+  display: block;
+  color: inherit;
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  font-size: 13px;
+  line-height: 1.55;
+  white-space: pre;
+}
+
+.markweave-editor-surface pre.markweave-code-block[data-markweave-mermaid-block="true"]:not([data-mermaid-preview-mode="preview"]):not(
+    [data-markweave-collapsed="true"]
+  ) {
+  min-height: 88px;
+  padding-top: 42px;
+}
+
+.markweave-editor-surface pre.markweave-code-block[data-mermaid-preview-mode="preview"]:not([data-markweave-collapsed="true"]) {
+  display: none;
+}
+
+.markweave-editor-surface pre.markweave-code-block[data-markweave-collapsed="true"] {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 18px;
+  align-items: center;
+  min-height: 36px;
+  border-color: #e8eaee;
+  border-radius: 4px;
+  background: #ffffff;
+  padding: 0 10px;
+  color: #2f343b;
+  cursor: default;
+  font-family: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
+  transition: background-color 80ms ease, border-color 80ms ease;
+}
+
+.markweave-editor-surface pre.markweave-code-block[data-markweave-collapsed="true"]:hover {
+  border-color: #d8d8d8;
+  background: #d8d8d8;
+}
+
+.markweave-editor-surface pre.markweave-code-block[data-markweave-collapsed="true"] code {
+  display: none;
+}
+
+.markweave-editor-surface pre.markweave-code-block[data-markweave-collapsed="true"]::before {
+  min-width: 0;
+  overflow: hidden;
+  color: #2f343b;
+  content: attr(data-markweave-collapsed-language) "  " attr(data-markweave-collapsed-lines);
+  font-size: 12px;
+  line-height: 1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.markweave-editor-surface pre.markweave-code-block[data-markweave-collapsed="true"]::after {
+  justify-self: end;
+  width: 6px;
+  height: 6px;
+  margin-right: 1px;
+  border-right: 1.5px solid #3f4650;
+  border-bottom: 1.5px solid #3f4650;
+  content: "";
+  transform: rotate(45deg);
+}
+
+.markweave-editor-surface .hljs-comment,
+.markweave-editor-surface .hljs-quote {
+  color: #8b949e;
+}
+
+.markweave-editor-surface .hljs-keyword,
+.markweave-editor-surface .hljs-selector-tag,
+.markweave-editor-surface .hljs-subst {
+  color: #e14d5f;
+}
+
+.markweave-editor-surface .hljs-title,
+.markweave-editor-surface .hljs-class .hljs-title,
+.markweave-editor-surface .hljs-title.class_ {
+  color: #7b61d1;
+}
+
+.markweave-editor-surface .hljs-type,
+.markweave-editor-surface .hljs-built_in,
+.markweave-editor-surface .hljs-literal,
+.markweave-editor-surface .hljs-symbol {
+  color: #6f7785;
+}
+
+.markweave-editor-surface .hljs-string,
+.markweave-editor-surface .hljs-number,
+.markweave-editor-surface .hljs-regexp {
+  color: #2f7d66;
+}
+
+.markweave-editor-surface .hljs-attr,
+.markweave-editor-surface .hljs-variable,
+.markweave-editor-surface .hljs-params {
+  color: #3f4650;
+}
+
+.markweave-editor-surface table {
+  width: 100%;
+  margin: 1.1em 0;
+  border-collapse: collapse;
+  table-layout: fixed;
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-size: 14px;
+  line-height: 1.42;
+}
+
+.markweave-editor-surface th,
+.markweave-editor-surface td {
+  position: relative;
+  min-width: 120px;
+  border: 1px solid #d7dce3;
+  padding: 5px 8px;
+  vertical-align: middle;
+}
+
+.markweave-editor-surface th {
+  background: #f3f4f6;
+  font-weight: 600;
+}
+
+.markweave-editor-surface th > p,
+.markweave-editor-surface td > p {
+  margin: 0;
+}
+
+.markweave-editor-surface th.markweave-active-cell,
+.markweave-editor-surface td.markweave-active-cell {
+  box-shadow: inset 0 0 0 1px rgba(87, 111, 144, 0.22);
+}
+
+.markweave-editor-surface .selectedCell {
+  background: #e8f1ff;
+  outline: 2px solid #5d86d9;
+  outline-offset: -2px;
+}
+
+.markweave-editor-surface th.markweave-selection-cell,
+.markweave-editor-surface td.markweave-selection-cell {
+  background: #e8f1ff;
+  box-shadow: inset 0 0 0 1px rgba(93, 134, 217, 0.42);
+}
+
+.markweave-editor-surface th.markweave-selection-cell::after,
+.markweave-editor-surface td.markweave-selection-cell::after {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border: 0 solid #5d86d9;
+  background: rgba(81, 132, 220, 0.08);
+  pointer-events: none;
+}
+
+.markweave-editor-surface th.markweave-selection-edge-top::after,
+.markweave-editor-surface td.markweave-selection-edge-top::after {
+  border-top-width: 2px;
+}
+
+.markweave-editor-surface th.markweave-selection-edge-right::after,
+.markweave-editor-surface td.markweave-selection-edge-right::after {
+  border-right-width: 2px;
+}
+
+.markweave-editor-surface th.markweave-selection-edge-bottom::after,
+.markweave-editor-surface td.markweave-selection-edge-bottom::after {
+  border-bottom-width: 2px;
+}
+
+.markweave-editor-surface th.markweave-selection-edge-left::after,
+.markweave-editor-surface td.markweave-selection-edge-left::after {
+  border-left-width: 2px;
+}
+
+.markweave-editor-surface th.markweave-selection-anchor-cell,
+.markweave-editor-surface td.markweave-selection-anchor-cell {
+  box-shadow:
+    inset 0 0 0 1px #6f93d3,
+    inset 0 0 0 999px rgba(81, 132, 220, 0.02);
+}
+
+.markweave-editor-surface th.markweave-selection-head-cell,
+.markweave-editor-surface td.markweave-selection-head-cell {
+  box-shadow:
+    inset 0 0 0 2px #4c78c9,
+    inset 0 0 0 999px rgba(81, 132, 220, 0.03);
+}
+
+.markweave-table-selection-overlay {
+  position: absolute;
+  z-index: 6;
+  border: 2px solid #4c78c9;
+  border-radius: 3px;
+  background:
+    linear-gradient(rgba(76, 120, 201, 0.16) 1px, transparent 1px) 0 0 / 100%
+      calc(100% / var(--markweave-table-selection-rows, 1)),
+    linear-gradient(90deg, rgba(76, 120, 201, 0.16) 1px, transparent 1px) 0 0 /
+      calc(100% / var(--markweave-table-selection-columns, 1)) 100%,
+    rgba(81, 132, 220, 0.08);
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.85),
+    0 3px 10px rgba(76, 120, 201, 0.16);
+  pointer-events: none;
+  transition:
+    left 80ms cubic-bezier(0.2, 0, 0, 1),
+    top 80ms cubic-bezier(0.2, 0, 0, 1),
+    width 80ms cubic-bezier(0.2, 0, 0, 1),
+    height 80ms cubic-bezier(0.2, 0, 0, 1),
+    opacity 70ms cubic-bezier(0.2, 0, 0, 1);
+}
+
+.markweave-link {
+  color: #2f62d9;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.markweave-highlight {
+  background: #fff2aa;
+}
+
+.markweave-callout {
+  margin: 1em 0;
+  border-left: 4px solid #7aa2f7;
+  border-radius: 5px;
+  background: #f5f8ff;
+  padding: 10px 14px;
+  color: #2f343b;
+}
+
+.markweave-callout > :first-child {
+  margin-top: 0;
+}
+
+.markweave-callout > :last-child {
+  margin-bottom: 0;
+}
+
+.markweave-callout[data-markweave-callout-type="warning"] {
+  border-left-color: #ca8a04;
+  background: #fff8e1;
+}
+
+.markweave-callout[data-markweave-callout-type="error"] {
+  border-left-color: #ef4444;
+  background: #fff1f1;
+}
+
+.markweave-callout[data-markweave-callout-type="success"] {
+  border-left-color: #22c55e;
+  background: #effaf2;
+}
+
+.markweave-callout[data-markweave-callout-type="tip"] {
+  border-left-color: #a855f7;
+  background: #f7f0ff;
+}
+
+.markweave-editor-surface [data-markweave-indent-level="1"] {
+  margin-left: 1.5em;
+}
+
+.markweave-editor-surface [data-markweave-indent-level="2"] {
+  margin-left: 3em;
+}
+
+.markweave-editor-surface [data-markweave-indent-level="3"] {
+  margin-left: 4.5em;
+}
+
+.markweave-editor-surface [data-markweave-indent-level="4"] {
+  margin-left: 6em;
+}
+
+.markweave-editor-surface [data-markweave-indent-level="5"] {
+  margin-left: 7.5em;
+}
+
+.markweave-editor-surface [data-markweave-indent-level="6"] {
+  margin-left: 9em;
+}
+
+.markweave-editor-surface [data-markweave-indent-level="7"] {
+  margin-left: 10.5em;
+}
+
+.tiptap-mathematics-render {
+  display: inline-grid;
+  place-items: center;
+  border-radius: 5px;
+  background: rgba(99, 102, 241, 0.08);
+  padding: 0 0.25em;
+  color: #3730a3;
+  font-family: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
+}
+
+.tiptap-mathematics-render.inline-math-error {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.markweave-floating-toolbar {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  z-index: 40;
+  border: 1px solid rgba(229, 231, 235, 0.88);
+  border-radius: 16px;
+  background: #ffffff;
+  box-shadow:
+    0 10px 28px rgba(31, 35, 40, 0.08),
+    0 1px 2px rgba(31, 35, 40, 0.08);
+  padding: 0;
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  transform-origin: bottom center;
+  transition:
+    opacity var(--markweave-toolbar-motion-duration, 0ms) var(--markweave-toolbar-motion-easing, ease),
+    transform var(--markweave-toolbar-motion-duration, 0ms) var(--markweave-toolbar-motion-easing, ease);
+  will-change: opacity, transform;
+}
+
+.markweave-floating-toolbar-content {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  height: 38px;
+  padding: 3px 5px;
+  overflow: visible;
+  color: #5f636b;
+  font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 14px;
+  font-weight: 400;
+}
+
+.markweave-floating-toolbar--motion-entering {
+  animation: markweave-toolbar-enter var(--markweave-toolbar-motion-duration, 90ms) var(--markweave-toolbar-motion-easing, ease) both;
+}
+
+.markweave-floating-toolbar--motion-repositioning {
+  animation: markweave-toolbar-reposition var(--markweave-toolbar-motion-duration, 80ms) var(--markweave-toolbar-motion-easing, ease) both;
+}
+
+.markweave-floating-toolbar--motion-exiting {
+  animation: markweave-toolbar-exit var(--markweave-toolbar-motion-duration, 70ms) var(--markweave-toolbar-motion-easing, ease) both;
+}
+
+@keyframes markweave-toolbar-enter {
+  from {
+    opacity: 0;
+    transform: translateY(3px) scale(0.985);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes markweave-toolbar-reposition {
+  from {
+    opacity: 0.82;
+    transform: translateY(1px) scale(0.995);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes markweave-toolbar-exit {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+
+  to {
+    opacity: 0;
+    transform: translateY(2px) scale(0.99);
+  }
+}
+
+.markweave-floating-toolbar-content > button,
+.markweave-floating-toolbar-more-item > button {
+  display: inline-grid;
+  min-width: 30px;
+  height: 30px;
+  place-items: center;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  padding: 0 8px;
+  color: #62666d;
+  cursor: default;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1;
+}
+
+.markweave-floating-toolbar-content svg,
+.markweave-floating-toolbar-more-item svg,
+.markweave-floating-toolbar-menu-icon svg {
+  display: block;
+  flex: none;
+}
+
+.markweave-floating-toolbar-content > button[data-active="true"],
+.markweave-floating-toolbar-content > button:hover,
+.markweave-floating-toolbar-more-item > button[data-active="true"],
+.markweave-floating-toolbar-more-item > button:hover {
+  background: #f1f2f3;
+  color: #2f343b;
+}
+
+.markweave-floating-toolbar-content > button[data-tooltip-active="true"],
+.markweave-floating-toolbar-more-item > button[data-tooltip-active="true"] {
+  color: #2f343b;
+}
+
+.markweave-floating-toolbar-button--improve {
+  min-width: 96px;
+  padding: 0 12px;
+}
+
+.markweave-floating-toolbar-button--block-type {
+  min-width: 100px;
+  padding: 0 9px 0 11px;
+}
+
+.markweave-floating-toolbar-button--color {
+  min-width: 54px;
+  padding: 0 7px;
+}
+
+.markweave-floating-toolbar-button-inner {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  white-space: nowrap;
+}
+
+.markweave-floating-toolbar-button-inner--color {
+  gap: 5px;
+}
+
+.markweave-floating-toolbar-block-label {
+  max-width: 96px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.markweave-floating-toolbar-color-trigger {
+  display: inline-grid;
+  width: 23px;
+  height: 23px;
+  place-items: center;
+  border: 1px solid #e5e7eb;
+  border-radius: 999px;
+  color: #6d5dfc;
+  font-size: 16px;
+  line-height: 1;
+}
+
+.markweave-floating-toolbar-divider {
+  display: block;
+  width: 1px;
+  height: 26px;
+  margin: 0 5px;
+  background: #e5e7eb;
+}
+
+.markweave-floating-toolbar-tooltip {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: var(--markweave-floating-toolbar-tooltip-left, 50%);
+  z-index: 43;
+  max-width: min(180px, 70vw);
+  transform: translateX(-50%);
+  border: 0;
+  border-radius: 9px;
+  background: #2f3135;
+  box-shadow: none;
+  padding: 7px 10px;
+  color: #ffffff;
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.2;
+  overflow: hidden;
+  pointer-events: none;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.markweave-floating-toolbar-popover {
+  position: absolute;
+  top: calc(100% + 8px);
+  z-index: 42;
+  border: 1px solid rgba(229, 231, 235, 0.92);
+  border-radius: 16px;
+  background: #ffffff;
+  box-shadow:
+    0 20px 46px rgba(31, 35, 40, 0.12),
+    0 2px 6px rgba(31, 35, 40, 0.06);
+  color: #3f434a;
+  font-family: ui-sans-serif, system-ui, sans-serif;
+}
+
+.markweave-floating-toolbar-menu-title {
+  padding: 6px 10px 8px;
+  color: #3f434a;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.markweave-floating-toolbar-turn-menu {
+  left: 0;
+  display: grid;
+  gap: 3px;
+  width: 276px;
+  padding: 10px;
+}
+
+.markweave-floating-toolbar-turn-menu button {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  height: 36px;
+  gap: 11px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  padding: 0 12px;
+  color: #5f636b;
+  cursor: default;
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 400;
+  text-align: left;
+}
+
+.markweave-floating-toolbar-turn-menu button[data-active="true"],
+.markweave-floating-toolbar-turn-menu button:hover {
+  background: #f1f2f3;
+  color: #373b42;
+}
+
+.markweave-floating-toolbar-menu-icon {
+  display: grid;
+  width: 26px;
+  place-items: center;
+  color: #5f636b;
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 1;
+}
+
+.markweave-floating-toolbar-color-popover {
+  right: 20px;
+  display: grid;
+  width: 246px;
+  gap: 13px;
+  padding: 15px 17px 16px;
+}
+
+.markweave-floating-toolbar-color-section {
+  display: grid;
+  gap: 8px;
+}
+
+.markweave-floating-toolbar-color-section .markweave-floating-toolbar-menu-title {
+  padding: 0 0 2px;
+}
+
+.markweave-floating-toolbar-swatch-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 32px);
+  gap: 9px 13px;
+}
+
+.markweave-floating-toolbar-swatch-grid button {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  place-items: center;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  padding: 0;
+  cursor: default;
+}
+
+.markweave-floating-toolbar-swatch-grid button[data-active="true"],
+.markweave-floating-toolbar-swatch-grid button:hover {
+  background: #f1f2f3;
+}
+
+.markweave-floating-toolbar-text-swatch {
+  display: grid;
+  width: 24px;
+  height: 24px;
+  place-items: center;
+  border: 1px solid #e5e7eb;
+  border-radius: 999px;
+  background: #ffffff;
+  font-size: 18px;
+  line-height: 1;
+}
+
+.markweave-floating-toolbar-highlight-swatch {
+  width: 24px;
+  height: 24px;
+  border: 1px solid rgba(31, 35, 40, 0.12);
+  border-radius: 999px;
+}
+
+.markweave-floating-toolbar-more-menu {
+  top: auto;
+  right: 0;
+  bottom: calc(100% + 8px);
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  height: 40px;
+  padding: 5px;
+  border-radius: 16px;
+}
+
+.markweave-floating-toolbar-more-item {
+  position: relative;
+  display: inline-grid;
+}
+
+.markweave-floating-toolbar-tooltip--more {
+  bottom: calc(100% + 10px);
+  left: 50%;
+}
+
+.markweave-slash-menu {
+  position: fixed;
+  z-index: 58;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  width: min(312px, calc(100vw - 32px));
+  overflow: visible;
+  border: 1px solid rgba(229, 231, 235, 0.9);
+  border-radius: 12px;
+  background: #ffffff;
+  box-shadow:
+    0 14px 32px rgba(31, 35, 40, 0.11),
+    0 1px 2px rgba(31, 35, 40, 0.08);
+  padding: 8px 9px;
+  color: #5f636b;
+  font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.markweave-slash-menu[data-placement="top"] {
+  transform: translateY(-100%);
+  transform-origin: bottom left;
+}
+
+.markweave-slash-menu[data-placement="bottom"] {
+  transform-origin: top left;
+}
+
+.markweave-slash-trigger {
+  position: fixed;
+  z-index: 59;
+  display: inline-flex;
+  align-items: center;
+  height: 30px;
+  max-width: 124px;
+  border-radius: 10px;
+  background: #f3f4f6;
+  padding: 0 9px;
+  color: #a2a7af;
+  font-size: 15px;
+  line-height: 1;
+  pointer-events: none;
+}
+
+.markweave-slash-trigger span {
+  color: #2f45ff;
+}
+
+.markweave-slash-trigger em {
+  min-width: 0;
+  overflow: hidden;
+  color: #a2a7af;
+  font-style: normal;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.markweave-slash-command-list,
+.markweave-slash-subpanel {
+  min-height: 0;
+  max-height: calc(var(--markweave-slash-menu-max-height, 420px) - 20px);
+  overflow-y: auto;
+  padding-right: 2px;
+  scrollbar-color: #d7d7d7 transparent;
+  scrollbar-width: thin;
+}
+
+.markweave-slash-command-list::-webkit-scrollbar,
+.markweave-slash-subpanel::-webkit-scrollbar {
+  width: 7px;
+}
+
+.markweave-slash-command-list::-webkit-scrollbar-track,
+.markweave-slash-subpanel::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.markweave-slash-command-list::-webkit-scrollbar-thumb,
+.markweave-slash-subpanel::-webkit-scrollbar-thumb {
+  border: 2px solid transparent;
+  border-radius: 999px;
+  background-clip: content-box;
+  background-color: #d7d7d7;
+}
+
+.markweave-slash-group {
+  display: grid;
+  gap: 2px;
+  padding: 0 0 8px;
+}
+
+.markweave-slash-group + .markweave-slash-group {
+  border-top: 1px solid #ebecef;
+  padding-top: 10px;
+}
+
+.markweave-slash-group-title {
+  padding: 0 10px 5px;
+  color: #3f434a;
+  font-size: 14px;
+  font-weight: 650;
+  line-height: 1.25;
+}
+
+.markweave-slash-menu button {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: default;
+  font: inherit;
+}
+
+.markweave-slash-group > button {
+  display: grid;
+  grid-template-columns: 25px minmax(0, 1fr);
+  align-items: center;
+  width: 100%;
+  min-height: 35px;
+  border-radius: 9px;
+  padding: 0 9px;
+  color: #62666d;
+  text-align: left;
+}
+
+.markweave-slash-group > button[data-active="true"],
+.markweave-slash-group > button:hover {
+  background: #f1f2f3;
+  color: #3f434a;
+}
+
+.markweave-slash-group > button:disabled {
+  color: #a1a7b1;
+  opacity: 0.74;
+}
+
+.markweave-slash-group > button:disabled:hover {
+  background: transparent;
+}
+
+.markweave-slash-group > button span {
+  min-width: 0;
+  overflow: hidden;
+  font-size: 15px;
+  font-weight: 450;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.markweave-slash-group > button svg {
+  display: block;
+  color: #6a6f77;
+}
+
+.markweave-slash-menu__empty {
+  padding: 10px 12px;
+  color: #8a929f;
+  font-size: 14px;
+  line-height: 1.35;
+}
+
+.markweave-slash-subpanel {
+  display: grid;
+  gap: 10px;
+  max-height: inherit;
+}
+
+.markweave-slash-subpanel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 4px;
+  color: #3f434a;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.markweave-slash-subpanel-header button,
+.markweave-slash-upload-actions button {
+  min-height: 28px;
+  border-radius: 8px;
+  padding: 0 9px;
+  color: #6a6f77;
+  font-size: 13px;
+}
+
+.markweave-slash-subpanel-header button:hover,
+.markweave-slash-upload-actions button:hover {
+  background: #f1f2f3;
+}
+
+.markweave-slash-input,
+.markweave-slash-upload-field {
+  display: grid;
+  gap: 5px;
+  color: #6a6f77;
+  font-size: 12px;
+}
+
+.markweave-slash-input {
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  height: 38px;
+  border: 1px solid #d8dde5;
+  border-radius: 11px;
+  padding: 0 10px;
+}
+
+.markweave-slash-input span {
+  color: #2f45ff;
+  font-size: 20px;
+  line-height: 1;
+}
+
+.markweave-slash-input input,
+.markweave-slash-upload-field input {
+  width: 100%;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: #2f343b;
+  font: inherit;
+  font-size: 14px;
+}
+
+.markweave-slash-emoji-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 4px;
+}
+
+.markweave-slash-emoji-grid button {
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  min-height: 56px;
+  border-radius: 12px;
+  padding: 6px 4px;
+}
+
+.markweave-slash-emoji-grid button[data-active="true"],
+.markweave-slash-emoji-grid button:hover {
+  background: #f1f2f3;
+}
+
+.markweave-slash-emoji-grid button span {
+  font-size: 22px;
+  line-height: 1;
+}
+
+.markweave-slash-emoji-grid button small {
+  max-width: 92px;
+  overflow: hidden;
+  color: #6a6f77;
+  font-size: 11px;
+  line-height: 1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.markweave-slash-upload-field {
+  border: 1px solid #e0e4ea;
+  border-radius: 11px;
+  padding: 8px 10px;
+}
+
+.markweave-slash-upload-field input[type="file"] {
+  font-size: 12px;
+}
+
+.markweave-slash-upload-error {
+  border-radius: 8px;
+  background: #fff1f1;
+  padding: 7px 9px;
+  color: #b91c1c;
+  font-size: 12px;
+}
+
+.markweave-slash-upload-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.markweave-slash-upload-actions button[data-primary="true"] {
+  background: #2f343b;
+  color: #ffffff;
+}
+
+.markweave-slash-upload-actions button:disabled {
+  opacity: 0.55;
+}
+
+.markweave-table-controls {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  pointer-events: none;
+}
+
+.markweave-table-controls[data-positioned="false"] {
+  opacity: 0;
+}
+
+.markweave-table-controls button {
+  position: relative;
+  display: grid;
+  place-items: center;
+  border: 1px solid #d6dbe3;
+  background: rgba(255, 255, 255, 0.98);
+  padding: 0;
+  color: #9ba7b8;
+  cursor: default;
+  pointer-events: auto;
+}
+
+.markweave-table-controls button:hover,
+.markweave-table-controls button[aria-expanded="true"] {
+  border-color: #c9d1df;
+  background: #ffffff;
+  color: #7d8ca2;
+}
+
+.markweave-table-controls button:disabled {
+  color: #a3abb7;
+  opacity: 0.58;
+}
+
+.markweave-table-controls button:disabled:hover {
+  background: #ffffff;
+  color: #a3abb7;
+}
+
+.markweave-table-copy-feedback {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  min-width: 180px;
+  max-width: min(320px, 70vw);
+  overflow: hidden;
+  border: 1px solid #d9dee7;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.98);
+  box-shadow: 0 8px 22px rgba(31, 35, 40, 0.12);
+  padding: 5px 8px;
+  color: #343941;
+  font-size: 12px;
+  line-height: 1.35;
+  pointer-events: auto;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.markweave-table-controls .markweave-table-edge-handle {
+  position: absolute;
+  z-index: 11;
+  border-radius: 5px;
+  box-shadow:
+    0 1px 2px rgba(31, 35, 40, 0.12),
+    0 3px 9px rgba(31, 35, 40, 0.1);
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0;
+  transition:
+    border-color 80ms cubic-bezier(0.2, 0, 0, 1),
+    box-shadow 80ms cubic-bezier(0.2, 0, 0, 1),
+    background 80ms cubic-bezier(0.2, 0, 0, 1),
+    opacity 70ms cubic-bezier(0.2, 0, 0, 1);
+}
+
+.markweave-table-controls .markweave-table-edge-handle:hover,
+.markweave-table-controls .markweave-table-edge-handle[aria-expanded="true"] {
+  box-shadow:
+    0 1px 3px rgba(31, 35, 40, 0.14),
+    0 5px 13px rgba(31, 35, 40, 0.12);
+}
+
+.markweave-table-controls .markweave-table-edge-handle--row {
+  width: 14px;
+  height: 28px;
+  transform: translate(-50%, 8px);
+}
+
+.markweave-table-controls .markweave-table-edge-handle--column,
+.markweave-table-controls .markweave-table-edge-handle--selection {
+  width: 32px;
+  height: 14px;
+  transform: translate(5px, 4px);
+}
+
+.markweave-table-controls .markweave-table-edge-handle--selection {
+  border-color: #bfc9dd;
+  color: #8797b4;
+}
+
+.markweave-table-controls .markweave-table-edge-handle--row span {
+  font-size: 0;
+}
+
+.markweave-table-controls .markweave-table-edge-handle span {
+  position: absolute;
+  inset: 0;
+  display: block;
+  overflow: hidden;
+  color: inherit;
+  font-size: 0;
+  line-height: 0;
+}
+
+.markweave-table-controls .markweave-table-edge-handle span::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 3px;
+  height: 3px;
+  border-radius: 999px;
+  background: currentColor;
+  transform: translate(-50%, -50%);
+}
+
+.markweave-table-controls .markweave-table-edge-handle--row span::before {
+  box-shadow:
+    0 -6px 0 currentColor,
+    0 6px 0 currentColor;
+}
+
+.markweave-table-controls .markweave-table-edge-handle--column span::before,
+.markweave-table-controls .markweave-table-edge-handle--selection span::before {
+  box-shadow:
+    -6px 0 0 currentColor,
+    6px 0 0 currentColor;
+}
+
+.markweave-table-menu {
+  position: absolute;
+  display: grid;
+  z-index: 12;
+  min-width: 204px;
+  border: 1px solid #d9dee7;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.98);
+  box-shadow:
+    0 1px 2px rgba(31, 35, 40, 0.08),
+    0 12px 30px rgba(31, 35, 40, 0.14);
+  padding: 4px 0;
+  pointer-events: auto;
+  transition:
+    left 80ms cubic-bezier(0.2, 0, 0, 1),
+    top 80ms cubic-bezier(0.2, 0, 0, 1),
+    opacity 70ms cubic-bezier(0.2, 0, 0, 1);
+}
+
+.markweave-table-menu[data-positioned="false"] {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.markweave-table-menu button {
+  justify-content: flex-start;
+  width: 100%;
+  height: 36px;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  padding: 0 14px;
+  color: #252a31;
+  font-family: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
+  font-size: 14px;
+  font-weight: 400;
+  letter-spacing: 0;
+  text-align: left;
+}
+
+.markweave-table-menu button[data-starts-group="true"] {
+  border-top: 1px solid #e1e4ea;
+}
+
+.markweave-table-menu button:hover:not(:disabled) {
+  background: #f5f6f8;
+}
+
+.markweave-table-menu button:disabled {
+  color: #a3abb7;
+}
+
+.markweave-codeblock-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  pointer-events: none;
+}
+
+.markweave-codeblock-controls {
+  position: absolute;
+  z-index: 13;
+  display: inline-flex;
+  align-items: flex-start;
+  gap: 5px;
+  font-family: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
+  pointer-events: auto;
+}
+
+.markweave-codeblock-controls[data-positioned="false"] {
+  opacity: 0;
+}
+
+.markweave-codeblock-controls button,
+.markweave-mermaid-tabs button,
+.markweave-codeblock-language-menu button {
+  font-family: inherit;
+}
+
+.markweave-codeblock-language-button,
+.markweave-codeblock-icon-button {
+  display: inline-grid;
+  height: 24px;
+  place-items: center;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: #262a31;
+  cursor: default;
+}
+
+.markweave-codeblock-language-button {
+  grid-template-columns: minmax(0, auto) 13px;
+  gap: 3px;
+  max-width: 118px;
+  padding: 0 6px;
+  font-size: 12px;
+  line-height: 1;
+}
+
+.markweave-codeblock-language-button span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.markweave-codeblock-icon-button {
+  width: 24px;
+  padding: 0;
+}
+
+.markweave-codeblock-language-button:hover,
+.markweave-codeblock-language-button[aria-expanded="true"],
+.markweave-codeblock-icon-button:hover,
+.markweave-codeblock-icon-button:focus-visible,
+.markweave-codeblock-icon-button[data-copy-state="copied"] {
+  background: #dedede;
+}
+
+.markweave-codeblock-icon-button:disabled {
+  color: #a8afb8;
+  opacity: 0.62;
+}
+
+.markweave-codeblock-icon-button:disabled:hover {
+  background: transparent;
+}
+
+.markweave-codeblock-icon-button svg,
+.markweave-codeblock-language-button svg,
+.markweave-codeblock-language-menu svg,
+.markweave-mermaid-tabs svg {
+  width: 15px;
+  height: 15px;
+}
+
+.markweave-codeblock-collapse-button[data-collapsed="false"] svg {
+  transform: rotate(180deg);
+}
+
+.markweave-codeblock-copy-wrap {
+  position: relative;
+  display: inline-flex;
+}
+
+.markweave-codeblock-tooltip {
+  position: absolute;
+  z-index: 15;
+  top: calc(100% + 5px);
+  right: 0;
+  border: 1px solid #d6dae0;
+  border-radius: 4px;
+  background: #ffffff;
+  box-shadow: 0 1px 2px rgba(31, 35, 40, 0.08);
+  padding: 4px 8px;
+  color: #24292f;
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-size: 12px;
+  line-height: 1.25;
+  pointer-events: none;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.markweave-codeblock-language-menu {
+  position: absolute;
+  z-index: 14;
+  width: 228px;
+  max-width: calc(100vw - 24px);
+  border: 1px solid #d2d6dc;
+  border-radius: 7px;
+  background: #ffffff;
+  box-shadow: 0 5px 16px rgba(31, 35, 40, 0.12);
+  padding: 6px;
+  font-family: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
+  pointer-events: auto;
+}
+
+.markweave-codeblock-language-menu[data-positioned="false"] {
+  opacity: 0;
+}
+
+.markweave-codeblock-language-search {
+  position: relative;
+  display: block;
+}
+
+.markweave-codeblock-language-search input {
+  width: 100%;
+  height: 30px;
+  border: 1px solid #d1d5db;
+  border-radius: 5px;
+  outline: none;
+  padding: 0 28px 0 9px;
+  color: #24292f;
+  background: #ffffff;
+  font: inherit;
+  font-size: 13px;
+  line-height: 1;
+}
+
+.markweave-codeblock-language-search input::placeholder {
+  color: #7a7f87;
+}
+
+.markweave-codeblock-language-search svg {
+  position: absolute;
+  right: 9px;
+  top: 50%;
+  width: 15px;
+  height: 15px;
+  color: #111827;
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+
+.markweave-codeblock-language-list {
+  max-height: 220px;
+  overflow-y: auto;
+  padding-top: 4px;
+  scrollbar-color: #c6c6c6 transparent;
+  scrollbar-width: thin;
+}
+
+.markweave-codeblock-language-list::-webkit-scrollbar {
+  width: 8px;
+}
+
+.markweave-codeblock-language-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.markweave-codeblock-language-list::-webkit-scrollbar-thumb {
+  border: 2px solid transparent;
+  border-radius: 999px;
+  background: #c6c6c6;
+  background-clip: content-box;
+}
+
+.markweave-codeblock-language-list button {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 16px;
+  align-items: center;
+  gap: 5px;
+  width: 100%;
+  min-height: 26px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  padding: 0 8px;
+  color: #24292f;
+  cursor: default;
+  font-size: 13px;
+  line-height: 1.25;
+  text-align: left;
+}
+
+.markweave-codeblock-language-list button:hover,
+.markweave-codeblock-language-list button[data-active="true"] {
+  background: #d8d8d8;
+}
+
+.markweave-codeblock-language-list button span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.markweave-mermaid-tabs {
+  position: absolute;
+  z-index: 13;
+  display: inline-flex;
+  gap: 2px;
+  pointer-events: auto;
+}
+
+.markweave-mermaid-tabs[data-positioned="false"] {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.markweave-mermaid-tabs button {
+  height: 24px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  padding: 0 8px;
+  color: #24292f;
+  cursor: default;
+  font-family: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
+  font-size: 13px;
+  line-height: 1;
+}
+
+.markweave-mermaid-tabs button:hover,
+.markweave-mermaid-tabs button[data-active="true"] {
+  background: #ececec;
+}
+
+.markweave-mermaid-preview-actions {
+  position: absolute;
+  top: 34px;
+  right: 0;
+  display: grid;
+  gap: 5px;
+}
+
+.markweave-mermaid-preview {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  overflow: auto;
+  margin: 1.05em 0;
+  border: 1px solid #e5e8ee;
+  border-radius: 6px;
+  background: #ffffff;
+  padding: 44px 16px 18px;
+  font-family: ui-sans-serif, system-ui, sans-serif;
+}
+
+.markweave-mermaid-preview--inline {
+  min-height: 260px;
+}
+
+.markweave-mermaid-preview svg {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin: 0 auto;
+}
+
+.markweave-editor-surface pre.markweave-code-block[data-markweave-collapsed="true"] + .markweave-mermaid-preview--inline {
+  display: none;
+}
+
+.markweave-mermaid-preview--empty,
+.markweave-mermaid-preview--error {
+  color: #6a737d;
+  font-size: 13px;
+}
+
+.markweave-mermaid-preview--error {
+  border-color: #f0c2c0;
+  background: #fff8f7;
+  color: #9f2f29;
+  white-space: pre-wrap;
+}
+
+.markweave-mermaid-fullscreen-layer {
+  position: fixed;
+  z-index: 1000;
+  inset: 0;
+  overflow: hidden;
+  background: #ffffff;
+  color: #24292f;
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  pointer-events: auto;
+  user-select: none;
+}
+
+.markweave-mermaid-fullscreen-toolbar {
+  position: absolute;
+  z-index: 2;
+  top: 72px;
+  left: 96px;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  min-height: 28px;
+  border-radius: 4px;
+  background: #f4f4f4;
+  padding: 3px 5px;
+}
+
+.markweave-mermaid-fullscreen-control {
+  position: relative;
+  display: grid;
+  width: 22px;
+  height: 22px;
+  place-items: center;
+  border: 0;
+  border-radius: 3px;
+  background: transparent;
+  color: #3f4650;
+  cursor: default;
+  padding: 0;
+}
+
+.markweave-mermaid-fullscreen-control:hover,
+.markweave-mermaid-fullscreen-control:focus-visible {
+  background: #e6e6e6;
+}
+
+.markweave-mermaid-fullscreen-control svg {
+  width: 14px;
+  height: 14px;
+}
+
+.markweave-mermaid-fullscreen-zoom-label {
+  min-width: 38px;
+  color: #2f343b;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1;
+  text-align: center;
+}
+
+.markweave-mermaid-fullscreen-tooltip {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 50%;
+  border: 1px solid #d6dae0;
+  border-radius: 4px;
+  background: #ffffff;
+  box-shadow: 0 1px 2px rgba(31, 35, 40, 0.08);
+  padding: 4px 8px;
+  color: #24292f;
+  font-size: 12px;
+  line-height: 1.25;
+  pointer-events: none;
+  transform: translateX(-50%);
+  white-space: nowrap;
+}
+
+.markweave-mermaid-fullscreen-close {
+  position: absolute;
+  z-index: 2;
+  top: 12px;
+  right: 14px;
+  display: grid;
+  width: 30px;
+  height: 30px;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: #24292f;
+  cursor: default;
+  padding: 0;
+}
+
+.markweave-mermaid-fullscreen-close:hover,
+.markweave-mermaid-fullscreen-close:focus-visible {
+  background: #eeeeee;
+}
+
+.markweave-mermaid-fullscreen-close svg {
+  width: 17px;
+  height: 17px;
+}
+
+.markweave-mermaid-fullscreen-viewport {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  overflow: hidden;
+  place-items: center;
+  cursor: grab;
+  touch-action: none;
+}
+
+.markweave-mermaid-fullscreen-viewport[data-dragging="true"] {
+  cursor: grabbing;
+}
+
+.markweave-mermaid-fullscreen-content {
+  transform-origin: center center;
+  will-change: transform;
+}
+
+.markweave-mermaid-fullscreen-content svg {
+  display: block;
+  max-width: none;
+  max-height: none;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+}
+
+@media (max-width: 720px) {
+  .markweave-editor-surface h1::before,
+  .markweave-editor-surface h2::before,
+  .markweave-editor-surface h3::before {
+    position: static;
+    display: inline-block;
+    margin-right: 8px;
+  }
+}
