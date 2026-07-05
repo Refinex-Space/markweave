@@ -353,10 +353,14 @@ describe("slash command runtime", () => {
     expect(filterSlashCommands("todo").map((command) => command.id)).toContain("task-list");
     expect(filterSlashCommands("divider").map((command) => command.id)).toContain("separator");
     expect(filterSlashCommands("upload").map((command) => command.id)).toEqual(["image", "video", "attachment"]);
+    expect(defaultSlashCommandSpecs.find((command) => command.id === "attachment")).toMatchObject({
+      disabled: true,
+      disabledReason: "Temporarily unavailable.",
+    });
   });
 
-  it("executes heading 3, task list, separator, callout, emoji, and upload commands", () => {
-    const editor = createEditor("<p>/h3</p><p>/task</p><p>/sep</p><p>/callout</p><p>/emoji</p><p>/image</p><p>/video</p><p>/attachment</p>");
+  it("executes heading 3, task list, separator, callout, emoji, and enabled upload commands", () => {
+    const editor = createEditor("<p>/h3</p><p>/task</p><p>/sep</p><p>/callout</p><p>/emoji</p><p>/image</p><p>/video</p>");
     const runCommandAtText = (text: string, commandId: string, options = {}) => {
       expect(editor.commands.setTextSelection(textPosition(editor, text))).toBe(true);
       const state = getNextSlashCommandState(initialSlashCommandState, getSlashCommandContext(editor.state));
@@ -376,7 +380,6 @@ describe("slash command runtime", () => {
     runCommandAtText("/emoji", "emoji", { emoji: "✅" });
     runCommandAtText("/image", "image", { uploadResult: { src: "https://example.com/image.png", alt: "Example" } });
     runCommandAtText("/video", "video", { uploadResult: { src: "/video.mp4", name: "video.mp4", mimeType: "video/mp4" } });
-    runCommandAtText("/attachment", "attachment", { uploadResult: { src: "./notes.pdf", name: "notes.pdf", mimeType: "application/pdf", size: 42 } });
 
     expect(editor.getHTML()).toContain("<h3></h3>");
     expect(editor.getHTML()).toContain('data-type="taskList"');
@@ -385,7 +388,31 @@ describe("slash command runtime", () => {
     expect(editor.getText()).toContain("✅");
     expect(editor.getHTML()).toContain('src="https://example.com/image.png"');
     expect(editor.getHTML()).toContain('data-markweave-video="true"');
-    expect(editor.getHTML()).toContain('data-markweave-attachment="true"');
+    expect(editor.getHTML()).not.toContain('data-markweave-attachment="true"');
+  });
+
+  it("keeps the disabled attachment command visible but non-executable", () => {
+    const editor = createEditor("<p>/attachment</p>");
+    const attachmentCommand = defaultSlashCommandSpecs.find((command) => command.id === "attachment");
+
+    if (!attachmentCommand) {
+      throw new Error("Expected attachment slash command.");
+    }
+
+    expect(filterSlashCommands("upload").map((command) => command.id)).toContain("attachment");
+    expect(isExecutableSlashCommand(attachmentCommand)).toBe(false);
+
+    expect(editor.commands.setTextSelection(textPosition(editor, "/attachment"))).toBe(true);
+    const state = getNextSlashCommandState(initialSlashCommandState, getSlashCommandContext(editor.state));
+
+    expect(getSlashCommandKeyboardAction({ ...state, activeIndex: 0 }, [attachmentCommand], "Enter")).toEqual({ type: "ignore" });
+    expect(
+      executeSlashCommand(editor, state, attachmentCommand, {
+        uploadResult: { src: "./notes.pdf", name: "notes.pdf", mimeType: "application/pdf", size: 42 },
+      }),
+    ).toBe(false);
+    expect(editor.getText()).toContain("/attachment");
+    expect(editor.getHTML()).not.toContain('data-markweave-attachment="true"');
   });
 
   it("positions slash menus within the editor frame and flips near the lower boundary", () => {

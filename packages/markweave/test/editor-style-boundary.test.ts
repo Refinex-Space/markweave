@@ -77,6 +77,7 @@ describe("editor style boundary", () => {
     expect(editorCss).toContain(".markweave-slash-trigger");
     expect(editorCss).toContain(".markweave-slash-emoji-grid");
     expect(editorCss).toContain(".markweave-slash-upload-field");
+    expect(editorCss).toContain('[data-disabled="true"]');
     expect(editorCss).toContain(".markweave-image-node");
     expect(editorCss).toContain(".markweave-image-toolbar");
     expect(editorCss).toContain(".markweave-image-upload-placeholder");

@@ -7,7 +7,7 @@ import { createMarkweaveEditorExtensions } from "../editor-core/create-editor-ex
 import { createSelectionSnapshot, type EditorSelectionSnapshot } from "../editor-core/selection-state";
 import { getActiveCodeBlockState, markweaveCodeBlockBehavior, type MarkweaveCodeBlockState } from "../plugins/codeblock/codeblock-behavior";
 import { getMermaidPreviewState, type MermaidPreviewMode, type MermaidPreviewState } from "../plugins/mermaid/mermaid-renderer";
-import { defaultSlashCommandSpecs, filterSlashCommands, type SlashCommandSpec } from "../plugins/slash-command/command-spec";
+import { defaultSlashCommandSpecs, filterSlashCommands, isExecutableSlashCommand, type SlashCommandSpec } from "../plugins/slash-command/command-spec";
 import { getSlashCommandKeyboardAction } from "../plugins/slash-command/slash-keyboard";
 import {
   executeSlashCommand,
@@ -372,6 +372,10 @@ export function useMarkweaveEditorController({
   const runSlashCommand = useCallback(
     (command: SlashCommandSpec, options?: ExecuteSlashCommandOptions) => {
       if (!editor) {
+        return;
+      }
+
+      if (!isExecutableSlashCommand(command)) {
         return;
       }
 

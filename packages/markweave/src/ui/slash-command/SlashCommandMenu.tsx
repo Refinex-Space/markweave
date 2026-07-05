@@ -407,22 +407,24 @@ export function SlashCommandMenu({
                   const flatIndex = commands.indexOf(command);
                   const active = flatIndex === presentation.activeIndex;
                   const executable = isExecutableSlashCommand(command);
+                  const disabled = Boolean(command.disabled);
                   return (
                     <button
                       key={command.id}
                       type="button"
                       role="option"
                       aria-selected={active}
-                      aria-disabled={!executable}
+                      aria-disabled={!executable || disabled}
                       data-active={active}
+                      data-disabled={disabled ? "true" : "false"}
                       data-execution-kind={command.executionKind}
                       data-testid={`markweave-slash-command-${command.id}`}
-                      disabled={!executable}
+                      title={disabled ? command.disabledReason : undefined}
                       onFocus={() => onActiveIndexChange?.(flatIndex)}
                       onMouseEnter={() => onActiveIndexChange?.(flatIndex)}
                       onMouseDown={(event) => event.preventDefault()}
                       onClick={() => {
-                        if (!executable) {
+                        if (!executable || disabled) {
                           return;
                         }
 
@@ -436,6 +438,7 @@ export function SlashCommandMenu({
                     >
                       <SlashIcon name={command.icon} />
                       <span>{command.label}</span>
+                      {disabled && command.disabledReason ? <small>{command.disabledReason}</small> : null}
                     </button>
                   );
                 })}

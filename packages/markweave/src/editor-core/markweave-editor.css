@@ -1518,6 +1518,17 @@
   color: #3f434a;
 }
 
+.markweave-slash-group > button[data-disabled="true"] {
+  color: #a1a7b1;
+  opacity: 0.72;
+}
+
+.markweave-slash-group > button[data-disabled="true"][data-active="true"],
+.markweave-slash-group > button[data-disabled="true"]:hover {
+  background: transparent;
+  color: #a1a7b1;
+}
+
 .markweave-slash-group > button:disabled {
   color: #a1a7b1;
   opacity: 0.74;
@@ -1537,9 +1548,24 @@
   white-space: nowrap;
 }
 
+.markweave-slash-group > button small {
+  grid-column: 2;
+  min-width: 0;
+  overflow: hidden;
+  color: #9aa0a9;
+  font-size: 11px;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .markweave-slash-group > button svg {
   display: block;
   color: #6a6f77;
+}
+
+.markweave-slash-group > button[data-disabled="true"] svg {
+  color: #a8adb5;
 }
 
 .markweave-slash-menu__empty {

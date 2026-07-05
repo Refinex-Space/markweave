@@ -40,6 +40,8 @@ export interface SlashCommandSpec {
   readonly calloutType?: MarkweaveCalloutType;
   readonly inputKind?: SlashCommandInputKind;
   readonly uploadKind?: SlashCommandUploadKind;
+  readonly disabled?: boolean;
+  readonly disabledReason?: string;
 }
 
 export const externalAiSlashCommandSpecs: readonly SlashCommandSpec[] = [
@@ -334,6 +336,8 @@ export const editorSlashCommandSpecs: readonly SlashCommandSpec[] = [
     icon: "attachment",
     inputKind: "upload",
     uploadKind: "attachment",
+    disabled: true,
+    disabledReason: "Temporarily unavailable.",
     searchTerms: ["attachment", "file", "upload"],
   },
 ] as const;
@@ -341,7 +345,7 @@ export const editorSlashCommandSpecs: readonly SlashCommandSpec[] = [
 export const defaultSlashCommandSpecs: readonly SlashCommandSpec[] = [...editorSlashCommandSpecs] as const;
 
 export function isExecutableSlashCommand(command: SlashCommandSpec) {
-  return command.executionKind === "editor";
+  return command.executionKind === "editor" && !command.disabled;
 }
 
 export function filterSlashCommands(query: string, commands: readonly SlashCommandSpec[] = defaultSlashCommandSpecs) {
