@@ -10,17 +10,20 @@ import {
   shouldShowFloatingToolbar,
 } from "../src/editor-core/selection-state";
 import {
+  applyFloatingToolbarLink,
   createFloatingToolbarAssistantRequest,
   floatingToolbarHighlightColorOptions,
   floatingToolbarMoreActions,
   floatingToolbarTextColorOptions,
   floatingToolbarTurnIntoOptions,
   getCurrentFloatingToolbarBlockType,
+  getFloatingToolbarLinkHref,
   getFloatingToolbarButtonModels,
   getFloatingToolbarTooltipModel,
   insertFloatingToolbarInlineMath,
+  openFloatingToolbarLinkHref,
   preventFloatingToolbarPointerFocusLoss,
-  runFloatingToolbarLinkCommand,
+  removeFloatingToolbarLink,
   runFloatingToolbarMoreAction,
   setFloatingToolbarBlockType,
   setFloatingToolbarHighlightColor,
@@ -434,37 +437,57 @@ describe("floating toolbar button model", () => {
     expect(editor.state.doc.toJSON()).toEqual(before);
   });
 
-  it("runs the Link command with an injectable prompt for selected text", () => {
+  it("applies a trimmed Link URL to selected text", () => {
     const editor = createEditor("<p>OpenAI plain</p>");
     selectText(editor, "OpenAI");
 
-    expect(runFloatingToolbarLinkCommand(editor, () => " https://openai.com/docs ")).toBe(true);
+    expect(applyFloatingToolbarLink(editor, " https://openai.com/docs ")).toBe(true);
 
     expect(editor.getHTML()).toContain('href="https://openai.com/docs"');
+    expect(getFloatingToolbarLinkHref(editor)).toBe("https://openai.com/docs");
     expect(activeButtonIds(editor, "default")).toContain("link");
     expect(editor.state.selection.empty).toBe(false);
   });
 
-  it("keeps content unchanged when Link prompt is cancelled", () => {
+  it("keeps content unchanged when Link URL is empty or unsafe", () => {
     const editor = createEditor("<p>OpenAI plain</p>");
     selectText(editor, "OpenAI");
     const before = editor.state.doc.toJSON();
 
-    expect(runFloatingToolbarLinkCommand(editor, () => null)).toBe(false);
+    expect(applyFloatingToolbarLink(editor, "   ")).toBe(false);
+    expect(applyFloatingToolbarLink(editor, "javascript:alert(1)")).toBe(false);
+    expect(applyFloatingToolbarLink(editor, "data:text/html,unsafe")).toBe(false);
 
     expect(editor.state.doc.toJSON()).toEqual(before);
     expect(activeButtonIds(editor, "default")).not.toContain("link");
   });
 
-  it("clears an active link when Link prompt returns an empty URL", () => {
+  it("updates and removes an active link while preserving the text selection", () => {
     const editor = createEditor('<p><a href="https://openai.com">OpenAI</a> plain</p>');
     selectText(editor, "OpenAI");
 
     expect(activeButtonIds(editor, "default")).toContain("link");
-    expect(runFloatingToolbarLinkCommand(editor, () => "   ")).toBe(true);
+    expect(getFloatingToolbarLinkHref(editor)).toBe("https://openai.com");
+    expect(applyFloatingToolbarLink(editor, "https://openai.com/docs")).toBe(true);
+    expect(editor.getHTML()).toContain('href="https://openai.com/docs"');
+
+    expect(removeFloatingToolbarLink(editor)).toBe(true);
 
     expect(editor.getHTML()).not.toContain('href="https://openai.com"');
+    expect(editor.getHTML()).not.toContain('href="https://openai.com/docs"');
     expect(activeButtonIds(editor, "default")).not.toContain("link");
     expect(editor.state.selection.empty).toBe(false);
+  });
+
+  it("opens a valid Link URL through an injectable window opener", () => {
+    const calls: Array<readonly [string | URL | undefined, string | undefined, string | undefined]> = [];
+    const opener = (url?: string | URL, target?: string, features?: string) => {
+      calls.push([url, target, features]);
+      return null;
+    };
+
+    expect(openFloatingToolbarLinkHref(" https://openai.com/docs ", opener)).toBe(true);
+    expect(openFloatingToolbarLinkHref("javascript:alert(1)", opener)).toBe(false);
+    expect(calls).toEqual([["https://openai.com/docs", "_blank", "noopener,noreferrer"]]);
   });
 });

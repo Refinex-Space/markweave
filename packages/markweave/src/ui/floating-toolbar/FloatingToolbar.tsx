@@ -1,7 +1,7 @@
 import type { Editor } from "@tiptap/react";
 import { BubbleMenu } from "@tiptap/react/menus";
 import { DOMSerializer } from "@tiptap/pm/model";
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type MouseEvent as ReactMouseEvent } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type MouseEvent as ReactMouseEvent, type RefObject } from "react";
 import {
   AlignCenter,
   AlignJustify,
@@ -12,6 +12,8 @@ import {
   ChevronDown,
   ChevronUp,
   Code2,
+  CornerDownLeft,
+  ExternalLink,
   IndentDecrease,
   IndentIncrease,
   Italic,
@@ -26,6 +28,7 @@ import {
   Strikethrough,
   Subscript,
   Superscript,
+  Trash2,
   Type as TypeIcon,
   Underline,
   type LucideIcon,
@@ -45,6 +48,7 @@ import {
 } from "../../editor-core/selection-state";
 import { normalizeMarkweaveCalloutType, type MarkweaveCalloutType } from "../../plugins/callout/callout-node";
 import { normalizeMarkweaveIndentLevel } from "../../plugins/indent/indent-extension";
+import { normalizeMarkdownLinkHref } from "../../plugins/markdown/markdown-input";
 
 interface FloatingToolbarProps {
   readonly editor: Editor;
@@ -66,7 +70,7 @@ export type FloatingToolbarButtonId =
   | "more";
 export type FloatingToolbarButtonGroup = "assistant" | "block" | "inline" | "link" | "color" | "more";
 export type FloatingToolbarAssistantSource = "rewrite-selection" | "extract-to-note";
-export type FloatingToolbarMenu = "block-type" | "color" | "more";
+export type FloatingToolbarMenu = "block-type" | "link" | "color" | "more";
 export type FloatingToolbarTextAlign = "left" | "center" | "right" | "justify";
 export type FloatingToolbarTurnIntoId =
   | "paragraph"
@@ -144,7 +148,7 @@ export interface FloatingToolbarMoreAction {
   readonly group: "script" | "align" | "indent";
 }
 
-export type FloatingToolbarLinkPrompt = (message: string, defaultValue: string) => string | null;
+type FloatingToolbarWindowOpen = (url?: string | URL, target?: string, features?: string) => WindowProxy | null;
 
 export const floatingToolbarBlockTypes: readonly FloatingToolbarBlockType[] = [
   { id: "paragraph", label: "Text", glyph: "Text", level: null },
@@ -298,9 +302,7 @@ const toolbarButtonSpecs: readonly ToolbarButtonSpec[] = [
     glyph: "link",
     group: "link",
     active: (editor) => editor.isActive("link"),
-    run: (editor) => {
-      runFloatingToolbarLinkCommand(editor);
-    },
+    run: () => undefined,
     variants: ["default", "table-compact"],
   },
   {
@@ -330,29 +332,16 @@ const toolbarButtonSpecs: readonly ToolbarButtonSpec[] = [
   },
 ];
 
-function getDefaultFloatingToolbarLinkPrompt(): FloatingToolbarLinkPrompt | null {
-  return typeof window === "undefined" || typeof window.prompt !== "function" ? null : window.prompt.bind(window);
+export function getFloatingToolbarLinkHref(editor: Editor) {
+  const href = editor.getAttributes("link").href;
+  return typeof href === "string" ? href : "";
 }
 
-export function runFloatingToolbarLinkCommand(
-  editor: Editor,
-  prompt: FloatingToolbarLinkPrompt | null = getDefaultFloatingToolbarLinkPrompt(),
-) {
-  if (!prompt) {
+export function applyFloatingToolbarLink(editor: Editor, href: string) {
+  const normalizedHref = normalizeMarkdownLinkHref(href);
+
+  if (!normalizedHref) {
     return false;
-  }
-
-  const previousHref = editor.getAttributes("link").href as string | undefined;
-  const href = prompt("Link URL", previousHref ?? "https://");
-
-  if (href === null) {
-    return false;
-  }
-
-  const normalizedHref = href.trim();
-
-  if (normalizedHref === "") {
-    return editor.chain().focus().extendMarkRange("link").unsetLink().run();
   }
 
   if (editor.isActive("link")) {
@@ -360,6 +349,28 @@ export function runFloatingToolbarLinkCommand(
   }
 
   return editor.chain().focus().setLink({ href: normalizedHref }).run();
+}
+
+export function removeFloatingToolbarLink(editor: Editor) {
+  if (!editor.isActive("link")) {
+    return false;
+  }
+
+  return editor.chain().focus().extendMarkRange("link").unsetLink().run();
+}
+
+export function openFloatingToolbarLinkHref(
+  href: string,
+  openWindow: FloatingToolbarWindowOpen | null = typeof window === "undefined" ? null : window.open.bind(window),
+) {
+  const normalizedHref = normalizeMarkdownLinkHref(href);
+
+  if (!normalizedHref || !openWindow) {
+    return false;
+  }
+
+  openWindow(normalizedHref, "_blank", "noopener,noreferrer");
+  return true;
 }
 
 export function getCurrentFloatingToolbarBlockType(editor: Editor): FloatingToolbarBlockType {
@@ -674,6 +685,10 @@ function getNativeSelectionDomRects(editor: Editor) {
   }
 
   const range = nativeSelection.getRangeAt(0);
+  if (typeof range.getClientRects !== "function") {
+    return null;
+  }
+
   const clientRects = Array.from(range.getClientRects())
     .filter(isMeasurableToolbarRect)
     .map((rect) => createToolbarDomRect(rect.left, rect.top, rect.width, rect.height));
@@ -725,7 +740,7 @@ function getFloatingToolbarSelectionVirtualElement(editor: Editor) {
 }
 
 function isMenuButton(id: FloatingToolbarButtonId): id is FloatingToolbarMenu {
-  return id === "block-type" || id === "color" || id === "more";
+  return id === "block-type" || id === "link" || id === "color" || id === "more";
 }
 
 function isFloatingToolbarTurnIntoActive(editor: Editor, id: FloatingToolbarTurnIntoId) {
@@ -799,13 +814,18 @@ export function FloatingToolbar({ editor, selectionSnapshot, onRewriteSelection 
   const [tooltipButtonId, setTooltipButtonId] = useState<FloatingToolbarButtonId | FloatingToolbarMoreActionId | null>(null);
   const [tooltipAnchorX, setTooltipAnchorX] = useState<number | null>(null);
   const [openMenu, setOpenMenu] = useState<FloatingToolbarMenu | null>(null);
+  const [linkInputValue, setLinkInputValue] = useState("");
+  const [linkInitialHref, setLinkInitialHref] = useState("");
+  const [linkSelectionRange, setLinkSelectionRange] = useState<{ readonly from: number; readonly to: number } | null>(null);
   const [frameShiftPx, setFrameShiftPx] = useState(0);
   const [topBoundaryPaddingPx, setTopBoundaryPaddingPx] = useState(stableToolbarState.boundaryPadding);
   const frameShiftRef = useRef(0);
   const toolbarRootRef = useRef<HTMLDivElement | null>(null);
   const toolbarContentRef = useRef<HTMLDivElement | null>(null);
+  const linkInputRef = useRef<HTMLInputElement | null>(null);
   const visibleButtons = getFloatingToolbarButtonModels(editor, toolbarState.variant);
   const tooltipModel = getFloatingToolbarTooltipModel(visibleButtons.find((button) => button.id === tooltipButtonId) ?? null);
+  const normalizedLinkInputHref = normalizeMarkdownLinkHref(linkInputValue);
   const applyFrameGeometryClamp = useCallback(() => {
     const toolbarElement = toolbarRootRef.current;
     const frameElement = editor.view.dom.closest(".markweave-editor-frame");
@@ -978,9 +998,31 @@ export function FloatingToolbar({ editor, selectionSnapshot, onRewriteSelection 
     };
   }, [editor, openMenu]);
 
+  useEffect(() => {
+    if (openMenu !== "link") {
+      return undefined;
+    }
+
+    const animationFrame = window.requestAnimationFrame(() => {
+      linkInputRef.current?.focus();
+      linkInputRef.current?.select();
+    });
+
+    return () => window.cancelAnimationFrame(animationFrame);
+  }, [openMenu]);
+
   const runButton = (button: FloatingToolbarButtonModel) => {
     if (isMenuButton(button.id)) {
       const menuId = button.id;
+      if (menuId === "link") {
+        const href = getFloatingToolbarLinkHref(editor);
+        setLinkInputValue(href);
+        setLinkInitialHref(href);
+        setLinkSelectionRange({
+          from: Math.min(editor.state.selection.from, editor.state.selection.to),
+          to: Math.max(editor.state.selection.from, editor.state.selection.to),
+        });
+      }
       setOpenMenu((current) => (current === menuId ? null : menuId));
       return;
     }
@@ -994,6 +1036,42 @@ export function FloatingToolbar({ editor, selectionSnapshot, onRewriteSelection 
 
     button.run();
     editor.commands.focus();
+  };
+
+  const closeLinkPopover = () => {
+    setOpenMenu(null);
+    editor.commands.focus();
+  };
+
+  const restoreLinkSelection = () => {
+    if (!linkSelectionRange) {
+      return;
+    }
+
+    editor.commands.setTextSelection(linkSelectionRange);
+  };
+
+  const submitLinkInput = () => {
+    restoreLinkSelection();
+    if (!applyFloatingToolbarLink(editor, linkInputValue)) {
+      return;
+    }
+
+    closeLinkPopover();
+  };
+
+  const removeLinkInput = () => {
+    restoreLinkSelection();
+    if (removeFloatingToolbarLink(editor)) {
+      setLinkInputValue("");
+      setLinkInitialHref("");
+      closeLinkPopover();
+      return;
+    }
+
+    if (linkInputValue.trim()) {
+      setLinkInputValue("");
+    }
   };
 
   const setAnchoredTooltip = (buttonId: FloatingToolbarButtonId | null, element?: HTMLElement | null) => {
@@ -1040,6 +1118,19 @@ export function FloatingToolbar({ editor, selectionSnapshot, onRewriteSelection 
           />
         ))}
         {openMenu === "block-type" ? <TurnIntoMenu editor={editor} onClose={() => setOpenMenu(null)} /> : null}
+        {openMenu === "link" ? (
+          <LinkPopover
+            inputRef={linkInputRef}
+            value={linkInputValue}
+            canApply={Boolean(normalizedLinkInputHref)}
+            canOpen={Boolean(normalizedLinkInputHref)}
+            canRemove={Boolean(linkInitialHref || linkInputValue.trim())}
+            onValueChange={setLinkInputValue}
+            onApply={submitLinkInput}
+            onOpen={() => openFloatingToolbarLinkHref(linkInputValue)}
+            onRemove={removeLinkInput}
+          />
+        ) : null}
         {openMenu === "color" ? <ColorMenu editor={editor} onClose={() => setOpenMenu(null)} /> : null}
         {openMenu === "more" ? (
           <MoreMenu editor={editor} activeTooltipId={tooltipButtonId} onTooltipChange={setTooltipButtonId} onClose={() => setOpenMenu(null)} />
@@ -1058,6 +1149,80 @@ export function FloatingToolbar({ editor, selectionSnapshot, onRewriteSelection 
         ) : null}
       </div>
     </BubbleMenu>
+  );
+}
+
+function LinkPopover({
+  inputRef,
+  value,
+  canApply,
+  canOpen,
+  canRemove,
+  onValueChange,
+  onApply,
+  onOpen,
+  onRemove,
+}: {
+  readonly inputRef: RefObject<HTMLInputElement | null>;
+  readonly value: string;
+  readonly canApply: boolean;
+  readonly canOpen: boolean;
+  readonly canRemove: boolean;
+  readonly onValueChange: (value: string) => void;
+  readonly onApply: () => void;
+  readonly onOpen: () => void;
+  readonly onRemove: () => void;
+}) {
+  return (
+    <form
+      className="markweave-floating-toolbar-popover markweave-floating-toolbar-link-popover"
+      data-testid="markweave-floating-toolbar-link-popover"
+      onSubmit={(event) => {
+        event.preventDefault();
+        onApply();
+      }}
+    >
+      <input
+        ref={inputRef}
+        aria-label="Link URL"
+        data-testid="markweave-floating-toolbar-link-input"
+        placeholder="Paste a link..."
+        value={value}
+        onChange={(event) => onValueChange(event.currentTarget.value)}
+      />
+      <span className="markweave-floating-toolbar-link-actions">
+        <button
+          type="submit"
+          aria-label="Apply link"
+          data-testid="markweave-floating-toolbar-link-apply"
+          disabled={!canApply}
+          onMouseDown={preventFloatingToolbarPointerFocusLoss}
+        >
+          <Icon name="corner-down-left" />
+        </button>
+        <span className="markweave-floating-toolbar-link-divider" aria-hidden="true" />
+        <button
+          type="button"
+          aria-label="Open link"
+          data-testid="markweave-floating-toolbar-link-open"
+          disabled={!canOpen}
+          onMouseDown={preventFloatingToolbarPointerFocusLoss}
+          onClick={onOpen}
+        >
+          <Icon name="external-link" />
+        </button>
+        <button
+          type="button"
+          aria-label="Remove link"
+          data-testid="markweave-floating-toolbar-link-remove"
+          disabled={!canRemove}
+          onMouseDown={preventFloatingToolbarPointerFocusLoss}
+          onClick={onRemove}
+        >
+          <Icon name="trash" />
+        </button>
+      </span>
+    </form>
   );
 }
 
@@ -1363,6 +1528,8 @@ type FloatingToolbarIconName =
   | "sparkles"
   | "chevron-down"
   | "chevron-up"
+  | "corner-down-left"
+  | "external-link"
   | "bold"
   | "italic"
   | "underline"
@@ -1384,12 +1551,15 @@ type FloatingToolbarIconName =
   | "align-right"
   | "align-justify"
   | "decrease-indent"
-  | "increase-indent";
+  | "increase-indent"
+  | "trash";
 
 const floatingToolbarIconMap: Record<FloatingToolbarIconName, LucideIcon> = {
   sparkles: Sparkles,
   "chevron-down": ChevronDown,
   "chevron-up": ChevronUp,
+  "corner-down-left": CornerDownLeft,
+  "external-link": ExternalLink,
   bold: Bold,
   italic: Italic,
   underline: Underline,
@@ -1412,6 +1582,7 @@ const floatingToolbarIconMap: Record<FloatingToolbarIconName, LucideIcon> = {
   "align-justify": AlignJustify,
   "decrease-indent": IndentDecrease,
   "increase-indent": IndentIncrease,
+  trash: Trash2,
 };
 
 function Icon({ name }: { readonly name: FloatingToolbarIconName }) {

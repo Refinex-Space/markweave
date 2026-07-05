@@ -19,6 +19,7 @@ const editorRuntimeSelectors = [
   ".markweave-floating-toolbar",
   ".markweave-floating-toolbar-popover",
   ".markweave-floating-toolbar-turn-menu",
+  ".markweave-floating-toolbar-link-popover",
   ".markweave-floating-toolbar-color-popover",
   ".markweave-floating-toolbar-more-menu",
   ".markweave-slash-menu",
@@ -61,6 +62,7 @@ describe("editor style boundary", () => {
     expect(editorCss).toContain("overflow-anchor: none");
     expect(editorCss).toContain("scrollbar-gutter: stable");
     expect(editorCss).toContain(".markweave-floating-toolbar-turn-menu");
+    expect(editorCss).toContain(".markweave-floating-toolbar-link-popover");
     expect(editorCss).toContain(".markweave-floating-toolbar-color-popover");
     expect(editorCss).toContain(".markweave-floating-toolbar-more-menu");
     expect(editorCss).toContain(".markweave-slash-trigger");

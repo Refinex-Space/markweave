@@ -26,6 +26,7 @@ Markweave is a browser-side editor package. Treat editor content, pasted HTML/Ma
 ## Links And Rendering
 
 - Link behavior currently uses `https` as the default protocol and allows the custom `markweave` protocol.
+- Floating-toolbar link editing rejects empty URLs and unsafe `javascript:`, `data:`, or `vbscript:` URLs before applying or opening links.
 - Mermaid preview/rendering changes need tests for invalid source and non-mutating preview behavior.
 - Base64 images are currently allowed by the image extension; changing that is a public behavior change and needs tests plus docs updates.
 

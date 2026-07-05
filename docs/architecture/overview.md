@@ -34,6 +34,7 @@ The package exports `markweave` and `markweave/styles.css`; package-boundary cha
 - Markdown behavior: Markdown input transforms and markdown-table input
 - interaction layers: slash command runtime, table clipboard, table arrow navigation, table keyboard, table interaction state
 - previews and controls: Mermaid inline preview, floating toolbar, slash menu, table controls, table selection overlay, code block controls
+- link editing: the floating toolbar opens an inline link popover for selected text, with apply, open, and remove actions
 
 ## Behavior Contracts
 

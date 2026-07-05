@@ -697,6 +697,70 @@
   font-family: ui-sans-serif, system-ui, sans-serif;
 }
 
+.markweave-floating-toolbar-link-popover {
+  right: -48px;
+  display: grid;
+  grid-template-columns: minmax(170px, 1fr) auto;
+  align-items: center;
+  width: min(456px, calc(100vw - 32px));
+  min-height: 42px;
+  border-radius: 14px;
+  padding: 0 10px 0 16px;
+}
+
+.markweave-floating-toolbar-link-popover input {
+  min-width: 0;
+  width: 100%;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: #2f343b;
+  font: inherit;
+  font-size: 14px;
+  line-height: 1.3;
+}
+
+.markweave-floating-toolbar-link-popover input::placeholder {
+  color: #a7abb2;
+}
+
+.markweave-floating-toolbar-link-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding-left: 10px;
+}
+
+.markweave-floating-toolbar-link-actions button {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  padding: 0;
+  color: #a5a9af;
+  cursor: default;
+}
+
+.markweave-floating-toolbar-link-actions button:not(:disabled):hover {
+  background: #f1f2f3;
+  color: #5f636b;
+}
+
+.markweave-floating-toolbar-link-actions button:disabled {
+  color: #c4c7cc;
+  opacity: 0.72;
+}
+
+.markweave-floating-toolbar-link-divider {
+  width: 1px;
+  height: 26px;
+  margin: 0 5px 0 3px;
+  background: #ebecef;
+}
+
 .markweave-floating-toolbar-menu-title {
   padding: 6px 10px 8px;
   color: #3f434a;
