@@ -676,15 +676,7 @@ function isNativeSelectionInsideEditor(editor: Editor, selection: Selection) {
   return isNodeInsideEditor(selection.anchorNode) && isNodeInsideEditor(selection.focusNode);
 }
 
-function getNativeSelectionDomRects(editor: Editor) {
-  const ownerDocument = editor.view.dom.ownerDocument;
-  const nativeSelection = ownerDocument.getSelection();
-
-  if (!nativeSelection || nativeSelection.rangeCount === 0 || nativeSelection.isCollapsed || !isNativeSelectionInsideEditor(editor, nativeSelection)) {
-    return null;
-  }
-
-  const range = nativeSelection.getRangeAt(0);
+function getRangeDomRects(range: Range) {
   if (typeof range.getClientRects !== "function") {
     return null;
   }
@@ -697,11 +689,89 @@ function getNativeSelectionDomRects(editor: Editor) {
     return clientRects;
   }
 
+  if (typeof range.getBoundingClientRect !== "function") {
+    return null;
+  }
+
   const boundingRect = range.getBoundingClientRect();
   return isMeasurableToolbarRect(boundingRect) ? [createToolbarDomRect(boundingRect.left, boundingRect.top, boundingRect.width, boundingRect.height)] : null;
 }
 
-function getProseMirrorSelectionDomRects(editor: Editor) {
+function getNativeSelectionPositions(editor: Editor, selection: Selection) {
+  if (selection.rangeCount === 0) {
+    return null;
+  }
+
+  const range = selection.getRangeAt(0);
+
+  try {
+    const from = editor.view.posAtDOM(range.startContainer, range.startOffset);
+    const to = editor.view.posAtDOM(range.endContainer, range.endOffset);
+    return {
+      from: Math.min(from, to),
+      to: Math.max(from, to),
+    };
+  } catch {
+    return null;
+  }
+}
+
+function isNativeSelectionSyncedWithEditor(editor: Editor, selection: Selection) {
+  const nativeRange = getNativeSelectionPositions(editor, selection);
+
+  if (!nativeRange) {
+    return false;
+  }
+
+  const { selection: editorSelection } = editor.state;
+  const editorRange = {
+    from: Math.min(editorSelection.from, editorSelection.to),
+    to: Math.max(editorSelection.from, editorSelection.to),
+  };
+
+  return nativeRange.from === editorRange.from && nativeRange.to === editorRange.to;
+}
+
+function getNativeSelectionDomRects(editor: Editor) {
+  const ownerDocument = editor.view.dom.ownerDocument;
+  const nativeSelection = ownerDocument.getSelection();
+
+  if (
+    !nativeSelection ||
+    nativeSelection.rangeCount === 0 ||
+    nativeSelection.isCollapsed ||
+    !isNativeSelectionInsideEditor(editor, nativeSelection) ||
+    !isNativeSelectionSyncedWithEditor(editor, nativeSelection)
+  ) {
+    return null;
+  }
+
+  return getRangeDomRects(nativeSelection.getRangeAt(0));
+}
+
+function getProseMirrorSelectionRangeDomRects(editor: Editor) {
+  const { selection } = editor.state;
+
+  if (selection.empty) {
+    return null;
+  }
+
+  const from = Math.min(selection.from, selection.to);
+  const to = Math.max(selection.from, selection.to);
+
+  try {
+    const start = editor.view.domAtPos(from);
+    const end = editor.view.domAtPos(to);
+    const range = editor.view.dom.ownerDocument.createRange();
+    range.setStart(start.node, start.offset);
+    range.setEnd(end.node, end.offset);
+    return getRangeDomRects(range);
+  } catch {
+    return null;
+  }
+}
+
+function getProseMirrorSelectionCoordsDomRects(editor: Editor) {
   const { selection } = editor.state;
 
   if (selection.empty) {
@@ -721,12 +791,12 @@ function getProseMirrorSelectionDomRects(editor: Editor) {
   return isMeasurableToolbarRect(rect) ? [rect] : null;
 }
 
-function getCurrentSelectionDomRects(editor: Editor) {
-  return getNativeSelectionDomRects(editor) ?? getProseMirrorSelectionDomRects(editor);
+export function getFloatingToolbarSelectionDomRects(editor: Editor) {
+  return getNativeSelectionDomRects(editor) ?? getProseMirrorSelectionRangeDomRects(editor) ?? getProseMirrorSelectionCoordsDomRects(editor);
 }
 
 function getCurrentSelectionDomRect(editor: Editor) {
-  const rects = getCurrentSelectionDomRects(editor);
+  const rects = getFloatingToolbarSelectionDomRects(editor);
   return rects && rects.length > 0 ? combineToolbarDomRects(rects) : null;
 }
 
@@ -734,7 +804,7 @@ function getFloatingToolbarSelectionVirtualElement(editor: Editor) {
   return {
     getBoundingClientRect: () => getCurrentSelectionDomRect(editor) ?? createToolbarDomRect(0, 0, 0, 0),
     getClientRects: () => {
-      return getCurrentSelectionDomRects(editor) ?? [];
+      return getFloatingToolbarSelectionDomRects(editor) ?? [];
     },
   };
 }

@@ -6,12 +6,13 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createMarkweaveEditorExtensions } from "../src/editor-core/create-editor-extensions";
 import { createSelectionSnapshot } from "../src/editor-core/selection-state";
-import { FloatingToolbar } from "../src/ui/floating-toolbar/FloatingToolbar";
+import { FloatingToolbar, getFloatingToolbarSelectionDomRects } from "../src/ui/floating-toolbar/FloatingToolbar";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 let activeEditor: Editor | null = null;
 let activeRoot: Root | null = null;
+const addedMockMethods: Array<{ prototype: object; key: string }> = [];
 
 function createRect(left: number, top: number, width: number, height: number): DOMRect {
   return {
@@ -25,6 +26,12 @@ function createRect(left: number, top: number, width: number, height: number): D
     y: top,
     toJSON: () => ({}),
   } as DOMRect;
+}
+
+function createRectList(rects: readonly DOMRect[]): DOMRectList {
+  return Object.assign([...rects], {
+    item: (index: number) => rects[index] ?? null,
+  }) as unknown as DOMRectList;
 }
 
 function installLayoutMocks(editor: Editor) {
@@ -103,6 +110,54 @@ function selectText(editor: Editor, text: string) {
   expect(editor.commands.setTextSelection({ from: textPosition(editor, text, "start"), to: textPosition(editor, text, "end") })).toBe(true);
 }
 
+function selectTextRange(editor: Editor, text: string, length: number) {
+  const from = textPosition(editor, text, "start");
+  expect(editor.commands.setTextSelection({ from, to: from + length })).toBe(true);
+}
+
+function findTextNode(root: Node, text: string): Text {
+  if (root.nodeType === Node.TEXT_NODE && root.textContent?.includes(text)) {
+    return root as Text;
+  }
+
+  for (const child of Array.from(root.childNodes)) {
+    try {
+      return findTextNode(child, text);
+    } catch {
+      continue;
+    }
+  }
+
+  throw new Error(`Expected text node containing "${text}".`);
+}
+
+function setNativeSelection(textNode: Text, from: number, to: number) {
+  const range = document.createRange();
+  range.setStart(textNode, from);
+  range.setEnd(textNode, to);
+  const selection = window.getSelection();
+
+  if (!selection) {
+    throw new Error("Expected native selection.");
+  }
+
+  selection.removeAllRanges();
+  selection.addRange(range);
+}
+
+function mockPrototypeMethod(prototype: object, key: string, implementation: () => unknown) {
+  if (key in prototype) {
+    vi.spyOn(prototype as Record<string, () => unknown>, key).mockImplementation(implementation);
+    return;
+  }
+
+  Object.defineProperty(prototype, key, {
+    configurable: true,
+    value: vi.fn(implementation),
+  });
+  addedMockMethods.push({ prototype, key });
+}
+
 async function flushReact() {
   await act(async () => {
     await new Promise((resolve) => window.setTimeout(resolve, 0));
@@ -160,7 +215,65 @@ afterEach(() => {
   activeEditor?.destroy();
   activeEditor = null;
   vi.restoreAllMocks();
+  while (addedMockMethods.length > 0) {
+    const method = addedMockMethods.pop();
+    if (method) {
+      delete (method.prototype as Record<string, unknown>)[method.key];
+    }
+  }
   document.body.replaceChildren();
+});
+
+describe("floating toolbar selection geometry", () => {
+  it("ignores stale native selection rects that do not match the editor selection", () => {
+    const { editor } = createEditor(
+      "<table><tbody><tr><td><p>Table</p></td><td><p>Toolbar</p></td></tr></tbody></table><h2>Markdown WYSIWYG</h2>",
+    );
+    selectTextRange(editor, "Markdown", 1);
+    setNativeSelection(findTextNode(editor.view.dom, "Table"), 0, 1);
+    mockPrototypeMethod(Range.prototype, "getClientRects", function getClientRects(this: Range) {
+      const text = this.startContainer.textContent ?? "";
+
+      if (text.includes("Table")) {
+        return createRectList([createRect(180, 120, 20, 18)]);
+      }
+
+      if (text.includes("Markdown")) {
+        return createRectList([createRect(220, 320, 24, 24)]);
+      }
+
+      return createRectList([]);
+    });
+    mockPrototypeMethod(Range.prototype, "getBoundingClientRect", function getBoundingClientRect(this: Range) {
+      const rect = this.startContainer.textContent?.includes("Markdown") ? createRect(220, 320, 24, 24) : createRect(180, 120, 20, 18);
+      return rect;
+    });
+
+    expect(getFloatingToolbarSelectionDomRects(editor)?.[0]).toMatchObject({
+      left: 220,
+      top: 320,
+      width: 24,
+      height: 24,
+    });
+  });
+
+  it("measures a block-start single-character selection from the ProseMirror DOM range before using coordsAtPos", () => {
+    const { editor } = createEditor("<h2>Markdown WYSIWYG</h2>");
+    selectTextRange(editor, "Markdown", 1);
+    window.getSelection()?.removeAllRanges();
+    mockPrototypeMethod(Range.prototype, "getClientRects", function getClientRects(this: Range) {
+      const text = this.startContainer.textContent ?? "";
+      return text.includes("Markdown") ? createRectList([createRect(220, 320, 24, 24)]) : createRectList([]);
+    });
+    mockPrototypeMethod(Range.prototype, "getBoundingClientRect", () => createRect(220, 320, 24, 24));
+
+    expect(getFloatingToolbarSelectionDomRects(editor)?.[0]).toMatchObject({
+      left: 220,
+      top: 320,
+      width: 24,
+      height: 24,
+    });
+  });
 });
 
 describe("floating toolbar link popover", () => {

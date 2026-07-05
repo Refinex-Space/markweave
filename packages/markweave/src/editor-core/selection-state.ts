@@ -79,7 +79,7 @@ export interface FloatingToolbarPosition {
 export interface FloatingToolbarFloatingOptions {
   readonly placement: FloatingToolbarState["placement"];
   readonly offset: number;
-  readonly strategy: "fixed";
+  readonly strategy: "absolute";
   readonly flip: {
     readonly padding:
       | number
@@ -273,7 +273,7 @@ export function getFloatingToolbarFloatingOptions(
   return {
     placement: state.placement,
     offset: state.offset,
-    strategy: "fixed",
+    strategy: "absolute",
     flip: {
       padding: flipPadding,
       fallbackPlacements: ["bottom"],

@@ -6,6 +6,7 @@ import { createMarkweaveEditorExtensions } from "../src/editor-core/create-edito
 import {
   calculateFloatingToolbarFrameShift,
   createSelectionSnapshot,
+  getFloatingToolbarFloatingOptions,
   getFloatingToolbarState,
   shouldShowFloatingToolbar,
 } from "../src/editor-core/selection-state";
@@ -422,6 +423,14 @@ describe("floating toolbar button model", () => {
         boundaryPadding: 8,
       }),
     ).toBe(0);
+  });
+
+  it("uses absolute positioning inside the editor frame", () => {
+    const editor = createEditor("<p>Selection</p>");
+    selectText(editor, "Selection");
+    const state = getFloatingToolbarState(createSelectionSnapshot(editor));
+
+    expect(getFloatingToolbarFloatingOptions(state).strategy).toBe("absolute");
   });
 
   it("builds assistant request payloads without modifying the document", () => {
