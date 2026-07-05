@@ -41,11 +41,13 @@ import {
   initialTableInteractionState,
   type TableInteractionState,
 } from "../../plugins/table/table-interaction-layer";
+import { getMarkweaveMessages, type MarkweaveMessages } from "../../i18n";
 
 interface TableControlsProps {
   readonly editor: Editor;
   readonly active: boolean;
   readonly interactionState?: TableInteractionState;
+  readonly messages?: MarkweaveMessages;
   readonly onCopyPayload?: (payload: MarkweaveMenuCopyPayload) => void;
   readonly onCommandResult?: (result: TableCommandResult) => void;
   readonly onEditWithAi?: (request: TableEditWithAiRequest) => void;
@@ -910,16 +912,30 @@ function getMenuCommandSpecs(editor: Editor, menu: TableMenuKind) {
   return getExecutableTableMenuCommandSpecs(menu);
 }
 
-function tableMenuLabel(menu: TableMenuKind) {
+const defaultTableMessages = getMarkweaveMessages("zh");
+
+function tableMenuLabel(menu: TableMenuKind, messages: MarkweaveMessages = defaultTableMessages) {
   if (menu === "row") {
-    return "Row actions";
+    return messages.table.rowActions;
   }
 
   if (menu === "column") {
-    return "Column actions";
+    return messages.table.columnActions;
   }
 
-  return "Selection actions";
+  return messages.table.selectionActions;
+}
+
+function getTableCommandLabel(commandId: TableCommandId, messages: MarkweaveMessages = defaultTableMessages) {
+  return messages.table.commands[commandId];
+}
+
+function getTableMenuItemLabel(item: TableMenuItemSpec, messages: MarkweaveMessages = defaultTableMessages) {
+  if (item.id === "edit-with-ai") {
+    return messages.table.commands["edit-with-ai"];
+  }
+
+  return item.commandId ? getTableCommandLabel(item.commandId, messages) : item.label;
 }
 
 function getAxisMenuItems(menu: TableCommandMenuKind) {
@@ -993,17 +1009,12 @@ function getCopyKindForTableCommand(commandId: TableCommandId): TableMenuCopyKin
   return null;
 }
 
-const tableCopyFeedbackLabels = {
-  row: "Row copied to clipboard",
-  column: "Column copied to clipboard",
-  table: "Table copied to clipboard",
-} satisfies Record<TableMenuCopyKind, string>;
 const tableCopyFeedbackTimeoutMs = 5000;
 
-export function getTableCopyFeedbackSnapshot(payload: MarkweaveMenuCopyPayload): TableCopyFeedbackSnapshot {
+export function getTableCopyFeedbackSnapshot(payload: MarkweaveMenuCopyPayload, messages: MarkweaveMessages = defaultTableMessages): TableCopyFeedbackSnapshot {
   return {
     kind: payload.kind,
-    label: tableCopyFeedbackLabels[payload.kind],
+    label: messages.table.copyFeedback[payload.kind],
     textLength: payload.text.length,
     htmlLength: payload.html.length,
   };
@@ -1086,6 +1097,7 @@ export function TableControls({
   active,
   editor,
   interactionState = initialTableInteractionState,
+  messages = defaultTableMessages,
   onCopyPayload,
   onCommandResult,
   onEditWithAi,
@@ -1331,7 +1343,7 @@ export function TableControls({
     const after = getTableCommandSnapshot(editor);
 
     if (copyPayload) {
-      setCopyFeedback(getTableCopyFeedbackSnapshot(copyPayload));
+      setCopyFeedback(getTableCopyFeedbackSnapshot(copyPayload, messages));
       onCopyPayload?.(copyPayload);
     } else {
       setCopyFeedback(null);
@@ -1372,7 +1384,7 @@ export function TableControls({
       ref={controlsRef}
       className="markweave-table-controls"
       data-testid="markweave-table-controls"
-      aria-label="Table controls"
+      aria-label={messages.table.controlsAriaLabel}
       data-open-menu={openMenu ?? "none"}
       data-positioned={rowEdgePosition || columnEdgePosition || selectionEdgePosition ? "true" : "false"}
     >
@@ -1394,10 +1406,10 @@ export function TableControls({
           type="button"
           ref={rowEdgeRef}
           className="markweave-table-edge-handle markweave-table-edge-handle--row"
-          aria-label="Active row actions"
+          aria-label={messages.table.activeRowActions}
           aria-expanded={openMenu === "row" && menuAnchor === "row-edge"}
           aria-haspopup="menu"
-          title="Row actions"
+          title={messages.table.rowActions}
           data-testid="markweave-table-hover-row-handle"
           data-axis-index={rowAxisModel?.index ?? ""}
           data-axis-selected-cells={rowAxisModel?.selectedCellCount ?? ""}
@@ -1417,10 +1429,10 @@ export function TableControls({
           type="button"
           ref={columnEdgeRef}
           className="markweave-table-edge-handle markweave-table-edge-handle--column"
-          aria-label="Active column actions"
+          aria-label={messages.table.activeColumnActions}
           aria-expanded={openMenu === "column" && menuAnchor === "column-edge"}
           aria-haspopup="menu"
-          title="Column actions"
+          title={messages.table.columnActions}
           data-testid="markweave-table-hover-column-handle"
           data-axis-index={columnAxisModel?.index ?? ""}
           data-axis-selected-cells={columnAxisModel?.selectedCellCount ?? ""}
@@ -1440,10 +1452,10 @@ export function TableControls({
           type="button"
           ref={selectionEdgeRef}
           className="markweave-table-edge-handle markweave-table-edge-handle--selection"
-          aria-label="Selection actions"
+          aria-label={messages.table.selectionActions}
           aria-expanded={openMenu === "selection" && menuAnchor === "selection-edge"}
           aria-haspopup="menu"
-          title="Selection actions"
+          title={messages.table.selectionActions}
           data-testid="markweave-table-cell-handle"
           style={{ left: selectionEdgePosition.left, top: selectionEdgePosition.top }}
           onMouseDown={(event) => event.preventDefault()}
@@ -1457,7 +1469,7 @@ export function TableControls({
           ref={menuRef}
           className="markweave-table-menu"
           role="menu"
-          aria-label={tableMenuLabel(openMenu)}
+          aria-label={tableMenuLabel(openMenu, messages)}
           data-testid="markweave-table-menu"
           data-positioned={menuPosition ? "true" : "false"}
           style={menuPosition ? { left: menuPosition.left, top: menuPosition.top } : undefined}
@@ -1468,13 +1480,14 @@ export function TableControls({
               const previousGroup = index === 0 ? group : getTableMenuItemGroup(menuItems[index - 1]);
               const startsGroup = index > 0 && previousGroup !== group;
               const enabled = item.commandId === null ? Boolean(onEditWithAi) : canRunTableCommand(editor, item.commandId);
+              const label = getTableMenuItemLabel(item, messages);
 
               return (
                 <button
                   key={`${item.id}-${index}`}
                   type="button"
                   role="menuitem"
-                  aria-label={item.label}
+                  aria-label={label}
                   aria-disabled={!enabled}
                   disabled={!enabled}
                   data-menu-group={group}
@@ -1499,7 +1512,7 @@ export function TableControls({
                     void runMenuCommand(item.commandId).finally(() => setOpenMenu(null));
                   }}
                 >
-                  {item.label}
+                  {label}
                 </button>
               );
             })()

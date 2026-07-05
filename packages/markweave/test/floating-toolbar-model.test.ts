@@ -10,6 +10,7 @@ import {
   getFloatingToolbarState,
   shouldShowFloatingToolbar,
 } from "../src/editor-core/selection-state";
+import { getMarkweaveMessages } from "../src/i18n";
 import {
   applyFloatingToolbarLink,
   createFloatingToolbarAssistantRequest,
@@ -274,25 +275,34 @@ describe("floating toolbar button model", () => {
     const boldButton = getFloatingToolbarButtonModels(editor, "default").find((button) => button.id === "bold");
 
     if (!boldButton) {
-      throw new Error("Expected default toolbar to expose Bold.");
+      throw new Error("Expected default toolbar to expose bold.");
     }
 
     expect(getFloatingToolbarTooltipModel(boldButton)).toEqual({
       buttonId: "bold",
-      label: "Bold",
+      label: "加粗",
       active: true,
     });
     expect(getFloatingToolbarTooltipModel(null)).toBeNull();
+  });
+
+  it("can build English toolbar labels when English messages are provided", () => {
+    const editor = createEditor("<p><strong>bold</strong> plain</p>");
+    selectText(editor, "bold");
+    const englishMessages = getMarkweaveMessages("en");
+    const boldButton = getFloatingToolbarButtonModels(editor, "default", englishMessages).find((button) => button.id === "bold");
+
+    expect(boldButton?.label).toBe("Bold");
   });
 
   it("derives heading labels and exposes the Turn Into menu order", () => {
     const editor = createEditor("<h2>Heading</h2>");
     selectText(editor, "Heading");
 
-    expect(getCurrentFloatingToolbarBlockType(editor)).toMatchObject({ glyph: "Heading 2", level: 2 });
+    expect(getCurrentFloatingToolbarBlockType(editor)).toMatchObject({ glyph: "标题 2", level: 2 });
     expect(getFloatingToolbarButtonModels(editor, "default")[0]).toMatchObject({
       id: "block-type",
-      glyph: "Heading 2",
+      glyph: "标题 2",
     });
     expect(floatingToolbarTurnIntoOptions.map((option) => option.id)).toEqual([
       "paragraph",

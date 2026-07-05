@@ -4,7 +4,7 @@ import { EditorContent } from "@tiptap/react";
 import { act, createElement, useEffect } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { useMarkweaveEditorController, type MarkweaveEditorController } from "../src";
+import { useMarkweaveEditorController, type MarkweaveEditorController, type MarkweaveLang } from "../src";
 import type { MarkweaveSlashCommandUploadHandler } from "../src/plugins/slash-command/upload";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -42,15 +42,18 @@ function installLayoutMocks() {
 
 function Harness({
   defaultContent,
+  lang,
   onReady,
   onUpload,
 }: {
   readonly defaultContent: string;
+  readonly lang?: MarkweaveLang;
   readonly onReady: (controller: MarkweaveEditorController) => void;
   readonly onUpload?: MarkweaveSlashCommandUploadHandler;
 }) {
   const controller = useMarkweaveEditorController({
     defaultContent,
+    lang,
     onSlashCommandUpload: onUpload,
   });
 
@@ -69,7 +72,7 @@ async function flushReact() {
   });
 }
 
-async function renderEditor(defaultContent = "<p></p>", onUpload?: MarkweaveSlashCommandUploadHandler) {
+async function renderEditor(defaultContent = "<p></p>", onUpload?: MarkweaveSlashCommandUploadHandler, lang?: MarkweaveLang) {
   installLayoutMocks();
   const host = document.createElement("div");
   document.body.appendChild(host);
@@ -79,6 +82,7 @@ async function renderEditor(defaultContent = "<p></p>", onUpload?: MarkweaveSlas
     activeRoot?.render(
       createElement(Harness, {
         defaultContent,
+        lang,
         onReady: (controller: MarkweaveEditorController) => {
           activeController = controller;
         },
@@ -164,6 +168,7 @@ describe("image node view", () => {
 
     await insertEmptyImage(controller);
     expect(getByTestId("markweave-image-upload-placeholder")).not.toBeNull();
+    expect(getByTestId("markweave-image-upload-placeholder").textContent).toContain("点击上传");
 
     await inputValue(getByTestId<HTMLInputElement>("markweave-image-url-input"), " https://example.com/image.png ");
     await click(getByTestId("markweave-image-upload-submit"));
@@ -216,8 +221,10 @@ describe("image node view", () => {
 
     await click(getByTestId("markweave-image-align-right"));
     expect(getByTestId("markweave-image-node").dataset.align).toBe("right");
+    expect(getByTestId("markweave-image-align-right").getAttribute("aria-label")).toBe("图片右对齐");
 
     await click(getByTestId("markweave-image-caption"));
+    expect(getByTestId<HTMLInputElement>("markweave-image-caption-input").placeholder).toBe("写入题注...");
     await inputValue(getByTestId<HTMLInputElement>("markweave-image-caption-input"), "A useful caption");
     expect(controller.editor?.getHTML()).toContain("<figcaption");
     expect(controller.editor?.getHTML()).toContain("A useful caption");
@@ -235,5 +242,18 @@ describe("image node view", () => {
 
     await click(getByTestId("markweave-image-delete"));
     expect(controller.editor?.getHTML()).not.toContain("toolbar.png");
+  });
+
+  it("renders English image placeholder and toolbar copy when lang is en", async () => {
+    const controller = await renderEditor("<p></p>", undefined, "en");
+
+    await insertEmptyImage(controller);
+
+    expect(getByTestId("markweave-image-upload-placeholder").textContent).toContain("Click to upload");
+
+    await inputValue(getByTestId<HTMLInputElement>("markweave-image-url-input"), "https://example.com/image.png");
+    await click(getByTestId("markweave-image-upload-submit"));
+
+    expect(getByTestId("markweave-image-align-right").getAttribute("aria-label")).toBe("Image align right");
   });
 });

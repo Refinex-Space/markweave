@@ -3,7 +3,13 @@
 import { Editor } from "@tiptap/core";
 import { afterEach, describe, expect, it } from "vitest";
 import { createMarkweaveEditorExtensions } from "../src/editor-core/create-editor-extensions";
-import { defaultSlashCommandSpecs, filterSlashCommands, isExecutableSlashCommand, externalAiSlashCommandSpecs } from "../src/plugins/slash-command/command-spec";
+import {
+  defaultSlashCommandSpecs,
+  externalAiSlashCommandSpecs,
+  filterSlashCommands,
+  getLocalizedSlashCommandSpecs,
+  isExecutableSlashCommand,
+} from "../src/plugins/slash-command/command-spec";
 import { getSlashCommandKeyboardAction, isSlashCommandMenuState } from "../src/plugins/slash-command/slash-keyboard";
 import {
   executeSlashCommand,
@@ -329,33 +335,40 @@ describe("slash command runtime", () => {
       "attachment",
     ]);
     expect(defaultSlashCommandSpecs.map((command) => command.group)).toEqual([
-      "Style",
-      "Style",
-      "Style",
-      "Style",
-      "Style",
-      "Style",
-      "Style",
-      "Style",
-      "Style",
-      "Callout",
-      "Callout",
-      "Callout",
-      "Callout",
-      "Callout",
-      "Insert",
-      "Insert",
-      "Insert",
-      "Upload",
-      "Upload",
-      "Upload",
+      "样式",
+      "样式",
+      "样式",
+      "样式",
+      "样式",
+      "样式",
+      "样式",
+      "样式",
+      "样式",
+      "标注",
+      "标注",
+      "标注",
+      "标注",
+      "标注",
+      "插入",
+      "插入",
+      "插入",
+      "上传",
+      "上传",
+      "上传",
     ]);
     expect(filterSlashCommands("todo").map((command) => command.id)).toContain("task-list");
+    expect(filterSlashCommands("待办").map((command) => command.id)).toContain("task-list");
+    expect(filterSlashCommands("image").map((command) => command.id)).toContain("image");
+    expect(filterSlashCommands("图片").map((command) => command.id)).toContain("image");
     expect(filterSlashCommands("divider").map((command) => command.id)).toContain("separator");
     expect(filterSlashCommands("upload").map((command) => command.id)).toEqual(["image", "video", "attachment"]);
     expect(defaultSlashCommandSpecs.find((command) => command.id === "attachment")).toMatchObject({
       disabled: true,
-      disabledReason: "Temporarily unavailable.",
+      disabledReason: "暂不可用。",
+    });
+    expect(getLocalizedSlashCommandSpecs("en").find((command) => command.id === "image")).toMatchObject({
+      label: "Image",
+      group: "Upload",
     });
   });
 

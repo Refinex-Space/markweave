@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 import { act, createElement, type ReactNode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it } from "vitest";
-import { MarkweaveEditor, useMarkweaveEditorController, type MarkweaveEditorController } from "../src";
+import { MarkweaveEditor, useMarkweaveEditorController, type MarkweaveEditorController, type MarkweaveLang } from "../src";
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const readProjectFile = (path: string) => readFileSync(resolve(repoRoot, path), "utf8");
@@ -55,6 +55,7 @@ describe("editor entrypoint boundary", () => {
     expect(indexSource).toContain("MarkweaveEditor");
     expect(indexSource).toContain("useMarkweaveEditorController");
     expect(indexSource).toContain("createMarkweaveEditorExtensions");
+    expect(indexSource).toContain("MarkweaveLang");
   });
 
   it("keeps playground code out of the publishable package", () => {
@@ -75,8 +76,16 @@ describe("editor entrypoint boundary", () => {
     );
 
     expect(container.querySelector('[data-testid="markweave-editor-frame"]')).toBeTruthy();
+    expect(container.querySelector('[data-testid="markweave-editor-frame"]')?.getAttribute("aria-label")).toBe("Markweave 编辑器");
     expect(container.querySelector('[data-testid="markweave-editor-surface"]')?.innerHTML).toContain("hello editor");
     expect(snapshots.length).toBeGreaterThan(0);
+  });
+
+  it("accepts an explicit English editor locale", async () => {
+    const lang: MarkweaveLang = "en";
+    const container = await renderReact(createElement(MarkweaveEditor, { defaultContent: "<p>hello editor</p>", lang }));
+
+    expect(container.querySelector('[data-testid="markweave-editor-frame"]')?.getAttribute("aria-label")).toBe("Markweave editor");
   });
 
   it("supports controlled content synchronization and onUpdate payloads", async () => {

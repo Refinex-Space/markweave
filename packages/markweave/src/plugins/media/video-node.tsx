@@ -9,11 +9,13 @@ import {
   type MarkweaveUploadResult,
   type MarkweaveUploadSource,
 } from "../slash-command/upload";
+import { getMarkweaveMessages, type MarkweaveMessages } from "../../i18n";
 
 export type MarkweaveVideoProvider = "youtube" | "bilibili";
 
 export interface MarkweaveVideoOptions {
   readonly HTMLAttributes: Record<string, unknown>;
+  readonly messages?: MarkweaveMessages;
   readonly onUpload?: MarkweaveSlashCommandUploadHandler;
 }
 
@@ -205,6 +207,8 @@ function getVideoAttrsFromElement(element: Element) {
 function MarkweaveVideoNodeView(props: NodeViewProps) {
   const { deleteNode, editor, getPos, node, selected, updateAttributes } = props;
   const options = props.extension.options as MarkweaveVideoOptions;
+  const messages = options.messages ?? getMarkweaveMessages("zh");
+  const videoMessages = messages.video;
   const src = stringAttribute(node.attrs.src);
   const embedUrl = stringAttribute(node.attrs.embedUrl);
   const provider = stringAttribute(node.attrs.provider);
@@ -254,7 +258,7 @@ function MarkweaveVideoNodeView(props: NodeViewProps) {
       updateAttributes(attrsFromUploadResult(result));
       setInputValue("");
     } catch (errorValue) {
-      setError(errorValue instanceof Error ? errorValue.message : "Video upload failed.");
+      setError(errorValue instanceof Error ? errorValue.message : videoMessages.uploadFailedError);
     } finally {
       setIsSubmitting(false);
       setDragActive(false);
@@ -265,7 +269,7 @@ function MarkweaveVideoNodeView(props: NodeViewProps) {
     const attrs = attrsFromVideoUrl(inputValue);
 
     if (!attrs) {
-      setError("Enter a YouTube, Bilibili, or direct video URL.");
+      setError(videoMessages.unsupportedUrlError);
       return;
     }
 
@@ -294,6 +298,7 @@ function MarkweaveVideoNodeView(props: NodeViewProps) {
           fileInputRef={fileInputRef}
           inputValue={inputValue}
           isSubmitting={isSubmitting}
+          messages={messages}
           onCancel={deleteNode}
           onDragActiveChange={setDragActive}
           onDrop={handleDrop}
@@ -313,7 +318,7 @@ function MarkweaveVideoNodeView(props: NodeViewProps) {
       data-provider={provider ?? "file"}
       data-selected={selected ? "true" : "false"}
       tabIndex={0}
-      aria-label="Video"
+      aria-label={videoMessages.nodeAriaLabel}
       onFocus={selectVideoNode}
       onKeyDown={deleteSelectedVideo}
       onMouseDown={selectVideoFromMouseDown}
@@ -330,12 +335,12 @@ function MarkweaveVideoNodeView(props: NodeViewProps) {
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
             allowFullScreen
           />
-          <button type="button" className="markweave-video-selection-layer" data-testid="markweave-video-selection-layer" tabIndex={-1} aria-label="Select video" />
+          <button type="button" className="markweave-video-selection-layer" data-testid="markweave-video-selection-layer" tabIndex={-1} aria-label={videoMessages.selectAriaLabel} />
         </div>
       ) : (
         <div className="markweave-video-box">
           <video className="markweave-video" src={src ?? ""} title={title ?? undefined} data-markweave-video="true" data-markweave-mime-type={mimeType ?? undefined} controls />
-          <button type="button" className="markweave-video-selection-layer" data-testid="markweave-video-selection-layer" tabIndex={-1} aria-label="Select video" />
+          <button type="button" className="markweave-video-selection-layer" data-testid="markweave-video-selection-layer" tabIndex={-1} aria-label={videoMessages.selectAriaLabel} />
         </div>
       )}
     </NodeViewWrapper>
@@ -348,6 +353,7 @@ function VideoUploadPlaceholder({
   fileInputRef,
   inputValue,
   isSubmitting,
+  messages,
   onCancel,
   onDragActiveChange,
   onDrop,
@@ -360,6 +366,7 @@ function VideoUploadPlaceholder({
   readonly fileInputRef: RefObject<HTMLInputElement | null>;
   readonly inputValue: string;
   readonly isSubmitting: boolean;
+  readonly messages: MarkweaveMessages;
   readonly onCancel: () => void;
   readonly onDragActiveChange: (active: boolean) => void;
   readonly onDrop: (event: DragEvent<HTMLElement>) => void;
@@ -367,6 +374,8 @@ function VideoUploadPlaceholder({
   readonly onInputChange: (value: string) => void;
   readonly onSubmit: () => void;
 }) {
+  const videoMessages = messages.video;
+
   const handleKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
     if (event.key === "Enter") {
       event.preventDefault();
@@ -397,26 +406,26 @@ function VideoUploadPlaceholder({
       </div>
       <div className="markweave-video-upload-copy">
         <button type="button" onClick={() => fileInputRef.current?.click()}>
-          Click to upload
+          {videoMessages.clickToUpload}
         </button>
-        <span> or drag and drop</span>
+        <span>{videoMessages.dragAndDrop}</span>
       </div>
-      <div className="markweave-video-upload-note">YouTube/Bilibili link or embed URL, direct video URL, or one local video file</div>
+      <div className="markweave-video-upload-note">{videoMessages.uploadNote}</div>
       <div className="markweave-video-upload-row">
         <input
           data-testid="markweave-video-url-input"
           value={inputValue}
-          placeholder="https://www.youtube.com/embed/..., //player.bilibili.com/..., https://.../video.mp4"
-          aria-label="Video URL"
+          placeholder={videoMessages.uploadInputPlaceholder}
+          aria-label={videoMessages.uploadInputAriaLabel}
           onChange={(event) => onInputChange(event.currentTarget.value)}
           onKeyDown={handleKeyDown}
         />
         <button type="button" data-testid="markweave-video-upload-submit" disabled={isSubmitting || !inputValue.trim()} onClick={onSubmit}>
           <Upload size={16} strokeWidth={1.8} />
-          Insert
+          {messages.common.insert}
         </button>
         <button type="button" data-testid="markweave-video-upload-cancel" onClick={onCancel}>
-          Cancel
+          {messages.common.cancel}
         </button>
       </div>
       {error ? <div className="markweave-video-upload-error">{error}</div> : null}
@@ -434,6 +443,7 @@ export const MarkweaveVideo = Node.create<MarkweaveVideoOptions>({
   addOptions() {
     return {
       HTMLAttributes: {},
+      messages: getMarkweaveMessages("zh"),
       onUpload: undefined,
     };
   },

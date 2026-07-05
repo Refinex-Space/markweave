@@ -5,7 +5,7 @@ import { NodeSelection } from "@tiptap/pm/state";
 import { act, createElement, useEffect } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { useMarkweaveEditorController, type MarkweaveEditorController } from "../src";
+import { useMarkweaveEditorController, type MarkweaveEditorController, type MarkweaveLang } from "../src";
 import type { MarkweaveSlashCommandUploadHandler } from "../src/plugins/slash-command/upload";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -33,15 +33,18 @@ function installLayoutMocks() {
 
 function Harness({
   defaultContent,
+  lang,
   onReady,
   onUpload,
 }: {
   readonly defaultContent: string;
+  readonly lang?: MarkweaveLang;
   readonly onReady: (controller: MarkweaveEditorController) => void;
   readonly onUpload?: MarkweaveSlashCommandUploadHandler;
 }) {
   const controller = useMarkweaveEditorController({
     defaultContent,
+    lang,
     onSlashCommandUpload: onUpload,
   });
 
@@ -60,7 +63,7 @@ async function flushReact() {
   });
 }
 
-async function renderEditor(defaultContent = "<p></p>", onUpload?: MarkweaveSlashCommandUploadHandler) {
+async function renderEditor(defaultContent = "<p></p>", onUpload?: MarkweaveSlashCommandUploadHandler, lang?: MarkweaveLang) {
   installLayoutMocks();
   const host = document.createElement("div");
   document.body.appendChild(host);
@@ -70,6 +73,7 @@ async function renderEditor(defaultContent = "<p></p>", onUpload?: MarkweaveSlas
     activeRoot?.render(
       createElement(Harness, {
         defaultContent,
+        lang,
         onReady: (controller: MarkweaveEditorController) => {
           activeController = controller;
         },
@@ -161,6 +165,7 @@ describe("video node view", () => {
 
     await insertEmptyVideo(controller);
     expect(getByTestId("markweave-video-upload-placeholder")).not.toBeNull();
+    expect(getByTestId("markweave-video-upload-placeholder").textContent).toContain("点击上传");
 
     await inputValue(getByTestId<HTMLInputElement>("markweave-video-url-input"), " https://cdn.example.com/media/demo.mp4 ");
     await click(getByTestId("markweave-video-upload-submit"));
@@ -285,6 +290,14 @@ describe("video node view", () => {
     expect(getByTestId("markweave-video-upload-placeholder")).not.toBeNull();
     expect(document.querySelector("video.markweave-video")).toBeNull();
     expect(controller.editor?.getHTML()).toContain('data-markweave-video-empty="true"');
-    expect(document.querySelector(".markweave-video-upload-error")?.textContent).toContain("YouTube");
+    expect(document.querySelector(".markweave-video-upload-error")?.textContent).toContain("请输入 YouTube");
+  });
+
+  it("renders English video placeholder copy when lang is en", async () => {
+    const controller = await renderEditor("<p></p>", undefined, "en");
+
+    await insertEmptyVideo(controller);
+
+    expect(getByTestId("markweave-video-upload-placeholder").textContent).toContain("Click to upload");
   });
 });

@@ -4,6 +4,7 @@ import { Editor } from "@tiptap/core";
 import { CellSelection } from "@tiptap/pm/tables";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createMarkweaveEditorExtensions } from "../src/editor-core/create-editor-extensions";
+import { getMarkweaveMessages } from "../src/i18n";
 import { getMarkweaveMenuCopyPayloadFromState } from "../src/plugins/table/table-clipboard";
 import { getTableFocusState } from "../src/plugins/table/table-focus-state";
 import {
@@ -395,11 +396,14 @@ describe("table command structure", () => {
     const feedback = getTableCopyFeedbackSnapshot(payload);
     expect(feedback).toMatchObject({
       kind: "row",
-      label: "Row copied to clipboard",
+      label: "行已复制到剪贴板",
       textLength: 4,
     });
     expect(feedback.htmlLength).toBe(payload.html.length);
-    expect(formatTableCopyFeedback(feedback)).toBe(`Row copied to clipboard | text 4 | html ${payload.html.length}`);
+    expect(formatTableCopyFeedback(feedback)).toBe(`行已复制到剪贴板 | text 4 | html ${payload.html.length}`);
+
+    const englishFeedback = getTableCopyFeedbackSnapshot(payload, getMarkweaveMessages("en"));
+    expect(englishFeedback.label).toBe("Row copied to clipboard");
   });
 
   it("builds Edit with AI requests without mutating table content", () => {

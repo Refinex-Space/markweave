@@ -5,9 +5,10 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ComponentProps,
 import { isEditorComposing } from "../editor-core/composition-guard";
 import { createMarkweaveEditorExtensions } from "../editor-core/create-editor-extensions";
 import { createSelectionSnapshot, type EditorSelectionSnapshot } from "../editor-core/selection-state";
+import { getLocalizedSlashCommandSpecs, getMarkweaveMessages, normalizeMarkweaveLang, type MarkweaveLang } from "../i18n";
 import { getActiveCodeBlockState, markweaveCodeBlockBehavior, type MarkweaveCodeBlockState } from "../plugins/codeblock/codeblock-behavior";
 import { getMermaidPreviewState, type MermaidPreviewMode, type MermaidPreviewState } from "../plugins/mermaid/mermaid-renderer";
-import { defaultSlashCommandSpecs, filterSlashCommands, isExecutableSlashCommand, type SlashCommandSpec } from "../plugins/slash-command/command-spec";
+import { filterSlashCommands, isExecutableSlashCommand, type SlashCommandSpec } from "../plugins/slash-command/command-spec";
 import { getSlashCommandKeyboardAction } from "../plugins/slash-command/slash-keyboard";
 import {
   executeSlashCommand,
@@ -90,6 +91,7 @@ export interface MarkweaveEditorControllerOptions {
   readonly content?: string;
   readonly editable?: boolean;
   readonly autofocus?: boolean;
+  readonly lang?: MarkweaveLang;
   readonly ariaLabel?: string;
   readonly autoFocusFirstTableBodyCell?: boolean;
   readonly onUpdate?: (payload: MarkweaveEditorUpdatePayload) => void;
@@ -144,12 +146,13 @@ function getTableInteractionState(editor: Editor) {
 }
 
 export function useMarkweaveEditorController({
-  ariaLabel = "Markweave editor",
+  ariaLabel,
   autoFocusFirstTableBodyCell = false,
   autofocus = false,
   content,
   defaultContent = "",
   editable = true,
+  lang,
   onEditWithAi,
   onExtractToNote,
   onRewriteSelection,
@@ -159,11 +162,19 @@ export function useMarkweaveEditorController({
   onTableCopyPayload,
   onUpdate,
 }: MarkweaveEditorControllerOptions = {}): MarkweaveEditorController {
+  const langRef = useRef<MarkweaveLang | null>(null);
+  if (langRef.current === null) {
+    langRef.current = normalizeMarkweaveLang(lang);
+  }
+  const resolvedLang = langRef.current;
+  const messages = useMemo(() => getMarkweaveMessages(resolvedLang), [resolvedLang]);
+  const slashCommands = useMemo(() => getLocalizedSlashCommandSpecs(resolvedLang), [resolvedLang]);
   const uploadHandlerRef = useRef(onSlashCommandUpload);
   uploadHandlerRef.current = onSlashCommandUpload;
   const extensions = useMemo(
     () =>
       createMarkweaveEditorExtensions({
+        lang: resolvedLang,
         onImageUpload: (request) => {
           if (uploadHandlerRef.current) {
             return uploadHandlerRef.current(request);
@@ -189,7 +200,7 @@ export function useMarkweaveEditorController({
           return directResult;
         },
       }),
-    [],
+    [resolvedLang],
   );
   const [selectionSnapshot, setSelectionSnapshot] = useState<EditorSelectionSnapshot | null>(null);
   const [slashState, setSlashState] = useState<SlashCommandState>(initialSlashCommandState);
@@ -200,7 +211,7 @@ export function useMarkweaveEditorController({
   const [revision, setRevision] = useState(0);
   const applyingControlledContentRef = useRef(false);
   const callbacksRef = useRef({ onUpdate });
-  const filteredSlashCommands = useMemo(() => filterSlashCommands(slashState.query), [slashState.query]);
+  const filteredSlashCommands = useMemo(() => filterSlashCommands(slashState.query, slashCommands), [slashCommands, slashState.query]);
 
   callbacksRef.current = { onUpdate };
 
@@ -471,13 +482,13 @@ export function useMarkweaveEditorController({
   const frameProps = useMemo<MarkweaveEditorFrameProps>(
     () => ({
       className: "markweave-editor-frame",
-      "aria-label": ariaLabel,
+      "aria-label": ariaLabel ?? messages.common.editorAriaLabel,
       "data-testid": "markweave-editor-frame",
       "data-mermaid-mode": mermaidPreviewState.mode,
       "data-table-focus-mode": tableFocusState.mode,
       onKeyDownCapture: handleEditorKeyDown,
     }),
-    [ariaLabel, handleEditorKeyDown, mermaidPreviewState.mode, tableFocusState.mode],
+    [ariaLabel, handleEditorKeyDown, mermaidPreviewState.mode, messages.common.editorAriaLabel, tableFocusState.mode],
   );
 
   const overlayProps = useMemo<MarkweaveEditorOverlayProps>(
@@ -485,6 +496,7 @@ export function useMarkweaveEditorController({
       floatingToolbar: editor
         ? {
             editor,
+            messages,
             selectionSnapshot,
             onRewriteSelection,
             onExtractToNote,
@@ -496,6 +508,7 @@ export function useMarkweaveEditorController({
             state: slashState,
             position: slashMenuPosition,
             inputCommand: slashInputCommand,
+            messages,
             onActiveIndexChange: setSlashActiveIndex,
             onInputCommandChange: setSlashInputCommand,
             onSelect: runSlashCommand,
@@ -507,6 +520,7 @@ export function useMarkweaveEditorController({
             editor,
             active: tableFocusState.active,
             interactionState: tableInteractionState,
+            messages,
             onCopyPayload: onTableCopyPayload,
             onCommandResult: onTableCommandResult,
             onEditWithAi,
@@ -532,6 +546,7 @@ export function useMarkweaveEditorController({
       filteredSlashCommands,
       isCodeBlockActive,
       mermaidMode,
+      messages,
       onEditWithAi,
       onExtractToNote,
       onRewriteSelection,

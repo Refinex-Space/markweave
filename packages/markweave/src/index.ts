@@ -1,5 +1,6 @@
 export { createMarkweaveEditorExtensions } from "./editor-core/create-editor-extensions";
 export type { CreateMarkweaveEditorExtensionsOptions } from "./editor-core/create-editor-extensions";
+export type { MarkweaveLang } from "./i18n";
 export { MarkweaveEditor, useMarkweaveEditorController } from "./react/MarkweaveEditor";
 export type {
   MarkweaveEditorController,

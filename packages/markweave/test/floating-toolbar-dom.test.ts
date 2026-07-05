@@ -6,6 +6,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createMarkweaveEditorExtensions } from "../src/editor-core/create-editor-extensions";
 import { createSelectionSnapshot } from "../src/editor-core/selection-state";
+import { getMarkweaveMessages, type MarkweaveMessages } from "../src/i18n";
 import { FloatingToolbar, getFloatingToolbarSelectionDomRects } from "../src/ui/floating-toolbar/FloatingToolbar";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -164,7 +165,7 @@ async function flushReact() {
   });
 }
 
-async function renderFloatingToolbar(content: string, selectedText: string) {
+async function renderFloatingToolbar(content: string, selectedText: string, messages?: MarkweaveMessages) {
   const { editor, frame } = createEditor(content);
   selectText(editor, selectedText);
 
@@ -173,7 +174,7 @@ async function renderFloatingToolbar(content: string, selectedText: string) {
   activeRoot = createRoot(host);
 
   await act(async () => {
-    activeRoot?.render(createElement(FloatingToolbar, { editor, selectionSnapshot: createSelectionSnapshot(editor) }));
+    activeRoot?.render(createElement(FloatingToolbar, { editor, messages, selectionSnapshot: createSelectionSnapshot(editor) }));
   });
   await flushReact();
 
@@ -284,13 +285,21 @@ describe("floating toolbar link popover", () => {
 
     expect(getByTestId("markweave-floating-toolbar-link-popover")).not.toBeNull();
     const input = getByTestId<HTMLInputElement>("markweave-floating-toolbar-link-input");
-    expect(input.placeholder).toBe("Paste a link...");
+    expect(input.placeholder).toBe("粘贴链接...");
 
     await inputValue(input, " https://openai.com/docs ");
     await click(getByTestId("markweave-floating-toolbar-link-apply"));
 
     expect(editor.getHTML()).toContain('href="https://openai.com/docs"');
     expect(document.querySelector('[data-testid="markweave-floating-toolbar-link-popover"]')).toBeNull();
+  });
+
+  it("renders English link copy when English messages are provided", async () => {
+    await renderFloatingToolbar("<p>OpenAI plain</p>", "OpenAI", getMarkweaveMessages("en"));
+
+    await click(getByTestId("markweave-floating-toolbar-button-link"));
+
+    expect(getByTestId<HTMLInputElement>("markweave-floating-toolbar-link-input").placeholder).toBe("Paste a link...");
   });
 
   it("opens and removes the current link from the toolbar popover", async () => {

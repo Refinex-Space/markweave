@@ -39,11 +39,13 @@ import {
   type MarkweaveUploadRequest,
   type MarkweaveUploadResult,
 } from "../../plugins/slash-command/upload";
+import { getMarkweaveMessages, type MarkweaveMessages } from "../../i18n";
 
 type SlashCommandSelectOptions = { readonly emoji?: string; readonly uploadResult?: MarkweaveUploadResult };
 
 interface SlashCommandMenuProps {
   readonly commands: readonly SlashCommandSpec[];
+  readonly messages?: MarkweaveMessages;
   readonly state: SlashCommandState;
   readonly position: SlashCommandMenuPosition | null;
   readonly inputCommand?: SlashCommandSpec | null;
@@ -70,7 +72,7 @@ export type SlashCommandMenuPresentation =
       readonly activeIndex: number;
     };
 
-const slashCommandGroupOrder: readonly SlashCommandGroup[] = ["Style", "Callout", "Insert", "Upload"];
+const defaultMessages = getMarkweaveMessages("zh");
 
 const slashIconMap: Record<SlashCommandIconName, LucideIcon> = {
   type: Text,
@@ -94,24 +96,6 @@ const slashIconMap: Record<SlashCommandIconName, LucideIcon> = {
   video: Video,
   attachment: Paperclip,
 };
-
-const defaultEmojiItems = [
-  { emoji: "😀", label: "Grinning", terms: ["smile", "happy", "face"] },
-  { emoji: "😂", label: "Joy", terms: ["laugh", "tears"] },
-  { emoji: "😍", label: "Heart eyes", terms: ["love", "heart"] },
-  { emoji: "👍", label: "Thumbs up", terms: ["yes", "approve"] },
-  { emoji: "🙏", label: "Thanks", terms: ["pray", "please"] },
-  { emoji: "🔥", label: "Fire", terms: ["hot", "ship"] },
-  { emoji: "✨", label: "Sparkles", terms: ["magic", "polish"] },
-  { emoji: "✅", label: "Done", terms: ["check", "success"] },
-  { emoji: "⚠️", label: "Warning", terms: ["alert", "caution"] },
-  { emoji: "💡", label: "Idea", terms: ["tip", "light"] },
-  { emoji: "🚀", label: "Rocket", terms: ["launch", "ship"] },
-  { emoji: "📌", label: "Pin", terms: ["note", "important"] },
-  { emoji: "📎", label: "Attachment", terms: ["file", "paperclip"] },
-  { emoji: "🧠", label: "Brain", terms: ["think", "idea"] },
-  { emoji: "🎯", label: "Target", terms: ["goal", "focus"] },
-] as const;
 
 function SlashIcon({ name }: { readonly name: SlashCommandIconName }) {
   const Icon = slashIconMap[name];
@@ -146,7 +130,9 @@ export function getSlashCommandMenuPresentation(
   };
 }
 
-function groupSlashCommands(commands: readonly SlashCommandSpec[]) {
+function groupSlashCommands(commands: readonly SlashCommandSpec[], messages: MarkweaveMessages) {
+  const slashCommandGroupOrder = Object.values(messages.slash.groups) as readonly SlashCommandGroup[];
+
   return slashCommandGroupOrder
     .map((group) => ({
       group,
@@ -155,25 +141,18 @@ function groupSlashCommands(commands: readonly SlashCommandSpec[]) {
     .filter((entry) => entry.commands.length > 0);
 }
 
-function getUploadKindLabel(kind: SlashCommandUploadKind) {
-  switch (kind) {
-    case "image":
-      return "Image";
-    case "video":
-      return "Video";
-    case "attachment":
-      return "Attachment";
-    default:
-      return "Upload";
-  }
+function getUploadKindLabel(kind: SlashCommandUploadKind, messages: MarkweaveMessages) {
+  return messages.slash.uploadKindLabels[kind] ?? messages.slash.uploadKindLabels.upload;
 }
 
 function EmojiPicker({
   command,
+  messages,
   onBack,
   onSelect,
 }: {
   readonly command: SlashCommandSpec;
+  readonly messages: MarkweaveMessages;
   readonly onBack: () => void;
   readonly onSelect: (command: SlashCommandSpec, options: SlashCommandSelectOptions) => void;
 }) {
@@ -182,10 +161,10 @@ function EmojiPicker({
   const visibleItems = useMemo(() => {
     const normalized = query.trim().toLowerCase();
     const filtered = normalized
-      ? defaultEmojiItems.filter((item) => [item.emoji, item.label, ...item.terms].join(" ").toLowerCase().includes(normalized))
-      : defaultEmojiItems;
+      ? messages.slash.emojiItems.filter((item) => [item.emoji, item.label, ...item.terms].join(" ").toLowerCase().includes(normalized))
+      : messages.slash.emojiItems;
     return filtered.slice(0, 12);
-  }, [query]);
+  }, [messages.slash.emojiItems, query]);
 
   const choose = (index: number) => {
     const item = visibleItems[Math.min(visibleItems.length - 1, Math.max(0, index))];
@@ -223,15 +202,15 @@ function EmojiPicker({
     <div className="markweave-slash-subpanel" data-testid="markweave-slash-emoji-picker">
       <div className="markweave-slash-subpanel-header">
         <button type="button" onMouseDown={(event) => event.preventDefault()} onClick={onBack}>
-          Back
+          {messages.common.back}
         </button>
-        <span>Emoji</span>
+        <span>{messages.slash.emojiTitle}</span>
       </div>
       <label className="markweave-slash-input">
         <span>/</span>
-        <input autoFocus value={query} placeholder="Search emoji..." onChange={(event) => setQuery(event.currentTarget.value)} onKeyDown={handleKeyDown} />
+        <input autoFocus value={query} placeholder={messages.slash.emojiSearchPlaceholder} onChange={(event) => setQuery(event.currentTarget.value)} onKeyDown={handleKeyDown} />
       </label>
-      <div className="markweave-slash-emoji-grid" role="listbox" aria-label="Emoji">
+      <div className="markweave-slash-emoji-grid" role="listbox" aria-label={messages.slash.emojiTitle}>
         {visibleItems.map((item, index) => (
           <button
             key={`${item.emoji}-${item.label}`}
@@ -254,11 +233,13 @@ function EmojiPicker({
 
 function UploadPanel({
   command,
+  messages,
   onBack,
   onSelect,
   onUpload,
 }: {
   readonly command: SlashCommandSpec;
+  readonly messages: MarkweaveMessages;
   readonly onBack: () => void;
   readonly onSelect: (command: SlashCommandSpec, options: SlashCommandSelectOptions) => void;
   readonly onUpload?: MarkweaveSlashCommandUploadHandler;
@@ -292,13 +273,13 @@ function UploadPanel({
       }
 
       if (!inputValue.trim()) {
-        setError("Enter a URL, path, or Base64 value.");
+        setError(messages.slash.uploadRequiredError);
         return;
       }
 
       await submitRequest(detectUploadSource(inputValue));
     } catch (errorValue) {
-      setError(errorValue instanceof Error ? errorValue.message : "Upload failed.");
+      setError(errorValue instanceof Error ? errorValue.message : messages.slash.uploadFailedError);
     } finally {
       setIsSubmitting(false);
     }
@@ -321,25 +302,25 @@ function UploadPanel({
     <div className="markweave-slash-subpanel" data-testid="markweave-slash-upload-panel">
       <div className="markweave-slash-subpanel-header">
         <button type="button" onMouseDown={(event) => event.preventDefault()} onClick={onBack}>
-          Back
+          {messages.common.back}
         </button>
-        <span>{getUploadKindLabel(uploadKind)}</span>
+        <span>{getUploadKindLabel(uploadKind, messages)}</span>
       </div>
       <label className="markweave-slash-upload-field">
-        <span>URL / path / Base64</span>
-        <input autoFocus value={inputValue} placeholder="https://..., /path/file, data:..." onChange={(event) => setInputValue(event.currentTarget.value)} onKeyDown={handleKeyDown} />
+        <span>{messages.slash.uploadValueLabel}</span>
+        <input autoFocus value={inputValue} placeholder={messages.slash.uploadValuePlaceholder} onChange={(event) => setInputValue(event.currentTarget.value)} onKeyDown={handleKeyDown} />
       </label>
       <label className="markweave-slash-upload-field">
-        <span>File</span>
+        <span>{messages.common.file}</span>
         <input type="file" onChange={(event) => setFile(event.currentTarget.files?.[0] ?? null)} />
       </label>
       {error ? <div className="markweave-slash-upload-error">{error}</div> : null}
       <div className="markweave-slash-upload-actions">
         <button type="button" onMouseDown={(event) => event.preventDefault()} onClick={onBack}>
-          Cancel
+          {messages.common.cancel}
         </button>
         <button type="button" data-primary="true" disabled={isSubmitting} onMouseDown={(event) => event.preventDefault()} onClick={() => void submit()}>
-          Insert
+          {messages.common.insert}
         </button>
       </div>
     </div>
@@ -348,6 +329,7 @@ function UploadPanel({
 
 export function SlashCommandMenu({
   commands,
+  messages = defaultMessages,
   state,
   position,
   inputCommand,
@@ -362,7 +344,7 @@ export function SlashCommandMenu({
     return null;
   }
 
-  const groupedCommands = groupSlashCommands(commands);
+  const groupedCommands = groupSlashCommands(commands, messages);
   const style = {
     left: position.left,
     top: position.top,
@@ -380,23 +362,23 @@ export function SlashCommandMenu({
     <>
       <div className="markweave-slash-trigger" style={triggerStyle} aria-hidden="true" data-testid="markweave-slash-trigger">
         <span>/</span>
-        <em>{state.query ? state.query : "Filter..."}</em>
+        <em>{state.query ? state.query : messages.slash.filterPlaceholder}</em>
       </div>
       <div
         className="markweave-slash-menu"
         style={style}
         role="listbox"
-        aria-label="Slash commands"
+        aria-label={messages.slash.ariaLabel}
         data-placement={position.placement}
         data-testid="markweave-slash-menu"
       >
         {inputCommand?.inputKind === "emoji" ? (
-          <EmojiPicker command={inputCommand} onBack={closeInputCommand} onSelect={onSelect} />
+          <EmojiPicker command={inputCommand} messages={messages} onBack={closeInputCommand} onSelect={onSelect} />
         ) : inputCommand?.inputKind === "upload" ? (
-          <UploadPanel command={inputCommand} onBack={closeInputCommand} onSelect={onSelect} onUpload={onUpload} />
+          <UploadPanel command={inputCommand} messages={messages} onBack={closeInputCommand} onSelect={onSelect} onUpload={onUpload} />
         ) : presentation.empty ? (
           <div className="markweave-slash-menu__empty" role="option" aria-disabled="true">
-            No results
+            {messages.slash.noResults}
           </div>
         ) : (
           <div className="markweave-slash-command-list">

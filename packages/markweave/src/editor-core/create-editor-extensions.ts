@@ -33,9 +33,11 @@ import { MarkweaveTableInteractionLayer } from "../plugins/table/table-interacti
 import { MarkweaveTableKeyboard } from "../plugins/table/table-keyboard";
 import { MarkweaveMarkdownTableInput } from "../plugins/table/table-markdown-input";
 
+import { getMarkweaveMessages, type MarkweaveLang } from "../i18n";
 import type { MarkweaveSlashCommandUploadHandler } from "../plugins/slash-command/upload";
 
 export interface CreateMarkweaveEditorExtensionsOptions {
+  readonly lang?: MarkweaveLang;
   readonly onImageUpload?: MarkweaveSlashCommandUploadHandler;
   readonly onVideoUpload?: MarkweaveSlashCommandUploadHandler;
 }
@@ -43,6 +45,8 @@ export interface CreateMarkweaveEditorExtensionsOptions {
 const markweaveLowlight = createLowlight(common);
 
 export function createMarkweaveEditorExtensions(options: CreateMarkweaveEditorExtensionsOptions = {}) {
+  const messages = getMarkweaveMessages(options.lang);
+
   return [
     MarkweaveCompositionGuard,
     StarterKit.configure({
@@ -114,12 +118,14 @@ export function createMarkweaveEditorExtensions(options: CreateMarkweaveEditorEx
     MarkweaveImage.configure({
       inline: false,
       allowBase64: true,
+      messages,
       onUpload: options.onImageUpload,
       HTMLAttributes: {
         class: "markweave-image",
       },
     }),
     MarkweaveVideo.configure({
+      messages,
       onUpload: options.onVideoUpload,
       HTMLAttributes: {
         class: "markweave-video",

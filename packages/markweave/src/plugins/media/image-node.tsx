@@ -21,10 +21,12 @@ import {
   type MarkweaveUploadResult,
   type MarkweaveUploadSource,
 } from "../slash-command/upload";
+import { getMarkweaveMessages, type MarkweaveMessages } from "../../i18n";
 
 export type MarkweaveImageAlign = "left" | "center" | "right";
 
 export interface MarkweaveImageOptions extends ImageOptions {
+  readonly messages?: MarkweaveMessages;
   readonly onUpload?: MarkweaveSlashCommandUploadHandler;
 }
 
@@ -143,6 +145,8 @@ function isImageUiEventTarget(target: EventTarget | null) {
 function MarkweaveImageNodeView(props: NodeViewProps) {
   const { deleteNode, editor, getPos, node, selected, updateAttributes } = props;
   const options = props.extension.options as MarkweaveImageOptions;
+  const messages = options.messages ?? getMarkweaveMessages("zh");
+  const imageMessages = messages.image;
   const src = stringAttribute(node.attrs.src);
   const align = normalizeMarkweaveImageAlign(node.attrs.align);
   const width = numberAttribute(node.attrs.width);
@@ -196,7 +200,7 @@ function MarkweaveImageNodeView(props: NodeViewProps) {
       setReplacing(false);
       setInputValue("");
     } catch (errorValue) {
-      setError(errorValue instanceof Error ? errorValue.message : "Image upload failed.");
+      setError(errorValue instanceof Error ? errorValue.message : imageMessages.uploadFailedError);
     } finally {
       setIsSubmitting(false);
       setDragActive(false);
@@ -205,7 +209,7 @@ function MarkweaveImageNodeView(props: NodeViewProps) {
 
   const submitInputValue = () => {
     if (!inputValue.trim()) {
-      setError("Enter a URL, path, or Base64 value.");
+      setError(imageMessages.uploadRequiredError);
       return;
     }
 
@@ -295,6 +299,7 @@ function MarkweaveImageNodeView(props: NodeViewProps) {
           inputValue={inputValue}
           isSubmitting={isSubmitting}
           fileInputRef={fileInputRef}
+          messages={messages}
           onCancel={closePlaceholder}
           onDrop={handleDrop}
           onDragActiveChange={setDragActive}
@@ -307,6 +312,7 @@ function MarkweaveImageNodeView(props: NodeViewProps) {
           <ImageToolbar
             align={align}
             captionActive={captionOpen || Boolean(caption)}
+            messages={messages}
             onAlign={(nextAlign) => updateAttributes({ align: nextAlign })}
             onCaption={toggleCaption}
             onDelete={deleteNode}
@@ -323,8 +329,8 @@ function MarkweaveImageNodeView(props: NodeViewProps) {
           />
           <div className="markweave-image-box" ref={imageBoxRef} style={width ? { width: `${width}px` } : undefined}>
             <img className="markweave-image" src={src ?? ""} alt={stringAttribute(node.attrs.alt) ?? ""} title={stringAttribute(node.attrs.title) ?? undefined} draggable={false} />
-            <ResizeHandle side="left" onPointerDown={beginResize} />
-            <ResizeHandle side="right" onPointerDown={beginResize} />
+            <ResizeHandle side="left" messages={messages} onPointerDown={beginResize} />
+            <ResizeHandle side="right" messages={messages} onPointerDown={beginResize} />
           </div>
           {captionOpen || caption ? (
             <input
@@ -332,8 +338,8 @@ function MarkweaveImageNodeView(props: NodeViewProps) {
               data-markweave-image-ui="true"
               data-testid="markweave-image-caption-input"
               value={captionValue}
-              placeholder="Write a caption..."
-              aria-label="Image caption"
+              placeholder={imageMessages.captionPlaceholder}
+              aria-label={imageMessages.captionAriaLabel}
               onChange={(event) => updateCaption(event.currentTarget.value)}
               onKeyDown={(event) => {
                 if (event.key === "Escape") {
@@ -355,6 +361,7 @@ function ImageUploadPlaceholder({
   fileInputRef,
   inputValue,
   isSubmitting,
+  messages,
   onCancel,
   onDragActiveChange,
   onDrop,
@@ -367,6 +374,7 @@ function ImageUploadPlaceholder({
   readonly fileInputRef: RefObject<HTMLInputElement | null>;
   readonly inputValue: string;
   readonly isSubmitting: boolean;
+  readonly messages: MarkweaveMessages;
   readonly onCancel: () => void;
   readonly onDragActiveChange: (active: boolean) => void;
   readonly onDrop: (event: DragEvent<HTMLElement>) => void;
@@ -374,6 +382,8 @@ function ImageUploadPlaceholder({
   readonly onInputChange: (value: string) => void;
   readonly onSubmit: () => void;
 }) {
+  const imageMessages = messages.image;
+
   return (
     <section
       className="markweave-image-upload-placeholder"
@@ -397,17 +407,17 @@ function ImageUploadPlaceholder({
       </div>
       <div className="markweave-image-upload-copy">
         <button type="button" onClick={() => fileInputRef.current?.click()}>
-          Click to upload
+          {imageMessages.clickToUpload}
         </button>
-        <span> or drag and drop</span>
+        <span>{imageMessages.dragAndDrop}</span>
       </div>
-      <div className="markweave-image-upload-note">URL, path, Base64, or one local image file</div>
+      <div className="markweave-image-upload-note">{imageMessages.uploadNote}</div>
       <div className="markweave-image-upload-row">
         <input
           data-testid="markweave-image-url-input"
           value={inputValue}
-          placeholder="https://..., /path/file, data:..."
-          aria-label="Image URL, path, or Base64"
+          placeholder={imageMessages.uploadInputPlaceholder}
+          aria-label={imageMessages.uploadInputAriaLabel}
           onChange={(event) => onInputChange(event.currentTarget.value)}
           onKeyDown={(event) => {
             if (event.key === "Enter") {
@@ -418,10 +428,10 @@ function ImageUploadPlaceholder({
         />
         <button type="button" data-testid="markweave-image-upload-submit" disabled={isSubmitting || !inputValue.trim()} onClick={onSubmit}>
           <ImageUp size={16} strokeWidth={1.8} />
-          Insert
+          {messages.common.insert}
         </button>
         <button type="button" data-testid="markweave-image-upload-cancel" onClick={onCancel}>
-          Cancel
+          {messages.common.cancel}
         </button>
       </div>
       {error ? <div className="markweave-image-upload-error">{error}</div> : null}
@@ -432,6 +442,7 @@ function ImageUploadPlaceholder({
 function ImageToolbar({
   align,
   captionActive,
+  messages,
   onAlign,
   onCaption,
   onDelete,
@@ -440,23 +451,26 @@ function ImageToolbar({
 }: {
   readonly align: MarkweaveImageAlign;
   readonly captionActive: boolean;
+  readonly messages: MarkweaveMessages;
   readonly onAlign: (align: MarkweaveImageAlign) => void;
   readonly onCaption: () => void;
   readonly onDelete: () => void;
   readonly onDownload: () => void;
   readonly onReplace: () => void;
 }) {
+  const imageMessages = messages.image;
+
   return (
-    <div className="markweave-image-toolbar" data-testid="markweave-image-toolbar" data-markweave-image-ui="true" aria-label="Image tools">
-      <ToolbarButton testId="markweave-image-align-left" label="Image align left" icon={AlignLeft} active={align === "left"} onClick={() => onAlign("left")} />
-      <ToolbarButton testId="markweave-image-align-center" label="Image align center" icon={AlignCenter} active={align === "center"} onClick={() => onAlign("center")} />
-      <ToolbarButton testId="markweave-image-align-right" label="Image align right" icon={AlignRight} active={align === "right"} onClick={() => onAlign("right")} />
+    <div className="markweave-image-toolbar" data-testid="markweave-image-toolbar" data-markweave-image-ui="true" aria-label={imageMessages.toolsAriaLabel}>
+      <ToolbarButton testId="markweave-image-align-left" label={imageMessages.alignLeft} icon={AlignLeft} active={align === "left"} onClick={() => onAlign("left")} />
+      <ToolbarButton testId="markweave-image-align-center" label={imageMessages.alignCenter} icon={AlignCenter} active={align === "center"} onClick={() => onAlign("center")} />
+      <ToolbarButton testId="markweave-image-align-right" label={imageMessages.alignRight} icon={AlignRight} active={align === "right"} onClick={() => onAlign("right")} />
       <span className="markweave-image-toolbar-divider" aria-hidden="true" />
-      <ToolbarButton testId="markweave-image-caption" label="Caption" icon={Captions} active={captionActive} onClick={onCaption} />
-      <ToolbarButton testId="markweave-image-download" label="Download image" icon={Download} onClick={onDownload} />
-      <ToolbarButton testId="markweave-image-replace" label="Replace image" icon={Replace} onClick={onReplace} />
+      <ToolbarButton testId="markweave-image-caption" label={imageMessages.caption} icon={Captions} active={captionActive} onClick={onCaption} />
+      <ToolbarButton testId="markweave-image-download" label={imageMessages.download} icon={Download} onClick={onDownload} />
+      <ToolbarButton testId="markweave-image-replace" label={imageMessages.replace} icon={Replace} onClick={onReplace} />
       <span className="markweave-image-toolbar-divider" aria-hidden="true" />
-      <ToolbarButton testId="markweave-image-delete" label="Delete image" icon={Trash2} onClick={onDelete} />
+      <ToolbarButton testId="markweave-image-delete" label={imageMessages.delete} icon={Trash2} onClick={onDelete} />
     </div>
   );
 }
@@ -493,9 +507,11 @@ function ToolbarButton({
 }
 
 function ResizeHandle({
+  messages,
   onPointerDown,
   side,
 }: {
+  readonly messages: MarkweaveMessages;
   readonly onPointerDown: (side: "left" | "right", event: ReactPointerEvent<HTMLButtonElement>) => void;
   readonly side: "left" | "right";
 }) {
@@ -506,7 +522,7 @@ function ResizeHandle({
       data-testid={`markweave-image-resize-${side}`}
       data-side={side}
       data-markweave-image-ui="true"
-      aria-label={`Resize image ${side}`}
+      aria-label={side === "left" ? messages.image.resizeLeft : messages.image.resizeRight}
       onPointerDown={(event) => onPointerDown(side, event)}
     />
   );
@@ -516,6 +532,7 @@ export const MarkweaveImage = Image.extend<MarkweaveImageOptions>({
   addOptions() {
     return {
       ...(this.parent?.() as ImageOptions),
+      messages: getMarkweaveMessages("zh"),
       onUpload: undefined,
     };
   },

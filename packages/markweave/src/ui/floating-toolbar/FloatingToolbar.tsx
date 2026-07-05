@@ -49,9 +49,11 @@ import {
 import { normalizeMarkweaveCalloutType, type MarkweaveCalloutType } from "../../plugins/callout/callout-node";
 import { normalizeMarkweaveIndentLevel } from "../../plugins/indent/indent-extension";
 import { normalizeMarkdownLinkHref } from "../../plugins/markdown/markdown-input";
+import { getMarkweaveMessages, type MarkweaveMessages } from "../../i18n";
 
 interface FloatingToolbarProps {
   readonly editor: Editor;
+  readonly messages?: MarkweaveMessages;
   readonly selectionSnapshot: EditorSelectionSnapshot | null;
   readonly onRewriteSelection?: (request: FloatingToolbarAssistantRequest) => void;
   readonly onExtractToNote?: (request: FloatingToolbarAssistantRequest) => void;
@@ -150,64 +152,97 @@ export interface FloatingToolbarMoreAction {
 
 type FloatingToolbarWindowOpen = (url?: string | URL, target?: string, features?: string) => WindowProxy | null;
 
-export const floatingToolbarBlockTypes: readonly FloatingToolbarBlockType[] = [
-  { id: "paragraph", label: "Text", glyph: "Text", level: null },
-  { id: "heading-1", label: "Heading 1", glyph: "Heading 1", level: 1 },
-  { id: "heading-2", label: "Heading 2", glyph: "Heading 2", level: 2 },
-  { id: "heading-3", label: "Heading 3", glyph: "Heading 3", level: 3 },
+const defaultMarkweaveMessages = getMarkweaveMessages("zh");
+
+const colorValues: readonly Omit<FloatingToolbarColorOption, "label">[] = [
+  { id: "default", value: null },
+  { id: "gray", value: "#6b7280" },
+  { id: "brown", value: "#92400e" },
+  { id: "orange", value: "#f97316" },
+  { id: "yellow", value: "#ca8a04" },
+  { id: "green", value: "#22c55e" },
+  { id: "blue", value: "#3b82f6" },
+  { id: "purple", value: "#a855f7" },
+  { id: "pink", value: "#ec4899" },
+  { id: "red", value: "#ef4444" },
 ];
 
-export const floatingToolbarTurnIntoOptions: readonly FloatingToolbarTurnIntoOption[] = [
-  { id: "paragraph", label: "Text", glyph: "T" },
-  { id: "heading-1", label: "Heading 1", glyph: "H1" },
-  { id: "heading-2", label: "Heading 2", glyph: "H2" },
-  { id: "heading-3", label: "Heading 3", glyph: "H3" },
-  { id: "bullet-list", label: "Bulleted list", glyph: "bullet-list" },
-  { id: "numbered-list", label: "Numbered list", glyph: "numbered-list" },
-  { id: "todo-list", label: "To-do list", glyph: "todo-list" },
-  { id: "quote", label: "Blockquote", glyph: "quote" },
-  { id: "code-block", label: "Code block", glyph: "code-block" },
+const highlightColorValues: readonly Omit<FloatingToolbarColorOption, "label">[] = [
+  { id: "default", value: null },
+  { id: "gray", value: "#f3f4f6" },
+  { id: "brown", value: "#f4eee8" },
+  { id: "orange", value: "#ffedd5" },
+  { id: "yellow", value: "#fef9c3" },
+  { id: "green", value: "#dcfce7" },
+  { id: "blue", value: "#dbeafe" },
+  { id: "purple", value: "#ede9fe" },
+  { id: "pink", value: "#fce7f3" },
+  { id: "red", value: "#fee2e2" },
 ];
 
-export const floatingToolbarTextColorOptions: readonly FloatingToolbarColorOption[] = [
-  { id: "default", label: "Default text", value: null },
-  { id: "gray", label: "Gray text", value: "#6b7280" },
-  { id: "brown", label: "Brown text", value: "#92400e" },
-  { id: "orange", label: "Orange text", value: "#f97316" },
-  { id: "yellow", label: "Yellow text", value: "#ca8a04" },
-  { id: "green", label: "Green text", value: "#22c55e" },
-  { id: "blue", label: "Blue text", value: "#3b82f6" },
-  { id: "purple", label: "Purple text", value: "#a855f7" },
-  { id: "pink", label: "Pink text", value: "#ec4899" },
-  { id: "red", label: "Red text", value: "#ef4444" },
-];
+function getFloatingToolbarMessageSet(messages: MarkweaveMessages = defaultMarkweaveMessages) {
+  return messages.floatingToolbar;
+}
 
-export const floatingToolbarHighlightColorOptions: readonly FloatingToolbarColorOption[] = [
-  { id: "default", label: "Default highlight", value: null },
-  { id: "gray", label: "Gray highlight", value: "#f3f4f6" },
-  { id: "brown", label: "Brown highlight", value: "#f4eee8" },
-  { id: "orange", label: "Orange highlight", value: "#ffedd5" },
-  { id: "yellow", label: "Yellow highlight", value: "#fef9c3" },
-  { id: "green", label: "Green highlight", value: "#dcfce7" },
-  { id: "blue", label: "Blue highlight", value: "#dbeafe" },
-  { id: "purple", label: "Purple highlight", value: "#ede9fe" },
-  { id: "pink", label: "Pink highlight", value: "#fce7f3" },
-  { id: "red", label: "Red highlight", value: "#fee2e2" },
-];
+export function getFloatingToolbarBlockTypes(messages: MarkweaveMessages = defaultMarkweaveMessages): readonly FloatingToolbarBlockType[] {
+  const toolbarMessages = getFloatingToolbarMessageSet(messages);
 
+  return [
+    { id: "paragraph", label: toolbarMessages.blockTypes.paragraph, glyph: toolbarMessages.blockTypes.paragraph, level: null },
+    { id: "heading-1", label: toolbarMessages.blockTypes["heading-1"], glyph: toolbarMessages.blockTypes["heading-1"], level: 1 },
+    { id: "heading-2", label: toolbarMessages.blockTypes["heading-2"], glyph: toolbarMessages.blockTypes["heading-2"], level: 2 },
+    { id: "heading-3", label: toolbarMessages.blockTypes["heading-3"], glyph: toolbarMessages.blockTypes["heading-3"], level: 3 },
+  ];
+}
+
+export function getFloatingToolbarTurnIntoOptions(messages: MarkweaveMessages = defaultMarkweaveMessages): readonly FloatingToolbarTurnIntoOption[] {
+  const toolbarMessages = getFloatingToolbarMessageSet(messages);
+
+  return [
+    { id: "paragraph", label: toolbarMessages.turnInto.paragraph, glyph: "T" },
+    { id: "heading-1", label: toolbarMessages.turnInto["heading-1"], glyph: "H1" },
+    { id: "heading-2", label: toolbarMessages.turnInto["heading-2"], glyph: "H2" },
+    { id: "heading-3", label: toolbarMessages.turnInto["heading-3"], glyph: "H3" },
+    { id: "bullet-list", label: toolbarMessages.turnInto["bullet-list"], glyph: "bullet-list" },
+    { id: "numbered-list", label: toolbarMessages.turnInto["numbered-list"], glyph: "numbered-list" },
+    { id: "todo-list", label: toolbarMessages.turnInto["todo-list"], glyph: "todo-list" },
+    { id: "quote", label: toolbarMessages.turnInto.quote, glyph: "quote" },
+    { id: "code-block", label: toolbarMessages.turnInto["code-block"], glyph: "code-block" },
+  ];
+}
+
+export function getFloatingToolbarTextColorOptions(messages: MarkweaveMessages = defaultMarkweaveMessages): readonly FloatingToolbarColorOption[] {
+  const toolbarMessages = getFloatingToolbarMessageSet(messages);
+  return colorValues.map((option) => ({ ...option, label: toolbarMessages.textColors[option.id] }));
+}
+
+export function getFloatingToolbarHighlightColorOptions(messages: MarkweaveMessages = defaultMarkweaveMessages): readonly FloatingToolbarColorOption[] {
+  const toolbarMessages = getFloatingToolbarMessageSet(messages);
+  return highlightColorValues.map((option) => ({ ...option, label: toolbarMessages.highlightColors[option.id] }));
+}
+
+export function getFloatingToolbarMoreActions(messages: MarkweaveMessages = defaultMarkweaveMessages): readonly FloatingToolbarMoreAction[] {
+  const toolbarMessages = getFloatingToolbarMessageSet(messages);
+
+  return [
+    { id: "superscript", label: toolbarMessages.moreActions.superscript, group: "script" },
+    { id: "subscript", label: toolbarMessages.moreActions.subscript, group: "script" },
+    { id: "inline-math", label: toolbarMessages.moreActions["inline-math"], group: "script" },
+    { id: "align-left", label: toolbarMessages.moreActions["align-left"], group: "align" },
+    { id: "align-center", label: toolbarMessages.moreActions["align-center"], group: "align" },
+    { id: "align-right", label: toolbarMessages.moreActions["align-right"], group: "align" },
+    { id: "align-justify", label: toolbarMessages.moreActions["align-justify"], group: "align" },
+    { id: "decrease-indent", label: toolbarMessages.moreActions["decrease-indent"], group: "indent" },
+    { id: "increase-indent", label: toolbarMessages.moreActions["increase-indent"], group: "indent" },
+  ];
+}
+
+export const floatingToolbarBlockTypes: readonly FloatingToolbarBlockType[] = getFloatingToolbarBlockTypes();
+export const floatingToolbarTurnIntoOptions: readonly FloatingToolbarTurnIntoOption[] = getFloatingToolbarTurnIntoOptions();
+export const floatingToolbarTextColorOptions: readonly FloatingToolbarColorOption[] = getFloatingToolbarTextColorOptions();
+export const floatingToolbarHighlightColorOptions: readonly FloatingToolbarColorOption[] = getFloatingToolbarHighlightColorOptions();
 export const floatingToolbarColorOptions = floatingToolbarTextColorOptions;
-
-export const floatingToolbarMoreActions: readonly FloatingToolbarMoreAction[] = [
-  { id: "superscript", label: "Superscript", group: "script" },
-  { id: "subscript", label: "Subscript", group: "script" },
-  { id: "inline-math", label: "Inline math", group: "script" },
-  { id: "align-left", label: "Align left", group: "align" },
-  { id: "align-center", label: "Align center", group: "align" },
-  { id: "align-right", label: "Align right", group: "align" },
-  { id: "align-justify", label: "Justify", group: "align" },
-  { id: "decrease-indent", label: "Decrease indent", group: "indent" },
-  { id: "increase-indent", label: "Increase indent", group: "indent" },
-];
+export const floatingToolbarMoreActions: readonly FloatingToolbarMoreAction[] = getFloatingToolbarMoreActions();
 
 const defaultToolbarOrder: readonly FloatingToolbarButtonId[] = [
   "block-type",
@@ -373,14 +408,16 @@ export function openFloatingToolbarLinkHref(
   return true;
 }
 
-export function getCurrentFloatingToolbarBlockType(editor: Editor): FloatingToolbarBlockType {
-  for (const blockType of floatingToolbarBlockTypes) {
+export function getCurrentFloatingToolbarBlockType(editor: Editor, messages: MarkweaveMessages = defaultMarkweaveMessages): FloatingToolbarBlockType {
+  const blockTypes = getFloatingToolbarBlockTypes(messages);
+
+  for (const blockType of blockTypes) {
     if (blockType.level !== null && editor.isActive("heading", { level: blockType.level })) {
       return blockType;
     }
   }
 
-  return floatingToolbarBlockTypes[0];
+  return blockTypes[0];
 }
 
 export function setFloatingToolbarBlockType(editor: Editor, level: FloatingToolbarBlockType["level"]) {
@@ -550,14 +587,21 @@ export function getFloatingToolbarButtonCount(variant: FloatingToolbarVariant) {
   return getFloatingToolbarButtonSpecs(variant).length;
 }
 
-export function getFloatingToolbarButtonModels(editor: Editor, variant: FloatingToolbarVariant): readonly FloatingToolbarButtonModel[] {
+export function getFloatingToolbarButtonModels(
+  editor: Editor,
+  variant: FloatingToolbarVariant,
+  messages: MarkweaveMessages = defaultMarkweaveMessages,
+): readonly FloatingToolbarButtonModel[] {
+  const toolbarMessages = getFloatingToolbarMessageSet(messages);
+
   return getFloatingToolbarButtonSpecs(variant).map((button) => {
-    const blockType = button.id === "block-type" ? getCurrentFloatingToolbarBlockType(editor) : null;
+    const blockType = button.id === "block-type" ? getCurrentFloatingToolbarBlockType(editor, messages) : null;
+    const label = toolbarMessages.buttons[button.id] ?? button.label;
 
     return {
       id: button.id,
-      label: button.label,
-      glyph: blockType?.glyph ?? button.glyph,
+      label,
+      glyph: blockType?.glyph ?? (button.id === "improve" ? label : button.glyph),
       active: button.active(editor),
       group: button.group,
       run: () => button.run(editor),
@@ -878,7 +922,8 @@ function runAssistantAction(
   editor.commands.focus();
 }
 
-export function FloatingToolbar({ editor, selectionSnapshot, onRewriteSelection }: FloatingToolbarProps) {
+export function FloatingToolbar({ editor, messages = defaultMarkweaveMessages, selectionSnapshot, onRewriteSelection }: FloatingToolbarProps) {
+  const moreActions = useMemo(() => getFloatingToolbarMoreActions(messages), [messages]);
   const stableToolbarState = getFloatingToolbarState(selectionSnapshot, { editable: editor.isEditable });
   const [toolbarState, setToolbarState] = useState(stableToolbarState);
   const [tooltipButtonId, setTooltipButtonId] = useState<FloatingToolbarButtonId | FloatingToolbarMoreActionId | null>(null);
@@ -893,7 +938,7 @@ export function FloatingToolbar({ editor, selectionSnapshot, onRewriteSelection 
   const toolbarRootRef = useRef<HTMLDivElement | null>(null);
   const toolbarContentRef = useRef<HTMLDivElement | null>(null);
   const linkInputRef = useRef<HTMLInputElement | null>(null);
-  const visibleButtons = getFloatingToolbarButtonModels(editor, toolbarState.variant);
+  const visibleButtons = getFloatingToolbarButtonModels(editor, toolbarState.variant, messages);
   const tooltipModel = getFloatingToolbarTooltipModel(visibleButtons.find((button) => button.id === tooltipButtonId) ?? null);
   const normalizedLinkInputHref = normalizeMarkdownLinkHref(linkInputValue);
   const applyFrameGeometryClamp = useCallback(() => {
@@ -1030,7 +1075,7 @@ export function FloatingToolbar({ editor, selectionSnapshot, onRewriteSelection 
   ]);
 
   useEffect(() => {
-    if (openMenu === "more" && floatingToolbarMoreActions.some((action) => action.id === tooltipButtonId)) {
+    if (openMenu === "more" && moreActions.some((action) => action.id === tooltipButtonId)) {
       return;
     }
 
@@ -1038,7 +1083,7 @@ export function FloatingToolbar({ editor, selectionSnapshot, onRewriteSelection 
       setTooltipButtonId(null);
       setTooltipAnchorX(null);
     }
-  }, [openMenu, tooltipButtonId, visibleButtons]);
+  }, [moreActions, openMenu, tooltipButtonId, visibleButtons]);
 
   useEffect(() => {
     if (!openMenu) {
@@ -1187,10 +1232,11 @@ export function FloatingToolbar({ editor, selectionSnapshot, onRewriteSelection 
             onRun={runButton}
           />
         ))}
-        {openMenu === "block-type" ? <TurnIntoMenu editor={editor} onClose={() => setOpenMenu(null)} /> : null}
+        {openMenu === "block-type" ? <TurnIntoMenu editor={editor} messages={messages} onClose={() => setOpenMenu(null)} /> : null}
         {openMenu === "link" ? (
           <LinkPopover
             inputRef={linkInputRef}
+            messages={messages}
             value={linkInputValue}
             canApply={Boolean(normalizedLinkInputHref)}
             canOpen={Boolean(normalizedLinkInputHref)}
@@ -1201,9 +1247,9 @@ export function FloatingToolbar({ editor, selectionSnapshot, onRewriteSelection 
             onRemove={removeLinkInput}
           />
         ) : null}
-        {openMenu === "color" ? <ColorMenu editor={editor} onClose={() => setOpenMenu(null)} /> : null}
+        {openMenu === "color" ? <ColorMenu editor={editor} messages={messages} onClose={() => setOpenMenu(null)} /> : null}
         {openMenu === "more" ? (
-          <MoreMenu editor={editor} activeTooltipId={tooltipButtonId} onTooltipChange={setTooltipButtonId} onClose={() => setOpenMenu(null)} />
+          <MoreMenu editor={editor} messages={messages} activeTooltipId={tooltipButtonId} onTooltipChange={setTooltipButtonId} onClose={() => setOpenMenu(null)} />
         ) : null}
         {tooltipModel && openMenu === null ? (
           <div
@@ -1224,6 +1270,7 @@ export function FloatingToolbar({ editor, selectionSnapshot, onRewriteSelection 
 
 function LinkPopover({
   inputRef,
+  messages,
   value,
   canApply,
   canOpen,
@@ -1234,6 +1281,7 @@ function LinkPopover({
   onRemove,
 }: {
   readonly inputRef: RefObject<HTMLInputElement | null>;
+  readonly messages: MarkweaveMessages;
   readonly value: string;
   readonly canApply: boolean;
   readonly canOpen: boolean;
@@ -1243,6 +1291,8 @@ function LinkPopover({
   readonly onOpen: () => void;
   readonly onRemove: () => void;
 }) {
+  const toolbarMessages = getFloatingToolbarMessageSet(messages);
+
   return (
     <form
       className="markweave-floating-toolbar-popover markweave-floating-toolbar-link-popover"
@@ -1254,16 +1304,16 @@ function LinkPopover({
     >
       <input
         ref={inputRef}
-        aria-label="Link URL"
+        aria-label={toolbarMessages.linkUrlLabel}
         data-testid="markweave-floating-toolbar-link-input"
-        placeholder="Paste a link..."
+        placeholder={toolbarMessages.linkPlaceholder}
         value={value}
         onChange={(event) => onValueChange(event.currentTarget.value)}
       />
       <span className="markweave-floating-toolbar-link-actions">
         <button
           type="submit"
-          aria-label="Apply link"
+          aria-label={toolbarMessages.applyLink}
           data-testid="markweave-floating-toolbar-link-apply"
           disabled={!canApply}
           onMouseDown={preventFloatingToolbarPointerFocusLoss}
@@ -1273,7 +1323,7 @@ function LinkPopover({
         <span className="markweave-floating-toolbar-link-divider" aria-hidden="true" />
         <button
           type="button"
-          aria-label="Open link"
+          aria-label={toolbarMessages.openLink}
           data-testid="markweave-floating-toolbar-link-open"
           disabled={!canOpen}
           onMouseDown={preventFloatingToolbarPointerFocusLoss}
@@ -1283,7 +1333,7 @@ function LinkPopover({
         </button>
         <button
           type="button"
-          aria-label="Remove link"
+          aria-label={toolbarMessages.removeLink}
           data-testid="markweave-floating-toolbar-link-remove"
           disabled={!canRemove}
           onMouseDown={preventFloatingToolbarPointerFocusLoss}
@@ -1392,11 +1442,14 @@ function FloatingToolbarButtonIcon({ button, expanded }: { readonly button: Floa
   return <Icon name="more" />;
 }
 
-function TurnIntoMenu({ editor, onClose }: { readonly editor: Editor; readonly onClose: () => void }) {
+function TurnIntoMenu({ editor, messages, onClose }: { readonly editor: Editor; readonly messages: MarkweaveMessages; readonly onClose: () => void }) {
+  const toolbarMessages = getFloatingToolbarMessageSet(messages);
+  const options = getFloatingToolbarTurnIntoOptions(messages);
+
   return (
     <div className="markweave-floating-toolbar-popover markweave-floating-toolbar-turn-menu" data-testid="markweave-floating-toolbar-turn-menu">
-      <div className="markweave-floating-toolbar-menu-title">Turn Into</div>
-      {floatingToolbarTurnIntoOptions.map((option) => (
+      <div className="markweave-floating-toolbar-menu-title">{toolbarMessages.turnIntoTitle}</div>
+      {options.map((option) => (
         <button
           key={option.id}
           type="button"
@@ -1430,27 +1483,28 @@ function TurnIntoIcon({ option }: { readonly option: FloatingToolbarTurnIntoOpti
   return <span>{option.glyph}</span>;
 }
 
-function ColorMenu({ editor, onClose }: { readonly editor: Editor; readonly onClose: () => void }) {
+function ColorMenu({ editor, messages, onClose }: { readonly editor: Editor; readonly messages: MarkweaveMessages; readonly onClose: () => void }) {
+  const toolbarMessages = getFloatingToolbarMessageSet(messages);
   const activeTextColor = editor.getAttributes("textStyle").color as string | undefined;
   const activeHighlightColor = editor.getAttributes("highlight").color as string | undefined;
 
   return (
     <div className="markweave-floating-toolbar-popover markweave-floating-toolbar-color-popover" data-testid="markweave-floating-toolbar-color-menu">
       <ColorSection
-        title="Text Color"
+        title={toolbarMessages.textColorTitle}
         mode="text"
         activeColor={activeTextColor ?? null}
-        options={floatingToolbarTextColorOptions}
+        options={getFloatingToolbarTextColorOptions(messages)}
         onSelect={(color) => {
           setFloatingToolbarTextColor(editor, color);
           onClose();
         }}
       />
       <ColorSection
-        title="Highlight Color"
+        title={toolbarMessages.highlightColorTitle}
         mode="highlight"
         activeColor={activeHighlightColor ?? null}
-        options={floatingToolbarHighlightColorOptions}
+        options={getFloatingToolbarHighlightColorOptions(messages)}
         onSelect={(color) => {
           setFloatingToolbarHighlightColor(editor, color);
           onClose();
@@ -1503,24 +1557,28 @@ function ColorSection({
 
 function MoreMenu({
   editor,
+  messages,
   activeTooltipId,
   onTooltipChange,
   onClose,
 }: {
   readonly editor: Editor;
+  readonly messages: MarkweaveMessages;
   readonly activeTooltipId: FloatingToolbarButtonId | FloatingToolbarMoreActionId | null;
   readonly onTooltipChange: (buttonId: FloatingToolbarButtonId | FloatingToolbarMoreActionId | null) => void;
   readonly onClose: () => void;
 }) {
+  const actions = getFloatingToolbarMoreActions(messages);
+
   return (
     <div className="markweave-floating-toolbar-popover markweave-floating-toolbar-more-menu" data-testid="markweave-floating-toolbar-more-menu">
-      {floatingToolbarMoreActions.map((action, index) => (
+      {actions.map((action, index) => (
         <MoreMenuButton
           key={action.id}
           action={action}
           active={isFloatingToolbarMoreActionActive(editor, action.id)}
           tooltipActive={activeTooltipId === action.id}
-          showDivider={index > 0 && floatingToolbarMoreActions[index - 1].group !== action.group}
+          showDivider={index > 0 && actions[index - 1].group !== action.group}
           onTooltipChange={onTooltipChange}
           onRun={() => {
             runFloatingToolbarMoreAction(editor, action.id);
