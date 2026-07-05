@@ -15,6 +15,7 @@ const packageJson = JSON.parse(readProjectFile("package.json")) as {
 
 const editorRuntimeSelectors = [
   ".markweave-editor-frame",
+  '.markweave-editor-frame[data-markweave-mode="view"]',
   ".markweave-editor-surface",
   ".markweave-floating-toolbar",
   ".markweave-floating-toolbar-popover",
@@ -31,8 +32,11 @@ const editorRuntimeSelectors = [
   ".markweave-image-toolbar",
   ".markweave-image-upload-placeholder",
   ".markweave-image-resize-handle",
+  ".markweave-image-readonly-empty",
+  ".markweave-image-caption",
   ".markweave-video-node",
   ".markweave-video-upload-placeholder",
+  ".markweave-video-readonly-empty",
   ".markweave-video-embed",
   ".markweave-video-iframe",
   ".markweave-video-selection-layer",
@@ -40,6 +44,7 @@ const editorRuntimeSelectors = [
   ".markweave-table-selection-overlay",
   ".markweave-codeblock-overlay",
   ".markweave-codeblock-controls",
+  ".markweave-codeblock-language-label",
   ".markweave-codeblock-language-menu",
   ".markweave-mermaid-tabs",
   ".markweave-mermaid-preview",
@@ -70,6 +75,7 @@ describe("editor style boundary", () => {
     expect(editorCss).toContain("z-index: 40");
     expect(editorCss).toContain("overflow-anchor: none");
     expect(editorCss).toContain("scrollbar-gutter: stable");
+    expect(editorCss).toContain('[data-markweave-mode="view"]');
     expect(editorCss).toContain(".markweave-floating-toolbar-turn-menu");
     expect(editorCss).toContain(".markweave-floating-toolbar-link-popover");
     expect(editorCss).toContain(".markweave-floating-toolbar-color-popover");
@@ -82,8 +88,11 @@ describe("editor style boundary", () => {
     expect(editorCss).toContain(".markweave-image-toolbar");
     expect(editorCss).toContain(".markweave-image-upload-placeholder");
     expect(editorCss).toContain(".markweave-image-resize-handle");
+    expect(editorCss).toContain(".markweave-image-readonly-empty");
+    expect(editorCss).toContain(".markweave-image-caption");
     expect(editorCss).toContain(".markweave-video-node");
     expect(editorCss).toContain(".markweave-video-upload-placeholder");
+    expect(editorCss).toContain(".markweave-video-readonly-empty");
     expect(editorCss).toContain(".markweave-video-embed");
     expect(editorCss).toContain(".markweave-video-iframe");
     expect(editorCss).toContain(".markweave-video-selection-layer");
@@ -95,6 +104,7 @@ describe("editor style boundary", () => {
     expect(editorCss).toContain(".markweave-separator");
     expect(editorCss).toContain('[data-markweave-indent-level="1"]');
     expect(editorCss).toContain(".markweave-codeblock-language-menu");
+    expect(editorCss).toContain(".markweave-codeblock-language-label");
     expect(editorCss).toContain("width: 228px");
     expect(editorCss).toContain("max-height: 220px");
     expect(editorCss).toContain("height: 30px");

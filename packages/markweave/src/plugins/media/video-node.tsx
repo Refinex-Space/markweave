@@ -10,6 +10,7 @@ import {
   type MarkweaveUploadSource,
 } from "../slash-command/upload";
 import { getMarkweaveMessages, type MarkweaveMessages } from "../../i18n";
+import { isMarkweaveEditorLiveEditable, useMarkweaveEditorModeState } from "../../react/editor-mode-state";
 
 export type MarkweaveVideoProvider = "youtube" | "bilibili";
 
@@ -209,6 +210,8 @@ function MarkweaveVideoNodeView(props: NodeViewProps) {
   const options = props.extension.options as MarkweaveVideoOptions;
   const messages = options.messages ?? getMarkweaveMessages("zh");
   const videoMessages = messages.video;
+  const modeState = useMarkweaveEditorModeState(editor);
+  const canEditVideo = isMarkweaveEditorLiveEditable(modeState);
   const src = stringAttribute(node.attrs.src);
   const embedUrl = stringAttribute(node.attrs.embedUrl);
   const provider = stringAttribute(node.attrs.provider);
@@ -219,9 +222,13 @@ function MarkweaveVideoNodeView(props: NodeViewProps) {
   const [inputValue, setInputValue] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const showPlaceholder = !src;
+  const showPlaceholder = canEditVideo && !src;
 
   const selectVideoNode = () => {
+    if (!canEditVideo) {
+      return;
+    }
+
     const pos = getPos();
 
     if (typeof pos === "number") {
@@ -230,6 +237,10 @@ function MarkweaveVideoNodeView(props: NodeViewProps) {
   };
 
   const selectVideoFromMouseDown = (event: ReactMouseEvent<HTMLElement>) => {
+    if (!canEditVideo) {
+      return;
+    }
+
     if (isVideoUiEventTarget(event.target)) {
       return;
     }
@@ -239,14 +250,14 @@ function MarkweaveVideoNodeView(props: NodeViewProps) {
   };
 
   const deleteSelectedVideo = (event: KeyboardEvent<HTMLElement>) => {
-    if ((event.key === "Delete" || event.key === "Backspace") && selected) {
+    if (canEditVideo && (event.key === "Delete" || event.key === "Backspace") && selected) {
       event.preventDefault();
       deleteNode();
     }
   };
 
   const submitFile = async (file: File | null) => {
-    if (!file) {
+    if (!canEditVideo || !file) {
       return;
     }
 
@@ -266,6 +277,10 @@ function MarkweaveVideoNodeView(props: NodeViewProps) {
   };
 
   const submitUrl = () => {
+    if (!canEditVideo) {
+      return;
+    }
+
     const attrs = attrsFromVideoUrl(inputValue);
 
     if (!attrs) {
@@ -286,6 +301,10 @@ function MarkweaveVideoNodeView(props: NodeViewProps) {
   const handleDrop = (event: DragEvent<HTMLElement>) => {
     event.preventDefault();
     event.stopPropagation();
+    if (!canEditVideo) {
+      return;
+    }
+
     void submitFile(event.dataTransfer.files?.[0] ?? null);
   };
 
@@ -316,8 +335,9 @@ function MarkweaveVideoNodeView(props: NodeViewProps) {
       className="markweave-video-node"
       data-testid="markweave-video-node"
       data-provider={provider ?? "file"}
-      data-selected={selected ? "true" : "false"}
-      tabIndex={0}
+      data-empty={src ? "false" : "true"}
+      data-selected={canEditVideo && selected ? "true" : "false"}
+      tabIndex={canEditVideo ? 0 : undefined}
       aria-label={videoMessages.nodeAriaLabel}
       onFocus={selectVideoNode}
       onKeyDown={deleteSelectedVideo}
@@ -335,12 +355,14 @@ function MarkweaveVideoNodeView(props: NodeViewProps) {
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
             allowFullScreen
           />
-          <button type="button" className="markweave-video-selection-layer" data-testid="markweave-video-selection-layer" tabIndex={-1} aria-label={videoMessages.selectAriaLabel} />
+          {canEditVideo ? <button type="button" className="markweave-video-selection-layer" data-testid="markweave-video-selection-layer" tabIndex={-1} aria-label={videoMessages.selectAriaLabel} /> : null}
         </div>
+      ) : !src ? (
+        <div className="markweave-video-readonly-empty" data-testid="markweave-video-readonly-empty" aria-hidden="true" />
       ) : (
         <div className="markweave-video-box">
-          <video className="markweave-video" src={src ?? ""} title={title ?? undefined} data-markweave-video="true" data-markweave-mime-type={mimeType ?? undefined} controls />
-          <button type="button" className="markweave-video-selection-layer" data-testid="markweave-video-selection-layer" tabIndex={-1} aria-label={videoMessages.selectAriaLabel} />
+          <video className="markweave-video" src={src} title={title ?? undefined} data-markweave-video="true" data-markweave-mime-type={mimeType ?? undefined} controls />
+          {canEditVideo ? <button type="button" className="markweave-video-selection-layer" data-testid="markweave-video-selection-layer" tabIndex={-1} aria-label={videoMessages.selectAriaLabel} /> : null}
         </div>
       )}
     </NodeViewWrapper>

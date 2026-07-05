@@ -26,6 +26,7 @@ export function Editor() {
   return (
     <MarkweaveEditor
       defaultContent="<h1>Hello Markweave</h1>"
+      mode="live"
       onUpdate={({ html }) => {
         console.log(html);
       }}
@@ -33,6 +34,8 @@ export function Editor() {
   );
 }
 ```
+
+`mode` defaults to `"live"`. Pass `mode="view"` for a read-only rendered view that reuses the same Markweave output styling. The existing `editable={false}` prop still works as a compatibility lock, so `mode="live" editable={false}` is also read-only.
 
 ## Package Boundary
 

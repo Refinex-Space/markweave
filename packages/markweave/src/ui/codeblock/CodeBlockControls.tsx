@@ -16,6 +16,7 @@ import {
   type MarkweaveCodeBlockCopyFeedbackSnapshot,
   type MarkweaveCodeBlockLanguage,
 } from "../../plugins/codeblock/codeblock-behavior";
+import { getEffectiveMermaidPreviewMode, setReadonlyMermaidPreviewMode } from "../../plugins/mermaid/mermaid-inline-preview";
 import { normalizeMermaidPreviewMode, type MermaidPreviewMode } from "../../plugins/mermaid/mermaid-renderer";
 
 interface CodeBlockControlsProps {
@@ -23,6 +24,7 @@ interface CodeBlockControlsProps {
   readonly editor: Editor;
   readonly mermaidMode: MermaidPreviewMode;
   readonly onMermaidModeChange: (mode: MermaidPreviewMode) => void;
+  readonly readOnly?: boolean;
 }
 
 interface OverlayPosition {
@@ -198,10 +200,13 @@ function getCodeBlockStateAtPosition(editor: Editor, pos: number | null): CodeBl
     return null;
   }
 
+  const language = normalizeCodeBlockLanguage(node.attrs.language);
+
   return {
     active: true,
-    language: normalizeCodeBlockLanguage(node.attrs.language),
-    mermaidPreviewMode: normalizeMermaidPreviewMode(node.attrs.mermaidPreviewMode),
+    language,
+    mermaidPreviewMode:
+      language === "mermaid" ? getEffectiveMermaidPreviewMode(editor.state, node, pos) : normalizeMermaidPreviewMode(node.attrs.mermaidPreviewMode),
     pos,
     text: node.textContent,
   };
@@ -221,7 +226,7 @@ function getMermaidCodeBlockTargets(editor: Editor) {
       const target = {
         active: true as const,
         language,
-        mermaidPreviewMode: normalizeMermaidPreviewMode(node.attrs.mermaidPreviewMode),
+        mermaidPreviewMode: getEffectiveMermaidPreviewMode(editor.state, node, pos),
         pos,
         text: node.textContent,
       };
@@ -307,6 +312,23 @@ function focusCodeBlockTarget(editor: Editor, codeBlock: CodeBlockTargetState | 
   editor.view.dispatch(editor.state.tr.setSelection(TextSelection.create(editor.state.doc, selectionPosition)));
   editor.view.focus();
   return true;
+}
+
+type CodeBlockClipboardLike = {
+  readonly writeText: (text: string) => Promise<void>;
+};
+
+async function copyCodeBlockText(text: string, clipboard: CodeBlockClipboardLike | undefined = globalThis.navigator?.clipboard) {
+  if (!clipboard) {
+    return false;
+  }
+
+  try {
+    await clipboard.writeText(text);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 function getFrameElement(controlsElement: HTMLElement) {
@@ -535,7 +557,7 @@ function Icon({ icon }: { readonly icon: IconName }) {
   );
 }
 
-export function CodeBlockControls({ active, editor, mermaidMode, onMermaidModeChange }: CodeBlockControlsProps) {
+export function CodeBlockControls({ active, editor, mermaidMode, onMermaidModeChange, readOnly = false }: CodeBlockControlsProps) {
   const controlsRef = useRef<HTMLDivElement | null>(null);
   const languageButtonRef = useRef<HTMLButtonElement | null>(null);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
@@ -552,21 +574,25 @@ export function CodeBlockControls({ active, editor, mermaidMode, onMermaidModeCh
   const [fullscreenTooltip, setFullscreenTooltip] = useState<MermaidFullscreenTooltip | null>(null);
   const [fullscreenDragging, setFullscreenDragging] = useState(false);
   const [collapseRevision, setCollapseRevision] = useState(0);
+  const [readonlyMermaidRevision, setReadonlyMermaidRevision] = useState(0);
   const activeCodeBlock = getActiveCodeBlockState(editor);
   const hoveredCodeBlock = getCodeBlockStateAtPosition(editor, hoveredCodeBlockPos);
   const activeTarget =
-    active && activeCodeBlock.active && activeCodeBlock.pos !== null ? { ...activeCodeBlock, pos: activeCodeBlock.pos, active: true as const } : null;
+    !readOnly && active && activeCodeBlock.active && activeCodeBlock.pos !== null ? { ...activeCodeBlock, pos: activeCodeBlock.pos, active: true as const } : null;
   const codeBlock = hoveredCodeBlock ?? activeTarget;
   const codeBlockActive = codeBlock !== null;
   const isMermaid = codeBlock?.language === "mermaid";
   const collapsed = isCodeBlockTargetCollapsed(editor, codeBlock);
   const showTargetControls = codeBlockActive && codeBlock !== null && !collapsed;
+  const showWritableControls = !readOnly;
   const currentLanguageLabel = codeBlock ? formatCodeBlockLanguageLabel(codeBlock.language) : formatCodeBlockLanguageLabel("text");
   const copyState = copyFeedback?.status ?? "idle";
   const visibleMermaidMode = codeBlock?.mermaidPreviewMode ?? mermaidMode;
   const svgAvailable = isMermaid && visibleMermaidMode === "preview";
   const mermaidTargets = getMermaidCodeBlockTargets(editor);
-  const mermaidTargetKey = mermaidTargets.map((target) => `${target.pos}:${target.mermaidPreviewMode}:${target.text.length}`).join("|");
+  const mermaidTargetKey = `${readonlyMermaidRevision}|${mermaidTargets
+    .map((target) => `${target.pos}:${target.mermaidPreviewMode}:${target.text.length}`)
+    .join("|")}`;
 
   const languageItems = useMemo(() => {
     const query = languageQuery.trim().toLowerCase();
@@ -579,6 +605,13 @@ export function CodeBlockControls({ active, editor, mermaidMode, onMermaidModeCh
       .sort((left, right) => left.label.localeCompare(right.label))
       .filter((item) => !query || item.language.includes(query) || item.label.toLowerCase().includes(query));
   }, [languageQuery]);
+
+  useEffect(() => {
+    if (readOnly) {
+      setLanguageMenuOpen(false);
+      setLanguageQuery("");
+    }
+  }, [readOnly]);
 
   useEffect(() => {
     if (!copyFeedback) {
@@ -845,6 +878,16 @@ export function CodeBlockControls({ active, editor, mermaidMode, onMermaidModeCh
     : undefined;
 
   const copyCode = async () => {
+    if (readOnly) {
+      if (!codeBlock) {
+        return;
+      }
+
+      const didCopy = await copyCodeBlockText(codeBlock.text);
+      setCopyFeedback(getCodeBlockCopyFeedbackSnapshot(codeBlock, didCopy ? "copied" : "failed"));
+      return;
+    }
+
     if (!focusCodeBlockTarget(editor, codeBlock)) {
       return;
     }
@@ -855,6 +898,13 @@ export function CodeBlockControls({ active, editor, mermaidMode, onMermaidModeCh
   };
 
   const setMermaidModeForTarget = (target: CodeBlockTargetState, mode: MermaidPreviewMode) => {
+    if (readOnly) {
+      if (setReadonlyMermaidPreviewMode(editor, target.pos, mode)) {
+        setReadonlyMermaidRevision((revision) => revision + 1);
+      }
+      return;
+    }
+
     if (!focusCodeBlockTarget(editor, target)) {
       return;
     }
@@ -873,6 +923,10 @@ export function CodeBlockControls({ active, editor, mermaidMode, onMermaidModeCh
   };
 
   const selectLanguage = (language: MarkweaveCodeBlockLanguage) => {
+    if (readOnly) {
+      return;
+    }
+
     if (!focusCodeBlockTarget(editor, codeBlock)) {
       return;
     }
@@ -889,7 +943,7 @@ export function CodeBlockControls({ active, editor, mermaidMode, onMermaidModeCh
   };
 
   const toggleCollapse = () => {
-    if (!codeBlock) {
+    if (readOnly || !codeBlock) {
       return;
     }
 
@@ -1011,7 +1065,7 @@ export function CodeBlockControls({ active, editor, mermaidMode, onMermaidModeCh
   };
 
   return (
-    <div ref={controlsRef} className="markweave-codeblock-overlay" data-testid="markweave-codeblock-overlay">
+    <div ref={controlsRef} className="markweave-codeblock-overlay" data-testid="markweave-codeblock-overlay" data-read-only={readOnly ? "true" : "false"}>
       {mermaidTargets.map((target) => {
         const tabPosition = mermaidTabPositions.find((candidate) => candidate.pos === target.pos);
 
@@ -1045,35 +1099,48 @@ export function CodeBlockControls({ active, editor, mermaidMode, onMermaidModeCh
           data-testid="markweave-codeblock-controls"
           data-positioned={position ? "true" : "false"}
           data-collapsed={collapsed ? "true" : "false"}
+          data-read-only={readOnly ? "true" : "false"}
           aria-label="Code block controls"
           style={controlStyle}
         >
-          <button
-            ref={languageButtonRef}
-            type="button"
-            className="markweave-codeblock-language-button"
-            aria-label="Code block language"
-            aria-expanded={languageMenuOpen}
-            aria-haspopup="listbox"
-            data-testid="markweave-codeblock-language"
-            onMouseDown={(event) => event.preventDefault()}
-            onClick={() => setLanguageMenuOpen((open) => !open)}
-          >
-            <span>{currentLanguageLabel}</span>
-            <Icon icon="chevron" />
-          </button>
-          <button
-            type="button"
-            className="markweave-codeblock-icon-button markweave-codeblock-collapse-button"
-            aria-label={collapsed ? "Expand code block" : "Collapse code block"}
-            title={collapsed ? "Expand code block" : "Collapse code block"}
-            data-testid="markweave-codeblock-collapse"
-            data-collapsed={collapsed ? "true" : "false"}
-            onMouseDown={(event) => event.preventDefault()}
-            onClick={toggleCollapse}
-          >
-            <Icon icon="chevron" />
-          </button>
+          {readOnly ? (
+            <span
+              className="markweave-codeblock-language-button markweave-codeblock-language-label"
+              aria-label="Code block language"
+              data-testid="markweave-codeblock-language"
+            >
+              <span>{currentLanguageLabel}</span>
+            </span>
+          ) : (
+            <button
+              ref={languageButtonRef}
+              type="button"
+              className="markweave-codeblock-language-button"
+              aria-label="Code block language"
+              aria-expanded={languageMenuOpen}
+              aria-haspopup="listbox"
+              data-testid="markweave-codeblock-language"
+              onMouseDown={(event) => event.preventDefault()}
+              onClick={() => setLanguageMenuOpen((open) => !open)}
+            >
+              <span>{currentLanguageLabel}</span>
+              <Icon icon="chevron" />
+            </button>
+          )}
+          {showWritableControls ? (
+            <button
+              type="button"
+              className="markweave-codeblock-icon-button markweave-codeblock-collapse-button"
+              aria-label={collapsed ? "Expand code block" : "Collapse code block"}
+              title={collapsed ? "Expand code block" : "Collapse code block"}
+              data-testid="markweave-codeblock-collapse"
+              data-collapsed={collapsed ? "true" : "false"}
+              onMouseDown={(event) => event.preventDefault()}
+              onClick={toggleCollapse}
+            >
+              <Icon icon="chevron" />
+            </button>
+          ) : null}
           <span className="markweave-codeblock-copy-wrap">
             <button
               type="button"
@@ -1124,7 +1191,7 @@ export function CodeBlockControls({ active, editor, mermaidMode, onMermaidModeCh
           ) : null}
         </div>
       ) : null}
-      {showTargetControls && languageMenuOpen ? (
+      {showWritableControls && showTargetControls && languageMenuOpen ? (
         <div
           className="markweave-codeblock-language-menu"
           role="listbox"

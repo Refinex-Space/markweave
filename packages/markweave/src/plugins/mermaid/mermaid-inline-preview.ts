@@ -1,4 +1,4 @@
-import { Extension } from "@tiptap/core";
+import { Extension, type Editor } from "@tiptap/core";
 import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
 import { Plugin, PluginKey, TextSelection, type EditorState, type Transaction } from "@tiptap/pm/state";
 import { Decoration, DecorationSet } from "@tiptap/pm/view";
@@ -10,7 +10,30 @@ import {
   type MermaidRenderResult,
 } from "./mermaid-renderer";
 
-export const mermaidInlinePreviewPluginKey = new PluginKey("markweaveMermaidInlinePreview");
+type MermaidInlinePreviewEditorMode = "live" | "view";
+
+interface MermaidInlinePreviewPluginState {
+  readonly editorMode: MermaidInlinePreviewEditorMode;
+  readonly readonlyModesByPos: ReadonlyMap<number, MermaidPreviewMode>;
+}
+
+type MermaidInlinePreviewPluginMeta =
+  | {
+      readonly type: "set-editor-mode";
+      readonly mode: MermaidInlinePreviewEditorMode;
+    }
+  | {
+      readonly type: "set-readonly-mode";
+      readonly mode: MermaidPreviewMode;
+      readonly pos: number;
+    };
+
+const initialMermaidInlinePreviewPluginState: MermaidInlinePreviewPluginState = {
+  editorMode: "live",
+  readonlyModesByPos: new Map(),
+};
+
+export const mermaidInlinePreviewPluginKey = new PluginKey<MermaidInlinePreviewPluginState>("markweaveMermaidInlinePreview");
 export const mermaidPreviewModeAttribute = "mermaidPreviewMode";
 
 const initialPreviewResult: MermaidRenderResult = {
@@ -25,6 +48,130 @@ function isMermaidCodeBlock(node: ProseMirrorNode) {
 
 function getNodePreviewMode(node: ProseMirrorNode): MermaidPreviewMode {
   return normalizeMermaidPreviewMode(node.attrs[mermaidPreviewModeAttribute]);
+}
+
+function getMermaidInlinePreviewPluginState(state: EditorState) {
+  return mermaidInlinePreviewPluginKey.getState(state) ?? initialMermaidInlinePreviewPluginState;
+}
+
+function getEffectiveNodePreviewMode(state: EditorState, node: ProseMirrorNode, pos: number): MermaidPreviewMode {
+  const pluginState = getMermaidInlinePreviewPluginState(state);
+
+  if (pluginState.editorMode === "view") {
+    return pluginState.readonlyModesByPos.get(pos) ?? "preview";
+  }
+
+  return getNodePreviewMode(node);
+}
+
+export function getEffectiveMermaidPreviewMode(state: EditorState, node: ProseMirrorNode, pos: number): MermaidPreviewMode {
+  return isMermaidCodeBlock(node) ? getEffectiveNodePreviewMode(state, node, pos) : getNodePreviewMode(node);
+}
+
+function mapReadonlyMermaidModes(transaction: Transaction, readonlyModesByPos: ReadonlyMap<number, MermaidPreviewMode>) {
+  if (!transaction.docChanged || readonlyModesByPos.size === 0) {
+    return readonlyModesByPos;
+  }
+
+  const nextModesByPos = new Map<number, MermaidPreviewMode>();
+
+  readonlyModesByPos.forEach((mode, pos) => {
+    const mappedPos = transaction.mapping.mapResult(pos, 1);
+
+    if (mappedPos.deleted) {
+      return;
+    }
+
+    const node = transaction.doc.nodeAt(mappedPos.pos);
+
+    if (node && isMermaidCodeBlock(node)) {
+      nextModesByPos.set(mappedPos.pos, mode);
+    }
+  });
+
+  return nextModesByPos;
+}
+
+function applyMermaidInlinePreviewMeta(
+  previousState: MermaidInlinePreviewPluginState,
+  transaction: Transaction,
+): MermaidInlinePreviewPluginState {
+  const meta = transaction.getMeta(mermaidInlinePreviewPluginKey) as MermaidInlinePreviewPluginMeta | undefined;
+  const mappedReadonlyModesByPos = mapReadonlyMermaidModes(transaction, previousState.readonlyModesByPos);
+
+  if (!meta) {
+    return mappedReadonlyModesByPos === previousState.readonlyModesByPos
+      ? previousState
+      : {
+          ...previousState,
+          readonlyModesByPos: mappedReadonlyModesByPos,
+        };
+  }
+
+  if (meta.type === "set-editor-mode") {
+    return {
+      editorMode: meta.mode,
+      readonlyModesByPos: new Map(),
+    };
+  }
+
+  const readonlyModesByPos = new Map(mappedReadonlyModesByPos);
+
+  if (meta.mode === "preview") {
+    readonlyModesByPos.delete(meta.pos);
+  } else {
+    readonlyModesByPos.set(meta.pos, meta.mode);
+  }
+
+  return {
+    editorMode: previousState.editorMode,
+    readonlyModesByPos,
+  };
+}
+
+export function isMermaidInlinePreviewTransaction(transaction: Transaction) {
+  return Boolean(transaction.getMeta(mermaidInlinePreviewPluginKey));
+}
+
+export function setMermaidInlinePreviewEditorMode(editor: Editor, mode: MermaidInlinePreviewEditorMode) {
+  const normalizedMode: MermaidInlinePreviewEditorMode = mode === "view" ? "view" : "live";
+  const pluginState = getMermaidInlinePreviewPluginState(editor.state);
+
+  if (pluginState.editorMode === normalizedMode) {
+    return false;
+  }
+
+  editor.view.dispatch(
+    editor.state.tr.setMeta(mermaidInlinePreviewPluginKey, {
+      type: "set-editor-mode",
+      mode: normalizedMode,
+    } satisfies MermaidInlinePreviewPluginMeta),
+  );
+  return true;
+}
+
+export function setReadonlyMermaidPreviewMode(editor: Editor, pos: number, mode: MermaidPreviewMode) {
+  const node = editor.state.doc.nodeAt(pos);
+  const pluginState = getMermaidInlinePreviewPluginState(editor.state);
+
+  if (!node || !isMermaidCodeBlock(node) || pluginState.editorMode !== "view") {
+    return false;
+  }
+
+  const normalizedMode = normalizeMermaidPreviewMode(mode);
+
+  if (getEffectiveNodePreviewMode(editor.state, node, pos) === normalizedMode) {
+    return false;
+  }
+
+  editor.view.dispatch(
+    editor.state.tr.setMeta(mermaidInlinePreviewPluginKey, {
+      type: "set-readonly-mode",
+      mode: normalizedMode,
+      pos,
+    } satisfies MermaidInlinePreviewPluginMeta),
+  );
+  return true;
 }
 
 function getOldPositionForNewPosition(transactions: readonly Transaction[], pos: number) {
@@ -129,13 +276,16 @@ export function createMermaidInlinePreviewDecorations(state: Parameters<NonNulla
       return true;
     }
 
+    const previewMode = getEffectiveNodePreviewMode(state, node, pos);
+
     decorations.push(
       Decoration.node(pos, pos + node.nodeSize, {
         "data-markweave-mermaid-block": "true",
+        ...(previewMode === "preview" ? { "data-mermaid-preview-mode": "preview" } : {}),
       }),
     );
 
-    if (getNodePreviewMode(node) !== "preview") {
+    if (previewMode !== "preview") {
       return false;
     }
 
@@ -181,6 +331,12 @@ export const MarkweaveMermaidInlinePreview = Extension.create({
     return [
       new Plugin({
         key: mermaidInlinePreviewPluginKey,
+        state: {
+          init: () => initialMermaidInlinePreviewPluginState,
+          apply(transaction, previousState) {
+            return applyMermaidInlinePreviewMeta(previousState, transaction);
+          },
+        },
         appendTransaction: (transactions, oldState, newState) => {
           if (!transactions.some((transaction) => transaction.docChanged)) {
             return null;

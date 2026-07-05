@@ -6,6 +6,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createMarkweaveEditorExtensions } from "../src/editor-core/create-editor-extensions";
 import { getActiveCodeBlockState, setActiveCodeBlockCollapsed, setActiveCodeBlockMermaidPreviewMode } from "../src/plugins/codeblock/codeblock-behavior";
+import { setMermaidInlinePreviewEditorMode } from "../src/plugins/mermaid/mermaid-inline-preview";
 import type { MermaidPreviewMode } from "../src/plugins/mermaid/mermaid-renderer";
 import { CodeBlockControls, mergeStableMermaidTabPositions } from "../src/ui/codeblock/CodeBlockControls";
 
@@ -115,9 +116,15 @@ function textPosition(editor: Editor, text: string, boundary: "start" | "end" = 
   return position;
 }
 
-function renderControls(content: string, options: { readonly active?: boolean; readonly mode?: MermaidPreviewMode; readonly selectText?: string } = {}): RenderedControls {
+function renderControls(
+  content: string,
+  options: { readonly active?: boolean; readonly mode?: MermaidPreviewMode; readonly readOnly?: boolean; readonly selectText?: string } = {},
+): RenderedControls {
   installLayoutMocks();
   const { editor, frame } = createEditor(content);
+  if (options.readOnly) {
+    setMermaidInlinePreviewEditorMode(editor, "view");
+  }
   const targetText = options.selectText ?? editor.state.doc.textContent;
   expect(editor.commands.setTextSelection(textPosition(editor, targetText))).toBe(true);
   const controlsHost = document.createElement("div");
@@ -138,6 +145,7 @@ function renderControls(content: string, options: { readonly active?: boolean; r
           active: options.active ?? getActiveCodeBlockState(editor).active,
           mermaidMode: mode,
           onMermaidModeChange,
+          readOnly: options.readOnly,
         }),
       );
     });
@@ -294,6 +302,49 @@ describe("code block controls", () => {
 
     expect(writeText).toHaveBeenCalledWith("const value = 1;");
     expect(getActiveCodeBlockState(editor).active).toBe(true);
+  });
+
+  it("keeps read-only code block language and copy controls visible on hover", async () => {
+    const writeText = vi.fn<Clipboard["writeText"]>().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: { writeText },
+    });
+    const { editor } = renderControls('<p>outside</p><pre><code class="language-ts">const value = 1;</code></pre>', {
+      readOnly: true,
+      selectText: "outside",
+    });
+    const initialHtml = editor.getHTML();
+
+    expect(getActiveCodeBlockState(editor).active).toBe(false);
+    expect(queryByTestId("markweave-codeblock-controls")).toBeNull();
+    expect(queryByTestId("markweave-mermaid-tabs")).toBeNull();
+
+    const codeBlockElement = editor.view.dom.querySelector("pre");
+    if (!codeBlockElement) {
+      throw new Error("Expected code block element.");
+    }
+
+    pointerMove(codeBlockElement);
+
+    expect(getByTestId("markweave-codeblock-overlay").dataset.readOnly).toBe("true");
+    expect(getByTestId("markweave-codeblock-controls").dataset.readOnly).toBe("true");
+    expect(getByTestId("markweave-codeblock-language").textContent).toContain("TypeScript");
+    expect(queryByTestId("markweave-codeblock-collapse")).toBeNull();
+
+    click(getByTestId("markweave-codeblock-language"));
+    expect(queryByTestId("markweave-codeblock-language-menu")).toBeNull();
+
+    await act(async () => {
+      const copyButton = getByTestId("markweave-codeblock-copy");
+      copyButton.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, cancelable: true }));
+      copyButton.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+    });
+
+    expect(writeText).toHaveBeenCalledWith("const value = 1;");
+    expect(getByTestId("markweave-codeblock-copy").dataset.copyState).toBe("copied");
+    expect(getActiveCodeBlockState(editor).active).toBe(false);
+    expect(editor.getHTML()).toBe(initialHtml);
   });
 
   it("keeps Mermaid tabs persistent while showing right-side controls on hover", () => {
@@ -518,5 +569,80 @@ describe("code block controls", () => {
     });
     expect(editor.getHTML()).not.toContain("<svg");
     expect(editor.getHTML()).toBe(initialHtml.replace(' data-mermaid-preview-mode="preview"', ""));
+  });
+
+  it("defaults read-only Mermaid blocks to preview while preserving source inspection", async () => {
+    const writeText = vi.fn<Clipboard["writeText"]>().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: { writeText },
+    });
+    const { editor, rerender } = renderControls(
+      `<p>outside</p><pre><code class="language-mermaid">flowchart TB
+  A --> B</code></pre>`,
+      { readOnly: true, selectText: "A --> B" },
+    );
+    rerender("preview");
+    const initialHtml = editor.getHTML();
+
+    let inlinePreview = getByTestId("markweave-mermaid-inline-preview");
+    expect(getByTestId("markweave-mermaid-mode-preview").dataset.active).toBe("true");
+    expect(getByTestId("markweave-mermaid-mode-code").dataset.active).toBe("false");
+    expect(initialHtml).not.toContain('data-mermaid-preview-mode="preview"');
+
+    click(getByTestId("markweave-mermaid-mode-code"));
+    expect(queryByTestId("markweave-mermaid-inline-preview")).toBeNull();
+    expect(getByTestId("markweave-mermaid-mode-code").dataset.active).toBe("true");
+    expect(getByTestId("markweave-mermaid-mode-preview").dataset.active).toBe("false");
+    expect(editor.getHTML()).toBe(initialHtml);
+
+    click(getByTestId("markweave-mermaid-mode-preview"));
+    inlinePreview = getByTestId("markweave-mermaid-inline-preview");
+    inlinePreview.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 100"><text>diagram</text></svg>';
+    inlinePreview.dataset.state = "rendered";
+
+    pointerMove(inlinePreview);
+
+    expect(getByTestId("markweave-codeblock-controls").dataset.readOnly).toBe("true");
+    expect(getByTestId("markweave-codeblock-language").textContent).toContain("Mermaid");
+    expect(getByTestId("markweave-mermaid-preview-actions")).not.toBeNull();
+    expect(getByTestId("markweave-codeblock-copy")).not.toBeNull();
+    expect(getByTestId("markweave-mermaid-fullscreen")).not.toBeNull();
+    expect(getByTestId("markweave-mermaid-download")).not.toBeNull();
+    expect(getByTestId("markweave-mermaid-tabs")).not.toBeNull();
+    expect(queryByTestId("markweave-codeblock-collapse")).toBeNull();
+
+    click(getByTestId("markweave-mermaid-fullscreen"));
+    expect(getByTestId("markweave-mermaid-fullscreen-layer").innerHTML).toContain("<svg");
+
+    click(getByTestId("markweave-mermaid-fullscreen-close"));
+    expect(queryByTestId("markweave-mermaid-fullscreen-layer")).toBeNull();
+
+    const createObjectUrl = vi.fn(() => "blob:markweave-mermaid");
+    const revokeObjectUrl = vi.fn();
+    const anchorClick = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
+    Object.defineProperty(URL, "createObjectURL", {
+      configurable: true,
+      value: createObjectUrl,
+    });
+    Object.defineProperty(URL, "revokeObjectURL", {
+      configurable: true,
+      value: revokeObjectUrl,
+    });
+
+    click(getByTestId("markweave-mermaid-download"));
+
+    expect(createObjectUrl).toHaveBeenCalledTimes(1);
+    expect(anchorClick).toHaveBeenCalledTimes(1);
+    expect(revokeObjectUrl).toHaveBeenCalledWith("blob:markweave-mermaid");
+
+    await act(async () => {
+      const copyButton = getByTestId("markweave-codeblock-copy");
+      copyButton.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, cancelable: true }));
+      copyButton.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+    });
+
+    expect(writeText).toHaveBeenCalledWith("flowchart TB\n  A --> B");
+    expect(editor.getHTML()).toBe(initialHtml);
   });
 });

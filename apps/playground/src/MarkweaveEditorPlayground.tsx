@@ -1,7 +1,9 @@
 import { useState } from "react";
+import { Eye, PencilLine } from "lucide-react";
 import {
   MarkweaveEditor,
   type FloatingToolbarAssistantRequest,
+  type MarkweaveEditorMode,
   type MarkweaveEditorRuntimeSnapshot,
   type MarkweaveMenuCopyPayload,
   type MarkweaveUploadRequest,
@@ -18,6 +20,7 @@ function getUploadResultName(value: string) {
 export function MarkweaveEditorPlayground() {
   const [fixtureContent, setFixtureContent] = useState(initialPlaygroundDocument);
   const [fixtureRevision, setFixtureRevision] = useState(0);
+  const [editorMode, setEditorMode] = useState<MarkweaveEditorMode>("live");
   const [runtimeSnapshot, setRuntimeSnapshot] = useState<MarkweaveEditorRuntimeSnapshot | null>(null);
   const [lastTableCopyPayload, setLastTableCopyPayload] = useState<MarkweaveMenuCopyPayload | null>(null);
   const [lastTableCommandResult, setLastTableCommandResult] = useState<TableCommandResult | null>(null);
@@ -63,13 +66,32 @@ export function MarkweaveEditorPlayground() {
     throw new Error("Unsupported upload source.");
   };
 
+  const isLiveMode = editorMode === "live";
+  const ModeIcon = isLiveMode ? Eye : PencilLine;
+  const nextMode: MarkweaveEditorMode = isLiveMode ? "view" : "live";
+  const modeToggleLabel = isLiveMode ? "切换到 View 模式" : "切换到 Live 模式";
+
   return (
     <main className="markweave-playground">
+      <div className="markweave-playground-toolbar" aria-label="Playground controls">
+        <button
+          type="button"
+          className="markweave-playground-mode-toggle"
+          data-testid="markweave-playground-mode-toggle"
+          data-mode={editorMode}
+          aria-label={modeToggleLabel}
+          title={modeToggleLabel}
+          onClick={() => setEditorMode(nextMode)}
+        >
+          <ModeIcon size={18} strokeWidth={1.8} aria-hidden="true" />
+        </button>
+      </div>
       <MarkweaveEditor
         key={fixtureRevision}
         ariaLabel="Markweave editor playground"
         autoFocusFirstTableBodyCell
         defaultContent={fixtureContent}
+        mode={editorMode}
         onEditWithAi={setLastTableEditWithAiRequest}
         onExtractToNote={setLastFloatingToolbarAssistantRequest}
         onRewriteSelection={setLastFloatingToolbarAssistantRequest}

@@ -4,7 +4,7 @@ import { EditorContent } from "@tiptap/react";
 import { act, createElement, useEffect } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { useMarkweaveEditorController, type MarkweaveEditorController, type MarkweaveLang } from "../src";
+import { useMarkweaveEditorController, type MarkweaveEditorController, type MarkweaveEditorMode, type MarkweaveLang } from "../src";
 import type { MarkweaveSlashCommandUploadHandler } from "../src/plugins/slash-command/upload";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -43,17 +43,20 @@ function installLayoutMocks() {
 function Harness({
   defaultContent,
   lang,
+  mode,
   onReady,
   onUpload,
 }: {
   readonly defaultContent: string;
   readonly lang?: MarkweaveLang;
+  readonly mode?: MarkweaveEditorMode;
   readonly onReady: (controller: MarkweaveEditorController) => void;
   readonly onUpload?: MarkweaveSlashCommandUploadHandler;
 }) {
   const controller = useMarkweaveEditorController({
     defaultContent,
     lang,
+    mode,
     onSlashCommandUpload: onUpload,
   });
 
@@ -72,7 +75,7 @@ async function flushReact() {
   });
 }
 
-async function renderEditor(defaultContent = "<p></p>", onUpload?: MarkweaveSlashCommandUploadHandler, lang?: MarkweaveLang) {
+async function renderEditor(defaultContent = "<p></p>", onUpload?: MarkweaveSlashCommandUploadHandler, lang?: MarkweaveLang, mode?: MarkweaveEditorMode) {
   installLayoutMocks();
   const host = document.createElement("div");
   document.body.appendChild(host);
@@ -83,6 +86,7 @@ async function renderEditor(defaultContent = "<p></p>", onUpload?: MarkweaveSlas
       createElement(Harness, {
         defaultContent,
         lang,
+        mode,
         onReady: (controller: MarkweaveEditorController) => {
           activeController = controller;
         },
@@ -255,5 +259,16 @@ describe("image node view", () => {
     await click(getByTestId("markweave-image-upload-submit"));
 
     expect(getByTestId("markweave-image-align-right").getAttribute("aria-label")).toBe("Image align right");
+  });
+
+  it("renders image content without editing controls in View mode", async () => {
+    const controller = await renderEditor('<figure data-markweave-image="true"><img src="https://example.com/view.png" alt="View"><figcaption>Read-only caption</figcaption></figure>', undefined, undefined, "view");
+
+    expect(controller.editor?.isEditable).toBe(false);
+    expect(getByTestId("markweave-image-node").dataset.selected).toBe("false");
+    expect(document.querySelector('[data-testid="markweave-image-toolbar"]')).toBeNull();
+    expect(document.querySelector('[data-testid="markweave-image-resize-left"]')).toBeNull();
+    expect(document.querySelector('[data-testid="markweave-image-caption-input"]')).toBeNull();
+    expect(getByTestId("markweave-image-caption").textContent).toBe("Read-only caption");
   });
 });

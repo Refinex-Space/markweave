@@ -5,7 +5,7 @@ import { NodeSelection } from "@tiptap/pm/state";
 import { act, createElement, useEffect } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { useMarkweaveEditorController, type MarkweaveEditorController, type MarkweaveLang } from "../src";
+import { useMarkweaveEditorController, type MarkweaveEditorController, type MarkweaveEditorMode, type MarkweaveLang } from "../src";
 import type { MarkweaveSlashCommandUploadHandler } from "../src/plugins/slash-command/upload";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -34,17 +34,20 @@ function installLayoutMocks() {
 function Harness({
   defaultContent,
   lang,
+  mode,
   onReady,
   onUpload,
 }: {
   readonly defaultContent: string;
   readonly lang?: MarkweaveLang;
+  readonly mode?: MarkweaveEditorMode;
   readonly onReady: (controller: MarkweaveEditorController) => void;
   readonly onUpload?: MarkweaveSlashCommandUploadHandler;
 }) {
   const controller = useMarkweaveEditorController({
     defaultContent,
     lang,
+    mode,
     onSlashCommandUpload: onUpload,
   });
 
@@ -63,7 +66,7 @@ async function flushReact() {
   });
 }
 
-async function renderEditor(defaultContent = "<p></p>", onUpload?: MarkweaveSlashCommandUploadHandler, lang?: MarkweaveLang) {
+async function renderEditor(defaultContent = "<p></p>", onUpload?: MarkweaveSlashCommandUploadHandler, lang?: MarkweaveLang, mode?: MarkweaveEditorMode) {
   installLayoutMocks();
   const host = document.createElement("div");
   document.body.appendChild(host);
@@ -74,6 +77,7 @@ async function renderEditor(defaultContent = "<p></p>", onUpload?: MarkweaveSlas
       createElement(Harness, {
         defaultContent,
         lang,
+        mode,
         onReady: (controller: MarkweaveEditorController) => {
           activeController = controller;
         },
@@ -278,6 +282,24 @@ describe("video node view", () => {
     await keyDown(controller.editor.view.dom, "Delete");
     expect(document.querySelector("iframe.markweave-video-iframe")).toBeNull();
     expect(controller.editor.getHTML()).not.toContain("fPiUC5NxFic");
+  });
+
+  it("renders video content without selection and delete controls in View mode", async () => {
+    const controller = await renderEditor(
+      '<iframe class="markweave-video-iframe" src="https://www.youtube.com/embed/fPiUC5NxFic?si=GifL60l94AOaMV93" data-markweave-video-embed="true" data-markweave-video-provider="youtube" data-markweave-video-src="https://www.youtube.com/embed/fPiUC5NxFic?si=GifL60l94AOaMV93"></iframe>',
+      undefined,
+      undefined,
+      "view",
+    );
+
+    expect(controller.editor?.isEditable).toBe(false);
+    expect(document.querySelector("iframe.markweave-video-iframe")?.getAttribute("src")).toBe("https://www.youtube.com/embed/fPiUC5NxFic?si=GifL60l94AOaMV93");
+    expect(document.querySelector('[data-testid="markweave-video-selection-layer"]')).toBeNull();
+    expect(getByTestId("markweave-video-node").dataset.selected).toBe("false");
+
+    await keyDown(getByTestId("markweave-video-node"), "Delete");
+    expect(document.querySelector("iframe.markweave-video-iframe")).not.toBeNull();
+    expect(controller.editor?.getHTML()).toContain("fPiUC5NxFic");
   });
 
   it("keeps the placeholder visible for unsupported video URLs", async () => {

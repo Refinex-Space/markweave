@@ -5,8 +5,8 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { act, createElement, type ReactNode } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { afterEach, describe, expect, it } from "vitest";
-import { MarkweaveEditor, useMarkweaveEditorController, type MarkweaveEditorController, type MarkweaveLang } from "../src";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { MarkweaveEditor, useMarkweaveEditorController, type MarkweaveEditorController, type MarkweaveEditorMode, type MarkweaveLang } from "../src";
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const readProjectFile = (path: string) => readFileSync(resolve(repoRoot, path), "utf8");
@@ -56,6 +56,7 @@ describe("editor entrypoint boundary", () => {
     expect(indexSource).toContain("useMarkweaveEditorController");
     expect(indexSource).toContain("createMarkweaveEditorExtensions");
     expect(indexSource).toContain("MarkweaveLang");
+    expect(indexSource).toContain("MarkweaveEditorMode");
   });
 
   it("keeps playground code out of the publishable package", () => {
@@ -77,8 +78,11 @@ describe("editor entrypoint boundary", () => {
 
     expect(container.querySelector('[data-testid="markweave-editor-frame"]')).toBeTruthy();
     expect(container.querySelector('[data-testid="markweave-editor-frame"]')?.getAttribute("aria-label")).toBe("Markweave 编辑器");
+    expect(container.querySelector('[data-testid="markweave-editor-frame"]')?.getAttribute("data-markweave-mode")).toBe("live");
     expect(container.querySelector('[data-testid="markweave-editor-surface"]')?.innerHTML).toContain("hello editor");
     expect(snapshots.length).toBeGreaterThan(0);
+    expect((snapshots.at(-1) as { mode?: string; editable?: boolean } | undefined)?.mode).toBe("live");
+    expect((snapshots.at(-1) as { mode?: string; editable?: boolean } | undefined)?.editable).toBe(true);
   });
 
   it("accepts an explicit English editor locale", async () => {
@@ -86,6 +90,109 @@ describe("editor entrypoint boundary", () => {
     const container = await renderReact(createElement(MarkweaveEditor, { defaultContent: "<p>hello editor</p>", lang }));
 
     expect(container.querySelector('[data-testid="markweave-editor-frame"]')?.getAttribute("aria-label")).toBe("Markweave editor");
+  });
+
+  it("switches between Live and View modes without recreating the editor", async () => {
+    let controller: MarkweaveEditorController | null = null;
+
+    function Harness({ editable, mode }: { readonly editable?: boolean; readonly mode: MarkweaveEditorMode }) {
+      controller = useMarkweaveEditorController({
+        defaultContent: '<p><a href="https://example.com">link</a></p>',
+        editable,
+        mode,
+      });
+
+      return controller.editor ? createElement("section", controller.frameProps, createElement("div", { "data-testid": "html" }, controller.editor.getHTML())) : null;
+    }
+
+    const getController = () => {
+      if (!controller?.editor) {
+        throw new Error("Expected Markweave editor controller to be created.");
+      }
+
+      return controller;
+    };
+
+    const container = await renderReact(createElement(Harness, { mode: "live" }));
+    const firstEditor = getController().editor;
+
+    expect(firstEditor?.isEditable).toBe(true);
+    expect(container.querySelector('[data-testid="markweave-editor-frame"]')?.getAttribute("data-markweave-mode")).toBe("live");
+    expect(getController().overlayProps.floatingToolbar).toBeTruthy();
+
+    await act(async () => {
+      activeRoot?.render(createElement(Harness, { mode: "view" }));
+    });
+    await flushReact();
+
+    expect(getController().editor).toBe(firstEditor);
+    expect(getController().editor?.isEditable).toBe(false);
+    expect(getController().runtimeSnapshot.mode).toBe("view");
+    expect(getController().runtimeSnapshot.editable).toBe(false);
+    expect(getController().overlayProps.floatingToolbar).toBeNull();
+    expect(getController().overlayProps.slashCommandMenu).toBeNull();
+    expect(getController().overlayProps.tableControls).toBeNull();
+    expect(getController().overlayProps.tableSelectionOverlay).toBeNull();
+    expect(getController().overlayProps.codeBlockControls).toEqual(expect.objectContaining({ readOnly: true }));
+    expect(container.querySelector('[data-testid="html"]')?.textContent).toContain("example.com");
+
+    await act(async () => {
+      activeRoot?.render(createElement(Harness, { mode: "live" }));
+    });
+    await flushReact();
+
+    expect(getController().editor).toBe(firstEditor);
+    expect(getController().editor?.isEditable).toBe(true);
+
+    await act(async () => {
+      activeRoot?.render(createElement(Harness, { editable: false, mode: "live" }));
+    });
+    await flushReact();
+
+    expect(getController().runtimeSnapshot.mode).toBe("live");
+    expect(getController().runtimeSnapshot.editable).toBe(false);
+    expect(getController().editor?.isEditable).toBe(false);
+  });
+
+  it("opens safe links in View mode and ignores unsafe link protocols", async () => {
+    const openWindow = vi.spyOn(window, "open").mockImplementation(() => null);
+    const container = await renderReact(
+      createElement(MarkweaveEditor, {
+        defaultContent: '<p><a href="https://example.com/docs">safe</a> <a href="javascript:alert(1)">unsafe</a></p>',
+        mode: "view",
+      }),
+    );
+    const links = Array.from(container.querySelectorAll<HTMLAnchorElement>("a"));
+
+    await act(async () => {
+      links[0]?.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+      links[1]?.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+    });
+    await flushReact();
+
+    expect(openWindow).toHaveBeenCalledTimes(1);
+    expect(openWindow).toHaveBeenCalledWith("https://example.com/docs", "_blank", "noopener,noreferrer");
+  });
+
+  it("renders Mermaid blocks as Preview by default in View mode", async () => {
+    const container = await renderReact(
+      createElement(MarkweaveEditor, {
+        defaultContent: `<pre><code class="language-mermaid">flowchart TB
+  A --> B</code></pre>`,
+        mode: "view",
+      }),
+    );
+    await flushReact();
+
+    const frame = container.querySelector('[data-testid="markweave-editor-frame"]');
+    const mermaidCodeBlock = container.querySelector("pre.markweave-code-block");
+    const preview = container.querySelector('[data-testid="markweave-mermaid-inline-preview"]');
+
+    expect(frame?.getAttribute("data-markweave-mode")).toBe("view");
+    expect(mermaidCodeBlock?.getAttribute("data-mermaid-preview-mode")).toBe("preview");
+    expect(preview).toBeTruthy();
+    expect(container.querySelector('[data-testid="markweave-mermaid-tabs"]')).toBeTruthy();
+    expect(container.querySelector('[data-testid="markweave-mermaid-mode-preview"]')?.getAttribute("data-active")).toBe("true");
   });
 
   it("supports controlled content synchronization and onUpdate payloads", async () => {

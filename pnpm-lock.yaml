@@ -35,6 +35,9 @@ importers:
 
   apps/playground:
     dependencies:
+      lucide-react:
+        specifier: ^0.547.0
+        version: 0.547.0(react@19.2.7)
       markweave:
         specifier: workspace:*
         version: link:../../packages/markweave

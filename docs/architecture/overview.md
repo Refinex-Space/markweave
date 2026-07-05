@@ -1,6 +1,6 @@
 ---
 owner: refinex
-updated: 2026-07-05
+updated: 2026-07-06
 status: active
 referenced_by: AGENTS.md#knowledge-map
 ---
@@ -21,7 +21,7 @@ The package root exports from `packages/markweave/src/index.ts`:
 - `MarkweaveEditor`
 - `useMarkweaveEditorController`
 - `createMarkweaveEditorExtensions`
-- public controller, overlay, update payload, upload, toolbar, and table-copy types
+- public controller, overlay, update payload, editor mode, upload, toolbar, and table-copy types
 
 The package exports `markweave` and `markweave/styles.css`; package-boundary changes should keep `packages/markweave/test/editor-entrypoint-boundary.test.ts` current.
 
@@ -37,6 +37,7 @@ The package exports `markweave` and `markweave/styles.css`; package-boundary cha
 - link editing: the floating toolbar opens an inline link popover for selected text, with apply, open, and remove actions
 - image editing: the image node renders an inline upload placeholder for empty images, then exposes align, caption, download, replace, delete, and width-resize controls through a React NodeView
 - video insertion: the video node renders an inline upload placeholder for empty videos, supports local-file host uploads and direct video URLs, and automatically embeds YouTube and Bilibili links or whitelisted platform embed sources through a React NodeView
+- editor modes: `mode="live"` keeps the full editable surface, while `mode="view"` is a UI-only read mode that reuses the same document rendering and keeps serialization output unchanged
 
 ## Behavior Contracts
 

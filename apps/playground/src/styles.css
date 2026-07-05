@@ -20,9 +20,41 @@ body {
 }
 
 .markweave-playground {
+  position: relative;
   width: min(100%, 1180px);
   margin: 0 auto;
   padding: 48px 24px 64px;
+}
+
+.markweave-playground-toolbar {
+  position: absolute;
+  top: 18px;
+  right: 24px;
+  z-index: 20;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.markweave-playground-mode-toggle {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border: 1px solid #d9dee6;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.96);
+  color: #4f5661;
+  cursor: pointer;
+}
+
+.markweave-playground-mode-toggle:hover {
+  background: #f5f6f8;
+  color: #1f2328;
+}
+
+.markweave-playground-mode-toggle:focus-visible {
+  outline: 2px solid #3f4650;
+  outline-offset: 2px;
 }
 
 .markweave-debug-panel {
@@ -83,5 +115,10 @@ body {
 @media (max-width: 720px) {
   .markweave-playground {
     padding: 28px 18px 48px;
+  }
+
+  .markweave-playground-toolbar {
+    top: 14px;
+    right: 18px;
   }
 }

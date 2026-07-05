@@ -22,6 +22,7 @@ import {
   type MarkweaveUploadSource,
 } from "../slash-command/upload";
 import { getMarkweaveMessages, type MarkweaveMessages } from "../../i18n";
+import { isMarkweaveEditorLiveEditable, useMarkweaveEditorModeState } from "../../react/editor-mode-state";
 
 export type MarkweaveImageAlign = "left" | "center" | "right";
 
@@ -147,6 +148,8 @@ function MarkweaveImageNodeView(props: NodeViewProps) {
   const options = props.extension.options as MarkweaveImageOptions;
   const messages = options.messages ?? getMarkweaveMessages("zh");
   const imageMessages = messages.image;
+  const modeState = useMarkweaveEditorModeState(editor);
+  const canEditImage = isMarkweaveEditorLiveEditable(modeState);
   const src = stringAttribute(node.attrs.src);
   const align = normalizeMarkweaveImageAlign(node.attrs.align);
   const width = numberAttribute(node.attrs.width);
@@ -161,7 +164,7 @@ function MarkweaveImageNodeView(props: NodeViewProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [captionOpen, setCaptionOpen] = useState(Boolean(caption));
   const [captionValue, setCaptionValue] = useState(caption ?? "");
-  const showPlaceholder = !src || replacing;
+  const showPlaceholder = canEditImage && (!src || replacing);
 
   useEffect(() => {
     if (!captionOpen) {
@@ -170,6 +173,10 @@ function MarkweaveImageNodeView(props: NodeViewProps) {
   }, [caption, captionOpen]);
 
   const selectImageNode = () => {
+    if (!canEditImage) {
+      return;
+    }
+
     const pos = getPos();
 
     if (typeof pos === "number") {
@@ -178,6 +185,10 @@ function MarkweaveImageNodeView(props: NodeViewProps) {
   };
 
   const closePlaceholder = () => {
+    if (!canEditImage) {
+      return;
+    }
+
     setInputValue("");
     setError(null);
     setDragActive(false);
@@ -191,6 +202,10 @@ function MarkweaveImageNodeView(props: NodeViewProps) {
   };
 
   const submitUploadSource = async (source: MarkweaveUploadSource) => {
+    if (!canEditImage) {
+      return;
+    }
+
     setError(null);
     setIsSubmitting(true);
 
@@ -208,6 +223,10 @@ function MarkweaveImageNodeView(props: NodeViewProps) {
   };
 
   const submitInputValue = () => {
+    if (!canEditImage) {
+      return;
+    }
+
     if (!inputValue.trim()) {
       setError(imageMessages.uploadRequiredError);
       return;
@@ -217,7 +236,7 @@ function MarkweaveImageNodeView(props: NodeViewProps) {
   };
 
   const submitFile = (file: File | null) => {
-    if (!file) {
+    if (!canEditImage || !file) {
       return;
     }
 
@@ -232,10 +251,18 @@ function MarkweaveImageNodeView(props: NodeViewProps) {
   const handleDrop = (event: DragEvent<HTMLElement>) => {
     event.preventDefault();
     event.stopPropagation();
+    if (!canEditImage) {
+      return;
+    }
+
     submitFile(event.dataTransfer.files?.[0] ?? null);
   };
 
   const toggleCaption = () => {
+    if (!canEditImage) {
+      return;
+    }
+
     setCaptionOpen((value) => !value);
     if (!captionOpen) {
       setCaptionValue(caption ?? "");
@@ -243,6 +270,10 @@ function MarkweaveImageNodeView(props: NodeViewProps) {
   };
 
   const updateCaption = (value: string) => {
+    if (!canEditImage) {
+      return;
+    }
+
     setCaptionValue(value);
     updateAttributes({ caption: value.trim() ? value : null });
   };
@@ -250,6 +281,10 @@ function MarkweaveImageNodeView(props: NodeViewProps) {
   const beginResize = (side: "left" | "right", event: ReactPointerEvent<HTMLButtonElement>) => {
     event.preventDefault();
     event.stopPropagation();
+    if (!canEditImage) {
+      return;
+    }
+
     selectImageNode();
 
     const box = imageBoxRef.current;
@@ -281,13 +316,13 @@ function MarkweaveImageNodeView(props: NodeViewProps) {
       className="markweave-image-node"
       data-testid="markweave-image-node"
       data-align={align}
-      data-selected={selected ? "true" : "false"}
-      data-hovered={hovered ? "true" : "false"}
+      data-selected={canEditImage && selected ? "true" : "false"}
+      data-hovered={canEditImage && hovered ? "true" : "false"}
       data-empty={showPlaceholder ? "true" : "false"}
       onPointerEnter={() => setHovered(true)}
       onPointerLeave={() => setHovered(false)}
       onMouseDown={(event: ReactMouseEvent<HTMLElement>) => {
-        if (!isImageUiEventTarget(event.target)) {
+        if (canEditImage && !isImageUiEventTarget(event.target)) {
           selectImageNode();
         }
       }}
@@ -309,30 +344,36 @@ function MarkweaveImageNodeView(props: NodeViewProps) {
         />
       ) : (
         <>
-          <ImageToolbar
-            align={align}
-            captionActive={captionOpen || Boolean(caption)}
-            messages={messages}
-            onAlign={(nextAlign) => updateAttributes({ align: nextAlign })}
-            onCaption={toggleCaption}
-            onDelete={deleteNode}
-            onDownload={() => {
-              if (src) {
-                downloadMarkweaveImage(src);
-              }
-            }}
-            onReplace={() => {
-              setInputValue("");
-              setError(null);
-              setReplacing(true);
-            }}
-          />
+          {canEditImage ? (
+            <ImageToolbar
+              align={align}
+              captionActive={captionOpen || Boolean(caption)}
+              messages={messages}
+              onAlign={(nextAlign) => updateAttributes({ align: nextAlign })}
+              onCaption={toggleCaption}
+              onDelete={deleteNode}
+              onDownload={() => {
+                if (src) {
+                  downloadMarkweaveImage(src);
+                }
+              }}
+              onReplace={() => {
+                setInputValue("");
+                setError(null);
+                setReplacing(true);
+              }}
+            />
+          ) : null}
           <div className="markweave-image-box" ref={imageBoxRef} style={width ? { width: `${width}px` } : undefined}>
-            <img className="markweave-image" src={src ?? ""} alt={stringAttribute(node.attrs.alt) ?? ""} title={stringAttribute(node.attrs.title) ?? undefined} draggable={false} />
-            <ResizeHandle side="left" messages={messages} onPointerDown={beginResize} />
-            <ResizeHandle side="right" messages={messages} onPointerDown={beginResize} />
+            {src ? (
+              <img className="markweave-image" src={src} alt={stringAttribute(node.attrs.alt) ?? ""} title={stringAttribute(node.attrs.title) ?? undefined} draggable={false} />
+            ) : (
+              <div className="markweave-image-readonly-empty" data-testid="markweave-image-readonly-empty" aria-hidden="true" />
+            )}
+            {canEditImage ? <ResizeHandle side="left" messages={messages} onPointerDown={beginResize} /> : null}
+            {canEditImage ? <ResizeHandle side="right" messages={messages} onPointerDown={beginResize} /> : null}
           </div>
-          {captionOpen || caption ? (
+          {canEditImage && (captionOpen || caption) ? (
             <input
               className="markweave-image-caption-input"
               data-markweave-image-ui="true"
@@ -348,6 +389,10 @@ function MarkweaveImageNodeView(props: NodeViewProps) {
                 }
               }}
             />
+          ) : caption ? (
+            <figcaption className="markweave-image-caption" data-testid="markweave-image-caption">
+              {caption}
+            </figcaption>
           ) : null}
         </>
       )}

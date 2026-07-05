@@ -15,9 +15,11 @@ import { MarkweaveEditor } from "markweave";
 import "markweave/styles.css";
 
 export function Editor() {
-  return <MarkweaveEditor defaultContent="<h1>Hello Markweave</h1>" />;
+  return <MarkweaveEditor defaultContent="<h1>Hello Markweave</h1>" mode="live" />;
 }
 ```
+
+`mode` defaults to `"live"`. Use `mode="view"` for a read-only rendered view. `editable={false}` remains a compatibility lock, including when `mode="live"`.
 
 ## Exports
 

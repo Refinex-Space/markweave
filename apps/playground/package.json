@@ -8,6 +8,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
+    "lucide-react": "^0.547.0",
     "markweave": "workspace:*",
     "react": "^19.2.7",
     "react-dom": "^19.2.7"

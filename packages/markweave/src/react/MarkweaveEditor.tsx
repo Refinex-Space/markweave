@@ -7,6 +7,8 @@ import { createMarkweaveEditorExtensions } from "../editor-core/create-editor-ex
 import { createSelectionSnapshot, type EditorSelectionSnapshot } from "../editor-core/selection-state";
 import { getLocalizedSlashCommandSpecs, getMarkweaveMessages, normalizeMarkweaveLang, type MarkweaveLang } from "../i18n";
 import { getActiveCodeBlockState, markweaveCodeBlockBehavior, type MarkweaveCodeBlockState } from "../plugins/codeblock/codeblock-behavior";
+import { normalizeMarkdownLinkHref } from "../plugins/markdown/markdown-input";
+import { isMermaidInlinePreviewTransaction, setMermaidInlinePreviewEditorMode } from "../plugins/mermaid/mermaid-inline-preview";
 import { getMermaidPreviewState, type MermaidPreviewMode, type MermaidPreviewState } from "../plugins/mermaid/mermaid-renderer";
 import { filterSlashCommands, isExecutableSlashCommand, type SlashCommandSpec } from "../plugins/slash-command/command-spec";
 import { getSlashCommandKeyboardAction } from "../plugins/slash-command/slash-keyboard";
@@ -34,6 +36,7 @@ import { FloatingToolbar, type FloatingToolbarAssistantRequest } from "../ui/flo
 import { SlashCommandMenu } from "../ui/slash-command/SlashCommandMenu";
 import { TableControls, type TableCommandResult, type TableEditWithAiRequest } from "../ui/table/TableControls";
 import { TableSelectionOverlay } from "../ui/table/TableSelectionOverlay";
+import { normalizeMarkweaveEditorMode, setMarkweaveEditorModeState, type MarkweaveEditorMode } from "./editor-mode-state";
 
 export interface MarkweaveEditorUpdatePayload {
   readonly editor: Editor;
@@ -44,6 +47,8 @@ export interface MarkweaveEditorUpdatePayload {
 
 export interface MarkweaveEditorRuntimeSnapshot {
   readonly revision: number;
+  readonly mode: MarkweaveEditorMode;
+  readonly editable: boolean;
   readonly selection: EditorSelectionSnapshot | null;
   readonly slash: SlashCommandState;
   readonly table: TableFocusState;
@@ -74,6 +79,7 @@ export interface MarkweaveEditorOverlayProps {
 
 export interface MarkweaveEditorFrameProps extends HTMLAttributes<HTMLElement> {
   readonly "data-testid": string;
+  readonly "data-markweave-mode": MarkweaveEditorMode;
   readonly "data-mermaid-mode": MermaidPreviewMode;
   readonly "data-table-focus-mode": TableFocusState["mode"];
 }
@@ -90,6 +96,7 @@ export interface MarkweaveEditorControllerOptions {
   readonly defaultContent?: string;
   readonly content?: string;
   readonly editable?: boolean;
+  readonly mode?: MarkweaveEditorMode;
   readonly autofocus?: boolean;
   readonly lang?: MarkweaveLang;
   readonly ariaLabel?: string;
@@ -145,6 +152,30 @@ function getTableInteractionState(editor: Editor) {
   return tableInteractionPluginKey.getState(editor.state) ?? initialTableInteractionState;
 }
 
+function openReadonlyLinkFromEvent(event: MouseEvent) {
+  const target = event.target;
+
+  if (!(target instanceof Element)) {
+    return false;
+  }
+
+  const anchor = target.closest<HTMLAnchorElement>("a[href]");
+
+  if (!anchor) {
+    return false;
+  }
+
+  const href = normalizeMarkdownLinkHref(anchor.getAttribute("href") ?? "");
+  event.preventDefault();
+
+  if (!href || typeof window === "undefined" || typeof window.open !== "function") {
+    return true;
+  }
+
+  window.open(href, "_blank", "noopener,noreferrer");
+  return true;
+}
+
 export function useMarkweaveEditorController({
   ariaLabel,
   autoFocusFirstTableBodyCell = false,
@@ -153,6 +184,7 @@ export function useMarkweaveEditorController({
   defaultContent = "",
   editable = true,
   lang,
+  mode = "live",
   onEditWithAi,
   onExtractToNote,
   onRewriteSelection,
@@ -162,6 +194,10 @@ export function useMarkweaveEditorController({
   onTableCopyPayload,
   onUpdate,
 }: MarkweaveEditorControllerOptions = {}): MarkweaveEditorController {
+  const editorMode = normalizeMarkweaveEditorMode(mode);
+  const effectiveEditable = editorMode === "live" && editable !== false;
+  const runtimeModeRef = useRef({ editorMode, effectiveEditable });
+  runtimeModeRef.current = { editorMode, effectiveEditable };
   const langRef = useRef<MarkweaveLang | null>(null);
   if (langRef.current === null) {
     langRef.current = normalizeMarkweaveLang(lang);
@@ -256,7 +292,7 @@ export function useMarkweaveEditorController({
   const editor = useEditor({
     extensions,
     content: content ?? defaultContent,
-    editable,
+    editable: effectiveEditable,
     autofocus,
     editorProps: {
       attributes: {
@@ -267,15 +303,37 @@ export function useMarkweaveEditorController({
         spellcheck: "false",
         translate: "no",
       },
+      handleClick: (_view, _pos, event) => {
+        if (runtimeModeRef.current.effectiveEditable) {
+          return false;
+        }
+
+        return openReadonlyLinkFromEvent(event);
+      },
       handleDOMEvents: {
         compositionstart: () => {
+          if (!runtimeModeRef.current.effectiveEditable) {
+            return false;
+          }
+
           setSlashState((state) => reduceSlashCommandState(state, { type: "composition-start" }));
           setSlashMenuPosition(null);
           return false;
         },
         compositionend: (view) => {
+          if (!runtimeModeRef.current.effectiveEditable) {
+            return false;
+          }
+
           window.setTimeout(() => syncSlashCommandStateFromView(view), 0);
           return false;
+        },
+        click: (_view, event) => {
+          if (runtimeModeRef.current.effectiveEditable) {
+            return false;
+          }
+
+          return openReadonlyLinkFromEvent(event);
         },
       },
     },
@@ -283,7 +341,7 @@ export function useMarkweaveEditorController({
       syncSelectionState(activeEditor);
     },
     onCreate: ({ editor: activeEditor }) => {
-      if (autoFocusFirstTableBodyCell) {
+      if (autoFocusFirstTableBodyCell && runtimeModeRef.current.effectiveEditable) {
         focusFirstTableBodyCell(activeEditor);
       }
 
@@ -293,13 +351,15 @@ export function useMarkweaveEditorController({
     },
     onTransaction: ({ editor: activeEditor, transaction }) => {
       syncTableInteractionState(activeEditor);
-      if (transaction.docChanged) {
+      if (transaction.docChanged || isMermaidInlinePreviewTransaction(transaction)) {
         setRevision((current) => current + 1);
       }
     },
     onUpdate: ({ editor: activeEditor }) => {
       syncSelectionState(activeEditor);
-      syncSlashCommandState(activeEditor);
+      if (runtimeModeRef.current.effectiveEditable) {
+        syncSlashCommandState(activeEditor);
+      }
 
       if (!applyingControlledContentRef.current) {
         callbacksRef.current.onUpdate?.(createUpdatePayload(activeEditor));
@@ -312,8 +372,14 @@ export function useMarkweaveEditorController({
       return;
     }
 
-    editor.setEditable(editable);
-  }, [editable, editor]);
+    editor.setEditable(effectiveEditable);
+    setMarkweaveEditorModeState(editor, { mode: editorMode, editable: effectiveEditable });
+    setMermaidInlinePreviewEditorMode(editor, effectiveEditable ? "live" : "view");
+
+    if (!effectiveEditable) {
+      closeSlashMenu();
+    }
+  }, [closeSlashMenu, editor, editorMode, effectiveEditable]);
 
   useEffect(() => {
     if (!editor || content === undefined || editor.getHTML() === content) {
@@ -324,10 +390,12 @@ export function useMarkweaveEditorController({
     editor.commands.setContent(content, { emitUpdate: false });
     applyingControlledContentRef.current = false;
     syncSelectionState(editor);
-    syncSlashCommandState(editor);
+    if (effectiveEditable) {
+      syncSlashCommandState(editor);
+    }
     syncTableInteractionState(editor);
     setRevision((current) => current + 1);
-  }, [content, editor, syncSelectionState, syncSlashCommandState, syncTableInteractionState]);
+  }, [content, effectiveEditable, editor, syncSelectionState, syncSlashCommandState, syncTableInteractionState]);
 
   useEffect(() => {
     if (!slashMenuPosition) {
@@ -365,6 +433,8 @@ export function useMarkweaveEditorController({
   const runtimeSnapshot = useMemo<MarkweaveEditorRuntimeSnapshot>(
     () => ({
       revision,
+      mode: editorMode,
+      editable: effectiveEditable,
       selection: selectionSnapshot,
       slash: slashState,
       table: tableFocusState,
@@ -373,7 +443,7 @@ export function useMarkweaveEditorController({
       mermaid: mermaidPreviewState,
       tableDebugSnapshot,
     }),
-    [codeBlockState, mermaidPreviewState, revision, selectionSnapshot, slashState, tableDebugSnapshot, tableFocusState, tableInteractionState],
+    [codeBlockState, editorMode, effectiveEditable, mermaidPreviewState, revision, selectionSnapshot, slashState, tableDebugSnapshot, tableFocusState, tableInteractionState],
   );
 
   useEffect(() => {
@@ -382,7 +452,7 @@ export function useMarkweaveEditorController({
 
   const runSlashCommand = useCallback(
     (command: SlashCommandSpec, options?: ExecuteSlashCommandOptions) => {
-      if (!editor) {
+      if (!editor || !effectiveEditable) {
         return;
       }
 
@@ -399,7 +469,7 @@ export function useMarkweaveEditorController({
       setSlashState((state) => reduceSlashCommandState(state, { type: "execute" }));
       closeSlashMenu();
     },
-    [closeSlashMenu, editor, slashState],
+    [closeSlashMenu, effectiveEditable, editor, slashState],
   );
 
   const setSlashActiveIndex = useCallback(
@@ -417,7 +487,7 @@ export function useMarkweaveEditorController({
 
   const handleEditorKeyDown = useCallback(
     (event: ReactKeyboardEvent<HTMLElement>) => {
-      if (!editor || slashInputCommand) {
+      if (!editor || slashInputCommand || !effectiveEditable) {
         return;
       }
 
@@ -453,7 +523,7 @@ export function useMarkweaveEditorController({
         runSlashCommand(action.command);
       }
     },
-    [closeSlashMenu, editor, filteredSlashCommands, runSlashCommand, slashInputCommand, slashState],
+    [closeSlashMenu, effectiveEditable, editor, filteredSlashCommands, runSlashCommand, slashInputCommand, slashState],
   );
 
   const actions = useMemo<MarkweaveEditorControllerActions>(
@@ -470,13 +540,15 @@ export function useMarkweaveEditorController({
           focusFirstTableBodyCell(editor);
         }
         syncSelectionState(editor);
-        syncSlashCommandState(editor);
+        if (effectiveEditable) {
+          syncSlashCommandState(editor);
+        }
         syncTableInteractionState(editor);
         setRevision((current) => current + 1);
         return true;
       },
     }),
-    [closeSlashMenu, editor, syncSelectionState, syncSlashCommandState, syncTableInteractionState],
+    [closeSlashMenu, effectiveEditable, editor, syncSelectionState, syncSlashCommandState, syncTableInteractionState],
   );
 
   const frameProps = useMemo<MarkweaveEditorFrameProps>(
@@ -484,16 +556,17 @@ export function useMarkweaveEditorController({
       className: "markweave-editor-frame",
       "aria-label": ariaLabel ?? messages.common.editorAriaLabel,
       "data-testid": "markweave-editor-frame",
+      "data-markweave-mode": editorMode,
       "data-mermaid-mode": mermaidPreviewState.mode,
       "data-table-focus-mode": tableFocusState.mode,
       onKeyDownCapture: handleEditorKeyDown,
     }),
-    [ariaLabel, handleEditorKeyDown, mermaidPreviewState.mode, messages.common.editorAriaLabel, tableFocusState.mode],
+    [ariaLabel, editorMode, handleEditorKeyDown, mermaidPreviewState.mode, messages.common.editorAriaLabel, tableFocusState.mode],
   );
 
   const overlayProps = useMemo<MarkweaveEditorOverlayProps>(
     () => ({
-      floatingToolbar: editor
+      floatingToolbar: editor && effectiveEditable
         ? {
             editor,
             messages,
@@ -502,7 +575,7 @@ export function useMarkweaveEditorController({
             onExtractToNote,
           }
         : null,
-      slashCommandMenu: editor
+      slashCommandMenu: editor && effectiveEditable
         ? {
             commands: filteredSlashCommands,
             state: slashState,
@@ -515,7 +588,7 @@ export function useMarkweaveEditorController({
             onUpload: onSlashCommandUpload,
           }
         : null,
-      tableControls: editor
+      tableControls: editor && effectiveEditable
         ? {
             editor,
             active: tableFocusState.active,
@@ -526,7 +599,7 @@ export function useMarkweaveEditorController({
             onEditWithAi,
           }
         : null,
-      tableSelectionOverlay: editor
+      tableSelectionOverlay: editor && effectiveEditable
         ? {
             editor,
             focusState: tableFocusState,
@@ -535,13 +608,15 @@ export function useMarkweaveEditorController({
       codeBlockControls: editor
         ? {
             editor,
-            active: isCodeBlockActive,
+            active: effectiveEditable && isCodeBlockActive,
             mermaidMode,
             onMermaidModeChange: setMermaidMode,
+            readOnly: !effectiveEditable,
           }
         : null,
     }),
     [
+      effectiveEditable,
       editor,
       filteredSlashCommands,
       isCodeBlockActive,

@@ -35,6 +35,14 @@
   line-height: 1.72;
 }
 
+.markweave-editor-frame[data-markweave-mode="view"] .markweave-editor-surface {
+  cursor: auto;
+}
+
+.markweave-editor-frame[data-markweave-mode="view"] a.markweave-link {
+  cursor: pointer;
+}
+
 .markweave-editor-surface > *:first-child {
   margin-top: 0;
 }
@@ -151,6 +159,14 @@
   box-shadow: 0 0 0 1px rgba(47, 52, 59, 0.08);
 }
 
+.markweave-editor-frame[data-markweave-mode="view"] .markweave-image-toolbar,
+.markweave-editor-frame[data-markweave-mode="view"] .markweave-image-resize-handle,
+.markweave-editor-frame[data-markweave-mode="view"] .markweave-image-upload-placeholder,
+.markweave-editor-frame[data-markweave-mode="view"] .markweave-video-upload-placeholder,
+.markweave-editor-frame[data-markweave-mode="view"] .markweave-video-selection-layer {
+  display: none;
+}
+
 .markweave-editor-surface .markweave-image-node img.markweave-image {
   display: block;
   width: 100%;
@@ -261,12 +277,29 @@
   border-bottom-color: #3f4650;
 }
 
+.markweave-image-caption {
+  width: min(100%, 520px);
+  color: #6a7079;
+  font-size: 13px;
+  line-height: 1.45;
+  text-align: center;
+}
+
 .markweave-editor-surface .markweave-image-figure figcaption {
   width: min(100%, 520px);
   color: #6a7079;
   font-size: 13px;
   line-height: 1.45;
   text-align: center;
+}
+
+.markweave-image-readonly-empty,
+.markweave-video-readonly-empty {
+  width: 100%;
+  min-height: 96px;
+  border: 1px dashed #d5d9e0;
+  border-radius: 8px;
+  background: #fafbfc;
 }
 
 .markweave-image-resize-handle {
@@ -1951,6 +1984,10 @@
   line-height: 1;
 }
 
+.markweave-codeblock-language-label {
+  grid-template-columns: minmax(0, auto);
+}
+
 .markweave-codeblock-language-button span {
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1968,6 +2005,10 @@
 .markweave-codeblock-icon-button:focus-visible,
 .markweave-codeblock-icon-button[data-copy-state="copied"] {
   background: #dedede;
+}
+
+.markweave-codeblock-language-label:hover {
+  background: transparent;
 }
 
 .markweave-codeblock-icon-button:disabled {
