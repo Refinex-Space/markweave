@@ -31,6 +31,11 @@ const editorRuntimeSelectors = [
   ".markweave-image-toolbar",
   ".markweave-image-upload-placeholder",
   ".markweave-image-resize-handle",
+  ".markweave-video-node",
+  ".markweave-video-upload-placeholder",
+  ".markweave-video-embed",
+  ".markweave-video-iframe",
+  ".markweave-video-selection-layer",
   ".markweave-table-controls",
   ".markweave-table-selection-overlay",
   ".markweave-codeblock-overlay",
@@ -76,6 +81,12 @@ describe("editor style boundary", () => {
     expect(editorCss).toContain(".markweave-image-toolbar");
     expect(editorCss).toContain(".markweave-image-upload-placeholder");
     expect(editorCss).toContain(".markweave-image-resize-handle");
+    expect(editorCss).toContain(".markweave-video-node");
+    expect(editorCss).toContain(".markweave-video-upload-placeholder");
+    expect(editorCss).toContain(".markweave-video-embed");
+    expect(editorCss).toContain(".markweave-video-iframe");
+    expect(editorCss).toContain(".markweave-video-selection-layer");
+    expect(editorCss).toContain('.markweave-video-node[data-selected="true"]');
     expect(editorCss).toContain("z-index: 58");
     expect(editorCss).toContain("scrollbar-color: #d7d7d7 transparent");
     expect(editorCss).toContain(".markweave-video");

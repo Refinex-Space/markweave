@@ -22,6 +22,7 @@ Markweave is a browser-side editor package. Treat editor content, pasted HTML/Ma
 - Upload behavior is exposed through host-provided callback types such as `MarkweaveSlashCommandUploadHandler`.
 - The package defines image, video, and attachment nodes; verify node attributes and rendering behavior when changing media support.
 - Image insertion can create an empty browser-side upload placeholder before a `src` exists. Local file uploads still require the host upload handler; URL, path, and Base64 image sources may resolve directly in the browser.
+- Video insertion can create an empty browser-side upload placeholder before a `src` exists. Local video files still require the host upload handler. Direct video URLs render as `<video>`. YouTube and Bilibili sharing URLs are converted to iframe embeds, while whitelisted platform embed sources keep their original query strings. Do not resolve network redirects or accept arbitrary iframe hosts.
 - Do not add network calls, storage assumptions, or production upload endpoints to the package without an explicit API design.
 
 ## Links And Rendering

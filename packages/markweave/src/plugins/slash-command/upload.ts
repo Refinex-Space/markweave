@@ -9,7 +9,7 @@ export interface MarkweaveUploadSource {
   readonly mimeType?: string;
 }
 
-export type MarkweaveUploadTrigger = "slash-command" | "image-insert" | "image-replace";
+export type MarkweaveUploadTrigger = "slash-command" | "image-insert" | "image-replace" | "video-insert";
 
 export interface MarkweaveUploadRequest {
   readonly kind: SlashCommandUploadKind;

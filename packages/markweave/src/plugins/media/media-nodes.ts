@@ -4,51 +4,6 @@ function stringAttribute(value: unknown) {
   return typeof value === "string" ? value : null;
 }
 
-export const MarkweaveVideo = Node.create({
-  name: "markweaveVideo",
-  group: "block",
-  atom: true,
-  selectable: true,
-  draggable: true,
-
-  addAttributes() {
-    return {
-      src: {
-        default: null,
-        parseHTML: (element) => stringAttribute(element.getAttribute("src")),
-      },
-      title: {
-        default: null,
-        parseHTML: (element) => stringAttribute(element.getAttribute("title")),
-      },
-      mimeType: {
-        default: null,
-        parseHTML: (element) => stringAttribute(element.getAttribute("data-markweave-mime-type")),
-        renderHTML: (attributes) => (attributes.mimeType ? { "data-markweave-mime-type": attributes.mimeType } : {}),
-      },
-    };
-  },
-
-  parseHTML() {
-    return [
-      {
-        tag: "video[data-markweave-video]",
-      },
-    ];
-  },
-
-  renderHTML({ HTMLAttributes }) {
-    return [
-      "video",
-      mergeAttributes(HTMLAttributes, {
-        class: "markweave-video",
-        controls: "",
-        "data-markweave-video": "true",
-      }),
-    ];
-  },
-});
-
 export const MarkweaveAttachment = Node.create({
   name: "markweaveAttachment",
   group: "block",

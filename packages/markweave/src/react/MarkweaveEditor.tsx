@@ -176,6 +176,18 @@ export function useMarkweaveEditorController({
 
           return directResult;
         },
+        onVideoUpload: (request) => {
+          if (uploadHandlerRef.current) {
+            return uploadHandlerRef.current(request);
+          }
+
+          const directResult = getDirectUploadResult(request);
+          if (!directResult) {
+            throw new Error("File upload requires an upload handler.");
+          }
+
+          return directResult;
+        },
       }),
     [],
   );

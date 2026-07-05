@@ -321,7 +321,6 @@ export const editorSlashCommandSpecs: readonly SlashCommandSpec[] = [
     category: "upload",
     executionKind: "editor",
     icon: "video",
-    inputKind: "upload",
     uploadKind: "video",
     searchTerms: ["video", "movie", "upload"],
   },

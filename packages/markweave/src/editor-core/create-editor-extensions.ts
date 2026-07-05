@@ -24,7 +24,8 @@ import { MarkweaveCodeBlockClickFocus, MarkweaveCodeBlockCollapse, markweaveCode
 import { MarkweaveIndent } from "../plugins/indent/indent-extension";
 import { MarkweaveMarkdownInput } from "../plugins/markdown/markdown-input";
 import { MarkweaveImage } from "../plugins/media/image-node";
-import { MarkweaveAttachment, MarkweaveVideo } from "../plugins/media/media-nodes";
+import { MarkweaveAttachment } from "../plugins/media/media-nodes";
+import { MarkweaveVideo } from "../plugins/media/video-node";
 import { MarkweaveMermaidInlinePreview } from "../plugins/mermaid/mermaid-inline-preview";
 import { MarkweaveTableClipboard } from "../plugins/table/table-clipboard";
 import { MarkweaveTableArrowNavigation } from "../plugins/table/table-arrow-navigation";
@@ -36,6 +37,7 @@ import type { MarkweaveSlashCommandUploadHandler } from "../plugins/slash-comman
 
 export interface CreateMarkweaveEditorExtensionsOptions {
   readonly onImageUpload?: MarkweaveSlashCommandUploadHandler;
+  readonly onVideoUpload?: MarkweaveSlashCommandUploadHandler;
 }
 
 const markweaveLowlight = createLowlight(common);
@@ -117,7 +119,12 @@ export function createMarkweaveEditorExtensions(options: CreateMarkweaveEditorEx
         class: "markweave-image",
       },
     }),
-    MarkweaveVideo,
+    MarkweaveVideo.configure({
+      onUpload: options.onVideoUpload,
+      HTMLAttributes: {
+        class: "markweave-video",
+      },
+    }),
     MarkweaveAttachment,
     HorizontalRule.configure({
       HTMLAttributes: {

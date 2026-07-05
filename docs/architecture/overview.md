@@ -36,6 +36,7 @@ The package exports `markweave` and `markweave/styles.css`; package-boundary cha
 - previews and controls: Mermaid inline preview, floating toolbar, slash menu, table controls, table selection overlay, code block controls
 - link editing: the floating toolbar opens an inline link popover for selected text, with apply, open, and remove actions
 - image editing: the image node renders an inline upload placeholder for empty images, then exposes align, caption, download, replace, delete, and width-resize controls through a React NodeView
+- video insertion: the video node renders an inline upload placeholder for empty videos, supports local-file host uploads and direct video URLs, and automatically embeds YouTube and Bilibili links or whitelisted platform embed sources through a React NodeView
 
 ## Behavior Contracts
 

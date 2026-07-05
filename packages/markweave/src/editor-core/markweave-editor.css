@@ -432,6 +432,179 @@
   }
 }
 
+.markweave-editor-surface .markweave-video-node,
+.markweave-editor-surface .markweave-video-figure {
+  position: relative;
+  display: block;
+  width: 100%;
+  margin: 1.1em 0;
+  outline: none;
+}
+
+.markweave-video-upload-placeholder {
+  display: grid;
+  justify-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 218px;
+  border: 2px dashed #c8cdd5;
+  border-radius: 14px;
+  background: #ffffff;
+  box-shadow: none;
+  padding: 30px 28px;
+  color: #4f555e;
+}
+
+.markweave-video-upload-placeholder[data-drag-active="true"] {
+  border-color: #6b7280;
+  background: #fafafa;
+}
+
+.markweave-video-upload-icon {
+  display: grid;
+  place-items: center;
+  color: #c6ccd5;
+}
+
+.markweave-video-upload-copy {
+  font-size: 17px;
+  line-height: 1.25;
+}
+
+.markweave-video-upload-copy button {
+  border: 0;
+  background: transparent;
+  color: #3f434a;
+  cursor: pointer;
+  font: inherit;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.markweave-video-upload-note {
+  color: #9aa0a9;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.markweave-video-upload-row {
+  display: grid;
+  grid-template-columns: minmax(160px, 1fr) auto auto;
+  gap: 8px;
+  width: min(100%, 680px);
+  margin-top: 2px;
+}
+
+.markweave-video-upload-row input {
+  min-width: 0;
+  height: 36px;
+  border: 1px solid #d9dee6;
+  border-radius: 10px;
+  outline: none;
+  background: #ffffff;
+  color: #2f343b;
+  font: inherit;
+  font-size: 14px;
+  padding: 0 11px;
+}
+
+.markweave-video-upload-row input:focus {
+  border-color: #6b7280;
+}
+
+.markweave-video-upload-row button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 36px;
+  border: 0;
+  border-radius: 10px;
+  background: #f0f1f2;
+  color: #3f434a;
+  cursor: pointer;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 0 12px;
+}
+
+.markweave-video-upload-row button[data-testid="markweave-video-upload-submit"] {
+  background: #30343a;
+  color: #ffffff;
+}
+
+.markweave-video-upload-row button:disabled {
+  cursor: default;
+  opacity: 0.48;
+}
+
+.markweave-video-upload-error {
+  width: min(100%, 680px);
+  border-radius: 9px;
+  background: #fff1f1;
+  color: #b91c1c;
+  font-size: 12px;
+  line-height: 1.35;
+  padding: 8px 10px;
+}
+
+.markweave-video-embed {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  border: 1px solid #e1e5eb;
+  border-radius: 8px;
+  background: #111318;
+}
+
+.markweave-video-box {
+  position: relative;
+  line-height: 0;
+}
+
+.markweave-video-node[data-selected="true"] .markweave-video-embed,
+.markweave-video-node[data-selected="true"] video.markweave-video {
+  border-color: #3f4650;
+  box-shadow: 0 0 0 1px rgba(47, 52, 59, 0.08);
+}
+
+.markweave-video-iframe {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  background: #111318;
+}
+
+.markweave-video-selection-layer {
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  border: 0;
+  background: transparent;
+  cursor: default;
+  padding: 0;
+}
+
+.markweave-editor-surface .markweave-video-node video.markweave-video {
+  width: 100%;
+  max-height: min(70vh, 560px);
+  margin: 0;
+}
+
+@media (max-width: 640px) {
+  .markweave-video-upload-placeholder {
+    min-height: 196px;
+    padding: 24px 16px;
+  }
+
+  .markweave-video-upload-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
 .markweave-editor-surface .markweave-attachment {
   display: inline-flex;
   align-items: center;
