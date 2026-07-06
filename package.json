@@ -1,0 +1,31 @@
+{
+  "name": "markweave-workspace",
+  "private": true,
+  "description": "Markdown-first WYSIWYG editor built on Tiptap and CodeMirror, providing Typora-like editing experience with block-level structure, slash commands, and rich text tooling.",
+  "type": "module",
+  "packageManager": "pnpm@11.7.0",
+  "scripts": {
+    "dev": "pnpm --filter @markweave/playground-react dev",
+    "dev:react": "pnpm --filter @markweave/playground-react dev",
+    "dev:vue3": "pnpm --filter @markweave/playground-vue3 dev",
+    "build": "pnpm --filter markweave build && pnpm --filter @markweave/playground-react build && pnpm --filter @markweave/playground-vue3 build",
+    "typecheck": "pnpm -r typecheck",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "harness:check": "python3 ops/harness/check-harness.py"
+  },
+  "devDependencies": {
+    "@types/node": "^24.10.2",
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^6.0.3",
+    "@vitejs/plugin-vue": "^6.0.3",
+    "jsdom": "^29.1.1",
+    "lucide-vue-next": "^0.547.0",
+    "typescript": "^5.9.3",
+    "vite": "^8.1.2",
+    "vitest": "^4.1.9",
+    "vue": "^3.5.25",
+    "vue-tsc": "^3.1.8"
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "name": "@markweave/playground-fixtures",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  }
+}
