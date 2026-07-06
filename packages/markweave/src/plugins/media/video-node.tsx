@@ -56,6 +56,16 @@ function compactAttributes(attributes: Record<string, unknown>) {
   return Object.fromEntries(Object.entries(attributes).filter(([, value]) => value !== null && value !== undefined && value !== ""));
 }
 
+function escapeHtmlAttribute(value: string) {
+  return value.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+function renderHtmlAttributes(attributes: Record<string, unknown>) {
+  return Object.entries(compactAttributes(attributes))
+    .map(([key, value]) => `${key}="${escapeHtmlAttribute(String(value))}"`)
+    .join(" ");
+}
+
 function firstMatchValue(url: URL, keys: readonly string[]) {
   for (const key of keys) {
     const value = url.searchParams.get(key);
@@ -560,6 +570,38 @@ export const MarkweaveVideo = Node.create<MarkweaveVideoOptions>({
         }),
       ),
     ];
+  },
+
+  renderMarkdown: (node) => {
+    const src = stringAttribute(node.attrs?.src);
+    const embedUrl = stringAttribute(node.attrs?.embedUrl);
+    const provider = stringAttribute(node.attrs?.provider);
+
+    if (!src) {
+      return '<figure class="markweave-video-figure" data-markweave-video-empty="true"></figure>';
+    }
+
+    if (embedUrl) {
+      return `<iframe ${renderHtmlAttributes({
+        class: "markweave-video-iframe",
+        src: embedUrl,
+        title: stringAttribute(node.attrs?.title) ?? `${provider ?? "Video"} embed`,
+        "data-markweave-video-embed": "true",
+        "data-markweave-video-provider": provider,
+        "data-markweave-video-src": src,
+        allow: "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share",
+        allowfullscreen: "true",
+      })}></iframe>`;
+    }
+
+    return `<video ${renderHtmlAttributes({
+      class: "markweave-video",
+      src,
+      title: stringAttribute(node.attrs?.title),
+      controls: "",
+      "data-markweave-video": "true",
+      "data-markweave-mime-type": stringAttribute(node.attrs?.mimeType),
+    })}></video>`;
   },
 
   addNodeView() {

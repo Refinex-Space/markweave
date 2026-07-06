@@ -21,9 +21,11 @@ The package root exports from `packages/markweave/src/index.ts`:
 - `MarkweaveEditor`
 - `useMarkweaveEditorController`
 - `createMarkweaveEditorExtensions`
-- public controller, overlay, update payload, editor mode, upload, toolbar, and table-copy types
+- public controller, overlay, update payload, editor mode, content format, upload, toolbar, and table-copy types
 
 The package exports `markweave` and `markweave/styles.css`; package-boundary changes should keep `packages/markweave/test/editor-entrypoint-boundary.test.ts` current.
+
+`MarkweaveEditor` is Markdown-first at the content API boundary. `defaultContent` and controlled `content` default to Markdown parsing, `onUpdate.markdown` is the recommended storage output, and legacy HTML/JSON inputs must declare `defaultContentFormat` or `contentFormat` explicitly. `mode="live"` and `mode="view"` are UI-only rendering modes and do not change the serialized document output.
 
 ## Editor Core
 
@@ -31,7 +33,7 @@ The package exports `markweave` and `markweave/styles.css`; package-boundary cha
 
 - core editing: StarterKit, composition guard, mark boundary, indent, text style, color, underline, highlight, links, math, emoji
 - blocks and media: code blocks through lowlight, callouts, images, videos, attachments, horizontal rules, task lists
-- Markdown behavior: Markdown input transforms and markdown-table input
+- Markdown behavior: official Markdown parse/serialize support, Markdown input transforms, and markdown-table input
 - interaction layers: slash command runtime, table clipboard, table arrow navigation, table keyboard, table interaction state
 - previews and controls: Mermaid inline preview, floating toolbar, slash menu, table controls, table selection overlay, code block controls
 - link editing: the floating toolbar opens an inline link popover for selected text, with apply, open, and remove actions

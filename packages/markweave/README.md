@@ -15,9 +15,17 @@ import { MarkweaveEditor } from "markweave";
 import "markweave/styles.css";
 
 export function Editor() {
-  return <MarkweaveEditor defaultContent="<h1>Hello Markweave</h1>" mode="live" />;
+  return (
+    <MarkweaveEditor
+      defaultContent={"# Hello Markweave\n\nStart writing in **Markdown**."}
+      mode="live"
+      onUpdate={({ markdown }) => console.log(markdown)}
+    />
+  );
 }
 ```
+
+`defaultContent` and controlled `content` are Markdown by default. Use `defaultContentFormat="html"` or `contentFormat="html"` when migrating an existing HTML integration. `onUpdate.markdown` is the recommended storage output; `html`, `json`, and `text` remain available.
 
 `mode` defaults to `"live"`. Use `mode="view"` for a read-only rendered view. `editable={false}` remains a compatibility lock, including when `mode="live"`.
 

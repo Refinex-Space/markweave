@@ -1,43 +1,152 @@
-export const initialPlaygroundDocument = `
-<h1>Markweave Editor Playground</h1>
-<p>Start here: the playground opens inside the table body cell so table handles, cell focus state, and keyboard traversal are immediately active.</p>
-<table>
-  <tbody>
-    <tr>
-      <th><p>Module</p></th>
-      <th><p>Interaction target</p></th>
-      <th><p>Status</p></th>
-    </tr>
-    <tr>
-      <td><p>Table</p></td>
-      <td><p>Navigation, paste, merge, split</p></td>
-      <td><p>Modeled</p></td>
-    </tr>
-    <tr>
-      <td><p>Selection</p></td>
-      <td><p>Toolbar and cursor state</p></td>
-      <td><p>Modeled</p></td>
-    </tr>
-  </tbody>
-</table>
-<h2>Markdown WYSIWYG</h2>
-<p>Type <code># </code>, <code>&gt; </code>, <code>- </code>, <code>1. </code>, <code>**bold**</code>, or <code>\`inline code\`</code> to exercise input rules. Type <code>/table</code> in a fresh paragraph and execute it to insert a structured table with focus restored into the first body cell.</p>
-<blockquote>
-  <p>The demo keeps editor behavior close to the package entrypoint instead of a separate app shell.</p>
-</blockquote>
-<ul>
-  <li><p>Select text to open the floating toolbar.</p></li>
-  <li><p>Type <code>/</code> at the start of a paragraph to inspect slash state.</p></li>
-</ul>
-<h2>Code Block</h2>
-<pre><code class="language-ts">export function sample() {
-  return "markweave-editor";
-}</code></pre>
-<h2>Mermaid Fence</h2>
-<pre><code class="language-mermaid">graph TD
-  A[Markdown] --> B[Editor Core]
-  B --> C[Playground]</code></pre>
-`;
+export const initialPlaygroundDocument = [
+  "# Markweave Editor",
+  "",
+  "**Markweave Editor** is a Markdown-first WYSIWYG editor built on Tiptap. This playground document is both a product introduction and a Markdown syntax checklist, so Live and View modes can be inspected against the same realistic source.",
+  "",
+  "Use it to verify headings, inline marks, lists, tasks, quotes, tables, media, math, code, Mermaid, and editor-only interaction surfaces such as image resizing and table handles.",
+  "",
+  "---",
+  "",
+  "## 1. Product Snapshot",
+  "",
+  "| Capability | Markdown surface | What to inspect |",
+  "| --- | --- | --- |",
+  "| Live editing | Blocks, marks, tables, media | Cursor behavior, toolbar placement, slash menu |",
+  "| View mode | Rendered Markdown document | Readable output, links, code copy, Mermaid preview |",
+  "| Structured content | Tables, callouts, tasks, embeds | Node views, handles, captions, serialization |",
+  "",
+  "## 2. Headings And Paragraph Rhythm",
+  "",
+  "### Heading 3: Editing Surface",
+  "",
+  "#### Heading 4: Command Surface",
+  "",
+  "##### Heading 5: Rendering Surface",
+  "",
+  "###### Heading 6: Integration Surface",
+  "",
+  "Paragraphs should feel calm and readable. A long paragraph checks wrapping, line-height, punctuation, and inline layout: Markweave keeps Markdown familiar while giving teams rich document controls without forcing them to leave the editor flow.",
+  "",
+  "Line breaks are represented by separate paragraphs in this fixture. In Live mode, try selecting exactly one character in the first heading and then selecting multiple characters to verify floating toolbar positioning.",
+  "",
+  "## 3. Inline Markdown Marks",
+  "",
+  "This sentence includes **bold text**, *italic text*, <u>underlined text</u>, ~~struck text~~, `inlineCode()`, <mark class=\"markweave-highlight\">highlighted text</mark>, H<sub>2</sub>O, E = mc<sup>2</sup>, and an inline formula <span data-type=\"inline-math\" data-latex=\"a^2 + b^2 = c^2\"></span>.",
+  "",
+  "Links should render safely: [open product docs](https://example.com/docs). In View mode, clicking safe links should use the reader behavior; unsafe protocols should remain blocked by the editor boundary.",
+  "",
+  "## 4. Blockquote, Lists, And Tasks",
+  "",
+  "> Markweave is designed for authors who want Markdown semantics, but also need a stable visual editor for repeated daily writing.",
+  "",
+  "- Use **Live** mode to author content with slash commands and floating toolbar actions.",
+  "- Use **View** mode to inspect the final reading experience.",
+  "- Use nested lists to check indentation and list marker alignment.",
+  "  - Nested unordered item with `inline code`.",
+  "  - Nested unordered item with a [link](https://example.com).",
+  "",
+  "1. Type Markdown shortcuts such as `#`, `>`, `-`, `1.`, and code fences.",
+  "2. Select text to verify toolbar actions such as bold, italic, link, color, and more.",
+  "3. Use table handles to check row and column menus.",
+  "",
+  "- [x] Ship a stable Live mode editing surface.",
+  "- [ ] Review View mode output before publishing.",
+  "- [ ] Confirm media, tables, and code blocks survive serialization.",
+  "",
+  "## 5. Callouts",
+  "",
+  ":::info",
+  "",
+  "**Info:** Slash commands insert structured nodes without making the package consumer wire a separate document shell.",
+  "",
+  ":::",
+  "",
+  ":::tip",
+  "",
+  "**Tip:** In View mode, non-writing actions such as copy, Mermaid fullscreen, and downloads should remain available.",
+  "",
+  ":::",
+  "",
+  ":::warning",
+  "",
+  "**Warning:** This fixture is Markdown input for Tiptap, with HTML fallbacks only where Markdown cannot preserve Markweave-specific node attributes.",
+  "",
+  ":::",
+  "",
+  "## 6. Tables",
+  "",
+  "The table below checks headers, inline marks, code, links, and compact cell layout.",
+  "",
+  "| Markdown syntax | Rendered example | Expected behavior |",
+  "| --- | --- | --- |",
+  "| `**bold**` and `*italic*` | **Bold** plus *italic* | Marks stay scoped inside the cell. |",
+  "| `[link](url)` | [Markweave link](https://example.com/markweave) | Safe link styling and View mode click behavior. |",
+  "| `` `code` `` | `editor.commands.focus()` | Inline code remains readable in dense layouts. |",
+  "",
+  "## 7. Code Blocks",
+  "",
+  "Hover a code block in Live or View mode. The language label and copy button should remain available; language switching is only writable in Live mode.",
+  "",
+  "```ts",
+  "type EditorMode = \"live\" | \"view\";",
+  "",
+  "export function describeMarkweave(mode: EditorMode) {",
+  "  return mode === \"live\"",
+  "    ? \"Author Markdown with rich controls\"",
+  "    : \"Read the rendered document without editing\";",
+  "}",
+  "```",
+  "",
+  "```json",
+  "{",
+  "  \"package\": \"markweave\",",
+  "  \"defaultMode\": \"live\",",
+  "  \"viewMode\": {",
+  "    \"editable\": false,",
+  "    \"mermaid\": \"preview\"",
+  "  }",
+  "}",
+  "```",
+  "",
+  "## 8. Mermaid Fence",
+  "",
+  "In View mode, Mermaid should default to Preview even if the saved node was in Code mode. The tabs still let readers inspect the diagram source without enabling editing.",
+  "",
+  "```mermaid",
+  "graph TD",
+  "  A[Markdown Content] --> B[Markweave Editor]",
+  "  B --> C{Mode}",
+  "  C -->|Live| D[Editable WYSIWYG]",
+  "  C -->|View| E[Readonly Rendering]",
+  "  D --> F[Toolbar, Slash, Tables]",
+  "  E --> G[Links, Copy, Mermaid Preview]",
+  "```",
+  "",
+  "## 9. Math",
+  "",
+  "Inline math appears inside text: <span data-type=\"inline-math\" data-latex=\"\\\\int_0^1 x^2 dx = \\\\frac{1}{3}\"></span>. Display math should stand on its own line:",
+  "",
+  "<div data-type=\"block-math\" data-latex=\"\\\\sum_{n=1}^{\\\\infty} \\\\frac{1}{n^2} = \\\\frac{\\\\pi^2}{6}\"></div>",
+  "",
+  "## 10. Media And Attachments",
+  "",
+  "The image below checks image rendering, caption text, alignment, toolbar selection, and View mode hiding of editing handles.",
+  "",
+  "<figure data-markweave-image=\"true\" data-markweave-image-align=\"center\"><img src=\"https://dummyimage.com/1200x420/e5e7eb/111827&text=Markweave+Editor+Preview\" alt=\"Markweave editor preview placeholder\" title=\"Markweave Editor Preview\" width=\"720\" /><figcaption>Image node with caption, center alignment, and stable width.</figcaption></figure>",
+  "",
+  "The video embed checks reader-friendly media rendering. Local uploads are still handled by the host integration.",
+  "",
+  "<iframe class=\"markweave-video-iframe\" data-markweave-video-embed=\"true\" data-markweave-video-provider=\"youtube\" data-markweave-video-src=\"https://www.youtube.com/embed/fPiUC5NxFic\" src=\"https://www.youtube.com/embed/fPiUC5NxFic\" title=\"YouTube video player\" allowfullscreen=\"true\"></iframe>",
+  "",
+  "<a href=\"markweave://sample/spec.pdf\" data-markweave-attachment=\"true\" data-markweave-attachment-name=\"markweave-editor-spec.pdf\" data-markweave-mime-type=\"application/pdf\" data-markweave-attachment-size=\"245760\">markweave-editor-spec.pdf</a>",
+  "",
+  "## 11. Keyboard And Slash Checks",
+  "",
+  "Try `/image`, `/video`, `/table`, `/mermaid`, `/callout`, and `/task` in a fresh paragraph. Attachment is intentionally disabled in the slash menu for now.",
+  "",
+  "Finish by switching between Live and View. Content should remain stable while editing-only overlays disappear and read-only utilities remain available.",
+  "",
+].join("\n");
 
 export const mergedTablePlaygroundDocument = `
 <h1>Table Merge Fixture</h1>

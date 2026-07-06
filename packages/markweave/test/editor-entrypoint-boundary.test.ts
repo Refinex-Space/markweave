@@ -6,7 +6,14 @@ import { fileURLToPath } from "node:url";
 import { act, createElement, type ReactNode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { MarkweaveEditor, useMarkweaveEditorController, type MarkweaveEditorController, type MarkweaveEditorMode, type MarkweaveLang } from "../src";
+import {
+  MarkweaveEditor,
+  useMarkweaveEditorController,
+  type MarkweaveContentFormat,
+  type MarkweaveEditorController,
+  type MarkweaveEditorMode,
+  type MarkweaveLang,
+} from "../src";
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const readProjectFile = (path: string) => readFileSync(resolve(repoRoot, path), "utf8");
@@ -57,6 +64,10 @@ describe("editor entrypoint boundary", () => {
     expect(indexSource).toContain("createMarkweaveEditorExtensions");
     expect(indexSource).toContain("MarkweaveLang");
     expect(indexSource).toContain("MarkweaveEditorMode");
+    expect(indexSource).toContain("MarkweaveContentFormat");
+
+    const defaultFormat: MarkweaveContentFormat = "markdown";
+    expect(defaultFormat).toBe("markdown");
   });
 
   it("keeps playground code out of the publishable package", () => {
@@ -72,6 +83,7 @@ describe("editor entrypoint boundary", () => {
     const container = await renderReact(
       createElement(MarkweaveEditor, {
         defaultContent: "<p>hello editor</p>",
+        defaultContentFormat: "html",
         onRuntimeStateChange: (snapshot) => snapshots.push(snapshot),
       }),
     );
@@ -87,7 +99,7 @@ describe("editor entrypoint boundary", () => {
 
   it("accepts an explicit English editor locale", async () => {
     const lang: MarkweaveLang = "en";
-    const container = await renderReact(createElement(MarkweaveEditor, { defaultContent: "<p>hello editor</p>", lang }));
+    const container = await renderReact(createElement(MarkweaveEditor, { defaultContent: "<p>hello editor</p>", defaultContentFormat: "html", lang }));
 
     expect(container.querySelector('[data-testid="markweave-editor-frame"]')?.getAttribute("aria-label")).toBe("Markweave editor");
   });
@@ -98,6 +110,7 @@ describe("editor entrypoint boundary", () => {
     function Harness({ editable, mode }: { readonly editable?: boolean; readonly mode: MarkweaveEditorMode }) {
       controller = useMarkweaveEditorController({
         defaultContent: '<p><a href="https://example.com">link</a></p>',
+        defaultContentFormat: "html",
         editable,
         mode,
       });
@@ -159,6 +172,7 @@ describe("editor entrypoint boundary", () => {
     const container = await renderReact(
       createElement(MarkweaveEditor, {
         defaultContent: '<p><a href="https://example.com/docs">safe</a> <a href="javascript:alert(1)">unsafe</a></p>',
+        defaultContentFormat: "html",
         mode: "view",
       }),
     );
@@ -179,6 +193,7 @@ describe("editor entrypoint boundary", () => {
       createElement(MarkweaveEditor, {
         defaultContent: `<pre><code class="language-mermaid">flowchart TB
   A --> B</code></pre>`,
+        defaultContentFormat: "html",
         mode: "view",
       }),
     );
@@ -202,6 +217,7 @@ describe("editor entrypoint boundary", () => {
     function Harness({ value }: { readonly value: string }) {
       controller = useMarkweaveEditorController({
         content: value,
+        contentFormat: "html",
         onUpdate: ({ html }) => updates.push(html),
       });
 

@@ -62,6 +62,20 @@ function compactAttributes(attributes: Record<string, unknown>) {
   return Object.fromEntries(Object.entries(attributes).filter(([, value]) => value !== null && value !== undefined && value !== ""));
 }
 
+function escapeHtmlAttribute(value: string) {
+  return value.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+function escapeHtmlText(value: string) {
+  return value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+function renderHtmlAttributes(attributes: Record<string, unknown>) {
+  return Object.entries(compactAttributes(attributes))
+    .map(([key, value]) => `${key}="${escapeHtmlAttribute(String(value))}"`)
+    .join(" ");
+}
+
 export function normalizeMarkweaveImageAlign(value: unknown): MarkweaveImageAlign {
   return typeof value === "string" && imageAlignments.has(value as MarkweaveImageAlign) ? (value as MarkweaveImageAlign) : "center";
 }
@@ -682,6 +696,42 @@ export const MarkweaveImage = Image.extend<MarkweaveImageOptions>({
       ["img", imageAttributes],
       ["figcaption", { "data-markweave-image-caption": "true" }, caption],
     ];
+  },
+
+  renderMarkdown: (node) => {
+    const src = stringAttribute(node.attrs?.src);
+    const alt = stringAttribute(node.attrs?.alt) ?? "";
+    const title = stringAttribute(node.attrs?.title);
+    const align = normalizeMarkweaveImageAlign(node.attrs?.align);
+    const caption = stringAttribute(node.attrs?.caption);
+    const width = numberAttribute(node.attrs?.width);
+    const height = numberAttribute(node.attrs?.height);
+
+    if (!src) {
+      return `<figure class="markweave-image-figure" data-markweave-image="true" data-markweave-image-empty="true" data-markweave-image-align="${align}"></figure>`;
+    }
+
+    if (!caption && align === "center" && !width && !height) {
+      return title ? `![${alt}](${src} "${title}")` : `![${alt}](${src})`;
+    }
+
+    const figureAttrs = renderHtmlAttributes({
+      class: "markweave-image-figure",
+      "data-markweave-image": "true",
+      "data-markweave-image-align": align,
+    });
+    const imageAttrs = renderHtmlAttributes({
+      class: "markweave-image",
+      src,
+      alt,
+      title,
+      width: width ? String(Math.round(width)) : null,
+      height: height ? String(Math.round(height)) : null,
+      "data-markweave-image-align": align,
+    });
+    const captionHtml = caption ? `<figcaption data-markweave-image-caption="true">${escapeHtmlText(caption)}</figcaption>` : "";
+
+    return `<figure ${figureAttrs}><img ${imageAttrs} />${captionHtml}</figure>`;
   },
 
   addNodeView() {

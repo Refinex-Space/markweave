@@ -15,7 +15,7 @@ referenced_by: AGENTS.md#knowledge-map
 
 ## Browser And Editor Data
 
-Markweave is a browser-side editor package. Treat editor content, pasted HTML/Markdown, links, media nodes, and Mermaid source as untrusted input unless a specific caller has already validated it.
+Markweave is a browser-side editor package. Treat editor content, Markdown source, HTML fallbacks, JSON documents, pasted HTML/Markdown, links, media nodes, and Mermaid source as untrusted input unless a specific caller has already validated it.
 
 ## Uploads And Media
 

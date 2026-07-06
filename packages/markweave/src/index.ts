@@ -7,6 +7,8 @@ export type {
   MarkweaveEditorController,
   MarkweaveEditorControllerActions,
   MarkweaveEditorControllerOptions,
+  MarkweaveContentFormat,
+  MarkweaveContentValue,
   MarkweaveEditorFrameProps,
   MarkweaveEditorOverlayProps,
   MarkweaveEditorProps,

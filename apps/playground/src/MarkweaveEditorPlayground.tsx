@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Eye, PencilLine } from "lucide-react";
 import {
   MarkweaveEditor,
+  type MarkweaveContentFormat,
   type FloatingToolbarAssistantRequest,
   type MarkweaveEditorMode,
   type MarkweaveEditorRuntimeSnapshot,
@@ -19,6 +20,7 @@ function getUploadResultName(value: string) {
 
 export function MarkweaveEditorPlayground() {
   const [fixtureContent, setFixtureContent] = useState(initialPlaygroundDocument);
+  const [fixtureFormat, setFixtureFormat] = useState<MarkweaveContentFormat>("markdown");
   const [fixtureRevision, setFixtureRevision] = useState(0);
   const [editorMode, setEditorMode] = useState<MarkweaveEditorMode>("live");
   const [runtimeSnapshot, setRuntimeSnapshot] = useState<MarkweaveEditorRuntimeSnapshot | null>(null);
@@ -37,8 +39,9 @@ export function MarkweaveEditorPlayground() {
     setLastSlashUploadRequest(null);
   };
 
-  const loadFixture = (content: string) => {
+  const loadFixture = (content: string, format: MarkweaveContentFormat = "markdown") => {
     setFixtureContent(content);
+    setFixtureFormat(format);
     setFixtureRevision((revision) => revision + 1);
     resetDebugState();
   };
@@ -91,6 +94,7 @@ export function MarkweaveEditorPlayground() {
         ariaLabel="Markweave editor playground"
         autoFocusFirstTableBodyCell
         defaultContent={fixtureContent}
+        defaultContentFormat={fixtureFormat}
         mode={editorMode}
         onEditWithAi={setLastTableEditWithAiRequest}
         onExtractToNote={setLastFloatingToolbarAssistantRequest}
@@ -106,7 +110,7 @@ export function MarkweaveEditorPlayground() {
           <button type="button" onClick={() => loadFixture(initialPlaygroundDocument)}>
             Default Fixture
           </button>
-          <button type="button" onClick={() => loadFixture(mergedTablePlaygroundDocument)}>
+          <button type="button" onClick={() => loadFixture(mergedTablePlaygroundDocument, "html")}>
             Merged Table Fixture
           </button>
         </div>

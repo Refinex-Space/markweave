@@ -38,10 +38,14 @@ import { TableControls, type TableCommandResult, type TableEditWithAiRequest } f
 import { TableSelectionOverlay } from "../ui/table/TableSelectionOverlay";
 import { normalizeMarkweaveEditorMode, setMarkweaveEditorModeState, type MarkweaveEditorMode } from "./editor-mode-state";
 
+export type MarkweaveContentFormat = "markdown" | "html" | "json";
+export type MarkweaveContentValue = string | JSONContent;
+
 export interface MarkweaveEditorUpdatePayload {
   readonly editor: Editor;
   readonly html: string;
   readonly json: JSONContent;
+  readonly markdown: string;
   readonly text: string;
 }
 
@@ -60,13 +64,14 @@ export interface MarkweaveEditorRuntimeSnapshot {
 
 export interface MarkweaveEditorSetContentOptions {
   readonly emitUpdate?: boolean;
+  readonly format?: MarkweaveContentFormat;
   readonly focusFirstTableBodyCell?: boolean;
 }
 
 export interface MarkweaveEditorControllerActions {
   readonly closeSlashMenu: () => void;
   readonly focusFirstTableBodyCell: () => boolean;
-  readonly setContent: (content: string, options?: MarkweaveEditorSetContentOptions) => boolean;
+  readonly setContent: (content: MarkweaveContentValue, options?: MarkweaveEditorSetContentOptions) => boolean;
 }
 
 export interface MarkweaveEditorOverlayProps {
@@ -93,8 +98,10 @@ export interface MarkweaveEditorController {
 }
 
 export interface MarkweaveEditorControllerOptions {
-  readonly defaultContent?: string;
-  readonly content?: string;
+  readonly defaultContent?: MarkweaveContentValue;
+  readonly defaultContentFormat?: MarkweaveContentFormat;
+  readonly content?: MarkweaveContentValue;
+  readonly contentFormat?: MarkweaveContentFormat;
   readonly editable?: boolean;
   readonly mode?: MarkweaveEditorMode;
   readonly autofocus?: boolean;
@@ -139,11 +146,40 @@ const hiddenMermaidPreviewState = getMermaidPreviewState({
   source: "",
 });
 
+function normalizeMarkweaveContentFormat(format: MarkweaveContentFormat | undefined): MarkweaveContentFormat {
+  return format === "html" || format === "json" || format === "markdown" ? format : "markdown";
+}
+
+function getMarkweaveContentType(format: MarkweaveContentFormat) {
+  return normalizeMarkweaveContentFormat(format);
+}
+
+function getEditorMarkdown(editor: Editor) {
+  return (editor as Editor & { getMarkdown?: () => string }).getMarkdown?.() ?? editor.getText();
+}
+
+function stringifyJsonContent(content: MarkweaveContentValue) {
+  return typeof content === "string" ? content : JSON.stringify(content);
+}
+
+function isEditorContentCurrent(editor: Editor, content: MarkweaveContentValue, format: MarkweaveContentFormat) {
+  if (format === "html") {
+    return typeof content === "string" && editor.getHTML() === content;
+  }
+
+  if (format === "json") {
+    return JSON.stringify(editor.getJSON()) === stringifyJsonContent(content);
+  }
+
+  return typeof content === "string" && getEditorMarkdown(editor).trim() === content.trim();
+}
+
 function createUpdatePayload(editor: Editor): MarkweaveEditorUpdatePayload {
   return {
     editor,
     html: editor.getHTML(),
     json: editor.getJSON(),
+    markdown: getEditorMarkdown(editor),
     text: editor.getText(),
   };
 }
@@ -181,7 +217,9 @@ export function useMarkweaveEditorController({
   autoFocusFirstTableBodyCell = false,
   autofocus = false,
   content,
+  contentFormat,
   defaultContent = "",
+  defaultContentFormat,
   editable = true,
   lang,
   mode = "live",
@@ -196,6 +234,7 @@ export function useMarkweaveEditorController({
 }: MarkweaveEditorControllerOptions = {}): MarkweaveEditorController {
   const editorMode = normalizeMarkweaveEditorMode(mode);
   const effectiveEditable = editorMode === "live" && editable !== false;
+  const activeContentFormat = normalizeMarkweaveContentFormat(content === undefined ? defaultContentFormat : contentFormat);
   const runtimeModeRef = useRef({ editorMode, effectiveEditable });
   runtimeModeRef.current = { editorMode, effectiveEditable };
   const langRef = useRef<MarkweaveLang | null>(null);
@@ -292,6 +331,7 @@ export function useMarkweaveEditorController({
   const editor = useEditor({
     extensions,
     content: content ?? defaultContent,
+    contentType: getMarkweaveContentType(activeContentFormat),
     editable: effectiveEditable,
     autofocus,
     editorProps: {
@@ -382,12 +422,12 @@ export function useMarkweaveEditorController({
   }, [closeSlashMenu, editor, editorMode, effectiveEditable]);
 
   useEffect(() => {
-    if (!editor || content === undefined || editor.getHTML() === content) {
+    if (!editor || content === undefined || isEditorContentCurrent(editor, content, normalizeMarkweaveContentFormat(contentFormat))) {
       return;
     }
 
     applyingControlledContentRef.current = true;
-    editor.commands.setContent(content, { emitUpdate: false });
+    editor.commands.setContent(content, { contentType: getMarkweaveContentType(normalizeMarkweaveContentFormat(contentFormat)), emitUpdate: false });
     applyingControlledContentRef.current = false;
     syncSelectionState(editor);
     if (effectiveEditable) {
@@ -395,7 +435,7 @@ export function useMarkweaveEditorController({
     }
     syncTableInteractionState(editor);
     setRevision((current) => current + 1);
-  }, [content, effectiveEditable, editor, syncSelectionState, syncSlashCommandState, syncTableInteractionState]);
+  }, [content, contentFormat, effectiveEditable, editor, syncSelectionState, syncSlashCommandState, syncTableInteractionState]);
 
   useEffect(() => {
     if (!slashMenuPosition) {
@@ -535,7 +575,8 @@ export function useMarkweaveEditorController({
           return false;
         }
 
-        editor.commands.setContent(nextContent, { emitUpdate: options.emitUpdate ?? false });
+        const nextFormat = normalizeMarkweaveContentFormat(options.format);
+        editor.commands.setContent(nextContent, { contentType: getMarkweaveContentType(nextFormat), emitUpdate: options.emitUpdate ?? false });
         if (options.focusFirstTableBodyCell) {
           focusFirstTableBodyCell(editor);
         }

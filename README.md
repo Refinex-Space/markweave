@@ -25,14 +25,22 @@ import "markweave/styles.css";
 export function Editor() {
   return (
     <MarkweaveEditor
-      defaultContent="<h1>Hello Markweave</h1>"
+      defaultContent={"# Hello Markweave\n\nStart writing in **Markdown**."}
       mode="live"
-      onUpdate={({ html }) => {
-        console.log(html);
+      onUpdate={({ markdown }) => {
+        console.log(markdown);
       }}
     />
   );
 }
+```
+
+`defaultContent` and controlled `content` are parsed as Markdown unless you explicitly pass `defaultContentFormat` or `contentFormat`. Store `onUpdate.markdown` as the canonical product value; `html`, `json`, and `text` remain available for rendering and integration needs.
+
+Legacy HTML input remains supported when declared explicitly:
+
+```tsx
+<MarkweaveEditor defaultContent="<h1>Hello Markweave</h1>" defaultContentFormat="html" />
 ```
 
 `mode` defaults to `"live"`. Pass `mode="view"` for a read-only rendered view that reuses the same Markweave output styling. The existing `editable={false}` prop still works as a compatibility lock, so `mode="live" editable={false}` is also read-only.

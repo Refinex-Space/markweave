@@ -3,6 +3,7 @@ import Emoji, { emojis } from "@tiptap/extension-emoji";
 import Highlight from "@tiptap/extension-highlight";
 import HorizontalRule from "@tiptap/extension-horizontal-rule";
 import Link from "@tiptap/extension-link";
+import { Markdown } from "@tiptap/markdown";
 import Mathematics from "@tiptap/extension-mathematics";
 import Subscript from "@tiptap/extension-subscript";
 import Superscript from "@tiptap/extension-superscript";
@@ -49,6 +50,12 @@ export function createMarkweaveEditorExtensions(options: CreateMarkweaveEditorEx
 
   return [
     MarkweaveCompositionGuard,
+    Markdown.configure({
+      markedOptions: {
+        breaks: false,
+        gfm: true,
+      },
+    }),
     StarterKit.configure({
       heading: {
         levels: [1, 2, 3, 4, 5, 6],
