@@ -42,6 +42,7 @@ import {
   type TableInteractionState,
 } from "../../plugins/table/table-interaction-layer";
 import { getMarkweaveMessages, type MarkweaveMessages } from "../../i18n";
+import type { TableCommandResult, TableCommandSnapshot, TableEditWithAiRequest } from "../../core/public-types";
 
 interface TableControlsProps {
   readonly editor: Editor;
@@ -75,14 +76,6 @@ export interface TableEdgeHandlePosition {
   readonly top: number;
 }
 
-export interface TableEditWithAiRequest {
-  readonly source: "row" | "column" | "selection";
-  readonly axisIndex: number | null;
-  readonly cellPositions: readonly number[];
-  readonly text: string;
-  readonly html: string;
-}
-
 export interface TableAxisSelectionModel {
   readonly axis: "row" | "column";
   readonly index: number;
@@ -94,24 +87,6 @@ export interface TableAxisSelectionModel {
   readonly visualCellPositions: readonly number[];
   readonly selectedCellCount: number;
   readonly visualCellCount: number;
-}
-
-export interface TableCommandSnapshot {
-  readonly tableCount: number;
-  readonly rowCount: number;
-  readonly visualWidth: number;
-  readonly focusMode: string;
-  readonly selectedCellCount: number;
-}
-
-export interface TableCommandResult {
-  readonly commandId: TableCommandId;
-  readonly label: string;
-  readonly menu: TableMenuKind;
-  readonly success: boolean;
-  readonly before: TableCommandSnapshot;
-  readonly after: TableCommandSnapshot;
-  readonly copyPayload: { readonly kind: TableMenuCopyKind; readonly text: string; readonly htmlLength: number } | null;
 }
 
 export interface TableCopyFeedbackSnapshot {

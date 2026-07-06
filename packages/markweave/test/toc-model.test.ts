@@ -8,7 +8,7 @@ import {
   getActiveMarkweaveTocId,
   getMarkweaveTocItems,
   scrollToMarkweaveTocItem,
-} from "../src/react/toc-state";
+} from "../src/core/toc-state";
 
 let activeEditor: Editor | null = null;
 

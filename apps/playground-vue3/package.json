@@ -1,0 +1,20 @@
+{
+  "name": "@markweave/playground-vue3",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "build": "vue-tsc -p tsconfig.json --noEmit && vite build",
+    "typecheck": "vue-tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@markweave/playground-fixtures": "workspace:*",
+    "lucide-vue-next": "^0.547.0",
+    "markweave": "workspace:*",
+    "vue": "^3.5.25"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^6.0.3",
+    "vue-tsc": "^3.1.8"
+  }
+}

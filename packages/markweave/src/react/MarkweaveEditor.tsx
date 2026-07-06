@@ -1,9 +1,7 @@
-import type { JSONContent } from "@tiptap/core";
 import type { EditorView } from "@tiptap/pm/view";
 import { EditorContent, useEditor, type Editor } from "@tiptap/react";
 import { useCallback, useEffect, useMemo, useRef, useState, type ComponentProps, type HTMLAttributes, type KeyboardEvent as ReactKeyboardEvent } from "react";
 import { isEditorComposing } from "../editor-core/composition-guard";
-import { createMarkweaveEditorExtensions } from "../editor-core/create-editor-extensions";
 import { createSelectionSnapshot, type EditorSelectionSnapshot } from "../editor-core/selection-state";
 import { getLocalizedSlashCommandSpecs, getMarkweaveMessages, normalizeMarkweaveLang, type MarkweaveLang } from "../i18n";
 import { getActiveCodeBlockState, markweaveCodeBlockBehavior, type MarkweaveCodeBlockState } from "../plugins/codeblock/codeblock-behavior";
@@ -32,12 +30,22 @@ import {
   type TableInteractionState,
 } from "../plugins/table/table-interaction-layer";
 import { CodeBlockControls } from "../ui/codeblock/CodeBlockControls";
-import { FloatingToolbar, type FloatingToolbarAssistantRequest } from "../ui/floating-toolbar/FloatingToolbar";
+import { FloatingToolbar } from "../ui/floating-toolbar/FloatingToolbar";
 import { SlashCommandMenu } from "../ui/slash-command/SlashCommandMenu";
-import { TableControls, type TableCommandResult, type TableEditWithAiRequest } from "../ui/table/TableControls";
+import { TableControls } from "../ui/table/TableControls";
 import { TableSelectionOverlay } from "../ui/table/TableSelectionOverlay";
 import { MarkweaveInnerToc } from "../ui/toc/MarkweaveInnerToc";
-import { normalizeMarkweaveEditorMode, setMarkweaveEditorModeState, type MarkweaveEditorMode } from "./editor-mode-state";
+import { normalizeMarkweaveEditorMode, setMarkweaveEditorModeState, type MarkweaveEditorMode } from "../core/editor-mode-state";
+import type {
+  FloatingToolbarAssistantRequest,
+  MarkweaveContentFormat,
+  MarkweaveContentValue,
+  MarkweaveEditorRuntimeSnapshot,
+  MarkweaveEditorSetContentOptions,
+  MarkweaveEditorUpdatePayload,
+  TableCommandResult,
+  TableEditWithAiRequest,
+} from "../core/public-types";
 import {
   createMarkweaveTocState,
   emptyMarkweaveTocState,
@@ -45,38 +53,8 @@ import {
   getMarkweaveTocItems,
   getValidMarkweaveTocActiveId,
   type MarkweaveTocState,
-} from "./toc-state";
-
-export type MarkweaveContentFormat = "markdown" | "html" | "json";
-export type MarkweaveContentValue = string | JSONContent;
-
-export interface MarkweaveEditorUpdatePayload {
-  readonly editor: Editor;
-  readonly html: string;
-  readonly json: JSONContent;
-  readonly markdown: string;
-  readonly text: string;
-}
-
-export interface MarkweaveEditorRuntimeSnapshot {
-  readonly revision: number;
-  readonly mode: MarkweaveEditorMode;
-  readonly editable: boolean;
-  readonly toc: MarkweaveTocState;
-  readonly selection: EditorSelectionSnapshot | null;
-  readonly slash: SlashCommandState;
-  readonly table: TableFocusState;
-  readonly tableInteraction: TableInteractionState;
-  readonly codeBlock: MarkweaveCodeBlockState;
-  readonly mermaid: MermaidPreviewState;
-  readonly tableDebugSnapshot: TableDebugSnapshot | null;
-}
-
-export interface MarkweaveEditorSetContentOptions {
-  readonly emitUpdate?: boolean;
-  readonly format?: MarkweaveContentFormat;
-  readonly focusFirstTableBodyCell?: boolean;
-}
+} from "../core/toc-state";
+import { createMarkweaveReactEditorExtensions } from "./create-editor-extensions";
 
 export interface MarkweaveEditorControllerActions {
   readonly closeSlashMenu: () => void;
@@ -301,7 +279,7 @@ export function useMarkweaveEditorController({
   uploadHandlerRef.current = onSlashCommandUpload;
   const extensions = useMemo(
     () =>
-      createMarkweaveEditorExtensions({
+      createMarkweaveReactEditorExtensions({
         lang: resolvedLang,
         onImageUpload: (request) => {
           if (uploadHandlerRef.current) {

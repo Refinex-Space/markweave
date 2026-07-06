@@ -46,6 +46,7 @@ import {
   type FloatingToolbarState,
   type FloatingToolbarVariant,
 } from "../../editor-core/selection-state";
+import type { FloatingToolbarAssistantRequest, FloatingToolbarAssistantSource } from "../../core/public-types";
 import { normalizeMarkweaveCalloutType, type MarkweaveCalloutType } from "../../plugins/callout/callout-node";
 import { normalizeMarkweaveIndentLevel } from "../../plugins/indent/indent-extension";
 import { normalizeMarkdownLinkHref } from "../../plugins/markdown/markdown-input";
@@ -71,7 +72,6 @@ export type FloatingToolbarButtonId =
   | "color"
   | "more";
 export type FloatingToolbarButtonGroup = "assistant" | "block" | "inline" | "link" | "color" | "more";
-export type FloatingToolbarAssistantSource = "rewrite-selection" | "extract-to-note";
 export type FloatingToolbarMenu = "block-type" | "link" | "color" | "more";
 export type FloatingToolbarTextAlign = "left" | "center" | "right" | "justify";
 export type FloatingToolbarTurnIntoId =
@@ -91,14 +91,6 @@ export type FloatingToolbarMoreActionId =
   | `align-${FloatingToolbarTextAlign}`
   | "decrease-indent"
   | "increase-indent";
-
-export interface FloatingToolbarAssistantRequest {
-  readonly source: FloatingToolbarAssistantSource;
-  readonly from: number;
-  readonly to: number;
-  readonly text: string;
-  readonly html: string;
-}
 
 export interface FloatingToolbarButtonModel {
   readonly id: FloatingToolbarButtonId;

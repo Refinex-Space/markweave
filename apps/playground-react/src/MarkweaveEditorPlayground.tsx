@@ -11,8 +11,8 @@ import {
   type MarkweaveUploadResult,
   type TableCommandResult,
   type TableEditWithAiRequest,
-} from "markweave";
-import { initialPlaygroundDocument, mergedTablePlaygroundDocument } from "./fixtures";
+} from "markweave/react";
+import { initialPlaygroundDocument, mergedTablePlaygroundDocument } from "@markweave/playground-fixtures";
 
 function getUploadResultName(value: string) {
   return value.split("/").filter(Boolean).at(-1);

@@ -18,8 +18,10 @@ pnpm add markweave
 
 ## Usage
 
+### React
+
 ```tsx
-import { MarkweaveEditor } from "markweave";
+import { MarkweaveEditor } from "markweave/react";
 import "markweave/styles.css";
 
 export function Editor() {
@@ -33,6 +35,27 @@ export function Editor() {
     />
   );
 }
+```
+
+### Vue 3
+
+```vue
+<script setup lang="ts">
+import { MarkweaveEditor } from "markweave/vue3";
+import "markweave/styles.css";
+
+function handleUpdate({ markdown }: { markdown: string }) {
+  console.log(markdown);
+}
+</script>
+
+<template>
+  <MarkweaveEditor
+    default-content="# Hello Markweave\n\nStart writing in **Markdown**."
+    mode="live"
+    :on-update="handleUpdate"
+  />
+</template>
 ```
 
 `defaultContent` and controlled `content` are parsed as Markdown unless you explicitly pass `defaultContentFormat` or `contentFormat`. Store `onUpdate.markdown` as the canonical product value; `html`, `json`, and `text` remain available for rendering and integration needs.
@@ -60,8 +83,12 @@ Legacy HTML input remains supported when declared explicitly:
 ## Package Boundary
 
 - `packages/markweave` contains the npm package named `markweave`.
-- `apps/playground` contains the local demo app and is marked private.
-- The package export exposes the React editor entry and `markweave/styles.css`.
+- `markweave` exports framework-neutral types and helpers.
+- `markweave/react` exports the React editor component, hook, and React extension factory.
+- `markweave/vue3` exports the Vue 3 editor component, composable, and Vue 3 extension factory.
+- `markweave/styles.css` remains the shared stylesheet entry.
+- `apps/playground-react` and `apps/playground-vue3` contain private local demo apps.
+- `apps/playground-fixtures` contains shared private playground Markdown fixtures.
 
 ## Local Development
 
@@ -70,10 +97,22 @@ pnpm install
 pnpm dev
 ```
 
-Open:
+Open the default React playground:
 
 ```text
 http://127.0.0.1:5173/
+```
+
+For Vue 3:
+
+```sh
+pnpm dev:vue3
+```
+
+Open:
+
+```text
+http://127.0.0.1:5174/
 ```
 
 Useful checks:

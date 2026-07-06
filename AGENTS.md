@@ -1,11 +1,12 @@
 # AGENTS.md
 
 ## Project
-Markweave is a pnpm workspace for a Markdown-first WYSIWYG React editor built on Tiptap and ProseMirror. The publishable npm package is `packages/markweave`; `apps/playground` is the private local demo app.
+Markweave is a pnpm workspace for a Markdown-first WYSIWYG editor built on Tiptap and ProseMirror, with React and Vue 3 adapters. The publishable npm package is `packages/markweave`; `apps/playground-react` and `apps/playground-vue3` are private local demo apps.
 
 ## Environment And Commands
 - Install: `pnpm install`
-- Develop: `pnpm dev` and open `http://127.0.0.1:5173/`
+- Develop React: `pnpm dev` or `pnpm dev:react` and open `http://127.0.0.1:5173/`
+- Develop Vue 3: `pnpm dev:vue3` and open `http://127.0.0.1:5174/`
 - Minimal package-boundary test: `pnpm exec vitest run packages/markweave/test/editor-entrypoint-boundary.test.ts`
 - Test: `pnpm test`
 - Typecheck: `pnpm typecheck`

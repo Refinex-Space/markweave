@@ -8,7 +8,7 @@ const markweaveMocks = vi.hoisted(() => ({
   MarkweaveEditor: vi.fn((props: { readonly mode?: string }) => createElement("div", { "data-testid": "mock-markweave-editor", "data-mode": props.mode })),
 }));
 
-vi.mock("markweave", () => ({
+vi.mock("markweave/react", () => ({
   MarkweaveEditor: markweaveMocks.MarkweaveEditor,
 }));
 

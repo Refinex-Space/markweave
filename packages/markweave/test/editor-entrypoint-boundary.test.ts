@@ -15,7 +15,7 @@ import {
   type MarkweaveTocItem,
   type MarkweaveTocState,
   type MarkweaveLang,
-} from "../src";
+} from "../src/react";
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const readProjectFile = (path: string) => readFileSync(resolve(repoRoot, path), "utf8");
@@ -52,23 +52,38 @@ afterEach(() => {
 });
 
 describe("editor entrypoint boundary", () => {
-  it("exports the public React editor surface from the package root", async () => {
+  it("exports framework-neutral root APIs plus React and Vue3 subpaths", async () => {
     const packageJson = JSON.parse(readProjectFile("package.json")) as { exports?: Record<string, { import?: string; types?: string } | string> };
     const indexSource = readProjectFile("src/index.ts");
+    const reactIndexSource = readProjectFile("src/react/index.ts");
+    const vue3IndexSource = readProjectFile("src/vue3/index.ts");
 
     expect(packageJson.exports?.["."]).toEqual({
       import: "./dist/index.js",
       types: "./dist/types/index.d.ts",
     });
+    expect(packageJson.exports?.["./react"]).toEqual({
+      import: "./dist/react.js",
+      types: "./dist/types/react/index.d.ts",
+    });
+    expect(packageJson.exports?.["./vue3"]).toEqual({
+      import: "./dist/vue3.js",
+      types: "./dist/types/vue3/index.d.ts",
+    });
     expect(packageJson.exports?.["./styles.css"]).toBe("./dist/styles.css");
-    expect(indexSource).toContain("MarkweaveEditor");
-    expect(indexSource).toContain("useMarkweaveEditorController");
+    expect(indexSource).not.toContain("from \"./react");
+    expect(indexSource).not.toContain("from \"./ui/");
+    expect(indexSource).not.toContain("useMarkweaveEditorController");
     expect(indexSource).toContain("createMarkweaveEditorExtensions");
     expect(indexSource).toContain("MarkweaveLang");
     expect(indexSource).toContain("MarkweaveEditorMode");
     expect(indexSource).toContain("MarkweaveContentFormat");
     expect(indexSource).toContain("MarkweaveTocItem");
     expect(indexSource).toContain("MarkweaveTocState");
+    expect(reactIndexSource).toContain("MarkweaveEditor");
+    expect(reactIndexSource).toContain("useMarkweaveEditorController");
+    expect(vue3IndexSource).toContain("MarkweaveEditor");
+    expect(vue3IndexSource).toContain("useMarkweaveEditorController");
 
     const defaultFormat: MarkweaveContentFormat = "markdown";
     const tocState: MarkweaveTocState = { activeId: null, items: [] };

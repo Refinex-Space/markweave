@@ -12,7 +12,7 @@ import {
   type MarkweaveContentValue,
   type MarkweaveEditorController,
   type MarkweaveEditorUpdatePayload,
-} from "../src";
+} from "../src/react";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 

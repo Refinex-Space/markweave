@@ -22,7 +22,8 @@ import {
   type MarkweaveUploadSource,
 } from "../slash-command/upload";
 import { getMarkweaveMessages, type MarkweaveMessages } from "../../i18n";
-import { isMarkweaveEditorLiveEditable, useMarkweaveEditorModeState } from "../../react/editor-mode-state";
+import { isMarkweaveEditorLiveEditable } from "../../core/editor-mode-state";
+import { useMarkweaveEditorModeState } from "../../react/editor-mode-state";
 
 export type MarkweaveImageAlign = "left" | "center" | "right";
 

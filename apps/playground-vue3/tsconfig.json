@@ -1,0 +1,14 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "markweave": ["../../packages/markweave/src/index.ts"],
+      "markweave/vue3": ["../../packages/markweave/src/vue3/index.ts"],
+      "@markweave/playground-fixtures": ["../playground-fixtures/src/index.ts"],
+      "markweave/styles.css": ["../../packages/markweave/src/editor-core/markweave-editor.css"]
+    },
+    "types": ["node", "vitest/globals"]
+  },
+  "include": ["src", "test", "../playground-fixtures/src"]
+}

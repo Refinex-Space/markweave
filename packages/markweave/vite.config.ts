@@ -1,5 +1,4 @@
 import { resolve } from "node:path";
-import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
 
 const externalPackages = [
@@ -25,23 +24,29 @@ const externalPackages = [
   "@tiptap/pm",
   "@tiptap/react",
   "@tiptap/starter-kit",
+  "@tiptap/vue-3",
   "lowlight",
   "lucide-react",
+  "lucide-vue-next",
   "mermaid",
   "prosemirror-model",
   "prosemirror-state",
   "prosemirror-view",
   "react",
   "react-dom",
+  "vue",
 ];
 
 export default defineConfig({
-  plugins: [react()],
   build: {
     lib: {
-      entry: resolve(__dirname, "src/index.ts"),
+      entry: {
+        index: resolve(__dirname, "src/index.ts"),
+        react: resolve(__dirname, "src/react/index.ts"),
+        vue3: resolve(__dirname, "src/vue3/index.ts"),
+      },
       formats: ["es"],
-      fileName: () => "index.js",
+      fileName: (_format, entryName) => `${entryName}.js`,
     },
     rollupOptions: {
       external: (id) => externalPackages.some((packageName) => id === packageName || id.startsWith(`${packageName}/`)),

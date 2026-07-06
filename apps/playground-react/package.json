@@ -1,5 +1,5 @@
 {
-  "name": "@markweave/playground",
+  "name": "@markweave/playground-react",
   "private": true,
   "type": "module",
   "scripts": {
@@ -8,6 +8,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
+    "@markweave/playground-fixtures": "workspace:*",
     "lucide-react": "^0.547.0",
     "markweave": "workspace:*",
     "react": "^19.2.7",

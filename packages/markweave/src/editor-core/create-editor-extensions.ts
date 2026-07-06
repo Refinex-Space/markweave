@@ -1,3 +1,4 @@
+import type { Extensions } from "@tiptap/core";
 import CodeBlockLowlight from "@tiptap/extension-code-block-lowlight";
 import Emoji, { emojis } from "@tiptap/extension-emoji";
 import Highlight from "@tiptap/extension-highlight";
@@ -24,9 +25,8 @@ import { MarkweaveCallout } from "../plugins/callout/callout-node";
 import { MarkweaveCodeBlockClickFocus, MarkweaveCodeBlockCollapse, markweaveCodeBlockBehavior } from "../plugins/codeblock/codeblock-behavior";
 import { MarkweaveIndent } from "../plugins/indent/indent-extension";
 import { MarkweaveMarkdownInput } from "../plugins/markdown/markdown-input";
-import { MarkweaveImage } from "../plugins/media/image-node";
+import { MarkweaveCoreImage, MarkweaveCoreVideo } from "../plugins/media/core-media-nodes";
 import { MarkweaveAttachment } from "../plugins/media/media-nodes";
-import { MarkweaveVideo } from "../plugins/media/video-node";
 import { MarkweaveMermaidInlinePreview } from "../plugins/mermaid/mermaid-inline-preview";
 import { MarkweaveTableClipboard } from "../plugins/table/table-clipboard";
 import { MarkweaveTableArrowNavigation } from "../plugins/table/table-arrow-navigation";
@@ -34,20 +34,16 @@ import { MarkweaveTableInteractionLayer } from "../plugins/table/table-interacti
 import { MarkweaveTableKeyboard } from "../plugins/table/table-keyboard";
 import { MarkweaveMarkdownTableInput } from "../plugins/table/table-markdown-input";
 
-import { getMarkweaveMessages, type MarkweaveLang } from "../i18n";
-import type { MarkweaveSlashCommandUploadHandler } from "../plugins/slash-command/upload";
+import type { MarkweaveLang } from "../i18n";
 
 export interface CreateMarkweaveEditorExtensionsOptions {
   readonly lang?: MarkweaveLang;
-  readonly onImageUpload?: MarkweaveSlashCommandUploadHandler;
-  readonly onVideoUpload?: MarkweaveSlashCommandUploadHandler;
+  readonly mediaExtensions?: Extensions;
 }
 
 const markweaveLowlight = createLowlight(common);
 
 export function createMarkweaveEditorExtensions(options: CreateMarkweaveEditorExtensionsOptions = {}) {
-  const messages = getMarkweaveMessages(options.lang);
-
   return [
     MarkweaveCompositionGuard,
     Markdown.configure({
@@ -122,22 +118,7 @@ export function createMarkweaveEditorExtensions(options: CreateMarkweaveEditorEx
       },
     }),
     MarkweaveMarkBoundary,
-    MarkweaveImage.configure({
-      inline: false,
-      allowBase64: true,
-      messages,
-      onUpload: options.onImageUpload,
-      HTMLAttributes: {
-        class: "markweave-image",
-      },
-    }),
-    MarkweaveVideo.configure({
-      messages,
-      onUpload: options.onVideoUpload,
-      HTMLAttributes: {
-        class: "markweave-video",
-      },
-    }),
+    ...(options.mediaExtensions ?? [MarkweaveCoreImage, MarkweaveCoreVideo]),
     MarkweaveAttachment,
     HorizontalRule.configure({
       HTMLAttributes: {

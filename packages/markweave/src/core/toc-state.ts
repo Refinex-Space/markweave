@@ -1,4 +1,5 @@
 import type { Editor } from "@tiptap/core";
+import { TextSelection } from "@tiptap/pm/state";
 import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
 
 export type MarkweaveTocHeadingLevel = 1 | 2 | 3 | 4 | 5 | 6;
@@ -171,7 +172,13 @@ export function scrollToMarkweaveTocItem(
   }
 
   if (options.focus) {
-    editor.chain().focus().setTextSelection(Math.min(item.pos + 1, editor.state.doc.content.size)).run();
+    const position = Math.min(item.pos + 1, editor.state.doc.content.size);
+    try {
+      editor.view.dispatch(editor.state.tr.setSelection(TextSelection.create(editor.state.doc, position)));
+      editor.view.focus();
+    } catch {
+      // Best-effort focus sync: scrolling the heading is the primary TOC action.
+    }
   }
 
   return true;
