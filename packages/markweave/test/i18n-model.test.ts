@@ -15,6 +15,10 @@ describe("markweave i18n model", () => {
     expect(getMarkweaveMessages("en").floatingToolbar.linkPlaceholder).toBe("Paste a link...");
     expect(getMarkweaveMessages("zh").table.commands["add-row-before"]).toBe("插入上方行");
     expect(getMarkweaveMessages("en").table.commands["add-row-before"]).toBe("Insert Row Above");
+    expect(getMarkweaveMessages("zh").toc.ariaLabel).toBe("文档目录");
+    expect(getMarkweaveMessages("zh").toc.itemAriaLabel).toBe("跳转到标题");
+    expect(getMarkweaveMessages("en").toc.ariaLabel).toBe("Document outline");
+    expect(getMarkweaveMessages("en").toc.itemAriaLabel).toBe("Jump to heading");
 
     expect(getLocalizedSlashCommandSpecs("zh").find((command) => command.id === "image")).toMatchObject({
       label: "图片",

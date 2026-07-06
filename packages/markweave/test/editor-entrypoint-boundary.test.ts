@@ -12,6 +12,8 @@ import {
   type MarkweaveContentFormat,
   type MarkweaveEditorController,
   type MarkweaveEditorMode,
+  type MarkweaveTocItem,
+  type MarkweaveTocState,
   type MarkweaveLang,
 } from "../src";
 
@@ -65,9 +67,14 @@ describe("editor entrypoint boundary", () => {
     expect(indexSource).toContain("MarkweaveLang");
     expect(indexSource).toContain("MarkweaveEditorMode");
     expect(indexSource).toContain("MarkweaveContentFormat");
+    expect(indexSource).toContain("MarkweaveTocItem");
+    expect(indexSource).toContain("MarkweaveTocState");
 
     const defaultFormat: MarkweaveContentFormat = "markdown";
+    const tocState: MarkweaveTocState = { activeId: null, items: [] };
+    const tocItem: MarkweaveTocItem | undefined = tocState.items[0];
     expect(defaultFormat).toBe("markdown");
+    expect(tocItem).toBeUndefined();
   });
 
   it("keeps playground code out of the publishable package", () => {
@@ -91,10 +98,12 @@ describe("editor entrypoint boundary", () => {
     expect(container.querySelector('[data-testid="markweave-editor-frame"]')).toBeTruthy();
     expect(container.querySelector('[data-testid="markweave-editor-frame"]')?.getAttribute("aria-label")).toBe("Markweave 编辑器");
     expect(container.querySelector('[data-testid="markweave-editor-frame"]')?.getAttribute("data-markweave-mode")).toBe("live");
+    expect(container.querySelector('[data-testid="markweave-editor-frame"]')?.getAttribute("data-markweave-inner-toc")).toBe("true");
     expect(container.querySelector('[data-testid="markweave-editor-surface"]')?.innerHTML).toContain("hello editor");
     expect(snapshots.length).toBeGreaterThan(0);
     expect((snapshots.at(-1) as { mode?: string; editable?: boolean } | undefined)?.mode).toBe("live");
     expect((snapshots.at(-1) as { mode?: string; editable?: boolean } | undefined)?.editable).toBe(true);
+    expect((snapshots.at(-1) as { toc?: MarkweaveTocState } | undefined)?.toc?.items).toEqual([]);
   });
 
   it("accepts an explicit English editor locale", async () => {

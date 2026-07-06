@@ -29,6 +29,8 @@ export function Editor() {
 
 `mode` defaults to `"live"`. Use `mode="view"` for a read-only rendered view. `editable={false}` remains a compatibility lock, including when `mode="live"`.
 
+`innerToc` defaults to `true` and shows a built-in right-side outline derived from document headings. Set `innerToc={false}` when rendering your own outline from `onTocChange` or `runtimeSnapshot.toc`.
+
 ## Exports
 
 - `markweave`: React editor component, controller hook, and public types.

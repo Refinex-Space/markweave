@@ -36,7 +36,16 @@ import { FloatingToolbar, type FloatingToolbarAssistantRequest } from "../ui/flo
 import { SlashCommandMenu } from "../ui/slash-command/SlashCommandMenu";
 import { TableControls, type TableCommandResult, type TableEditWithAiRequest } from "../ui/table/TableControls";
 import { TableSelectionOverlay } from "../ui/table/TableSelectionOverlay";
+import { MarkweaveInnerToc } from "../ui/toc/MarkweaveInnerToc";
 import { normalizeMarkweaveEditorMode, setMarkweaveEditorModeState, type MarkweaveEditorMode } from "./editor-mode-state";
+import {
+  createMarkweaveTocState,
+  emptyMarkweaveTocState,
+  getActiveMarkweaveTocId,
+  getMarkweaveTocItems,
+  getValidMarkweaveTocActiveId,
+  type MarkweaveTocState,
+} from "./toc-state";
 
 export type MarkweaveContentFormat = "markdown" | "html" | "json";
 export type MarkweaveContentValue = string | JSONContent;
@@ -53,6 +62,7 @@ export interface MarkweaveEditorRuntimeSnapshot {
   readonly revision: number;
   readonly mode: MarkweaveEditorMode;
   readonly editable: boolean;
+  readonly toc: MarkweaveTocState;
   readonly selection: EditorSelectionSnapshot | null;
   readonly slash: SlashCommandState;
   readonly table: TableFocusState;
@@ -80,11 +90,13 @@ export interface MarkweaveEditorOverlayProps {
   readonly tableControls: ComponentProps<typeof TableControls> | null;
   readonly tableSelectionOverlay: ComponentProps<typeof TableSelectionOverlay> | null;
   readonly codeBlockControls: ComponentProps<typeof CodeBlockControls> | null;
+  readonly innerToc: ComponentProps<typeof MarkweaveInnerToc> | null;
 }
 
 export interface MarkweaveEditorFrameProps extends HTMLAttributes<HTMLElement> {
   readonly "data-testid": string;
   readonly "data-markweave-mode": MarkweaveEditorMode;
+  readonly "data-markweave-inner-toc": "true" | "false";
   readonly "data-mermaid-mode": MermaidPreviewMode;
   readonly "data-table-focus-mode": TableFocusState["mode"];
 }
@@ -104,6 +116,7 @@ export interface MarkweaveEditorControllerOptions {
   readonly contentFormat?: MarkweaveContentFormat;
   readonly editable?: boolean;
   readonly mode?: MarkweaveEditorMode;
+  readonly innerToc?: boolean;
   readonly autofocus?: boolean;
   readonly lang?: MarkweaveLang;
   readonly ariaLabel?: string;
@@ -116,6 +129,7 @@ export interface MarkweaveEditorControllerOptions {
   readonly onTableCopyPayload?: (payload: MarkweaveMenuCopyPayload) => void;
   readonly onTableCommandResult?: (result: TableCommandResult) => void;
   readonly onRuntimeStateChange?: (snapshot: MarkweaveEditorRuntimeSnapshot) => void;
+  readonly onTocChange?: (state: MarkweaveTocState) => void;
 }
 
 export interface MarkweaveEditorProps extends MarkweaveEditorControllerOptions {
@@ -212,6 +226,43 @@ function openReadonlyLinkFromEvent(event: MouseEvent) {
   return true;
 }
 
+function getNearestScrollableAncestor(element: HTMLElement | null): HTMLElement | null {
+  if (!element || typeof window === "undefined") {
+    return null;
+  }
+
+  let current = element.parentElement;
+  while (current) {
+    const style = window.getComputedStyle(current);
+    const overflow = `${style.overflow} ${style.overflowY}`;
+
+    if (/(auto|scroll|overlay)/.test(overflow) && current.scrollHeight > current.clientHeight) {
+      return current;
+    }
+
+    current = current.parentElement;
+  }
+
+  return null;
+}
+
+function requestAnimationFrameSafe(callback: FrameRequestCallback): number {
+  if (typeof window === "undefined" || typeof window.requestAnimationFrame !== "function") {
+    return globalThis.setTimeout(() => callback(0), 0) as unknown as number;
+  }
+
+  return window.requestAnimationFrame(callback);
+}
+
+function cancelAnimationFrameSafe(id: number) {
+  if (typeof window !== "undefined" && typeof window.cancelAnimationFrame === "function") {
+    window.cancelAnimationFrame(id);
+    return;
+  }
+
+  globalThis.clearTimeout(id);
+}
+
 export function useMarkweaveEditorController({
   ariaLabel,
   autoFocusFirstTableBodyCell = false,
@@ -221,6 +272,7 @@ export function useMarkweaveEditorController({
   defaultContent = "",
   defaultContentFormat,
   editable = true,
+  innerToc = true,
   lang,
   mode = "live",
   onEditWithAi,
@@ -230,6 +282,7 @@ export function useMarkweaveEditorController({
   onSlashCommandUpload,
   onTableCommandResult,
   onTableCopyPayload,
+  onTocChange,
   onUpdate,
 }: MarkweaveEditorControllerOptions = {}): MarkweaveEditorController {
   const editorMode = normalizeMarkweaveEditorMode(mode);
@@ -283,6 +336,7 @@ export function useMarkweaveEditorController({
   const [slashInputCommand, setSlashInputCommand] = useState<SlashCommandSpec | null>(null);
   const [mermaidMode, setMermaidMode] = useState<MermaidPreviewMode>("code");
   const [tableInteractionState, setTableInteractionState] = useState<TableInteractionState>(initialTableInteractionState);
+  const [tocActiveId, setTocActiveId] = useState<string | null>(null);
   const [revision, setRevision] = useState(0);
   const applyingControlledContentRef = useRef(false);
   const callbacksRef = useRef({ onUpdate });
@@ -469,12 +523,66 @@ export function useMarkweaveEditorController({
     [codeBlockState.text, editor, isMermaidActive, mermaidMode],
   );
   const tableDebugSnapshot = useMemo(() => (editor ? getFirstTableDebugSnapshot(editor.state) : null), [editor, revision]);
+  const tocItems = useMemo(() => (editor ? getMarkweaveTocItems(editor.state.doc) : emptyMarkweaveTocState.items), [editor, revision]);
+  const normalizedTocActiveId = useMemo(() => getValidMarkweaveTocActiveId(tocItems, tocActiveId), [tocActiveId, tocItems]);
+  const tocState = useMemo(() => createMarkweaveTocState(tocItems, normalizedTocActiveId), [normalizedTocActiveId, tocItems]);
+
+  const updateTocActiveFromScroll = useCallback(() => {
+    if (!editor || !tocItems.length) {
+      setTocActiveId(null);
+      return;
+    }
+
+    const nextActiveId = getActiveMarkweaveTocId(editor, tocItems);
+    setTocActiveId((current) => (current === nextActiveId ? current : nextActiveId));
+  }, [editor, tocItems]);
+
+  useEffect(() => {
+    setTocActiveId((current) => {
+      const nextActiveId = getValidMarkweaveTocActiveId(tocItems, current);
+      return current === nextActiveId ? current : nextActiveId;
+    });
+  }, [tocItems]);
+
+  useEffect(() => {
+    if (!editor || !tocItems.length || typeof window === "undefined") {
+      return undefined;
+    }
+
+    let frameId: number | null = null;
+    const scheduleUpdate = () => {
+      if (frameId !== null) {
+        cancelAnimationFrameSafe(frameId);
+      }
+
+      frameId = requestAnimationFrameSafe(() => {
+        frameId = null;
+        updateTocActiveFromScroll();
+      });
+    };
+    const scrollTarget = getNearestScrollableAncestor(editor.view.dom);
+
+    window.addEventListener("scroll", scheduleUpdate, { passive: true });
+    window.addEventListener("resize", scheduleUpdate);
+    scrollTarget?.addEventListener("scroll", scheduleUpdate, { passive: true });
+    scheduleUpdate();
+
+    return () => {
+      window.removeEventListener("scroll", scheduleUpdate);
+      window.removeEventListener("resize", scheduleUpdate);
+      scrollTarget?.removeEventListener("scroll", scheduleUpdate);
+      if (frameId !== null) {
+        cancelAnimationFrameSafe(frameId);
+      }
+    };
+  }, [editor, tocItems.length, updateTocActiveFromScroll]);
 
   const runtimeSnapshot = useMemo<MarkweaveEditorRuntimeSnapshot>(
     () => ({
       revision,
       mode: editorMode,
       editable: effectiveEditable,
+      toc: tocState,
       selection: selectionSnapshot,
       slash: slashState,
       table: tableFocusState,
@@ -483,12 +591,28 @@ export function useMarkweaveEditorController({
       mermaid: mermaidPreviewState,
       tableDebugSnapshot,
     }),
-    [codeBlockState, editorMode, effectiveEditable, mermaidPreviewState, revision, selectionSnapshot, slashState, tableDebugSnapshot, tableFocusState, tableInteractionState],
+    [
+      codeBlockState,
+      editorMode,
+      effectiveEditable,
+      mermaidPreviewState,
+      revision,
+      selectionSnapshot,
+      slashState,
+      tableDebugSnapshot,
+      tableFocusState,
+      tableInteractionState,
+      tocState,
+    ],
   );
 
   useEffect(() => {
     onRuntimeStateChange?.(runtimeSnapshot);
   }, [onRuntimeStateChange, runtimeSnapshot]);
+
+  useEffect(() => {
+    onTocChange?.(tocState);
+  }, [onTocChange, tocState]);
 
   const runSlashCommand = useCallback(
     (command: SlashCommandSpec, options?: ExecuteSlashCommandOptions) => {
@@ -598,11 +722,12 @@ export function useMarkweaveEditorController({
       "aria-label": ariaLabel ?? messages.common.editorAriaLabel,
       "data-testid": "markweave-editor-frame",
       "data-markweave-mode": editorMode,
+      "data-markweave-inner-toc": innerToc ? "true" : "false",
       "data-mermaid-mode": mermaidPreviewState.mode,
       "data-table-focus-mode": tableFocusState.mode,
       onKeyDownCapture: handleEditorKeyDown,
     }),
-    [ariaLabel, editorMode, handleEditorKeyDown, mermaidPreviewState.mode, messages.common.editorAriaLabel, tableFocusState.mode],
+    [ariaLabel, editorMode, handleEditorKeyDown, innerToc, mermaidPreviewState.mode, messages.common.editorAriaLabel, tableFocusState.mode],
   );
 
   const overlayProps = useMemo<MarkweaveEditorOverlayProps>(
@@ -655,11 +780,20 @@ export function useMarkweaveEditorController({
             readOnly: !effectiveEditable,
           }
         : null,
+      innerToc: editor && innerToc && tocState.items.length
+        ? {
+            editor,
+            editable: effectiveEditable,
+            messages,
+            state: tocState,
+          }
+        : null,
     }),
     [
       effectiveEditable,
       editor,
       filteredSlashCommands,
+      innerToc,
       isCodeBlockActive,
       mermaidMode,
       messages,
@@ -677,6 +811,7 @@ export function useMarkweaveEditorController({
       slashState,
       tableFocusState,
       tableInteractionState,
+      tocState,
     ],
   );
 
@@ -705,6 +840,7 @@ export function MarkweaveEditor({ className, ...controllerOptions }: MarkweaveEd
       {controller.overlayProps.tableControls ? <TableControls {...controller.overlayProps.tableControls} /> : null}
       {controller.overlayProps.tableSelectionOverlay ? <TableSelectionOverlay {...controller.overlayProps.tableSelectionOverlay} /> : null}
       {controller.overlayProps.codeBlockControls ? <CodeBlockControls {...controller.overlayProps.codeBlockControls} /> : null}
+      {controller.overlayProps.innerToc ? <MarkweaveInnerToc {...controller.overlayProps.innerToc} /> : null}
       <EditorContent editor={controller.editor} />
     </section>
   );

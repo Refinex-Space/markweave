@@ -42,6 +42,10 @@ const editorRuntimeSelectors = [
   ".markweave-video-selection-layer",
   ".markweave-table-controls",
   ".markweave-table-selection-overlay",
+  ".markweave-inner-toc",
+  ".markweave-inner-toc-rail",
+  ".markweave-inner-toc-panel",
+  ".markweave-inner-toc-item",
   ".markweave-codeblock-overlay",
   ".markweave-codeblock-controls",
   ".markweave-codeblock-language-label",
@@ -97,6 +101,12 @@ describe("editor style boundary", () => {
     expect(editorCss).toContain(".markweave-video-iframe");
     expect(editorCss).toContain(".markweave-video-selection-layer");
     expect(editorCss).toContain('.markweave-video-node[data-selected="true"]');
+    expect(editorCss).toContain(".markweave-inner-toc");
+    expect(editorCss).toContain(".markweave-inner-toc-rail");
+    expect(editorCss).toContain(".markweave-inner-toc-panel");
+    expect(editorCss).toContain(".markweave-inner-toc-item");
+    expect(editorCss).toContain(".markweave-inner-toc:hover .markweave-inner-toc-panel");
+    expect(editorCss).toContain("right: 28px");
     expect(editorCss).toContain("z-index: 58");
     expect(editorCss).toContain("scrollbar-color: #d7d7d7 transparent");
     expect(editorCss).toContain(".markweave-video");

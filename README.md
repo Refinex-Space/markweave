@@ -45,6 +45,18 @@ Legacy HTML input remains supported when declared explicitly:
 
 `mode` defaults to `"live"`. Pass `mode="view"` for a read-only rendered view that reuses the same Markweave output styling. The existing `editable={false}` prop still works as a compatibility lock, so `mode="live" editable={false}` is also read-only.
 
+`innerToc` defaults to `true` and renders the built-in right-side document outline from Markdown headings. Set `innerToc={false}` to hide the default UI while still receiving outline data through `onTocChange` and `onRuntimeStateChange`.
+
+```tsx
+<MarkweaveEditor
+  defaultContent={"# Product Spec\n\n## Goals"}
+  innerToc={false}
+  onTocChange={({ items, activeId }) => {
+    console.log(items, activeId);
+  }}
+/>
+```
+
 ## Package Boundary
 
 - `packages/markweave` contains the npm package named `markweave`.

@@ -91,6 +91,10 @@ export interface MarkweaveMessages {
     readonly commands: Record<TableCommandId | "edit-with-ai", string>;
     readonly copyFeedback: Record<TableMenuCopyKind, string>;
   };
+  readonly toc: {
+    readonly ariaLabel: string;
+    readonly itemAriaLabel: string;
+  };
 }
 
 interface LocalizedSlashCommandText {
@@ -673,6 +677,10 @@ const messagesByLang: Record<MarkweaveLang, MarkweaveMessages> = {
         table: "表格已复制到剪贴板",
       },
     },
+    toc: {
+      ariaLabel: "文档目录",
+      itemAriaLabel: "跳转到标题",
+    },
   },
   en: {
     common: {
@@ -844,6 +852,10 @@ const messagesByLang: Record<MarkweaveLang, MarkweaveMessages> = {
         column: "Column copied to clipboard",
         table: "Table copied to clipboard",
       },
+    },
+    toc: {
+      ariaLabel: "Document outline",
+      itemAriaLabel: "Jump to heading",
     },
   },
 } as const;
