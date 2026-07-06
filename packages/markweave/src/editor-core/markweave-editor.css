@@ -672,6 +672,41 @@
   padding-left: 1.55em;
 }
 
+.markweave-editor-surface ul.markweave-task-list {
+  list-style: none;
+  margin: 0.85em 0;
+  padding-left: 1.55em;
+}
+
+.markweave-editor-surface li.markweave-task-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.58em;
+  list-style: none;
+  margin: 0.38em 0;
+}
+
+.markweave-editor-surface li.markweave-task-item > label {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  margin-top: 0.36em;
+}
+
+.markweave-editor-surface li.markweave-task-item > label input {
+  margin: 0;
+}
+
+.markweave-editor-surface li.markweave-task-item > div {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.markweave-editor-surface li.markweave-task-item > div > p {
+  margin: 0;
+}
+
 .markweave-editor-surface code {
   border: 1px solid #dde1e7;
   border-radius: 4px;
