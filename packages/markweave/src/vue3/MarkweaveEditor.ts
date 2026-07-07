@@ -67,7 +67,7 @@ import {
   type Ref,
 } from "vue";
 import { isEditorComposing } from "../editor-core/composition-guard";
-import { createSelectionSnapshot, type EditorSelectionSnapshot } from "../editor-core/selection-state";
+import { createSelectionSnapshot, shouldShowFloatingToolbar, type EditorSelectionSnapshot } from "../editor-core/selection-state";
 import { normalizeMarkweaveEditorMode, setMarkweaveEditorModeState, type MarkweaveEditorMode } from "../core/editor-mode-state";
 import type {
   FloatingToolbarAssistantRequest,
@@ -124,17 +124,43 @@ import {
   type MarkweaveUploadRequest,
   type MarkweaveUploadResult,
 } from "../plugins/slash-command/upload";
-import { getMarkweaveMenuCopyPayloadFromState, type MarkweaveMenuCopyPayload } from "../plugins/table/table-clipboard";
-import { runMarkweaveTableCommand } from "../plugins/table/table-command-runtime";
-import { tableCommandSpecs, type TableCommandId, type TableCommandMenuKind } from "../plugins/table/table-command-spec";
+import { setMarkweaveTableMenuAxisTarget, type MarkweaveMenuCopyPayload } from "../plugins/table/table-clipboard";
+import { type TableCommandId } from "../plugins/table/table-command-spec";
 import { getFirstTableDebugSnapshot } from "../plugins/table/table-debug-snapshot";
 import { focusFirstTableBodyCell } from "../plugins/table/table-focus-position";
 import { getTableFocusState, type TableFocusState } from "../plugins/table/table-focus-state";
 import {
+  getTableSelectionOverlayState,
   initialTableInteractionState,
   tableInteractionPluginKey,
   type TableInteractionState,
 } from "../plugins/table/table-interaction-layer";
+import {
+  calculateAnchoredTableMenuPosition,
+  calculateTableEdgeHandlePosition,
+  canRunTableCommand,
+  executeTableMenuCommand,
+  formatTableCopyFeedback,
+  getActiveTableElement,
+  getAvailableCellMenuCommandSpecs,
+  getTableAxisTargetRect,
+  getTableControlAxisSelectionModel,
+  getTableEditWithAiRequest,
+  getTableMenuItemGroup,
+  getTableMenuItemLabel,
+  getTableMenuItems,
+  getTableSelectionTargetRect,
+  measureTableSelectionOverlay,
+  selectTableAxisFromCell,
+  tableCopyFeedbackTimeoutMs,
+  tableMenuLabel,
+  type TableCopyFeedbackSnapshot,
+  type TableEdgeHandlePosition,
+  type TableMenuAnchor,
+  type TableMenuKind,
+  type TableMenuPosition,
+  type TableSelectionOverlayRect,
+} from "../plugins/table/table-ui-model";
 import { createMarkweaveVue3EditorExtensions } from "./create-editor-extensions";
 
 export interface MarkweaveVue3EditorControllerActions {
@@ -180,6 +206,7 @@ interface VueControllerRenderState {
   readonly messages: MarkweaveMessages;
   readonly effectiveEditable: Ref<boolean>;
   readonly tableFocusState: Ref<TableFocusState>;
+  readonly tableInteractionState: Ref<TableInteractionState>;
   readonly codeBlockState: Ref<MarkweaveCodeBlockState>;
   readonly isCodeBlockActive: Ref<boolean>;
   readonly tocState: Ref<MarkweaveTocState>;
@@ -414,20 +441,6 @@ function runToolbarMoreAction(editor: CoreEditor, id: string) {
     return (editor.commands as unknown as { increaseIndent?: () => boolean }).increaseIndent?.() ?? false;
   }
   return false;
-}
-
-function runTableCommand(editor: CoreEditor, commandId: TableCommandId) {
-  return runMarkweaveTableCommand(editor, commandId);
-}
-
-function tableMenuItems(kind: TableCommandMenuKind | "selection") {
-  if (kind === "row") {
-    return tableCommandSpecs.filter((command) => command.id.includes("row") || command.id === "copy-table" || command.id === "delete-table");
-  }
-  if (kind === "column") {
-    return tableCommandSpecs.filter((command) => command.id.includes("column") || command.id === "copy-table" || command.id === "delete-table");
-  }
-  return tableCommandSpecs.filter((command) => ["merge-cells", "split-cell", "copy-table", "delete-table"].includes(command.id));
 }
 
 function getCodeBlockStateAtPosition(editor: CoreEditor, pos: number | null): MarkweaveCodeBlockState | null {
@@ -735,7 +748,7 @@ const VueFloatingToolbar = defineComponent({
         BubbleMenu as unknown as Component,
         {
           editor: props.editor as unknown as VueEditor,
-          shouldShow: ({ editor }: { editor: CoreEditor }) => !editor.state.selection.empty,
+          shouldShow: ({ editor }: { editor: CoreEditor }) => editor.isEditable && shouldShowFloatingToolbar(createSelectionSnapshot(editor)),
           options: { placement: "top" },
         } as Record<string, unknown>,
         {
@@ -981,65 +994,401 @@ const VueTableControls = defineComponent({
   props: {
     editor: { type: Object as PropType<CoreEditor>, required: true },
     active: { type: Boolean, required: true },
+    interactionState: { type: Object as PropType<TableInteractionState>, required: true },
     messages: { type: Object as PropType<MarkweaveMessages>, required: true },
     onCopyPayload: { type: Function as PropType<((payload: MarkweaveMenuCopyPayload) => void) | undefined>, default: undefined },
+    onCommandResult: { type: Function as PropType<((result: TableCommandResult) => void) | undefined>, default: undefined },
     onEditWithAi: { type: Function as PropType<((request: TableEditWithAiRequest) => void) | undefined>, default: undefined },
   },
   setup(props) {
-    const openMenu = ref<TableCommandMenuKind | "selection" | null>(null);
-    const copyFeedback = ref<string | null>(null);
-    const run = (commandId: TableCommandId) => {
-      if (commandId === "copy-row" || commandId === "copy-column" || commandId === "copy-table") {
-        const kind = commandId === "copy-row" ? "row" : commandId === "copy-column" ? "column" : "table";
-        const payload = getMarkweaveMenuCopyPayloadFromState(props.editor.state, kind);
-        if (!payload) {
-          openMenu.value = null;
-          return;
-        }
-        props.onCopyPayload?.(payload);
-        copyFeedback.value = props.messages.table.copyFeedback[kind];
-        window.setTimeout(() => (copyFeedback.value = null), 1400);
-        openMenu.value = null;
+    const openMenu = ref<TableMenuKind | null>(null);
+    const menuAnchor = ref<TableMenuAnchor>("row-edge");
+    const rowEdgePosition = ref<TableEdgeHandlePosition | null>(null);
+    const columnEdgePosition = ref<TableEdgeHandlePosition | null>(null);
+    const selectionEdgePosition = ref<TableEdgeHandlePosition | null>(null);
+    const menuPosition = ref<TableMenuPosition | null>(null);
+    const copyFeedback = ref<TableCopyFeedbackSnapshot | null>(null);
+    const controlsRef = ref<HTMLElement | null>(null);
+    const rowEdgeRef = ref<HTMLElement | null>(null);
+    const columnEdgeRef = ref<HTMLElement | null>(null);
+    const selectionEdgeRef = ref<HTMLElement | null>(null);
+    const menuRef = ref<HTMLElement | null>(null);
+    let copyFeedbackTimeout: number | null = null;
+
+    const focusState = computed(() => (props.active ? getTableFocusState(props.editor.state) : outsideTableFocusState));
+    const rowAxisModel = computed(() => getTableControlAxisSelectionModel(props.editor, props.interactionState, "row", focusState.value.activeCellPos));
+    const columnAxisModel = computed(() => getTableControlAxisSelectionModel(props.editor, props.interactionState, "column", focusState.value.activeCellPos));
+    const cellMenuCommands = computed(() => getAvailableCellMenuCommandSpecs(props.editor));
+    const hasCellMenuCommands = computed(() => cellMenuCommands.value.length > 0);
+    const menuItems = computed(() => (openMenu.value ? getTableMenuItems(props.editor, openMenu.value) : []));
+
+    const clearCopyFeedbackTimeout = () => {
+      if (copyFeedbackTimeout === null || typeof window === "undefined") {
         return;
       }
-      runTableCommand(props.editor, commandId);
-      openMenu.value = null;
+      window.clearTimeout(copyFeedbackTimeout);
+      copyFeedbackTimeout = null;
     };
-    const menu = () =>
-      openMenu.value
-        ? h("div", { class: "markweave-table-menu", role: "menu", "aria-label": props.messages.table.selectionActions, "data-testid": "markweave-table-menu", "data-positioned": "false" }, [
-            ...(props.onEditWithAi
-              ? [
-                  h("button", { type: "button", role: "menuitem", "data-testid": "markweave-table-menu-command-edit-with-ai", onMousedown: preventVuePointerFocusLoss, onClick: () => openMenu.value = null }, props.messages.table.commands["edit-with-ai"]),
-                ]
-              : []),
-            ...tableMenuItems(openMenu.value).map((command) =>
-              h(
-                "button",
-                {
-                  key: command.id,
-                  type: "button",
-                  role: "menuitem",
-                  "data-testid": `markweave-table-menu-command-${command.id}`,
-                  onMousedown: preventVuePointerFocusLoss,
-                  onClick: () => run(command.id),
-                },
-                props.messages.table.commands[command.id],
-              ),
-            ),
-          ])
-        : null;
+
+    const setCopyFeedbackSnapshot = (snapshot: TableCopyFeedbackSnapshot | null) => {
+      clearCopyFeedbackTimeout();
+      copyFeedback.value = snapshot;
+      if (!snapshot || typeof window === "undefined") {
+        return;
+      }
+      copyFeedbackTimeout = window.setTimeout(() => {
+        copyFeedback.value = null;
+        copyFeedbackTimeout = null;
+      }, tableCopyFeedbackTimeoutMs);
+    };
+
+    const updateEdgePositions = () => {
+      if (!props.active) {
+        rowEdgePosition.value = null;
+        columnEdgePosition.value = null;
+        selectionEdgePosition.value = null;
+        setCopyFeedbackSnapshot(null);
+        return;
+      }
+
+      const frameElement = props.editor.view.dom.closest<HTMLElement>(".markweave-editor-frame") ?? props.editor.view.dom.parentElement;
+      if (!frameElement) {
+        rowEdgePosition.value = null;
+        columnEdgePosition.value = null;
+        selectionEdgePosition.value = null;
+        return;
+      }
+
+      const frameRect = frameElement.getBoundingClientRect();
+      const rowAxisRect = rowAxisModel.value ? getTableAxisTargetRect(props.editor, rowAxisModel.value) : null;
+      const columnAxisRect = columnAxisModel.value ? getTableAxisTargetRect(props.editor, columnAxisModel.value) : null;
+      const selectionRect = hasCellMenuCommands.value ? getTableSelectionTargetRect(props.editor) : null;
+
+      if (rowAxisRect) {
+        rowEdgePosition.value = calculateTableEdgeHandlePosition({ targetRect: rowAxisRect, frameRect, kind: "row" });
+      } else if (!(openMenu.value === "row" && menuAnchor.value === "row-edge")) {
+        rowEdgePosition.value = null;
+      }
+
+      if (columnAxisRect) {
+        columnEdgePosition.value = calculateTableEdgeHandlePosition({ targetRect: columnAxisRect, frameRect, kind: "column" });
+      } else if (!(openMenu.value === "column" && menuAnchor.value === "column-edge")) {
+        columnEdgePosition.value = null;
+      }
+
+      if (selectionRect) {
+        selectionEdgePosition.value = calculateTableEdgeHandlePosition({ targetRect: selectionRect, frameRect, kind: "selection" });
+      } else if (!(openMenu.value === "selection" && menuAnchor.value === "selection-edge")) {
+        selectionEdgePosition.value = null;
+      }
+    };
+
+    const updateMenuPosition = () => {
+      if (!props.active || !openMenu.value) {
+        menuPosition.value = null;
+        return;
+      }
+
+      const frameElement = props.editor.view.dom.closest<HTMLElement>(".markweave-editor-frame") ?? props.editor.view.dom.parentElement;
+      const anchorElement =
+        menuAnchor.value === "row-edge" ? rowEdgeRef.value : menuAnchor.value === "column-edge" ? columnEdgeRef.value : selectionEdgeRef.value;
+
+      if (!frameElement || !anchorElement || !menuRef.value) {
+        menuPosition.value = null;
+        return;
+      }
+
+      const rawAnchorRect = anchorElement.getBoundingClientRect();
+      const tableRect = openMenu.value === "row" ? getActiveTableElement(props.editor)?.getBoundingClientRect() : null;
+      const anchorRect = tableRect
+        ? {
+            left: rawAnchorRect.left,
+            top: tableRect.top,
+            width: rawAnchorRect.width,
+            height: rawAnchorRect.height,
+          }
+        : rawAnchorRect;
+      const frameRect = frameElement.getBoundingClientRect();
+      const menuRect = menuRef.value.getBoundingClientRect();
+      menuPosition.value = calculateAnchoredTableMenuPosition({
+        anchorRect,
+        frameRect,
+        menuSize: {
+          width: menuRect.width || 204,
+          height: menuRect.height || 220,
+        },
+        kind: openMenu.value,
+      });
+    };
+
+    const updatePositions = () => {
+      updateEdgePositions();
+      updateMenuPosition();
+    };
+
+    const scheduleUpdatePositions = () => {
+      void nextTick(updatePositions);
+    };
+
+    const toggleMenu = (menu: TableMenuKind, anchor: TableMenuAnchor) => {
+      const shouldClose = openMenu.value === menu && menuAnchor.value === anchor;
+      menuAnchor.value = anchor;
+      openMenu.value = shouldClose ? null : menu;
+      scheduleUpdatePositions();
+    };
+
+    const clearMenuAxisTarget = () => {
+      props.editor.view.dispatch(setMarkweaveTableMenuAxisTarget(props.editor.state.tr, null));
+    };
+
+    const openAxisMenuFromEdge = (menu: "row" | "column", anchor: Extract<TableMenuAnchor, "row-edge" | "column-edge">) => {
+      const targetCellPos = props.interactionState.hoverCellPos ?? focusState.value.activeCellPos;
+      const visualIndex = props.interactionState.hoverCellPos === null ? null : menu === "row" ? props.interactionState.hoverVisualRowIndex : props.interactionState.hoverVisualColumnIndex;
+
+      if (targetCellPos !== null) {
+        selectTableAxisFromCell(props.editor, targetCellPos, menu, { visualIndex });
+      }
+
+      toggleMenu(menu, anchor);
+    };
+
+    const openSelectionMenuFromEdge = () => {
+      clearMenuAxisTarget();
+      toggleMenu("selection", "selection-edge");
+    };
+
+    const closeMenu = (focusEditor = false) => {
+      openMenu.value = null;
+      menuPosition.value = null;
+      if (focusEditor) {
+        props.editor.view.focus();
+      }
+    };
+
+    const runMenuCommand = async (commandId: TableCommandId, menuOverride?: TableMenuKind) => {
+      const result = await executeTableMenuCommand({
+        editor: props.editor,
+        commandId,
+        menu: menuOverride ?? openMenu.value ?? "selection",
+        messages: props.messages,
+      });
+
+      if (result.copyFeedback) {
+        setCopyFeedbackSnapshot(result.copyFeedback);
+        if (result.copyPayload) {
+          props.onCopyPayload?.(result.copyPayload);
+        }
+      } else {
+        setCopyFeedbackSnapshot(null);
+      }
+
+      props.onCommandResult?.(result.commandResult);
+      return result.success;
+    };
+
+    const runEditWithAi = (source: TableEditWithAiRequest["source"]) => {
+      const request = getTableEditWithAiRequest(props.editor, source);
+
+      if (request) {
+        props.onEditWithAi?.(request);
+      }
+
+      closeMenu(true);
+    };
+
+    const onDocumentKeydown = (event: KeyboardEvent) => {
+      if (!openMenu.value || event.key !== "Escape") {
+        return;
+      }
+      closeMenu(true);
+    };
+
+    const onDocumentMousedown = (event: MouseEvent) => {
+      if (!openMenu.value) {
+        return;
+      }
+      if (event.target instanceof Node && controlsRef.value?.contains(event.target)) {
+        return;
+      }
+      closeMenu();
+    };
+
+    onMounted(() => {
+      updatePositions();
+      window.addEventListener("resize", updatePositions);
+      window.addEventListener("scroll", updatePositions, true);
+      document.addEventListener("keydown", onDocumentKeydown);
+      document.addEventListener("mousedown", onDocumentMousedown);
+    });
+
+    onBeforeUnmount(() => {
+      clearCopyFeedbackTimeout();
+      window.removeEventListener("resize", updatePositions);
+      window.removeEventListener("scroll", updatePositions, true);
+      document.removeEventListener("keydown", onDocumentKeydown);
+      document.removeEventListener("mousedown", onDocumentMousedown);
+    });
+
+    watch(
+      () => [
+        props.active,
+        focusState.value.activeCellPos,
+        focusState.value.selectionFrom,
+        focusState.value.selectionTo,
+        props.interactionState.hoverCellPos,
+        props.interactionState.hoverVisualColumnIndex,
+        props.interactionState.hoverVisualRowIndex,
+        openMenu.value,
+        menuAnchor.value,
+      ],
+      scheduleUpdatePositions,
+      { flush: "post" },
+    );
+
+    const menu = () => {
+      if (!openMenu.value) {
+        return null;
+      }
+
+      return h(
+        "div",
+        {
+          ref: menuRef,
+          class: "markweave-table-menu",
+          role: "menu",
+          "aria-label": tableMenuLabel(openMenu.value, props.messages),
+          "data-testid": "markweave-table-menu",
+          "data-positioned": menuPosition.value ? "true" : "false",
+          style: menuPosition.value ? { left: `${menuPosition.value.left}px`, top: `${menuPosition.value.top}px` } : undefined,
+        },
+        menuItems.value.map((item, index) => {
+          const group = getTableMenuItemGroup(item);
+          const previousGroup = index === 0 ? group : getTableMenuItemGroup(menuItems.value[index - 1]);
+          const startsGroup = index > 0 && previousGroup !== group;
+          const enabled = item.commandId === null ? Boolean(props.onEditWithAi) : canRunTableCommand(props.editor, item.commandId);
+          const label = getTableMenuItemLabel(item, props.messages);
+
+          return h(
+            "button",
+            {
+              key: `${item.id}-${index}`,
+              type: "button",
+              role: "menuitem",
+              "aria-label": label,
+              "aria-disabled": !enabled,
+              disabled: !enabled,
+              "data-menu-group": group,
+              "data-starts-group": startsGroup ? "true" : "false",
+              "data-command-enabled": enabled ? "true" : "false",
+              "data-testid": item.commandId ? `markweave-table-menu-command-${item.commandId}` : "markweave-table-menu-command-edit-with-ai",
+              onMousedown: preventVuePointerFocusLoss,
+              onClick: () => {
+                if (!enabled) {
+                  return;
+                }
+                if (item.commandId === null) {
+                  runEditWithAi(openMenu.value === "row" || openMenu.value === "column" ? openMenu.value : "selection");
+                  return;
+                }
+                void runMenuCommand(item.commandId).finally(() => closeMenu());
+              },
+            },
+            label,
+          );
+        }),
+      );
+    };
 
     return () =>
       props.active
-        ? h("div", { class: "markweave-table-controls", "data-testid": "markweave-table-controls", "aria-label": props.messages.table.controlsAriaLabel, "data-open-menu": openMenu.value ?? "none", "data-positioned": "false" }, [
-            copyFeedback.value ? h("div", { class: "markweave-table-copy-feedback", role: "status", "aria-live": "polite", "data-testid": "markweave-table-copy-feedback" }, copyFeedback.value) : null,
-            h("button", { type: "button", class: "markweave-table-edge-handle markweave-table-edge-handle--row", "aria-label": props.messages.table.activeRowActions, "aria-expanded": openMenu.value === "row", "aria-haspopup": "menu", title: props.messages.table.rowActions, "data-testid": "markweave-table-hover-row-handle", onMousedown: preventVuePointerFocusLoss, onClick: () => (openMenu.value = openMenu.value === "row" ? null : "row") }, [h("span", { "aria-hidden": "true" }, "...")]),
-            h("button", { type: "button", class: "markweave-table-edge-handle markweave-table-edge-handle--column", "aria-label": props.messages.table.activeColumnActions, "aria-expanded": openMenu.value === "column", "aria-haspopup": "menu", title: props.messages.table.columnActions, "data-testid": "markweave-table-hover-column-handle", onMousedown: preventVuePointerFocusLoss, onClick: () => (openMenu.value = openMenu.value === "column" ? null : "column") }, [h("span", { "aria-hidden": "true" }, "...")]),
-            h("button", { type: "button", class: "markweave-table-edge-handle markweave-table-edge-handle--selection", "aria-label": props.messages.table.selectionActions, "aria-expanded": openMenu.value === "selection", "aria-haspopup": "menu", title: props.messages.table.selectionActions, "data-testid": "markweave-table-cell-handle", onMousedown: preventVuePointerFocusLoss, onClick: () => (openMenu.value = openMenu.value === "selection" ? null : "selection") }, [h("span", { "aria-hidden": "true" }, "...")]),
+        ? h("div", { ref: controlsRef, class: "markweave-table-controls", "data-testid": "markweave-table-controls", "aria-label": props.messages.table.controlsAriaLabel, "data-open-menu": openMenu.value ?? "none", "data-positioned": rowEdgePosition.value || columnEdgePosition.value || selectionEdgePosition.value ? "true" : "false" }, [
+            copyFeedback.value
+              ? h("div", { class: "markweave-table-copy-feedback", role: "status", "aria-live": "polite", "data-testid": "markweave-table-copy-feedback", "data-copy-kind": copyFeedback.value.kind, "data-text-length": copyFeedback.value.textLength, "data-html-length": copyFeedback.value.htmlLength }, formatTableCopyFeedback(copyFeedback.value))
+              : null,
+            rowEdgePosition.value
+              ? h("button", { ref: rowEdgeRef, type: "button", class: "markweave-table-edge-handle markweave-table-edge-handle--row", "aria-label": props.messages.table.activeRowActions, "aria-expanded": openMenu.value === "row" && menuAnchor.value === "row-edge", "aria-haspopup": "menu", title: props.messages.table.rowActions, "data-testid": "markweave-table-hover-row-handle", "data-axis-index": rowAxisModel.value?.index ?? "", "data-axis-selected-cells": rowAxisModel.value?.selectedCellCount ?? "", "data-axis-visual-cells": rowAxisModel.value?.visualCellCount ?? "", "data-axis-visual-size": rowAxisModel.value?.visualHeight ?? "", style: { left: `${rowEdgePosition.value.left}px`, top: `${rowEdgePosition.value.top}px` }, onMousedown: preventVuePointerFocusLoss, onClick: () => openAxisMenuFromEdge("row", "row-edge") }, [h("span", { "aria-hidden": "true" }, "...")])
+              : null,
+            columnEdgePosition.value
+              ? h("button", { ref: columnEdgeRef, type: "button", class: "markweave-table-edge-handle markweave-table-edge-handle--column", "aria-label": props.messages.table.activeColumnActions, "aria-expanded": openMenu.value === "column" && menuAnchor.value === "column-edge", "aria-haspopup": "menu", title: props.messages.table.columnActions, "data-testid": "markweave-table-hover-column-handle", "data-axis-index": columnAxisModel.value?.index ?? "", "data-axis-selected-cells": columnAxisModel.value?.selectedCellCount ?? "", "data-axis-visual-cells": columnAxisModel.value?.visualCellCount ?? "", "data-axis-visual-size": columnAxisModel.value?.visualWidth ?? "", style: { left: `${columnEdgePosition.value.left}px`, top: `${columnEdgePosition.value.top}px` }, onMousedown: preventVuePointerFocusLoss, onClick: () => openAxisMenuFromEdge("column", "column-edge") }, [h("span", { "aria-hidden": "true" }, "...")])
+              : null,
+            hasCellMenuCommands.value && selectionEdgePosition.value
+              ? h("button", { ref: selectionEdgeRef, type: "button", class: "markweave-table-edge-handle markweave-table-edge-handle--selection", "aria-label": props.messages.table.selectionActions, "aria-expanded": openMenu.value === "selection" && menuAnchor.value === "selection-edge", "aria-haspopup": "menu", title: props.messages.table.selectionActions, "data-testid": "markweave-table-cell-handle", style: { left: `${selectionEdgePosition.value.left}px`, top: `${selectionEdgePosition.value.top}px` }, onMousedown: preventVuePointerFocusLoss, onClick: openSelectionMenuFromEdge }, [h("span", { "aria-hidden": "true" }, "...")])
+              : null,
             menu(),
           ])
         : null;
+  },
+});
+
+const VueTableSelectionOverlay = defineComponent({
+  name: "MarkweaveVueTableSelectionOverlay",
+  props: {
+    editor: { type: Object as PropType<CoreEditor>, required: true },
+    focusState: { type: Object as PropType<TableFocusState>, required: true },
+  },
+  setup(props) {
+    const overlayRect = ref<TableSelectionOverlayRect | null>(null);
+
+    const updateOverlayRect = () => {
+      if (props.focusState.mode !== "cell-selection") {
+        overlayRect.value = null;
+        return;
+      }
+      overlayRect.value = measureTableSelectionOverlay(props.editor, getTableSelectionOverlayState(props.editor.state));
+    };
+
+    onMounted(() => {
+      updateOverlayRect();
+      window.addEventListener("resize", updateOverlayRect);
+      window.addEventListener("scroll", updateOverlayRect, true);
+    });
+
+    onBeforeUnmount(() => {
+      window.removeEventListener("resize", updateOverlayRect);
+      window.removeEventListener("scroll", updateOverlayRect, true);
+    });
+
+    watch(
+      () => [
+        props.focusState.activeCellPos,
+        props.focusState.anchorCellPos,
+        props.focusState.mode,
+        props.focusState.selectedCellCount,
+        props.focusState.selectionFrom,
+        props.focusState.selectionTo,
+      ],
+      () => {
+        void nextTick(updateOverlayRect);
+      },
+      { flush: "post" },
+    );
+
+    return () => {
+      const rect = overlayRect.value;
+      if (!rect) {
+        return null;
+      }
+
+      return h("div", {
+        "aria-hidden": "true",
+        class: "markweave-table-selection-overlay",
+        "data-anchor-cell-pos": rect.anchorCellPos ?? "",
+        "data-head-cell-pos": rect.headCellPos ?? "",
+        "data-selected-cells": rect.selectedCellCount,
+        "data-visual-columns": rect.visualColumnCount,
+        "data-visual-rows": rect.visualRowCount,
+        "data-visual-slots": rect.visualSlotCount,
+        "data-testid": "markweave-table-selection-overlay",
+        style: {
+          "--markweave-table-selection-columns": rect.visualColumnCount,
+          "--markweave-table-selection-rows": rect.visualRowCount,
+          left: `${rect.left}px`,
+          top: `${rect.top}px`,
+          width: `${rect.width}px`,
+          height: `${rect.height}px`,
+        },
+      });
+    };
   },
 });
 
@@ -1448,6 +1797,7 @@ export function useMarkweaveEditorController(options: MarkweaveVue3EditorControl
       messages,
       effectiveEditable,
       tableFocusState,
+      tableInteractionState,
       codeBlockState,
       isCodeBlockActive,
       tocState,
@@ -1526,7 +1876,18 @@ export const MarkweaveEditor = defineComponent({
                 onUpload: props.onSlashCommandUpload,
               })
             : null,
-          render.effectiveEditable.value ? h(VueTableControls, { editor, active: render.tableFocusState.value.active, messages: render.messages }) : null,
+          render.effectiveEditable.value
+            ? h(VueTableControls, {
+                editor,
+                active: render.tableFocusState.value.active,
+                interactionState: render.tableInteractionState.value,
+                messages: render.messages,
+                onCopyPayload: props.onTableCopyPayload,
+                onCommandResult: props.onTableCommandResult,
+                onEditWithAi: props.onEditWithAi,
+              })
+            : null,
+          render.effectiveEditable.value ? h(VueTableSelectionOverlay, { editor, focusState: render.tableFocusState.value }) : null,
           h(VueCodeBlockControls, { editor, state: render.codeBlockState.value, active: render.effectiveEditable.value && render.isCodeBlockActive.value, readOnly: !render.effectiveEditable.value }),
           props.innerToc && render.tocState.value.items.length
             ? h(VueInnerToc, { editor, state: render.tocState.value, messages: render.messages, editable: render.effectiveEditable.value })
