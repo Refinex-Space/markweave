@@ -35,6 +35,15 @@ describe("Vue3 adapter parity source contract", () => {
     const source = readProjectFile("src/vue3/MarkweaveEditor.ts");
 
     expectSourceContract(source, [
+      "Text as TextIcon",
+      "Info",
+      "Lightbulb",
+      "AlertTriangle",
+      "CircleX",
+      "Minus",
+      "left: `${props.position.left}px`",
+      "top: `${props.position.top}px`",
+      "maxHeight: `${props.position.maxHeight}px`",
       "markweave-slash-trigger",
       "markweave-slash-menu",
       "markweave-slash-command-list",

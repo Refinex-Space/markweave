@@ -7,12 +7,14 @@ import {
   AlignCenter,
   AlignLeft,
   AlignRight,
+  AlertTriangle,
   Bold,
   Braces,
   Captions,
   CheckCircle2,
   ChevronDown,
   ChevronUp,
+  CircleX,
   Code2,
   CornerDownLeft,
   Download,
@@ -29,6 +31,9 @@ import {
   List,
   ListChecks,
   ListOrdered,
+  Info,
+  Lightbulb,
+  Minus,
   MoreVertical,
   Paperclip,
   PencilLine,
@@ -40,6 +45,7 @@ import {
   Subscript,
   Superscript,
   Table2,
+  Text as TextIcon,
   Trash2,
   Type as TypeIcon,
   Underline,
@@ -319,7 +325,7 @@ const toolbarIconMap: Record<string, Component> = {
 };
 
 const slashIconMap: Record<SlashCommandIconName, Component> = {
-  type: TypeIcon,
+  type: TextIcon,
   "heading-1": Heading1,
   "heading-2": Heading2,
   "heading-3": Heading3,
@@ -328,18 +334,23 @@ const slashIconMap: Record<SlashCommandIconName, Component> = {
   "task-list": ListChecks,
   blockquote: Quote,
   "code-block": Braces,
-  info: Eye,
-  tip: Sparkles,
-  warning: MoreVertical,
-  error: Trash2,
+  info: Info,
+  tip: Lightbulb,
+  warning: AlertTriangle,
+  error: CircleX,
   success: CheckCircle2,
   emoji: SmilePlus,
   table: Table2,
-  separator: MoreVertical,
+  separator: Minus,
   image: ImageIcon,
   video: VideoIcon,
   attachment: Paperclip,
 };
+
+function createSlashIcon(name: SlashCommandIconName) {
+  const Icon = slashIconMap[name];
+  return h(Icon, { size: 18, strokeWidth: 1.6, absoluteStrokeWidth: true, "aria-hidden": "true" });
+}
 
 type VueColorOption = readonly [id: string, value: string | null, label: string];
 
@@ -818,32 +829,33 @@ const VueSlashCommandMenu = defineComponent({
     };
 
     return () => {
-      if (!props.position && !props.inputCommand) {
+      if (!props.position) {
         return null;
       }
 
-      const style = props.position
-        ? {
-            "--markweave-slash-menu-left": `${props.position.left}px`,
-            "--markweave-slash-menu-top": `${props.position.top}px`,
-            "--markweave-slash-menu-max-height": `${props.position.maxHeight}px`,
-          }
-        : {};
+      const style = {
+        left: `${props.position.left}px`,
+        top: `${props.position.top}px`,
+        maxHeight: `${props.position.maxHeight}px`,
+        "--markweave-slash-menu-max-height": `${props.position.maxHeight}px`,
+      };
+      const triggerStyle = {
+        left: `${props.position.triggerLeft}px`,
+        top: `${props.position.triggerTop}px`,
+      };
 
       const groupedCommands = Object.values(props.messages.slash.groups)
         .map((group) => ({ group, commands: props.commands.filter((command) => command.group === group) }))
         .filter((entry) => entry.commands.length);
 
       return [
-        props.position
-          ? h("div", { class: "markweave-slash-trigger", style: { left: `${props.position.triggerLeft}px`, top: `${props.position.triggerTop}px` }, "aria-hidden": "true", "data-testid": "markweave-slash-trigger" }, [
-              h("span", null, "/"),
-              h("em", null, props.state.query || props.messages.slash.filterPlaceholder),
-            ])
-          : null,
+        h("div", { class: "markweave-slash-trigger", style: triggerStyle, "aria-hidden": "true", "data-testid": "markweave-slash-trigger" }, [
+          h("span", null, "/"),
+          h("em", null, props.state.query || props.messages.slash.filterPlaceholder),
+        ]),
         h(
           "div",
-          { class: "markweave-slash-menu", style, role: "listbox", "aria-label": props.messages.slash.ariaLabel, "data-placement": props.position?.placement ?? "bottom", "data-testid": "markweave-slash-menu" },
+          { class: "markweave-slash-menu", style, role: "listbox", "aria-label": props.messages.slash.ariaLabel, "data-placement": props.position.placement, "data-testid": "markweave-slash-menu" },
           [
             props.inputCommand?.inputKind === "emoji"
               ? h("div", { class: "markweave-slash-subpanel", "data-testid": "markweave-slash-emoji-picker" }, [
@@ -926,7 +938,6 @@ const VueSlashCommandMenu = defineComponent({
                           const flatIndex = props.commands.indexOf(command);
                           const active = flatIndex === props.state.activeIndex;
                           const executable = isExecutableSlashCommand(command);
-                          const Icon = slashIconMap[command.icon];
                           return h(
                             "button",
                             {
@@ -952,7 +963,7 @@ const VueSlashCommandMenu = defineComponent({
                                 props.onSelect(command);
                               },
                             },
-                            [createIcon(Icon, command.label), h("span", null, command.label), command.disabledReason ? h("small", null, command.disabledReason) : null],
+                            [createSlashIcon(command.icon), h("span", null, command.label), command.disabledReason ? h("small", null, command.disabledReason) : null],
                           );
                         }),
                       ]),
