@@ -29,6 +29,10 @@ const tableFixture = `
 </table>
 `;
 
+const codeBlockFixture = '<p>outside</p><pre><code class="language-ts">const value = 1;</code></pre>';
+const mermaidFixture = `<p>outside</p><pre><code class="language-mermaid">flowchart TB
+  A --> B</code></pre>`;
+
 function createRect(left: number, top: number, width: number, height: number): DOMRect {
   return {
     bottom: top + height,
@@ -49,6 +53,18 @@ function installLayoutMocks() {
       return createRect(0, 0, 1000, 700);
     }
 
+    if (this.classList.contains("markweave-codeblock-overlay")) {
+      return createRect(0, 0, 1000, 700);
+    }
+
+    if (this.dataset.testid === "markweave-codeblock-language") {
+      return createRect(820, 130, 120, 28);
+    }
+
+    if (this.dataset.testid === "markweave-mermaid-inline-preview") {
+      return createRect(120, 180, 720, 260);
+    }
+
     if (this.classList.contains("markweave-table-menu")) {
       return createRect(0, 0, 240, 320);
     }
@@ -59,6 +75,10 @@ function installLayoutMocks() {
 
     if (this.tagName === "TH" || this.tagName === "TD") {
       return createRect(120, 120, 240, 48);
+    }
+
+    if (this.tagName === "PRE") {
+      return createRect(120, 120, 720, 160);
     }
 
     return createRect(0, 0, 80, 32);
@@ -92,6 +112,40 @@ async function click(element: Element) {
   element.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, cancelable: true }));
   element.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
   await flushVue();
+}
+
+async function pointerMove(element: Element) {
+  element.dispatchEvent(new MouseEvent("mousemove", { bubbles: true, cancelable: true }));
+  await flushVue();
+}
+
+async function hover(element: Element) {
+  element.dispatchEvent(new MouseEvent("mouseover", { bubbles: true, cancelable: true }));
+  element.dispatchEvent(new MouseEvent("mouseenter", { bubbles: false, cancelable: true }));
+  await flushVue();
+}
+
+async function inputValue(input: HTMLInputElement, value: string) {
+  const valueSetter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
+  valueSetter?.call(input, value);
+  input.dispatchEvent(new Event("input", { bubbles: true, cancelable: true }));
+  await flushVue();
+}
+
+async function wheel(element: Element, deltaY: number) {
+  element.dispatchEvent(new WheelEvent("wheel", { bubbles: true, cancelable: true, deltaY }));
+  await flushVue();
+}
+
+async function drag(element: Element, from: { readonly x: number; readonly y: number }, to: { readonly x: number; readonly y: number }) {
+  element.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, cancelable: true, button: 0, clientX: from.x, clientY: from.y }));
+  element.dispatchEvent(new MouseEvent("mousemove", { bubbles: true, cancelable: true, buttons: 1, clientX: to.x, clientY: to.y }));
+  element.dispatchEvent(new MouseEvent("mouseup", { bubbles: true, cancelable: true, button: 0, clientX: to.x, clientY: to.y }));
+  await flushVue();
+}
+
+function queryByTestId<T extends HTMLElement = HTMLElement>(container: HTMLElement, testId: string) {
+  return container.querySelector<T>(`[data-testid="${testId}"]`);
 }
 
 function getByTestId<T extends HTMLElement = HTMLElement>(container: HTMLElement, testId: string) {
@@ -276,5 +330,137 @@ describe("Markweave Vue3 editor", () => {
 
     expect(container.querySelector('[data-testid="markweave-table-controls"]')).toBeNull();
     expect(container.querySelector('[data-testid="markweave-table-selection-overlay"]')).toBeNull();
+  });
+
+  it("aligns Vue code block language menu and copy controls with React", async () => {
+    installLayoutMocks();
+    const writeText = vi.fn<Clipboard["writeText"]>().mockResolvedValue(undefined);
+    Object.defineProperty(globalThis.navigator, "clipboard", {
+      configurable: true,
+      value: { writeText },
+    });
+    const container = await mountVue(
+      defineComponent({
+        setup() {
+          return () => h(MarkweaveEditor, { defaultContent: codeBlockFixture, defaultContentFormat: "html" });
+        },
+      }),
+    );
+
+    const codeBlockElement = container.querySelector("pre");
+    expect(codeBlockElement).toBeTruthy();
+    await pointerMove(codeBlockElement as Element);
+
+    expect(getByTestId(container, "markweave-codeblock-overlay").getAttribute("data-read-only")).toBe("false");
+    expect(getByTestId(container, "markweave-codeblock-controls").getAttribute("data-positioned")).toBe("true");
+    expect(getByTestId(container, "markweave-codeblock-language").textContent).toContain("TypeScript");
+
+    await click(getByTestId(container, "markweave-codeblock-language"));
+    expect(getByTestId(container, "markweave-codeblock-language-menu").getAttribute("data-positioned")).toBe("true");
+    await inputValue(getByTestId<HTMLInputElement>(container, "markweave-codeblock-language-search"), "json");
+    expect(getByTestId(container, "markweave-codeblock-language-option-json")).toBeTruthy();
+    expect(queryByTestId(container, "markweave-codeblock-language-option-java")).toBeNull();
+
+    await click(getByTestId(container, "markweave-codeblock-language-option-json"));
+    expect(queryByTestId(container, "markweave-codeblock-language-menu")).toBeNull();
+    await pointerMove(container.querySelector("pre") as Element);
+    expect(getByTestId(container, "markweave-codeblock-language").textContent).toContain("JSON");
+
+    await click(getByTestId(container, "markweave-codeblock-copy"));
+    await flushVue();
+    expect(writeText).toHaveBeenCalledWith("const value = 1;");
+    expect(getByTestId(container, "markweave-codeblock-copy").getAttribute("data-copy-state")).toBe("copied");
+  });
+
+  it("aligns Vue Mermaid tabs, preview actions, fullscreen, and download with React", async () => {
+    installLayoutMocks();
+    const createObjectUrl = vi.fn(() => "blob:markweave-mermaid");
+    const revokeObjectUrl = vi.fn();
+    Object.defineProperty(URL, "createObjectURL", { configurable: true, value: createObjectUrl });
+    Object.defineProperty(URL, "revokeObjectURL", { configurable: true, value: revokeObjectUrl });
+    const anchorClick = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => undefined);
+    const container = await mountVue(
+      defineComponent({
+        setup() {
+          return () => h(MarkweaveEditor, { defaultContent: mermaidFixture, defaultContentFormat: "html" });
+        },
+      }),
+    );
+
+    expect(getByTestId(container, "markweave-mermaid-tabs").getAttribute("data-positioned")).toBe("true");
+    expect(getByTestId(container, "markweave-mermaid-mode-code").getAttribute("data-active")).toBe("true");
+
+    await click(getByTestId(container, "markweave-mermaid-mode-preview"));
+    expect(getByTestId(container, "markweave-mermaid-mode-preview").getAttribute("data-active")).toBe("true");
+    const inlinePreview = getByTestId(container, "markweave-mermaid-inline-preview");
+    await pointerMove(inlinePreview);
+    inlinePreview.innerHTML = '<svg viewBox="0 0 200 100"><text>diagram</text></svg>';
+    expect(getByTestId(container, "markweave-mermaid-preview-actions")).toBeTruthy();
+
+    await click(getByTestId(container, "markweave-mermaid-fullscreen"));
+    expect(getByTestId(container, "markweave-mermaid-fullscreen-layer").innerHTML).toContain("<svg");
+    expect(getByTestId(container, "markweave-mermaid-fullscreen-zoom-label").textContent).toBe("100%");
+    await hover(getByTestId(container, "markweave-mermaid-fullscreen-zoom-in"));
+    expect(getByTestId(container, "markweave-mermaid-fullscreen-tooltip").textContent).toBe("Zoom in");
+
+    await click(getByTestId(container, "markweave-mermaid-fullscreen-zoom-in"));
+    expect(getByTestId(container, "markweave-mermaid-fullscreen-zoom-label").textContent).toBe("125%");
+    expect(getByTestId(container, "markweave-mermaid-fullscreen-content").getAttribute("data-scale-percent")).toBe("125");
+    await wheel(getByTestId(container, "markweave-mermaid-fullscreen-viewport"), 80);
+    expect(getByTestId(container, "markweave-mermaid-fullscreen-zoom-label").textContent).toBe("100%");
+    await drag(getByTestId(container, "markweave-mermaid-fullscreen-viewport"), { x: 120, y: 140 }, { x: 150, y: 165 });
+    expect(getByTestId(container, "markweave-mermaid-fullscreen-content").getAttribute("data-translate")).toBe("30,25");
+    await click(getByTestId(container, "markweave-mermaid-fullscreen-reset"));
+    expect(getByTestId(container, "markweave-mermaid-fullscreen-content").getAttribute("data-translate")).toBe("0,0");
+    await click(getByTestId(container, "markweave-mermaid-fullscreen-close"));
+    expect(queryByTestId(container, "markweave-mermaid-fullscreen-layer")).toBeNull();
+
+    const inlinePreviewForDownload = getByTestId(container, "markweave-mermaid-inline-preview");
+    inlinePreviewForDownload.innerHTML = '<svg viewBox="0 0 200 100"><text>diagram</text></svg>';
+    await pointerMove(inlinePreviewForDownload);
+    await click(getByTestId(container, "markweave-mermaid-download"));
+    expect(anchorClick).toHaveBeenCalled();
+    expect(createObjectUrl).toHaveBeenCalledWith(expect.any(Blob));
+    expect(revokeObjectUrl).toHaveBeenCalledWith("blob:markweave-mermaid");
+  });
+
+  it("keeps Vue View mode code block controls read-only while preserving Mermaid reader actions", async () => {
+    installLayoutMocks();
+    const writeText = vi.fn<Clipboard["writeText"]>().mockResolvedValue(undefined);
+    Object.defineProperty(globalThis.navigator, "clipboard", {
+      configurable: true,
+      value: { writeText },
+    });
+    const updates = vi.fn();
+    const container = await mountVue(
+      defineComponent({
+        setup() {
+          return () => h(MarkweaveEditor, { defaultContent: mermaidFixture, defaultContentFormat: "html", mode: "view", onUpdate: updates });
+        },
+      }),
+    );
+    updates.mockClear();
+
+    expect(getByTestId(container, "markweave-mermaid-mode-preview").getAttribute("data-active")).toBe("true");
+    await click(getByTestId(container, "markweave-mermaid-mode-code"));
+    expect(getByTestId(container, "markweave-mermaid-mode-code").getAttribute("data-active")).toBe("true");
+    expect(updates).not.toHaveBeenCalled();
+    await click(getByTestId(container, "markweave-mermaid-mode-preview"));
+
+    const inlinePreview = getByTestId(container, "markweave-mermaid-inline-preview");
+    inlinePreview.innerHTML = '<svg viewBox="0 0 200 100"><text>diagram</text></svg>';
+    await pointerMove(inlinePreview);
+
+    expect(getByTestId(container, "markweave-codeblock-overlay").getAttribute("data-read-only")).toBe("true");
+    expect(getByTestId(container, "markweave-codeblock-controls").getAttribute("data-read-only")).toBe("true");
+    expect(getByTestId(container, "markweave-codeblock-language").textContent).toContain("Mermaid");
+    expect(queryByTestId(container, "markweave-codeblock-collapse")).toBeNull();
+    expect(queryByTestId(container, "markweave-codeblock-language-menu")).toBeNull();
+    expect(getByTestId(container, "markweave-mermaid-preview-actions")).toBeTruthy();
+
+    await click(getByTestId(container, "markweave-codeblock-copy"));
+    await flushVue();
+    expect(writeText).toHaveBeenCalledWith("flowchart TB\n  A --> B");
+    expect(getByTestId(container, "markweave-codeblock-copy").getAttribute("data-copy-state")).toBe("copied");
   });
 });

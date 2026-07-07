@@ -1,4 +1,5 @@
 import type { EditorView } from "@tiptap/pm/view";
+import type { Transaction } from "@tiptap/pm/state";
 import type { Editor as CoreEditor } from "@tiptap/core";
 import { BubbleMenu } from "@tiptap/vue-3/menus";
 import { EditorContent, useEditor, type Editor as VueEditor } from "@tiptap/vue-3";
@@ -17,7 +18,6 @@ import {
   CircleX,
   Code2,
   CornerDownLeft,
-  Download,
   Eye,
   ExternalLink,
   Heading1,
@@ -91,15 +91,50 @@ import {
 import { getLocalizedSlashCommandSpecs, getMarkweaveMessages, normalizeMarkweaveLang, type MarkweaveLang, type MarkweaveMessages } from "../i18n";
 import {
   copyActiveCodeBlock,
+  codeBlockCollapsePluginKey,
+  getCodeBlockCopyFeedbackSnapshot,
   getActiveCodeBlockState,
   markweaveCodeBlockBehavior,
-  normalizeCodeBlockLanguage,
+  setActiveCodeBlockLanguage,
+  setCodeBlockCollapsedAtPosition,
   setActiveCodeBlockMermaidPreviewMode,
+  type MarkweaveCodeBlockCopyFeedbackSnapshot,
+  type MarkweaveCodeBlockLanguage,
   type MarkweaveCodeBlockState,
 } from "../plugins/codeblock/codeblock-behavior";
+import {
+  calculateCodeBlockLanguageMenuPosition,
+  clampFullscreenScale,
+  codeBlockCopyFeedbackTimeoutMs,
+  copyCodeBlockText,
+  createCodeBlockOverlayPosition,
+  createMermaidFullscreenViewerState,
+  createMermaidTabPosition,
+  focusCodeBlockTarget,
+  formatCodeBlockLanguageLabel,
+  formatFullscreenZoom,
+  getActiveCodeBlockElement,
+  getAnchoredRect,
+  getCodeBlockLanguageItems,
+  getCodeBlockPositionFromEventTarget,
+  getCodeBlockStateAtPosition,
+  getFrameElement,
+  getMermaidCodeBlockTargets,
+  getMermaidSvgMarkup,
+  isCodeBlockTargetCollapsed,
+  mergeStableMermaidTabPositions,
+  mermaidFullscreenZoomStep,
+  moveMermaidFullscreenViewer,
+  type CodeBlockMenuPosition,
+  type CodeBlockOverlayPosition,
+  type CodeBlockTargetState,
+  type MermaidFullscreenDragState,
+  type MermaidFullscreenTooltip,
+  type MermaidFullscreenViewerState,
+  type MermaidTabPosition,
+} from "../plugins/codeblock/codeblock-ui-model";
 import { normalizeMarkdownLinkHref } from "../plugins/markdown/markdown-input";
 import {
-  getEffectiveMermaidPreviewMode,
   isMermaidInlinePreviewTransaction,
   setMermaidInlinePreviewEditorMode,
   setReadonlyMermaidPreviewMode,
@@ -209,6 +244,8 @@ interface VueControllerRenderState {
   readonly tableInteractionState: Ref<TableInteractionState>;
   readonly codeBlockState: Ref<MarkweaveCodeBlockState>;
   readonly isCodeBlockActive: Ref<boolean>;
+  readonly mermaidMode: Ref<MermaidPreviewMode>;
+  readonly setMermaidMode: (mode: MermaidPreviewMode) => void;
   readonly tocState: Ref<MarkweaveTocState>;
   readonly filteredSlashCommands: Ref<readonly SlashCommandSpec[]>;
   readonly slashState: Ref<SlashCommandState>;
@@ -315,6 +352,73 @@ function getNearestScrollableAncestor(element: HTMLElement | null): HTMLElement 
 
 function createIcon(iconComponent: Component, label: string, size = 18, strokeWidth = 1.8) {
   return h(iconComponent, { size, strokeWidth, "aria-hidden": "true" }, { default: () => label });
+}
+
+type VueCodeBlockIconName = "chevron" | "clipboard" | "search" | "check" | "expand" | "download" | "close" | "zoomIn" | "zoomOut" | "reset";
+
+function createCodeBlockIconPath(icon: VueCodeBlockIconName) {
+  if (icon === "clipboard") {
+    return [
+      h("path", { d: "M9 4.5h6a1.5 1.5 0 0 1 1.5 1.5v11A1.5 1.5 0 0 1 15 18.5H7A1.5 1.5 0 0 1 5.5 17V6A1.5 1.5 0 0 1 7 4.5h2" }),
+      h("path", { d: "M8.5 5.5v-1A1.5 1.5 0 0 1 10 3h2a1.5 1.5 0 0 1 1.5 1.5v1h-5Z" }),
+    ];
+  }
+
+  if (icon === "search") {
+    return [h("circle", { cx: "10", cy: "10", r: "5.5" }), h("path", { d: "m14 14 4 4" })];
+  }
+
+  if (icon === "check") {
+    return [h("path", { d: "m5 11 4 4 8-9" })];
+  }
+
+  if (icon === "expand") {
+    return [
+      h("path", { d: "M8 4H4v4" }),
+      h("path", { d: "M4 4l5 5" }),
+      h("path", { d: "M16 4h4v4" }),
+      h("path", { d: "m20 4-5 5" }),
+      h("path", { d: "M8 20H4v-4" }),
+      h("path", { d: "m4 20 5-5" }),
+      h("path", { d: "M16 20h4v-4" }),
+      h("path", { d: "m20 20-5-5" }),
+    ];
+  }
+
+  if (icon === "download") {
+    return [h("path", { d: "M12 4v10" }), h("path", { d: "m8 10 4 4 4-4" }), h("path", { d: "M5 19h14" })];
+  }
+
+  if (icon === "close") {
+    return [h("path", { d: "M6 6l12 12" }), h("path", { d: "M18 6 6 18" })];
+  }
+
+  if (icon === "zoomOut") {
+    return [h("circle", { cx: "10", cy: "10", r: "5.25" }), h("path", { d: "M7.5 10h5" }), h("path", { d: "m14 14 4 4" })];
+  }
+
+  if (icon === "zoomIn") {
+    return [
+      h("circle", { cx: "10", cy: "10", r: "5.25" }),
+      h("path", { d: "M7.5 10h5" }),
+      h("path", { d: "M10 7.5v5" }),
+      h("path", { d: "m14 14 4 4" }),
+    ];
+  }
+
+  if (icon === "reset") {
+    return [h("path", { d: "M6.5 8.5A6 6 0 1 1 6 15" }), h("path", { d: "M6.5 8.5H3.5v-3" })];
+  }
+
+  return [h("path", { d: "m6 9 6 6 6-6" })];
+}
+
+function createCodeBlockIcon(icon: VueCodeBlockIconName) {
+  return h(
+    "svg",
+    { viewBox: "0 0 24 24", "aria-hidden": "true", focusable: "false" },
+    h("g", { fill: "none", stroke: "currentColor", "stroke-linecap": "round", "stroke-linejoin": "round", "stroke-width": "1.8" }, createCodeBlockIconPath(icon)),
+  );
 }
 
 function preventVuePointerFocusLoss(event: Event) {
@@ -441,54 +545,6 @@ function runToolbarMoreAction(editor: CoreEditor, id: string) {
     return (editor.commands as unknown as { increaseIndent?: () => boolean }).increaseIndent?.() ?? false;
   }
   return false;
-}
-
-function getCodeBlockStateAtPosition(editor: CoreEditor, pos: number | null): MarkweaveCodeBlockState | null {
-  if (pos === null) {
-    return null;
-  }
-
-  const node = editor.state.doc.nodeAt(pos);
-  if (node?.type.name !== "codeBlock") {
-    return null;
-  }
-
-  const language = normalizeCodeBlockLanguage(node.attrs.language);
-  return {
-    active: true,
-    language,
-    mermaidPreviewMode:
-      language === "mermaid" ? getEffectiveMermaidPreviewMode(editor.state, node, pos) : "code",
-    pos,
-    text: node.textContent,
-  };
-}
-
-function getCodeBlockPositionFromElement(editor: CoreEditor, element: Element) {
-  const previewElement = element.closest<HTMLElement>("[data-code-block-pos]");
-  if (previewElement) {
-    const pos = Number.parseInt(previewElement.dataset.codeBlockPos ?? "", 10);
-    return Number.isFinite(pos) ? pos : null;
-  }
-
-  const codeBlockElement = element.closest<HTMLElement>("pre.markweave-code-block");
-  if (!codeBlockElement) {
-    return null;
-  }
-
-  const positions: number[] = [];
-  editor.state.doc.descendants((node, pos) => {
-    if (node.type.name === "codeBlock") {
-      positions.push(pos);
-      return false;
-    }
-
-    return true;
-  });
-
-  const codeBlockElements = Array.from(editor.view.dom.querySelectorAll("pre.markweave-code-block"));
-  const index = codeBlockElements.indexOf(codeBlockElement);
-  return index >= 0 ? positions[index] ?? null : null;
 }
 
 const VueFloatingToolbar = defineComponent({
@@ -1398,70 +1454,755 @@ const VueCodeBlockControls = defineComponent({
     editor: { type: Object as PropType<CoreEditor>, required: true },
     state: { type: Object as PropType<MarkweaveCodeBlockState>, required: true },
     active: { type: Boolean, required: true },
+    mermaidMode: { type: String as PropType<MermaidPreviewMode>, required: true },
+    onMermaidModeChange: { type: Function as PropType<(mode: MermaidPreviewMode) => void>, required: true },
     readOnly: { type: Boolean, required: true },
   },
   setup(props) {
-    const hoveredCodeBlockState = ref<MarkweaveCodeBlockState | null>(null);
-    let frameElement: HTMLElement | null = null;
-    const hoverEventNames = ["mousemove", "pointermove", "mouseover", "click"] as const;
+    const controlsRef = ref<HTMLDivElement | null>(null);
+    const languageButtonRef = ref<HTMLButtonElement | null>(null);
+    const searchInputRef = ref<HTMLInputElement | null>(null);
+    const hoveredCodeBlockPos = ref<number | null>(null);
+    const position = ref<CodeBlockOverlayPosition | null>(null);
+    const mermaidTabPositions = ref<readonly MermaidTabPosition[]>([]);
+    const languageMenuPosition = ref<CodeBlockMenuPosition | null>(null);
+    const languageMenuOpen = ref(false);
+    const languageQuery = ref("");
+    const copyFeedback = ref<MarkweaveCodeBlockCopyFeedbackSnapshot | null>(null);
+    const copyTooltipVisible = ref(false);
+    const fullscreenViewer = ref<MermaidFullscreenViewerState | null>(null);
+    const fullscreenTooltip = ref<MermaidFullscreenTooltip | null>(null);
+    const fullscreenDragging = ref(false);
+    const fullscreenDrag = ref<MermaidFullscreenDragState>({ active: false, lastX: 0, lastY: 0 });
+    const collapseRevision = ref(0);
+    const readonlyMermaidRevision = ref(0);
+    const controlsRevision = ref(0);
+    let copyFeedbackTimeout: number | null = null;
 
-    const displayedState = computed(() => (props.readOnly ? hoveredCodeBlockState.value ?? props.state : props.state));
-    const visible = computed(() => (props.readOnly ? Boolean(displayedState.value.active && displayedState.value.text) : props.active && props.state.active));
-    const copyDisplayedCodeBlock = () => {
-      const text = displayedState.value.text;
-      if (!text) {
-        return;
+    const hoveredCodeBlock = computed(() => {
+      controlsRevision.value;
+      return getCodeBlockStateAtPosition(props.editor, hoveredCodeBlockPos.value);
+    });
+    const activeTarget = computed<CodeBlockTargetState | null>(() =>
+      !props.readOnly && props.active && props.state.active && props.state.pos !== null
+        ? { ...props.state, pos: props.state.pos, active: true as const }
+        : null,
+    );
+    const codeBlock = computed(() => hoveredCodeBlock.value ?? activeTarget.value);
+    const codeBlockActive = computed(() => codeBlock.value !== null);
+    const isMermaid = computed(() => codeBlock.value?.language === "mermaid");
+    const collapsed = computed(() => isCodeBlockTargetCollapsed(props.editor, codeBlock.value));
+    const showTargetControls = computed(() => codeBlockActive.value && codeBlock.value !== null && !collapsed.value);
+    const showWritableControls = computed(() => !props.readOnly);
+    const currentLanguageLabel = computed(() => (codeBlock.value ? formatCodeBlockLanguageLabel(codeBlock.value.language) : formatCodeBlockLanguageLabel("text")));
+    const copyState = computed(() => copyFeedback.value?.status ?? "idle");
+    const visibleMermaidMode = computed(() => codeBlock.value?.mermaidPreviewMode ?? props.mermaidMode);
+    const svgAvailable = computed(() => isMermaid.value && visibleMermaidMode.value === "preview");
+    const mermaidTargets = computed(() => {
+      controlsRevision.value;
+      collapseRevision.value;
+      readonlyMermaidRevision.value;
+      return getMermaidCodeBlockTargets(props.editor);
+    });
+    const mermaidTargetKey = computed(() =>
+      `${readonlyMermaidRevision.value}|${mermaidTargets.value.map((target) => `${target.pos}:${target.mermaidPreviewMode}:${target.text.length}`).join("|")}`,
+    );
+    const languageItems = computed(() => getCodeBlockLanguageItems(languageQuery.value));
+    const codeBlockKey = computed(() => (codeBlock.value ? `${codeBlock.value.pos}:${codeBlock.value.language}:${codeBlock.value.text}` : "none"));
+
+    const clearCopyFeedbackTimeout = () => {
+      if (copyFeedbackTimeout !== null) {
+        window.clearTimeout(copyFeedbackTimeout);
+        copyFeedbackTimeout = null;
       }
-      void (globalThis.navigator?.clipboard?.writeText(text) ?? Promise.resolve(false));
+    };
+    const setCopyFeedbackSnapshot = (snapshot: MarkweaveCodeBlockCopyFeedbackSnapshot | null) => {
+      clearCopyFeedbackTimeout();
+      copyFeedback.value = snapshot;
+      if (snapshot) {
+        copyFeedbackTimeout = window.setTimeout(() => {
+          copyFeedback.value = null;
+          copyFeedbackTimeout = null;
+        }, codeBlockCopyFeedbackTimeoutMs);
+      }
+    };
+    const closeFullscreenViewer = () => {
+      fullscreenViewer.value = null;
+      fullscreenTooltip.value = null;
+      fullscreenDragging.value = false;
+      fullscreenDrag.value = { active: false, lastX: 0, lastY: 0 };
+      props.editor.view.focus();
     };
 
-    const updateHoveredCodeBlock = (event: MouseEvent) => {
-      if (!props.readOnly || !(event.target instanceof Element)) {
+    const updateMermaidTabPositions = () => {
+      const controlsElement = controlsRef.value;
+      if (!controlsElement) {
         return;
       }
 
-      const pos = getCodeBlockPositionFromElement(props.editor, event.target);
-      hoveredCodeBlockState.value = getCodeBlockStateAtPosition(props.editor, pos);
+      const frameElement = getFrameElement(controlsElement);
+      if (!frameElement || mermaidTargets.value.length === 0) {
+        mermaidTabPositions.value = [];
+        return;
+      }
+
+      const overlayRect = controlsElement.getBoundingClientRect();
+      const nextPositions = mermaidTargets.value.flatMap((target) => {
+        const targetElement = getActiveCodeBlockElement(props.editor, target.pos, target.mermaidPreviewMode);
+        const targetRect = getAnchoredRect(targetElement, overlayRect);
+        return targetRect ? [createMermaidTabPosition(target, targetRect, overlayRect)] : [];
+      });
+
+      mermaidTabPositions.value = mergeStableMermaidTabPositions(
+        mermaidTabPositions.value,
+        nextPositions,
+        mermaidTargets.value.map((target) => target.pos),
+      );
     };
+
+    const updatePosition = () => {
+      if (!showTargetControls.value || !codeBlock.value) {
+        position.value = null;
+        languageMenuPosition.value = null;
+        return;
+      }
+
+      const controlsElement = controlsRef.value;
+      if (!controlsElement) {
+        return;
+      }
+
+      const targetElement = getActiveCodeBlockElement(props.editor, codeBlock.value.pos, visibleMermaidMode.value);
+      const overlayRect = controlsElement.getBoundingClientRect();
+      const targetRect = getAnchoredRect(targetElement, overlayRect);
+
+      if (!targetRect) {
+        position.value = position.value?.pos === codeBlock.value.pos ? position.value : null;
+        languageMenuPosition.value = languageMenuOpen.value ? languageMenuPosition.value : null;
+        return;
+      }
+
+      position.value = createCodeBlockOverlayPosition(codeBlock.value.pos, targetRect, overlayRect);
+
+      if (languageMenuOpen.value && languageButtonRef.value) {
+        const buttonRect = languageButtonRef.value.getBoundingClientRect();
+        languageMenuPosition.value = calculateCodeBlockLanguageMenuPosition({
+          overlayRect,
+          buttonRect,
+          windowWidth: window.innerWidth,
+          windowHeight: window.innerHeight,
+        });
+      }
+    };
+
+    const copyCode = async () => {
+      if (props.readOnly) {
+        if (!codeBlock.value) {
+          return;
+        }
+        const didCopy = await copyCodeBlockText(codeBlock.value.text);
+        setCopyFeedbackSnapshot(getCodeBlockCopyFeedbackSnapshot(codeBlock.value, didCopy ? "copied" : "failed"));
+        return;
+      }
+
+      if (!focusCodeBlockTarget(props.editor, codeBlock.value)) {
+        return;
+      }
+
+      const didCopy = await copyActiveCodeBlock(props.editor);
+      setCopyFeedbackSnapshot(getCodeBlockCopyFeedbackSnapshot(getActiveCodeBlockState(props.editor), didCopy ? "copied" : "failed"));
+      props.editor.view.focus();
+    };
+
+    const setMermaidModeForTarget = (target: CodeBlockTargetState, mode: MermaidPreviewMode) => {
+      if (props.readOnly) {
+        if (setReadonlyMermaidPreviewMode(props.editor, target.pos, mode)) {
+          readonlyMermaidRevision.value += 1;
+          controlsRevision.value += 1;
+        }
+        return;
+      }
+
+      if (!focusCodeBlockTarget(props.editor, target)) {
+        return;
+      }
+
+      if (setActiveCodeBlockMermaidPreviewMode(props.editor, mode)) {
+        props.onMermaidModeChange(mode);
+        controlsRevision.value += 1;
+      }
+    };
+
+    const selectLanguage = (language: MarkweaveCodeBlockLanguage) => {
+      if (props.readOnly) {
+        return;
+      }
+
+      if (!focusCodeBlockTarget(props.editor, codeBlock.value)) {
+        return;
+      }
+
+      if (setActiveCodeBlockLanguage(props.editor, language)) {
+        if (language === "mermaid" && setActiveCodeBlockMermaidPreviewMode(props.editor, "preview")) {
+          props.onMermaidModeChange("preview");
+        }
+        languageMenuOpen.value = false;
+        languageQuery.value = "";
+        controlsRevision.value += 1;
+        props.editor.view.focus();
+      }
+    };
+
+    const toggleCollapse = () => {
+      if (props.readOnly || !codeBlock.value) {
+        return;
+      }
+
+      if (setCodeBlockCollapsedAtPosition(props.editor, codeBlock.value.pos, !collapsed.value)) {
+        collapseRevision.value += 1;
+        controlsRevision.value += 1;
+        hoveredCodeBlockPos.value = null;
+      }
+    };
+
+    const downloadMermaidSvg = () => {
+      if (!codeBlock.value) {
+        return;
+      }
+
+      const svg = getMermaidSvgMarkup(props.editor, codeBlock.value.pos);
+      if (!svg) {
+        return;
+      }
+
+      const blob = new Blob([svg], { type: "image/svg+xml" });
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = "markweave-mermaid.svg";
+      anchor.click();
+      URL.revokeObjectURL(url);
+      props.editor.view.focus();
+    };
+
+    const openMermaidFullscreen = () => {
+      if (!codeBlock.value) {
+        return;
+      }
+
+      const svg = getMermaidSvgMarkup(props.editor, codeBlock.value.pos);
+      if (!svg) {
+        return;
+      }
+
+      fullscreenViewer.value = createMermaidFullscreenViewerState(svg);
+      fullscreenTooltip.value = null;
+      fullscreenDragging.value = false;
+      fullscreenDrag.value = { active: false, lastX: 0, lastY: 0 };
+    };
+
+    const zoomMermaidFullscreen = (delta: number) => {
+      fullscreenViewer.value = fullscreenViewer.value ? { ...fullscreenViewer.value, scale: clampFullscreenScale(fullscreenViewer.value.scale + delta) } : null;
+    };
+
+    const resetMermaidFullscreen = () => {
+      fullscreenViewer.value = fullscreenViewer.value ? createMermaidFullscreenViewerState(fullscreenViewer.value.svg) : null;
+      fullscreenDrag.value = { active: false, lastX: 0, lastY: 0 };
+      fullscreenDragging.value = false;
+    };
+
+    const handleFullscreenWheel = (event: WheelEvent) => {
+      event.preventDefault();
+      zoomMermaidFullscreen(event.deltaY < 0 ? mermaidFullscreenZoomStep : -mermaidFullscreenZoomStep);
+    };
+
+    const startFullscreenDrag = (event: MouseEvent) => {
+      if (event.button !== 0) {
+        return;
+      }
+      event.preventDefault();
+      fullscreenDrag.value = { active: true, lastX: event.clientX, lastY: event.clientY };
+      fullscreenDragging.value = true;
+    };
+
+    const moveFullscreenDrag = (event: MouseEvent) => {
+      const drag = fullscreenDrag.value;
+      if (!drag.active) {
+        return;
+      }
+      const deltaX = event.clientX - drag.lastX;
+      const deltaY = event.clientY - drag.lastY;
+      fullscreenDrag.value = { active: true, lastX: event.clientX, lastY: event.clientY };
+      fullscreenViewer.value = moveMermaidFullscreenViewer(fullscreenViewer.value, deltaX, deltaY);
+    };
+
+    const stopFullscreenDrag = () => {
+      fullscreenDrag.value = { active: false, lastX: 0, lastY: 0 };
+      fullscreenDragging.value = false;
+    };
+
+    watch(
+      () => props.readOnly,
+      (readOnly) => {
+        if (readOnly) {
+          languageMenuOpen.value = false;
+          languageQuery.value = "";
+        }
+      },
+    );
+
+    watch(codeBlockKey, () => {
+      setCopyFeedbackSnapshot(null);
+      languageMenuOpen.value = false;
+      languageQuery.value = "";
+      fullscreenViewer.value = null;
+      fullscreenTooltip.value = null;
+      fullscreenDragging.value = false;
+    });
+
+    watch(languageMenuOpen, async (open) => {
+      if (!open) {
+        return;
+      }
+      await nextTick();
+      searchInputRef.value?.focus();
+      updatePosition();
+    });
+
+    watch(
+      () => [showTargetControls.value, collapseRevision.value, codeBlock.value?.pos ?? null, languageMenuOpen.value, visibleMermaidMode.value] as const,
+      async () => {
+        await nextTick();
+        updatePosition();
+      },
+      { flush: "post", immediate: true },
+    );
+
+    watch(
+      mermaidTargetKey,
+      async () => {
+        await nextTick();
+        updateMermaidTabPositions();
+        window.requestAnimationFrame(updateMermaidTabPositions);
+      },
+      { flush: "post", immediate: true },
+    );
+
+    let cleanupCodeBlockListeners: (() => void) | null = null;
 
     onMounted(() => {
-      frameElement = props.editor.view.dom.closest<HTMLElement>(".markweave-editor-frame");
-      hoverEventNames.forEach((eventName) => frameElement?.addEventListener(eventName, updateHoveredCodeBlock));
+      void nextTick(() => {
+        const frameElement = props.editor.view.dom.closest<HTMLElement>(".markweave-editor-frame");
+        const updateHoveredCodeBlock = (event: MouseEvent) => {
+          if (event.target instanceof Node && controlsRef.value?.contains(event.target)) {
+            return;
+          }
+          if (languageMenuOpen.value) {
+            return;
+          }
+          const nextPos = getCodeBlockPositionFromEventTarget(props.editor, event.target);
+          const nextState = getCodeBlockStateAtPosition(props.editor, nextPos);
+          const nextHoverPos = nextState && !isCodeBlockTargetCollapsed(props.editor, nextState) ? nextState.pos : null;
+          hoveredCodeBlockPos.value = hoveredCodeBlockPos.value === nextHoverPos ? hoveredCodeBlockPos.value : nextHoverPos;
+        };
+        const clearHoveredCodeBlock = () => {
+          if (!languageMenuOpen.value) {
+            hoveredCodeBlockPos.value = null;
+          }
+        };
+        const onDocumentKeydown = (event: KeyboardEvent) => {
+          if (event.key !== "Escape") {
+            return;
+          }
+          if (fullscreenViewer.value) {
+            closeFullscreenViewer();
+            return;
+          }
+          if (languageMenuOpen.value) {
+            languageMenuOpen.value = false;
+            props.editor.view.focus();
+          }
+        };
+        const onDocumentMousedown = (event: MouseEvent) => {
+          if (!languageMenuOpen.value) {
+            return;
+          }
+          if (event.target instanceof Node && controlsRef.value?.contains(event.target)) {
+            return;
+          }
+          languageMenuOpen.value = false;
+        };
+        const onTransaction = ({ transaction }: { readonly transaction: Transaction }) => {
+          if (transaction.getMeta(codeBlockCollapsePluginKey)) {
+            collapseRevision.value += 1;
+          }
+          if (transaction.docChanged || transaction.selectionSet || transaction.getMeta(codeBlockCollapsePluginKey) || isMermaidInlinePreviewTransaction(transaction)) {
+            controlsRevision.value += 1;
+          }
+        };
+
+        frameElement?.addEventListener("mousemove", updateHoveredCodeBlock);
+        frameElement?.addEventListener("mouseleave", clearHoveredCodeBlock);
+        window.addEventListener("resize", updatePosition);
+        window.addEventListener("scroll", updatePosition, true);
+        window.addEventListener("resize", updateMermaidTabPositions);
+        window.addEventListener("scroll", updateMermaidTabPositions, true);
+        document.addEventListener("keydown", onDocumentKeydown);
+        document.addEventListener("mousedown", onDocumentMousedown);
+        props.editor.on("transaction", onTransaction);
+
+        cleanupCodeBlockListeners = () => {
+          frameElement?.removeEventListener("mousemove", updateHoveredCodeBlock);
+          frameElement?.removeEventListener("mouseleave", clearHoveredCodeBlock);
+          window.removeEventListener("resize", updatePosition);
+          window.removeEventListener("scroll", updatePosition, true);
+          window.removeEventListener("resize", updateMermaidTabPositions);
+          window.removeEventListener("scroll", updateMermaidTabPositions, true);
+          document.removeEventListener("keydown", onDocumentKeydown);
+          document.removeEventListener("mousedown", onDocumentMousedown);
+          props.editor.off("transaction", onTransaction);
+          clearCopyFeedbackTimeout();
+        };
+      });
     });
 
     onBeforeUnmount(() => {
-      hoverEventNames.forEach((eventName) => frameElement?.removeEventListener(eventName, updateHoveredCodeBlock));
-      frameElement = null;
+      cleanupCodeBlockListeners?.();
+      cleanupCodeBlockListeners = null;
+      clearCopyFeedbackTimeout();
     });
 
-    return () =>
-      visible.value
-        ? h("div", { class: "markweave-codeblock-controls", "data-testid": "markweave-codeblock-controls", "data-positioned": "false", "data-readonly": props.readOnly ? "true" : "false" }, [
-            h("button", { type: "button", class: "markweave-codeblock-language-button", disabled: props.readOnly, title: displayedState.value.language, "data-testid": "markweave-codeblock-language" }, displayedState.value.language),
-            displayedState.value.language === "mermaid"
-              ? h(
+    return () => {
+      if (!showTargetControls.value && mermaidTargets.value.length === 0 && !fullscreenViewer.value) {
+        return null;
+      }
+
+      const controlStyle = position.value
+        ? {
+            top: `${position.value.top}px`,
+            right: `${position.value.right}px`,
+          }
+        : undefined;
+
+      const languageMenuStyle = languageMenuPosition.value
+        ? {
+            left: `${languageMenuPosition.value.left}px`,
+            top: `${languageMenuPosition.value.top}px`,
+          }
+        : undefined;
+
+      return h("div", { ref: controlsRef, class: "markweave-codeblock-overlay", "data-testid": "markweave-codeblock-overlay", "data-read-only": props.readOnly ? "true" : "false" }, [
+        ...mermaidTargets.value.map((target) => {
+          const tabPosition = mermaidTabPositions.value.find((candidate) => candidate.pos === target.pos);
+          return h(
+            "div",
+            {
+              key: target.pos,
+              class: "markweave-mermaid-tabs",
+              "data-testid": "markweave-mermaid-tabs",
+              "data-code-block-pos": target.pos,
+              "data-positioned": tabPosition ? "true" : "false",
+              style: tabPosition ? { top: `${tabPosition.top}px`, left: `${tabPosition.left}px` } : undefined,
+            },
+            (["code", "preview"] as const).map((mode) =>
+              h(
+                "button",
+                {
+                  key: mode,
+                  type: "button",
+                  "data-testid": `markweave-mermaid-mode-${mode}`,
+                  "data-active": target.mermaidPreviewMode === mode ? "true" : "false",
+                  onMousedown: preventVuePointerFocusLoss,
+                  onClick: () => setMermaidModeForTarget(target, mode),
+                },
+                mode === "code" ? "Code" : "Preview",
+              ),
+            ),
+          );
+        }),
+        showTargetControls.value && codeBlock.value
+          ? h(
+              "div",
+              {
+                class: "markweave-codeblock-controls",
+                "data-testid": "markweave-codeblock-controls",
+                "data-positioned": position.value ? "true" : "false",
+                "data-collapsed": collapsed.value ? "true" : "false",
+                "data-read-only": props.readOnly ? "true" : "false",
+                "aria-label": "Code block controls",
+                style: controlStyle,
+              },
+              [
+                props.readOnly
+                  ? h("span", { class: "markweave-codeblock-language-button markweave-codeblock-language-label", "aria-label": "Code block language", "data-testid": "markweave-codeblock-language" }, [
+                      h("span", null, currentLanguageLabel.value),
+                    ])
+                  : h(
+                      "button",
+                      {
+                        ref: languageButtonRef,
+                        type: "button",
+                        class: "markweave-codeblock-language-button",
+                        "aria-label": "Code block language",
+                        "aria-expanded": languageMenuOpen.value ? "true" : "false",
+                        "aria-haspopup": "listbox",
+                        "data-testid": "markweave-codeblock-language",
+                        onMousedown: preventVuePointerFocusLoss,
+                        onClick: () => {
+                          languageMenuOpen.value = !languageMenuOpen.value;
+                        },
+                      },
+                      [h("span", null, currentLanguageLabel.value), createCodeBlockIcon("chevron")],
+                    ),
+                showWritableControls.value
+                  ? h(
+                      "button",
+                      {
+                        type: "button",
+                        class: "markweave-codeblock-icon-button markweave-codeblock-collapse-button",
+                        "aria-label": collapsed.value ? "Expand code block" : "Collapse code block",
+                        title: collapsed.value ? "Expand code block" : "Collapse code block",
+                        "data-testid": "markweave-codeblock-collapse",
+                        "data-collapsed": collapsed.value ? "true" : "false",
+                        onMousedown: preventVuePointerFocusLoss,
+                        onClick: toggleCollapse,
+                      },
+                      [createCodeBlockIcon("chevron")],
+                    )
+                  : null,
+                h("span", { class: "markweave-codeblock-copy-wrap" }, [
+                  h(
+                    "button",
+                    {
+                      type: "button",
+                      class: "markweave-codeblock-icon-button",
+                      "aria-label": "Copy to clipboard",
+                      "data-testid": "markweave-codeblock-copy",
+                      "data-copy-state": copyState.value,
+                      onMousedown: preventVuePointerFocusLoss,
+                      onMouseenter: () => {
+                        copyTooltipVisible.value = true;
+                      },
+                      onMouseleave: () => {
+                        copyTooltipVisible.value = false;
+                      },
+                      onFocus: () => {
+                        copyTooltipVisible.value = true;
+                      },
+                      onBlur: () => {
+                        copyTooltipVisible.value = false;
+                      },
+                      onClick: () => {
+                        void copyCode();
+                      },
+                    },
+                    [createCodeBlockIcon(copyState.value === "copied" ? "check" : "clipboard")],
+                  ),
+                  copyTooltipVisible.value ? h("span", { class: "markweave-codeblock-tooltip", role: "tooltip", "data-testid": "markweave-codeblock-copy-tooltip" }, "Copy to clipboard") : null,
+                ]),
+                isMermaid.value && visibleMermaidMode.value === "preview"
+                  ? h("div", { class: "markweave-mermaid-preview-actions", "data-testid": "markweave-mermaid-preview-actions" }, [
+                      h(
+                        "button",
+                        {
+                          type: "button",
+                          class: "markweave-codeblock-icon-button",
+                          "aria-label": "Fullscreen Mermaid preview",
+                          "data-testid": "markweave-mermaid-fullscreen",
+                          disabled: !svgAvailable.value,
+                          onMousedown: preventVuePointerFocusLoss,
+                          onClick: openMermaidFullscreen,
+                        },
+                        [createCodeBlockIcon("expand")],
+                      ),
+                      h(
+                        "button",
+                        {
+                          type: "button",
+                          class: "markweave-codeblock-icon-button",
+                          "aria-label": "Download Mermaid SVG",
+                          "data-testid": "markweave-mermaid-download",
+                          disabled: !svgAvailable.value,
+                          onMousedown: preventVuePointerFocusLoss,
+                          onClick: downloadMermaidSvg,
+                        },
+                        [createCodeBlockIcon("download")],
+                      ),
+                    ])
+                  : null,
+              ],
+            )
+          : null,
+        showWritableControls.value && showTargetControls.value && languageMenuOpen.value && codeBlock.value
+          ? h(
+              "div",
+              {
+                class: "markweave-codeblock-language-menu",
+                role: "listbox",
+                "aria-label": "Code block languages",
+                "data-testid": "markweave-codeblock-language-menu",
+                "data-positioned": languageMenuPosition.value ? "true" : "false",
+                style: languageMenuStyle,
+              },
+              [
+                h("label", { class: "markweave-codeblock-language-search" }, [
+                  h("input", {
+                    ref: searchInputRef,
+                    value: languageQuery.value,
+                    placeholder: "Search...",
+                    "data-testid": "markweave-codeblock-language-search",
+                    onInput: (event: Event) => {
+                      languageQuery.value = (event.target as HTMLInputElement).value;
+                    },
+                    onKeydown: (event: KeyboardEvent) => {
+                      if (event.key === "Escape") {
+                        event.preventDefault();
+                        languageMenuOpen.value = false;
+                        props.editor.view.focus();
+                      }
+                    },
+                  }),
+                  createCodeBlockIcon("search"),
+                ]),
+                h(
+                  "div",
+                  { class: "markweave-codeblock-language-list" },
+                  languageItems.value.map((item) => {
+                    const selected = codeBlock.value?.language === item.language;
+                    return h(
+                      "button",
+                      {
+                        key: item.language,
+                        type: "button",
+                        role: "option",
+                        "aria-selected": selected ? "true" : "false",
+                        "data-testid": `markweave-codeblock-language-option-${item.language}`,
+                        "data-active": selected ? "true" : "false",
+                        onMousedown: preventVuePointerFocusLoss,
+                        onClick: () => selectLanguage(item.language),
+                      },
+                      [h("span", null, item.label), selected ? createCodeBlockIcon("check") : null],
+                    );
+                  }),
+                ),
+              ],
+            )
+          : null,
+        fullscreenViewer.value
+          ? h("div", { class: "markweave-mermaid-fullscreen-layer", role: "dialog", "aria-modal": "true", "aria-label": "Mermaid preview", "data-testid": "markweave-mermaid-fullscreen-layer" }, [
+              h("div", { class: "markweave-mermaid-fullscreen-toolbar", "data-testid": "markweave-mermaid-fullscreen-toolbar" }, [
+                h(
                   "button",
                   {
                     type: "button",
-                    class: "markweave-codeblock-preview-button",
-                    "data-testid": "markweave-codeblock-mermaid-preview",
-                    onClick: () => {
-                      const nextMode = displayedState.value.mermaidPreviewMode === "preview" ? "code" : "preview";
-                      if (props.readOnly && displayedState.value.pos !== null) {
-                        setReadonlyMermaidPreviewMode(props.editor, displayedState.value.pos, nextMode);
-                        hoveredCodeBlockState.value = getCodeBlockStateAtPosition(props.editor, displayedState.value.pos);
-                        return;
-                      }
-                      setActiveCodeBlockMermaidPreviewMode(props.editor, nextMode);
+                    class: "markweave-mermaid-fullscreen-control",
+                    "aria-label": "Zoom out",
+                    "data-testid": "markweave-mermaid-fullscreen-zoom-out",
+                    onMouseenter: () => {
+                      fullscreenTooltip.value = "zoom-out";
                     },
+                    onMouseleave: () => {
+                      fullscreenTooltip.value = null;
+                    },
+                    onFocus: () => {
+                      fullscreenTooltip.value = "zoom-out";
+                    },
+                    onBlur: () => {
+                      fullscreenTooltip.value = null;
+                    },
+                    onClick: () => zoomMermaidFullscreen(-mermaidFullscreenZoomStep),
                   },
-                  displayedState.value.mermaidPreviewMode === "preview" ? "Code" : "Preview",
-                )
-              : null,
-            h("button", { type: "button", class: "markweave-codeblock-copy-button", "data-testid": "markweave-codeblock-copy", onClick: () => (props.readOnly ? copyDisplayedCodeBlock() : copyActiveCodeBlock(props.editor)) }, "Copy"),
-            displayedState.value.language === "mermaid" ? h("button", { type: "button", class: "markweave-codeblock-download-button", "data-testid": "markweave-codeblock-download" }, [createIcon(Download, "Download")]) : null,
-          ])
-        : null;
+                  [createCodeBlockIcon("zoomOut")],
+                ),
+                h("span", { class: "markweave-mermaid-fullscreen-zoom-label", "data-testid": "markweave-mermaid-fullscreen-zoom-label" }, formatFullscreenZoom(fullscreenViewer.value.scale)),
+                h(
+                  "button",
+                  {
+                    type: "button",
+                    class: "markweave-mermaid-fullscreen-control",
+                    "aria-label": "Zoom in",
+                    "data-testid": "markweave-mermaid-fullscreen-zoom-in",
+                    onMouseenter: () => {
+                      fullscreenTooltip.value = "zoom-in";
+                    },
+                    onMouseleave: () => {
+                      fullscreenTooltip.value = null;
+                    },
+                    onFocus: () => {
+                      fullscreenTooltip.value = "zoom-in";
+                    },
+                    onBlur: () => {
+                      fullscreenTooltip.value = null;
+                    },
+                    onClick: () => zoomMermaidFullscreen(mermaidFullscreenZoomStep),
+                  },
+                  [createCodeBlockIcon("zoomIn")],
+                ),
+                h(
+                  "button",
+                  {
+                    type: "button",
+                    class: "markweave-mermaid-fullscreen-control",
+                    "aria-label": "Reset zoom",
+                    "data-testid": "markweave-mermaid-fullscreen-reset",
+                    onMouseenter: () => {
+                      fullscreenTooltip.value = "reset";
+                    },
+                    onMouseleave: () => {
+                      fullscreenTooltip.value = null;
+                    },
+                    onFocus: () => {
+                      fullscreenTooltip.value = "reset";
+                    },
+                    onBlur: () => {
+                      fullscreenTooltip.value = null;
+                    },
+                    onClick: resetMermaidFullscreen,
+                  },
+                  [createCodeBlockIcon("reset")],
+                ),
+                fullscreenTooltip.value
+                  ? h("span", { class: "markweave-mermaid-fullscreen-tooltip", role: "tooltip", "data-testid": "markweave-mermaid-fullscreen-tooltip" }, fullscreenTooltip.value === "zoom-out" ? "Zoom out" : fullscreenTooltip.value === "zoom-in" ? "Zoom in" : "Reset")
+                  : null,
+              ]),
+              h(
+                "button",
+                {
+                  type: "button",
+                  class: "markweave-mermaid-fullscreen-close",
+                  "aria-label": "Close fullscreen Mermaid preview",
+                  "data-testid": "markweave-mermaid-fullscreen-close",
+                  onClick: closeFullscreenViewer,
+                },
+                [createCodeBlockIcon("close")],
+              ),
+              h("div", {
+                class: "markweave-mermaid-fullscreen-viewport",
+                "data-testid": "markweave-mermaid-fullscreen-viewport",
+                "data-dragging": fullscreenDragging.value ? "true" : "false",
+                onWheel: handleFullscreenWheel,
+                onMousedown: startFullscreenDrag,
+                onMousemove: moveFullscreenDrag,
+                onMouseup: stopFullscreenDrag,
+                onMouseleave: stopFullscreenDrag,
+              }, [
+                h("div", {
+                  class: "markweave-mermaid-fullscreen-content",
+                  "data-testid": "markweave-mermaid-fullscreen-content",
+                  "data-scale-percent": Math.round(fullscreenViewer.value.scale * 100),
+                  "data-translate": `${Math.round(fullscreenViewer.value.translateX)},${Math.round(fullscreenViewer.value.translateY)}`,
+                  style: {
+                    width: `${fullscreenViewer.value.width}px`,
+                    height: `${fullscreenViewer.value.height}px`,
+                    transform: `translate(${fullscreenViewer.value.translateX}px, ${fullscreenViewer.value.translateY}px) scale(${fullscreenViewer.value.scale})`,
+                  },
+                  innerHTML: fullscreenViewer.value.svg,
+                }),
+              ]),
+            ])
+          : null,
+      ]);
+    };
   },
 });
 
@@ -1561,6 +2302,8 @@ export function useMarkweaveEditorController(options: MarkweaveVue3EditorControl
     },
     onSelectionUpdate: ({ editor }) => syncSelectionState(editor),
     onCreate: ({ editor }) => {
+      setMarkweaveEditorModeState(editor, { mode: editorMode.value, editable: effectiveEditable.value });
+      setMermaidInlinePreviewEditorMode(editor, effectiveEditable.value ? "live" : "view");
       if (options.autoFocusFirstTableBodyCell && effectiveEditable.value) {
         focusFirstTableBodyCell(editor);
       }
@@ -1800,6 +2543,10 @@ export function useMarkweaveEditorController(options: MarkweaveVue3EditorControl
       tableInteractionState,
       codeBlockState,
       isCodeBlockActive,
+      mermaidMode,
+      setMermaidMode: (mode: MermaidPreviewMode) => {
+        mermaidMode.value = mode;
+      },
       tocState,
       filteredSlashCommands,
       slashState,
@@ -1888,7 +2635,14 @@ export const MarkweaveEditor = defineComponent({
               })
             : null,
           render.effectiveEditable.value ? h(VueTableSelectionOverlay, { editor, focusState: render.tableFocusState.value }) : null,
-          h(VueCodeBlockControls, { editor, state: render.codeBlockState.value, active: render.effectiveEditable.value && render.isCodeBlockActive.value, readOnly: !render.effectiveEditable.value }),
+          h(VueCodeBlockControls, {
+            editor,
+            state: render.codeBlockState.value,
+            active: render.effectiveEditable.value && render.isCodeBlockActive.value,
+            mermaidMode: render.mermaidMode.value,
+            onMermaidModeChange: render.setMermaidMode,
+            readOnly: !render.effectiveEditable.value,
+          }),
           props.innerToc && render.tocState.value.items.length
             ? h(VueInnerToc, { editor, state: render.tocState.value, messages: render.messages, editable: render.effectiveEditable.value })
             : null,
