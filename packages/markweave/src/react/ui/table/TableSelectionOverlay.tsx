@@ -1,8 +1,8 @@
 import type { Editor } from "@tiptap/react";
 import { findCell } from "@tiptap/pm/tables";
 import { useLayoutEffect, useState, type CSSProperties } from "react";
-import { getTableSelectionOverlayState, type TableSelectionOverlayState } from "../../plugins/table/table-interaction-layer";
-import type { TableFocusState } from "../../plugins/table/table-focus-state";
+import { getTableSelectionOverlayState, type TableSelectionOverlayState } from "../../../plugins/table/table-interaction-layer";
+import type { TableFocusState } from "../../../plugins/table/table-focus-state";
 
 interface TableSelectionOverlayProps {
   readonly editor: Editor;

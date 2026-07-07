@@ -1,6 +1,6 @@
 import type { Editor } from "@tiptap/core";
-import type { MarkweaveMessages } from "../../i18n";
-import { scrollToMarkweaveTocItem, type MarkweaveTocItem, type MarkweaveTocState } from "../../core/toc-state";
+import type { MarkweaveMessages } from "../../../i18n";
+import { scrollToMarkweaveTocItem, type MarkweaveTocItem, type MarkweaveTocState } from "../../../core/toc-state";
 
 export interface MarkweaveInnerTocProps {
   readonly editor: Editor;

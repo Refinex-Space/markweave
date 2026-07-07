@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { getMermaidPreviewPresentation, renderMermaidDiagram, type MermaidPreviewMode, type MermaidRenderResult } from "../../plugins/mermaid/mermaid-renderer";
+import { getMermaidPreviewPresentation, renderMermaidDiagram, type MermaidPreviewMode, type MermaidRenderResult } from "../../../plugins/mermaid/mermaid-renderer";
 
 interface MermaidPreviewProps {
   readonly active: boolean;

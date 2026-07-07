@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { act, createElement, type ReactNode } from "react";
@@ -19,6 +19,21 @@ import {
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const readProjectFile = (path: string) => readFileSync(resolve(repoRoot, path), "utf8");
+
+function listProjectFiles(path: string): string[] {
+  const absolutePath = resolve(repoRoot, path);
+  return readdirSync(absolutePath).flatMap((entry) => {
+    const relativePath = `${path}/${entry}`;
+    const entryPath = resolve(repoRoot, relativePath);
+    const stat = statSync(entryPath);
+
+    if (stat.isDirectory()) {
+      return listProjectFiles(relativePath);
+    }
+
+    return relativePath;
+  });
+}
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -98,6 +113,38 @@ describe("editor entrypoint boundary", () => {
     expect(existsSync(resolve(repoRoot, "src/playground"))).toBe(false);
     expect(packageJson.files).toEqual(["dist", "README.md", "LICENSE"]);
     expect(existsSync(resolve(repoRoot, "src/editor-core/initial-document.ts"))).toBe(false);
+  });
+
+  it("keeps TSX scoped to the React adapter", () => {
+    const tsxFiles = listProjectFiles("src").filter((path) => path.endsWith(".tsx"));
+
+    expect(tsxFiles.length).toBeGreaterThan(0);
+    expect(tsxFiles.every((path) => path.startsWith("src/react/"))).toBe(true);
+  });
+
+  it("keeps core, editor-core, and plugin layers framework-neutral", () => {
+    const forbiddenImports = [
+      "from \"react\"",
+      "from \"@tiptap/react\"",
+      "from \"@tiptap/react/menus\"",
+      "from \"lucide-react\"",
+      "from \"vue\"",
+      "from \"@tiptap/vue-3\"",
+      "from \"@tiptap/vue-3/menus\"",
+      "from \"lucide-vue-next\"",
+    ];
+    const scannedFiles = [
+      "src/index.ts",
+      ...listProjectFiles("src/core"),
+      ...listProjectFiles("src/editor-core"),
+      ...listProjectFiles("src/plugins"),
+    ].filter((path) => /\.(ts|tsx)$/.test(path));
+    const violations = scannedFiles.flatMap((path) => {
+      const source = readProjectFile(path);
+      return forbiddenImports.filter((importText) => source.includes(importText)).map((importText) => `${path}: ${importText}`);
+    });
+
+    expect(violations).toEqual([]);
   });
 
   it("renders the complete editor frame through the public component", async () => {

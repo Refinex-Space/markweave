@@ -8,10 +8,10 @@ import {
   type MarkweaveUploadRequest,
   type MarkweaveUploadResult,
   type MarkweaveUploadSource,
-} from "../slash-command/upload";
+} from "../../plugins/slash-command/upload";
 import { getMarkweaveMessages, type MarkweaveMessages } from "../../i18n";
 import { isMarkweaveEditorLiveEditable } from "../../core/editor-mode-state";
-import { useMarkweaveEditorModeState } from "../../react/editor-mode-state";
+import { useMarkweaveEditorModeState } from "../editor-mode-state";
 
 export type MarkweaveVideoProvider = "youtube" | "bilibili";
 

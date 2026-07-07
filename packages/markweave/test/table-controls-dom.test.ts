@@ -7,7 +7,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { createMarkweaveEditorExtensions } from "../src/editor-core/create-editor-extensions";
 import { getMarkweaveMessages, type MarkweaveMessages } from "../src/i18n";
 import { getTableFocusState } from "../src/plugins/table/table-focus-state";
-import { TableControls } from "../src/ui/table/TableControls";
+import { TableControls } from "../src/react/ui/table/TableControls";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 

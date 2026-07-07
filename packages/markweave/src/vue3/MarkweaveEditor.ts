@@ -3,22 +3,47 @@ import type { Editor as CoreEditor } from "@tiptap/core";
 import { BubbleMenu } from "@tiptap/vue-3/menus";
 import { EditorContent, useEditor, type Editor as VueEditor } from "@tiptap/vue-3";
 import {
+  AlignJustify,
   AlignCenter,
   AlignLeft,
   AlignRight,
   Bold,
+  Braces,
+  Captions,
+  CheckCircle2,
+  ChevronDown,
+  ChevronUp,
   Code2,
+  CornerDownLeft,
+  Download,
   Eye,
+  ExternalLink,
+  Heading1,
+  Heading2,
+  Heading3,
+  Image as ImageIcon,
+  IndentDecrease,
+  IndentIncrease,
   Italic,
   Link2,
   List,
+  ListChecks,
   ListOrdered,
   MoreVertical,
+  Paperclip,
   PencilLine,
+  Quote,
+  Sigma,
+  SmilePlus,
+  Sparkles,
   Strikethrough,
+  Subscript,
+  Superscript,
   Table2,
   Trash2,
+  Type as TypeIcon,
   Underline,
+  Video as VideoIcon,
   type LucideIcon,
 } from "lucide-vue-next";
 import {
@@ -58,11 +83,23 @@ import {
   type MarkweaveTocState,
 } from "../core/toc-state";
 import { getLocalizedSlashCommandSpecs, getMarkweaveMessages, normalizeMarkweaveLang, type MarkweaveLang, type MarkweaveMessages } from "../i18n";
-import { getActiveCodeBlockState, markweaveCodeBlockBehavior, type MarkweaveCodeBlockState } from "../plugins/codeblock/codeblock-behavior";
+import {
+  copyActiveCodeBlock,
+  getActiveCodeBlockState,
+  markweaveCodeBlockBehavior,
+  normalizeCodeBlockLanguage,
+  setActiveCodeBlockMermaidPreviewMode,
+  type MarkweaveCodeBlockState,
+} from "../plugins/codeblock/codeblock-behavior";
 import { normalizeMarkdownLinkHref } from "../plugins/markdown/markdown-input";
-import { isMermaidInlinePreviewTransaction, setMermaidInlinePreviewEditorMode } from "../plugins/mermaid/mermaid-inline-preview";
+import {
+  getEffectiveMermaidPreviewMode,
+  isMermaidInlinePreviewTransaction,
+  setMermaidInlinePreviewEditorMode,
+  setReadonlyMermaidPreviewMode,
+} from "../plugins/mermaid/mermaid-inline-preview";
 import { getMermaidPreviewState, type MermaidPreviewMode } from "../plugins/mermaid/mermaid-renderer";
-import { filterSlashCommands, isExecutableSlashCommand, type SlashCommandSpec } from "../plugins/slash-command/command-spec";
+import { filterSlashCommands, isExecutableSlashCommand, type SlashCommandIconName, type SlashCommandSpec } from "../plugins/slash-command/command-spec";
 import { getSlashCommandKeyboardAction } from "../plugins/slash-command/slash-keyboard";
 import {
   executeSlashCommand,
@@ -73,8 +110,17 @@ import {
   type SlashCommandMenuPosition,
 } from "../plugins/slash-command/slash-runtime";
 import { initialSlashCommandState, reduceSlashCommandState, type SlashCommandState } from "../plugins/slash-command/slash-state";
-import { getDirectUploadResult, type MarkweaveSlashCommandUploadHandler } from "../plugins/slash-command/upload";
-import type { MarkweaveMenuCopyPayload } from "../plugins/table/table-clipboard";
+import {
+  detectUploadSource,
+  getDirectUploadResult,
+  resolveMarkweaveUploadResult,
+  type MarkweaveSlashCommandUploadHandler,
+  type MarkweaveUploadRequest,
+  type MarkweaveUploadResult,
+} from "../plugins/slash-command/upload";
+import { getMarkweaveMenuCopyPayloadFromState, type MarkweaveMenuCopyPayload } from "../plugins/table/table-clipboard";
+import { runMarkweaveTableCommand } from "../plugins/table/table-command-runtime";
+import { tableCommandSpecs, type TableCommandId, type TableCommandMenuKind } from "../plugins/table/table-command-spec";
 import { getFirstTableDebugSnapshot } from "../plugins/table/table-debug-snapshot";
 import { focusFirstTableBodyCell } from "../plugins/table/table-focus-position";
 import { getTableFocusState, type TableFocusState } from "../plugins/table/table-focus-state";
@@ -234,23 +280,191 @@ function getNearestScrollableAncestor(element: HTMLElement | null): HTMLElement 
   return null;
 }
 
-function createIcon(iconComponent: Component, label: string, size = 18) {
-  return h(iconComponent, { size, strokeWidth: 1.8, "aria-hidden": "true" }, { default: () => label });
+function createIcon(iconComponent: Component, label: string, size = 18, strokeWidth = 1.8) {
+  return h(iconComponent, { size, strokeWidth, "aria-hidden": "true" }, { default: () => label });
 }
 
-function toolbarButton(label: string, iconComponent: LucideIcon, onClick: () => void, active = false) {
-  return h(
-    "button",
-    {
-      type: "button",
-      "aria-label": label,
-      title: label,
-      "data-active": active ? "true" : "false",
-      onMousedown: (event: MouseEvent) => event.preventDefault(),
-      onClick,
-    },
-    [createIcon(iconComponent, label)],
-  );
+function preventVuePointerFocusLoss(event: Event) {
+  event.preventDefault();
+}
+
+function maybeOpenLinkHref(href: string) {
+  const normalized = normalizeMarkdownLinkHref(href);
+  if (!normalized || typeof window === "undefined" || typeof window.open !== "function") {
+    return false;
+  }
+
+  window.open(normalized, "_blank", "noopener,noreferrer");
+  return true;
+}
+
+const toolbarIconMap: Record<string, Component> = {
+  improve: Sparkles,
+  bold: Bold,
+  italic: Italic,
+  underline: Underline,
+  strike: Strikethrough,
+  "inline-code": Code2,
+  link: Link2,
+  more: MoreVertical,
+  superscript: Superscript,
+  subscript: Subscript,
+  "inline-math": Sigma,
+  "align-left": AlignLeft,
+  "align-center": AlignCenter,
+  "align-right": AlignRight,
+  "align-justify": AlignJustify,
+  "decrease-indent": IndentDecrease,
+  "increase-indent": IndentIncrease,
+};
+
+const slashIconMap: Record<SlashCommandIconName, Component> = {
+  type: TypeIcon,
+  "heading-1": Heading1,
+  "heading-2": Heading2,
+  "heading-3": Heading3,
+  "bullet-list": List,
+  "ordered-list": ListOrdered,
+  "task-list": ListChecks,
+  blockquote: Quote,
+  "code-block": Braces,
+  info: Eye,
+  tip: Sparkles,
+  warning: MoreVertical,
+  error: Trash2,
+  success: CheckCircle2,
+  emoji: SmilePlus,
+  table: Table2,
+  separator: MoreVertical,
+  image: ImageIcon,
+  video: VideoIcon,
+  attachment: Paperclip,
+};
+
+type VueColorOption = readonly [id: string, value: string | null, label: string];
+
+function currentBlockType(editor: CoreEditor, messages: MarkweaveMessages) {
+  if (editor.isActive("heading", { level: 1 })) {
+    return messages.floatingToolbar.blockTypes["heading-1"];
+  }
+  if (editor.isActive("heading", { level: 2 })) {
+    return messages.floatingToolbar.blockTypes["heading-2"];
+  }
+  if (editor.isActive("heading", { level: 3 })) {
+    return messages.floatingToolbar.blockTypes["heading-3"];
+  }
+  return messages.floatingToolbar.blockTypes.paragraph;
+}
+
+function setBlockType(editor: CoreEditor, id: string) {
+  if (id === "paragraph") {
+    return editor.chain().focus().setParagraph().run();
+  }
+  if (id === "heading-1" || id === "heading-2" || id === "heading-3") {
+    return editor.chain().focus().setHeading({ level: Number(id.at(-1)) as 1 | 2 | 3 }).run();
+  }
+  if (id === "bullet-list") {
+    return editor.chain().focus().toggleBulletList().run();
+  }
+  if (id === "numbered-list") {
+    return editor.chain().focus().toggleOrderedList().run();
+  }
+  if (id === "todo-list") {
+    return editor.chain().focus().toggleTaskList().run();
+  }
+  if (id === "quote") {
+    return editor.chain().focus().toggleBlockquote().run();
+  }
+  if (id === "code-block") {
+    return editor.chain().focus().setCodeBlock({ language: "text" }).run();
+  }
+  return false;
+}
+
+function runToolbarMoreAction(editor: CoreEditor, id: string) {
+  if (id === "superscript") {
+    return editor.chain().focus().toggleSuperscript().run();
+  }
+  if (id === "subscript") {
+    return editor.chain().focus().toggleSubscript().run();
+  }
+  if (id === "inline-math") {
+    return editor.chain().focus().insertContent({ type: "inlineMath", attrs: { latex: "x" } }).run();
+  }
+  if (id === "align-left" || id === "align-center" || id === "align-right" || id === "align-justify") {
+    return editor.chain().focus().setTextAlign(id.replace("align-", "")).run();
+  }
+  if (id === "decrease-indent") {
+    editor.commands.focus();
+    return (editor.commands as unknown as { decreaseIndent?: () => boolean }).decreaseIndent?.() ?? false;
+  }
+  if (id === "increase-indent") {
+    editor.commands.focus();
+    return (editor.commands as unknown as { increaseIndent?: () => boolean }).increaseIndent?.() ?? false;
+  }
+  return false;
+}
+
+function runTableCommand(editor: CoreEditor, commandId: TableCommandId) {
+  return runMarkweaveTableCommand(editor, commandId);
+}
+
+function tableMenuItems(kind: TableCommandMenuKind | "selection") {
+  if (kind === "row") {
+    return tableCommandSpecs.filter((command) => command.id.includes("row") || command.id === "copy-table" || command.id === "delete-table");
+  }
+  if (kind === "column") {
+    return tableCommandSpecs.filter((command) => command.id.includes("column") || command.id === "copy-table" || command.id === "delete-table");
+  }
+  return tableCommandSpecs.filter((command) => ["merge-cells", "split-cell", "copy-table", "delete-table"].includes(command.id));
+}
+
+function getCodeBlockStateAtPosition(editor: CoreEditor, pos: number | null): MarkweaveCodeBlockState | null {
+  if (pos === null) {
+    return null;
+  }
+
+  const node = editor.state.doc.nodeAt(pos);
+  if (node?.type.name !== "codeBlock") {
+    return null;
+  }
+
+  const language = normalizeCodeBlockLanguage(node.attrs.language);
+  return {
+    active: true,
+    language,
+    mermaidPreviewMode:
+      language === "mermaid" ? getEffectiveMermaidPreviewMode(editor.state, node, pos) : "code",
+    pos,
+    text: node.textContent,
+  };
+}
+
+function getCodeBlockPositionFromElement(editor: CoreEditor, element: Element) {
+  const previewElement = element.closest<HTMLElement>("[data-code-block-pos]");
+  if (previewElement) {
+    const pos = Number.parseInt(previewElement.dataset.codeBlockPos ?? "", 10);
+    return Number.isFinite(pos) ? pos : null;
+  }
+
+  const codeBlockElement = element.closest<HTMLElement>("pre.markweave-code-block");
+  if (!codeBlockElement) {
+    return null;
+  }
+
+  const positions: number[] = [];
+  editor.state.doc.descendants((node, pos) => {
+    if (node.type.name === "codeBlock") {
+      positions.push(pos);
+      return false;
+    }
+
+    return true;
+  });
+
+  const codeBlockElements = Array.from(editor.view.dom.querySelectorAll("pre.markweave-code-block"));
+  const index = codeBlockElements.indexOf(codeBlockElement);
+  return index >= 0 ? positions[index] ?? null : null;
 }
 
 const VueFloatingToolbar = defineComponent({
@@ -258,24 +472,251 @@ const VueFloatingToolbar = defineComponent({
   props: {
     editor: { type: Object as PropType<CoreEditor>, required: true },
     messages: { type: Object as PropType<MarkweaveMessages>, required: true },
+    onRewriteSelection: { type: Function as PropType<((request: FloatingToolbarAssistantRequest) => void) | undefined>, default: undefined },
   },
   setup(props) {
-    const linkOpen = ref(false);
+    const openMenu = ref<"block-type" | "link" | "color" | "more" | null>(null);
     const linkValue = ref("");
     const safeHref = computed(() => normalizeMarkdownLinkHref(linkValue.value.trim()));
+    const toolbarMessages = computed(() => props.messages.floatingToolbar);
+    const blockOptions = computed(() => [
+      ["paragraph", toolbarMessages.value.turnInto.paragraph, TypeIcon],
+      ["heading-1", toolbarMessages.value.turnInto["heading-1"], Heading1],
+      ["heading-2", toolbarMessages.value.turnInto["heading-2"], Heading2],
+      ["heading-3", toolbarMessages.value.turnInto["heading-3"], Heading3],
+      ["bullet-list", toolbarMessages.value.turnInto["bullet-list"], List],
+      ["numbered-list", toolbarMessages.value.turnInto["numbered-list"], ListOrdered],
+      ["todo-list", toolbarMessages.value.turnInto["todo-list"], ListChecks],
+      ["quote", toolbarMessages.value.turnInto.quote, Quote],
+      ["code-block", toolbarMessages.value.turnInto["code-block"], Braces],
+    ] as const);
+    const textColorOptions = computed(() => [
+      ["default", null, toolbarMessages.value.textColors.default],
+      ["gray", "#646970", toolbarMessages.value.textColors.gray],
+      ["brown", "#8a5a44", toolbarMessages.value.textColors.brown],
+      ["orange", "#c76f2b", toolbarMessages.value.textColors.orange],
+      ["yellow", "#9a7400", toolbarMessages.value.textColors.yellow],
+      ["green", "#2f7d4f", toolbarMessages.value.textColors.green],
+      ["blue", "#2f66d0", toolbarMessages.value.textColors.blue],
+      ["purple", "#7651d5", toolbarMessages.value.textColors.purple],
+      ["pink", "#bf4e85", toolbarMessages.value.textColors.pink],
+      ["red", "#c23b3b", toolbarMessages.value.textColors.red],
+    ] as const);
+    const highlightOptions = computed(() => [
+      ["default", null, toolbarMessages.value.highlightColors.default],
+      ["gray", "#eceff3", toolbarMessages.value.highlightColors.gray],
+      ["brown", "#f1e6df", toolbarMessages.value.highlightColors.brown],
+      ["orange", "#fde7d1", toolbarMessages.value.highlightColors.orange],
+      ["yellow", "#fff4bf", toolbarMessages.value.highlightColors.yellow],
+      ["green", "#dff4e8", toolbarMessages.value.highlightColors.green],
+      ["blue", "#ddeaff", toolbarMessages.value.highlightColors.blue],
+      ["purple", "#ebe4ff", toolbarMessages.value.highlightColors.purple],
+      ["pink", "#fde3ef", toolbarMessages.value.highlightColors.pink],
+      ["red", "#ffe0df", toolbarMessages.value.highlightColors.red],
+    ] as const);
+    const moreActions = computed(() => [
+      "superscript",
+      "subscript",
+      "inline-math",
+      "align-left",
+      "align-center",
+      "align-right",
+      "align-justify",
+      "decrease-indent",
+      "increase-indent",
+    ]);
 
     const applyLink = () => {
       if (!safeHref.value) {
         return;
       }
       props.editor.chain().focus().extendMarkRange("link").setLink({ href: safeHref.value }).run();
-      linkOpen.value = false;
+      openMenu.value = null;
     };
 
     const unsetLink = () => {
-      props.editor.chain().focus().extendMarkRange("link").unsetLink().run();
+      if (props.editor.isActive("link")) {
+        props.editor.chain().focus().extendMarkRange("link").unsetLink().run();
+      }
       linkValue.value = "";
-      linkOpen.value = false;
+      openMenu.value = null;
+    };
+
+    const toggleMenu = (menu: typeof openMenu.value) => {
+      openMenu.value = openMenu.value === menu ? null : menu;
+      if (menu === "link") {
+        linkValue.value = (props.editor.getAttributes("link").href as string | undefined) ?? "";
+      }
+    };
+
+    const toolbarButton = (id: string, label: string, iconComponent: Component, onClick: () => void, active = false, glyph?: string) =>
+      h(
+        "button",
+        {
+          type: "button",
+          class: `markweave-floating-toolbar-button markweave-floating-toolbar-button--${id}`,
+          "aria-label": label,
+          "aria-expanded": ["block-type", "link", "color", "more"].includes(id) ? openMenu.value === id : undefined,
+          "data-active": active || openMenu.value === id,
+          "data-testid": `markweave-floating-toolbar-button-${id}`,
+          onMousedown: preventVuePointerFocusLoss,
+          onClick,
+        },
+        id === "block-type"
+          ? [
+              h("span", { class: "markweave-floating-toolbar-button-inner" }, [
+                h("span", { class: "markweave-floating-toolbar-block-label" }, currentBlockType(props.editor, props.messages)),
+                createIcon(openMenu.value === "block-type" ? ChevronUp : ChevronDown, label),
+              ]),
+            ]
+          : id === "color"
+            ? [
+                h("span", { class: "markweave-floating-toolbar-button-inner markweave-floating-toolbar-button-inner--color" }, [
+                  h("span", { class: "markweave-floating-toolbar-color-trigger" }, "A"),
+                  createIcon(openMenu.value === "color" ? ChevronUp : ChevronDown, label),
+                ]),
+              ]
+            : id === "improve"
+              ? [h("span", { class: "markweave-floating-toolbar-button-inner" }, [createIcon(iconComponent, label), h("span", null, glyph ?? label)])]
+              : [createIcon(iconComponent, label)],
+      );
+
+    const divider = () => h("span", { class: "markweave-floating-toolbar-divider", "aria-hidden": "true" });
+
+    const colorSection = (title: string, mode: "text" | "highlight", options: readonly VueColorOption[]) =>
+      h("section", { class: "markweave-floating-toolbar-color-section", "aria-label": title }, [
+        h("div", { class: "markweave-floating-toolbar-menu-title" }, title),
+        h("div", { class: "markweave-floating-toolbar-swatch-grid" }, options.map(([id, value, label]) =>
+          h(
+            "button",
+            {
+              key: `${mode}-${id}`,
+              type: "button",
+              "aria-label": label,
+              "data-testid": `markweave-floating-toolbar-${mode}-${id}`,
+              onMousedown: preventVuePointerFocusLoss,
+              onClick: () => {
+                if (mode === "text") {
+                  value ? props.editor.chain().focus().setColor(value).run() : props.editor.chain().focus().unsetColor().run();
+                } else {
+                  value ? props.editor.chain().focus().toggleHighlight({ color: value }).run() : props.editor.chain().focus().unsetHighlight().run();
+                }
+                openMenu.value = null;
+              },
+            },
+            mode === "text"
+              ? [h("span", { class: "markweave-floating-toolbar-text-swatch", style: { color: value ?? "#646970" } }, "A")]
+              : [h("span", { class: "markweave-floating-toolbar-highlight-swatch", style: { backgroundColor: value ?? "#ffffff" }, "aria-hidden": "true" })],
+          ),
+        )),
+      ]);
+
+    const createAssistantRequest = (): FloatingToolbarAssistantRequest => ({
+      source: "rewrite-selection",
+      text: props.editor.state.doc.textBetween(props.editor.state.selection.from, props.editor.state.selection.to, "\n"),
+      html: props.editor.getHTML(),
+      from: props.editor.state.selection.from,
+      to: props.editor.state.selection.to,
+    });
+
+    const renderPopover = () => {
+      if (openMenu.value === "block-type") {
+        return h("div", { class: "markweave-floating-toolbar-popover markweave-floating-toolbar-turn-menu", "data-testid": "markweave-floating-toolbar-turn-menu" }, [
+          h("div", { class: "markweave-floating-toolbar-menu-title" }, toolbarMessages.value.turnIntoTitle),
+          ...blockOptions.value.map(([id, label, icon]) =>
+            h(
+              "button",
+              {
+                key: id,
+                type: "button",
+                "data-testid": `markweave-floating-toolbar-turn-${id}`,
+                onMousedown: preventVuePointerFocusLoss,
+                onClick: () => {
+                  setBlockType(props.editor, id);
+                  openMenu.value = null;
+                },
+              },
+              [h("span", { class: "markweave-floating-toolbar-menu-icon" }, [createIcon(icon, label)]), h("span", null, label)],
+            ),
+          ),
+        ]);
+      }
+
+      if (openMenu.value === "link") {
+        return h(
+          "form",
+          {
+            class: "markweave-floating-toolbar-popover markweave-floating-toolbar-link-popover",
+            "data-testid": "markweave-floating-toolbar-link-popover",
+            onSubmit: (event: Event) => {
+              event.preventDefault();
+              applyLink();
+            },
+          },
+          [
+            h("input", {
+              value: linkValue.value,
+              placeholder: toolbarMessages.value.linkPlaceholder,
+              "aria-label": toolbarMessages.value.linkUrlLabel,
+              "data-testid": "markweave-floating-toolbar-link-input",
+              onInput: (event: Event) => {
+                linkValue.value = (event.target as HTMLInputElement).value;
+              },
+            }),
+            h("span", { class: "markweave-floating-toolbar-link-actions" }, [
+              h("button", { type: "submit", disabled: !safeHref.value, "aria-label": toolbarMessages.value.applyLink, "data-testid": "markweave-floating-toolbar-link-apply", onMousedown: preventVuePointerFocusLoss }, [
+                createIcon(CornerDownLeft, toolbarMessages.value.applyLink),
+              ]),
+              h("span", { class: "markweave-floating-toolbar-link-divider", "aria-hidden": "true" }),
+              h(
+                "button",
+                {
+                  type: "button",
+                  disabled: !safeHref.value,
+                  "aria-label": toolbarMessages.value.openLink,
+                  "data-testid": "markweave-floating-toolbar-link-open",
+                  onMousedown: preventVuePointerFocusLoss,
+                  onClick: () => maybeOpenLinkHref(linkValue.value),
+                },
+                [createIcon(ExternalLink, toolbarMessages.value.openLink)],
+              ),
+              h("button", { type: "button", "aria-label": toolbarMessages.value.removeLink, "data-testid": "markweave-floating-toolbar-link-remove", onMousedown: preventVuePointerFocusLoss, onClick: unsetLink }, [
+                createIcon(Trash2, toolbarMessages.value.removeLink),
+              ]),
+            ]),
+          ],
+        );
+      }
+
+      if (openMenu.value === "color") {
+        return h("div", { class: "markweave-floating-toolbar-popover markweave-floating-toolbar-color-popover", "data-testid": "markweave-floating-toolbar-color-menu" }, [
+          colorSection(toolbarMessages.value.textColorTitle, "text", textColorOptions.value),
+          colorSection(toolbarMessages.value.highlightColorTitle, "highlight", highlightOptions.value),
+        ]);
+      }
+
+      if (openMenu.value === "more") {
+        return h("div", { class: "markweave-floating-toolbar-popover markweave-floating-toolbar-more-menu", "data-testid": "markweave-floating-toolbar-more-menu" }, moreActions.value.map((id) =>
+          h("span", { key: id, class: "markweave-floating-toolbar-more-item" }, [
+            h(
+              "button",
+              {
+                type: "button",
+                "aria-label": toolbarMessages.value.moreActions[id],
+                "data-testid": `markweave-floating-toolbar-more-${id}`,
+                onMousedown: preventVuePointerFocusLoss,
+                onClick: () => {
+                  runToolbarMoreAction(props.editor, id);
+                  openMenu.value = null;
+                },
+              },
+              [createIcon(toolbarIconMap[id], toolbarMessages.value.moreActions[id])],
+            ),
+          ]),
+        ));
+      }
+
+      return null;
     };
 
     return () =>
@@ -288,54 +729,24 @@ const VueFloatingToolbar = defineComponent({
         } as Record<string, unknown>,
         {
           default: () =>
-            h("div", { class: "markweave-floating-toolbar markweave-floating-toolbar--motion-entered" }, [
-              h("div", { class: "markweave-floating-toolbar-content" }, [
-                toolbarButton(props.messages.floatingToolbar.buttons.bold, Bold, () => props.editor.chain().focus().toggleBold().run(), props.editor.isActive("bold")),
-                toolbarButton(props.messages.floatingToolbar.buttons.italic, Italic, () => props.editor.chain().focus().toggleItalic().run(), props.editor.isActive("italic")),
-                toolbarButton(props.messages.floatingToolbar.buttons.underline, Underline, () => props.editor.chain().focus().toggleUnderline().run(), props.editor.isActive("underline")),
-                toolbarButton(props.messages.floatingToolbar.buttons.strike, Strikethrough, () => props.editor.chain().focus().toggleStrike().run(), props.editor.isActive("strike")),
-                toolbarButton(props.messages.floatingToolbar.buttons.inlineCode, Code2, () => props.editor.chain().focus().toggleCode().run(), props.editor.isActive("code")),
-                toolbarButton(
-                  props.messages.floatingToolbar.buttons.link,
-                  Link2,
-                  () => {
-                    linkOpen.value = !linkOpen.value;
-                    linkValue.value = (props.editor.getAttributes("link").href as string | undefined) ?? "";
-                  },
-                  props.editor.isActive("link"),
-                ),
-                toolbarButton(props.messages.floatingToolbar.moreActions["align-left"], AlignLeft, () => props.editor.chain().focus().setTextAlign("left").run(), props.editor.isActive({ textAlign: "left" })),
-                toolbarButton(props.messages.floatingToolbar.moreActions["align-center"], AlignCenter, () => props.editor.chain().focus().setTextAlign("center").run(), props.editor.isActive({ textAlign: "center" })),
-                toolbarButton(props.messages.floatingToolbar.moreActions["align-right"], AlignRight, () => props.editor.chain().focus().setTextAlign("right").run(), props.editor.isActive({ textAlign: "right" })),
+            h("div", { class: "markweave-floating-toolbar markweave-floating-toolbar--default markweave-floating-toolbar--motion-entered", "data-testid": "markweave-floating-toolbar" }, [
+              h("div", { class: "markweave-floating-toolbar-content", "data-menu": openMenu.value ?? "none" }, [
+                toolbarButton("improve", toolbarMessages.value.buttons.improve, Sparkles, () => props.onRewriteSelection?.(createAssistantRequest()), false, toolbarMessages.value.buttons.improve),
+                divider(),
+                toolbarButton("block-type", toolbarMessages.value.buttons["block-type"], TypeIcon, () => toggleMenu("block-type"), openMenu.value === "block-type"),
+                divider(),
+                toolbarButton("bold", toolbarMessages.value.buttons.bold, Bold, () => props.editor.chain().focus().toggleBold().run(), props.editor.isActive("bold")),
+                toolbarButton("italic", toolbarMessages.value.buttons.italic, Italic, () => props.editor.chain().focus().toggleItalic().run(), props.editor.isActive("italic")),
+                toolbarButton("underline", toolbarMessages.value.buttons.underline, Underline, () => props.editor.chain().focus().toggleUnderline().run(), props.editor.isActive("underline")),
+                toolbarButton("strike", toolbarMessages.value.buttons.strike, Strikethrough, () => props.editor.chain().focus().toggleStrike().run(), props.editor.isActive("strike")),
+                toolbarButton("inline-code", toolbarMessages.value.buttons["inline-code"], Code2, () => props.editor.chain().focus().toggleCode().run(), props.editor.isActive("code")),
+                divider(),
+                toolbarButton("link", toolbarMessages.value.buttons.link, Link2, () => toggleMenu("link"), props.editor.isActive("link")),
+                toolbarButton("color", toolbarMessages.value.buttons.color, TypeIcon, () => toggleMenu("color"), openMenu.value === "color"),
+                divider(),
+                toolbarButton("more", toolbarMessages.value.buttons.more, MoreVertical, () => toggleMenu("more"), openMenu.value === "more"),
+                renderPopover(),
               ]),
-              linkOpen.value
-                ? h("div", { class: "markweave-floating-toolbar-link-popover" }, [
-                    h("input", {
-                      value: linkValue.value,
-                      placeholder: props.messages.floatingToolbar.linkPlaceholder,
-                      "aria-label": props.messages.floatingToolbar.linkUrlLabel,
-                      onInput: (event: Event) => {
-                        linkValue.value = (event.target as HTMLInputElement).value;
-                      },
-                      onKeydown: (event: KeyboardEvent) => {
-                        if (event.key === "Enter") {
-                          event.preventDefault();
-                          applyLink();
-                        }
-                      },
-                    }),
-                    h("div", { class: "markweave-floating-toolbar-link-actions" }, [
-                      h("button", { type: "button", disabled: !safeHref.value, "aria-label": props.messages.floatingToolbar.applyLink, onClick: applyLink }, "↵"),
-                      h("button", {
-                        type: "button",
-                        disabled: !safeHref.value,
-                        "aria-label": props.messages.floatingToolbar.openLink,
-                        onClick: () => safeHref.value && window.open(safeHref.value, "_blank", "noopener,noreferrer"),
-                      }, "↗"),
-                      h("button", { type: "button", "aria-label": props.messages.floatingToolbar.removeLink, onClick: unsetLink }, "⌫"),
-                    ]),
-                  ])
-                : null,
             ]),
         },
       );
@@ -356,25 +767,54 @@ const VueSlashCommandMenu = defineComponent({
   },
   setup(props) {
     const inputValue = ref("");
+    const file = ref<File | null>(null);
     const error = ref<string | null>(null);
+    const isSubmitting = ref(false);
+    const emojiQuery = ref("");
+    const emojiActiveIndex = ref(0);
+    const visibleEmojiItems = computed(() => {
+      const query = emojiQuery.value.trim().toLowerCase();
+      const items = query
+        ? props.messages.slash.emojiItems.filter((item) => [item.emoji, item.label, ...item.terms].join(" ").toLowerCase().includes(query))
+        : props.messages.slash.emojiItems;
+      return items.slice(0, 12);
+    });
 
     const insertUpload = async () => {
       if (!props.inputCommand) {
         return;
       }
-      const source = inputValue.value.trim();
-      if (!source) {
-        error.value = props.messages.slash.uploadRequiredError;
+      error.value = null;
+      isSubmitting.value = true;
+      try {
+        const request: MarkweaveUploadRequest = file.value
+          ? { kind: props.inputCommand.uploadKind ?? "attachment", trigger: "slash-command", source: { type: "file", file: file.value, mimeType: file.value.type } }
+          : { kind: props.inputCommand.uploadKind ?? "attachment", trigger: "slash-command", source: detectUploadSource(inputValue.value) };
+        if (!file.value && !inputValue.value.trim()) {
+          error.value = props.messages.slash.uploadRequiredError;
+          return;
+        }
+        const uploadResult: MarkweaveUploadResult = await resolveMarkweaveUploadResult(request, props.onUpload);
+        props.onSelect(props.inputCommand, { uploadResult });
+        props.onInputCommandChange(null);
+        inputValue.value = "";
+        file.value = null;
+      } catch (errorValue) {
+        error.value = errorValue instanceof Error ? errorValue.message : props.messages.slash.uploadFailedError;
+      } finally {
+        isSubmitting.value = false;
+      }
+    };
+
+    const chooseEmoji = (index: number) => {
+      if (!props.inputCommand) {
         return;
       }
-      props.onSelect(props.inputCommand, {
-        uploadResult: {
-          src: source,
-          name: source.split("/").filter(Boolean).at(-1),
-        },
-      });
-      props.onInputCommandChange(null);
-      inputValue.value = "";
+      const item = visibleEmojiItems.value[Math.min(visibleEmojiItems.value.length - 1, Math.max(0, index))];
+      if (item) {
+        props.onSelect(props.inputCommand, { emoji: item.emoji });
+        props.onInputCommandChange(null);
+      }
     };
 
     return () => {
@@ -390,19 +830,71 @@ const VueSlashCommandMenu = defineComponent({
           }
         : {};
 
-      return h(
-        "div",
-        { class: "markweave-slash-menu", style, role: "menu", "aria-label": props.messages.slash.ariaLabel, "data-placement": props.position?.placement ?? "bottom" },
-        [
-          props.inputCommand
-            ? h("div", { class: "markweave-slash-upload" }, [
+      const groupedCommands = Object.values(props.messages.slash.groups)
+        .map((group) => ({ group, commands: props.commands.filter((command) => command.group === group) }))
+        .filter((entry) => entry.commands.length);
+
+      return [
+        props.position
+          ? h("div", { class: "markweave-slash-trigger", style: { left: `${props.position.triggerLeft}px`, top: `${props.position.triggerTop}px` }, "aria-hidden": "true", "data-testid": "markweave-slash-trigger" }, [
+              h("span", null, "/"),
+              h("em", null, props.state.query || props.messages.slash.filterPlaceholder),
+            ])
+          : null,
+        h(
+          "div",
+          { class: "markweave-slash-menu", style, role: "listbox", "aria-label": props.messages.slash.ariaLabel, "data-placement": props.position?.placement ?? "bottom", "data-testid": "markweave-slash-menu" },
+          [
+            props.inputCommand?.inputKind === "emoji"
+              ? h("div", { class: "markweave-slash-subpanel", "data-testid": "markweave-slash-emoji-picker" }, [
+                  h("div", { class: "markweave-slash-subpanel-header" }, [
+                    h("button", { type: "button", onMousedown: preventVuePointerFocusLoss, onClick: () => props.onInputCommandChange(null) }, props.messages.common.back),
+                    h("span", null, props.messages.slash.emojiTitle),
+                  ]),
+                  h("label", { class: "markweave-slash-input" }, [
+                    h("span", null, "/"),
+                    h("input", {
+                      autofocus: true,
+                      value: emojiQuery.value,
+                      placeholder: props.messages.slash.emojiSearchPlaceholder,
+                      onInput: (event: Event) => {
+                        emojiQuery.value = (event.target as HTMLInputElement).value;
+                        emojiActiveIndex.value = 0;
+                      },
+                      onKeydown: (event: KeyboardEvent) => {
+                        if (event.key === "Escape") {
+                          event.preventDefault();
+                          props.onInputCommandChange(null);
+                        } else if (event.key === "ArrowDown") {
+                          event.preventDefault();
+                          emojiActiveIndex.value = visibleEmojiItems.value.length ? (emojiActiveIndex.value + 1) % visibleEmojiItems.value.length : 0;
+                        } else if (event.key === "ArrowUp") {
+                          event.preventDefault();
+                          emojiActiveIndex.value = visibleEmojiItems.value.length ? (emojiActiveIndex.value - 1 + visibleEmojiItems.value.length) % visibleEmojiItems.value.length : 0;
+                        } else if (event.key === "Enter" || event.key === "Tab") {
+                          event.preventDefault();
+                          chooseEmoji(emojiActiveIndex.value);
+                        }
+                      },
+                    }),
+                  ]),
+                  h("div", { class: "markweave-slash-emoji-grid", role: "listbox", "aria-label": props.messages.slash.emojiTitle }, visibleEmojiItems.value.map((item, index) =>
+                    h("button", { key: `${item.emoji}-${item.label}`, type: "button", role: "option", "aria-selected": index === emojiActiveIndex.value, "data-active": index === emojiActiveIndex.value, onMouseenter: () => (emojiActiveIndex.value = index), onMousedown: preventVuePointerFocusLoss, onClick: () => chooseEmoji(index) }, [
+                      h("span", null, item.emoji),
+                      h("small", null, item.label),
+                    ]),
+                  )),
+                ])
+              : props.inputCommand?.inputKind === "upload"
+                ? h("div", { class: "markweave-slash-subpanel", "data-testid": "markweave-slash-upload-panel" }, [
                 h("div", { class: "markweave-slash-upload-header" }, [
-                  h("button", { type: "button", onClick: () => props.onInputCommandChange(null) }, props.messages.common.back),
-                  h("strong", null, props.inputCommand.label),
+                  h("button", { type: "button", onMousedown: preventVuePointerFocusLoss, onClick: () => props.onInputCommandChange(null) }, props.messages.common.back),
+                  h("strong", null, props.inputCommand ? props.messages.slash.uploadKindLabels[props.inputCommand.uploadKind ?? "upload"] : props.messages.slash.uploadKindLabels.upload),
                 ]),
-                h("label", null, [
+                h("label", { class: "markweave-slash-upload-field" }, [
                   h("span", null, props.messages.slash.uploadValueLabel),
                   h("input", {
+                    autofocus: true,
                     value: inputValue.value,
                     placeholder: props.messages.slash.uploadValuePlaceholder,
                     onInput: (event: Event) => {
@@ -416,37 +908,59 @@ const VueSlashCommandMenu = defineComponent({
                     },
                   }),
                 ]),
-                error.value ? h("div", { role: "alert" }, error.value) : null,
+                h("label", { class: "markweave-slash-upload-field" }, [
+                  h("span", null, props.messages.common.file),
+                  h("input", { type: "file", onChange: (event: Event) => (file.value = (event.target as HTMLInputElement).files?.[0] ?? null) }),
+                ]),
+                error.value ? h("div", { class: "markweave-slash-upload-error", role: "alert" }, error.value) : null,
                 h("div", { class: "markweave-slash-upload-actions" }, [
-                  h("button", { type: "button", onClick: () => props.onInputCommandChange(null) }, props.messages.common.cancel),
-                  h("button", { type: "button", onClick: insertUpload }, props.messages.common.insert),
+                  h("button", { type: "button", onMousedown: preventVuePointerFocusLoss, onClick: () => props.onInputCommandChange(null) }, props.messages.common.cancel),
+                  h("button", { type: "button", "data-primary": "true", disabled: isSubmitting.value, onMousedown: preventVuePointerFocusLoss, onClick: insertUpload }, props.messages.common.insert),
                 ]),
               ])
-            : props.commands.length
-              ? props.commands.map((command, index) =>
-                  h(
-                    "button",
-                    {
-                      key: command.id,
-                      type: "button",
-                      role: "menuitem",
-                      "data-active": index === props.state.activeIndex ? "true" : "false",
-                      disabled: !isExecutableSlashCommand(command),
-                      onMouseenter: () => undefined,
-                      onClick: () => props.onSelect(command),
-                    },
-                    [
-                      h("span", { class: "markweave-slash-menu__item-icon" }, command.icon ?? command.label.charAt(0)),
-                      h("span", { class: "markweave-slash-menu__item-body" }, [
-                        h("span", { class: "markweave-slash-menu__item-label" }, command.label),
-                        h("span", { class: "markweave-slash-menu__item-description" }, command.description),
+                : props.commands.length
+                  ? h("div", { class: "markweave-slash-command-list" }, groupedCommands.map((entry) =>
+                      h("section", { key: entry.group, class: "markweave-slash-group", "aria-label": entry.group }, [
+                        h("div", { class: "markweave-slash-group-title" }, entry.group),
+                        ...entry.commands.map((command) => {
+                          const flatIndex = props.commands.indexOf(command);
+                          const active = flatIndex === props.state.activeIndex;
+                          const executable = isExecutableSlashCommand(command);
+                          const Icon = slashIconMap[command.icon];
+                          return h(
+                            "button",
+                            {
+                              key: command.id,
+                              type: "button",
+                              role: "option",
+                              "aria-selected": active,
+                              "aria-disabled": !executable || command.disabled ? "true" : undefined,
+                              "data-active": active,
+                              "data-disabled": command.disabled ? "true" : "false",
+                              "data-execution-kind": command.executionKind,
+                              "data-testid": `markweave-slash-command-${command.id}`,
+                              title: command.disabledReason,
+                              onMousedown: preventVuePointerFocusLoss,
+                              onClick: () => {
+                                if (!executable) {
+                                  return;
+                                }
+                                if (command.inputKind) {
+                                  props.onInputCommandChange(command);
+                                  return;
+                                }
+                                props.onSelect(command);
+                              },
+                            },
+                            [createIcon(Icon, command.label), h("span", null, command.label), command.disabledReason ? h("small", null, command.disabledReason) : null],
+                          );
+                        }),
                       ]),
-                    ],
-                  ),
-                )
-              : h("div", { class: "markweave-slash-menu__empty" }, props.messages.slash.noResults),
-        ],
-      );
+                    ))
+                  : h("div", { class: "markweave-slash-menu__empty", role: "option", "aria-disabled": "true" }, props.messages.slash.noResults),
+          ],
+        ),
+      ];
     };
   },
 });
@@ -457,17 +971,62 @@ const VueTableControls = defineComponent({
     editor: { type: Object as PropType<CoreEditor>, required: true },
     active: { type: Boolean, required: true },
     messages: { type: Object as PropType<MarkweaveMessages>, required: true },
+    onCopyPayload: { type: Function as PropType<((payload: MarkweaveMenuCopyPayload) => void) | undefined>, default: undefined },
+    onEditWithAi: { type: Function as PropType<((request: TableEditWithAiRequest) => void) | undefined>, default: undefined },
   },
   setup(props) {
+    const openMenu = ref<TableCommandMenuKind | "selection" | null>(null);
+    const copyFeedback = ref<string | null>(null);
+    const run = (commandId: TableCommandId) => {
+      if (commandId === "copy-row" || commandId === "copy-column" || commandId === "copy-table") {
+        const kind = commandId === "copy-row" ? "row" : commandId === "copy-column" ? "column" : "table";
+        const payload = getMarkweaveMenuCopyPayloadFromState(props.editor.state, kind);
+        if (!payload) {
+          openMenu.value = null;
+          return;
+        }
+        props.onCopyPayload?.(payload);
+        copyFeedback.value = props.messages.table.copyFeedback[kind];
+        window.setTimeout(() => (copyFeedback.value = null), 1400);
+        openMenu.value = null;
+        return;
+      }
+      runTableCommand(props.editor, commandId);
+      openMenu.value = null;
+    };
+    const menu = () =>
+      openMenu.value
+        ? h("div", { class: "markweave-table-menu", role: "menu", "aria-label": props.messages.table.selectionActions, "data-testid": "markweave-table-menu", "data-positioned": "false" }, [
+            ...(props.onEditWithAi
+              ? [
+                  h("button", { type: "button", role: "menuitem", "data-testid": "markweave-table-menu-command-edit-with-ai", onMousedown: preventVuePointerFocusLoss, onClick: () => openMenu.value = null }, props.messages.table.commands["edit-with-ai"]),
+                ]
+              : []),
+            ...tableMenuItems(openMenu.value).map((command) =>
+              h(
+                "button",
+                {
+                  key: command.id,
+                  type: "button",
+                  role: "menuitem",
+                  "data-testid": `markweave-table-menu-command-${command.id}`,
+                  onMousedown: preventVuePointerFocusLoss,
+                  onClick: () => run(command.id),
+                },
+                props.messages.table.commands[command.id],
+              ),
+            ),
+          ])
+        : null;
+
     return () =>
       props.active
-        ? h("div", { class: "markweave-table-controls", "data-positioned": "false" }, [
-            toolbarButton(props.messages.table.commands["add-row-before"], List, () => props.editor.chain().focus().addRowBefore().run()),
-            toolbarButton(props.messages.table.commands["add-row-after"], ListOrdered, () => props.editor.chain().focus().addRowAfter().run()),
-            toolbarButton(props.messages.table.commands["add-column-before"], Table2, () => props.editor.chain().focus().addColumnBefore().run()),
-            toolbarButton(props.messages.table.commands["add-column-after"], Table2, () => props.editor.chain().focus().addColumnAfter().run()),
-            toolbarButton(props.messages.table.commands["delete-row"], Trash2, () => props.editor.chain().focus().deleteRow().run()),
-            toolbarButton(props.messages.table.commands["delete-table"], MoreVertical, () => props.editor.chain().focus().deleteTable().run()),
+        ? h("div", { class: "markweave-table-controls", "data-testid": "markweave-table-controls", "aria-label": props.messages.table.controlsAriaLabel, "data-open-menu": openMenu.value ?? "none", "data-positioned": "false" }, [
+            copyFeedback.value ? h("div", { class: "markweave-table-copy-feedback", role: "status", "aria-live": "polite", "data-testid": "markweave-table-copy-feedback" }, copyFeedback.value) : null,
+            h("button", { type: "button", class: "markweave-table-edge-handle markweave-table-edge-handle--row", "aria-label": props.messages.table.activeRowActions, "aria-expanded": openMenu.value === "row", "aria-haspopup": "menu", title: props.messages.table.rowActions, "data-testid": "markweave-table-hover-row-handle", onMousedown: preventVuePointerFocusLoss, onClick: () => (openMenu.value = openMenu.value === "row" ? null : "row") }, [h("span", { "aria-hidden": "true" }, "...")]),
+            h("button", { type: "button", class: "markweave-table-edge-handle markweave-table-edge-handle--column", "aria-label": props.messages.table.activeColumnActions, "aria-expanded": openMenu.value === "column", "aria-haspopup": "menu", title: props.messages.table.columnActions, "data-testid": "markweave-table-hover-column-handle", onMousedown: preventVuePointerFocusLoss, onClick: () => (openMenu.value = openMenu.value === "column" ? null : "column") }, [h("span", { "aria-hidden": "true" }, "...")]),
+            h("button", { type: "button", class: "markweave-table-edge-handle markweave-table-edge-handle--selection", "aria-label": props.messages.table.selectionActions, "aria-expanded": openMenu.value === "selection", "aria-haspopup": "menu", title: props.messages.table.selectionActions, "data-testid": "markweave-table-cell-handle", onMousedown: preventVuePointerFocusLoss, onClick: () => (openMenu.value = openMenu.value === "selection" ? null : "selection") }, [h("span", { "aria-hidden": "true" }, "...")]),
+            menu(),
           ])
         : null;
   },
@@ -482,11 +1041,65 @@ const VueCodeBlockControls = defineComponent({
     readOnly: { type: Boolean, required: true },
   },
   setup(props) {
+    const hoveredCodeBlockState = ref<MarkweaveCodeBlockState | null>(null);
+    let frameElement: HTMLElement | null = null;
+    const hoverEventNames = ["mousemove", "pointermove", "mouseover", "click"] as const;
+
+    const displayedState = computed(() => (props.readOnly ? hoveredCodeBlockState.value ?? props.state : props.state));
+    const visible = computed(() => (props.readOnly ? Boolean(displayedState.value.active && displayedState.value.text) : props.active && props.state.active));
+    const copyDisplayedCodeBlock = () => {
+      const text = displayedState.value.text;
+      if (!text) {
+        return;
+      }
+      void (globalThis.navigator?.clipboard?.writeText(text) ?? Promise.resolve(false));
+    };
+
+    const updateHoveredCodeBlock = (event: MouseEvent) => {
+      if (!props.readOnly || !(event.target instanceof Element)) {
+        return;
+      }
+
+      const pos = getCodeBlockPositionFromElement(props.editor, event.target);
+      hoveredCodeBlockState.value = getCodeBlockStateAtPosition(props.editor, pos);
+    };
+
+    onMounted(() => {
+      frameElement = props.editor.view.dom.closest<HTMLElement>(".markweave-editor-frame");
+      hoverEventNames.forEach((eventName) => frameElement?.addEventListener(eventName, updateHoveredCodeBlock));
+    });
+
+    onBeforeUnmount(() => {
+      hoverEventNames.forEach((eventName) => frameElement?.removeEventListener(eventName, updateHoveredCodeBlock));
+      frameElement = null;
+    });
+
     return () =>
-      props.active || props.readOnly
-        ? h("div", { class: "markweave-codeblock-controls", "data-positioned": "false" }, [
-            h("button", { type: "button", disabled: props.readOnly, title: props.state.language }, props.state.language),
-            h("button", { type: "button", onClick: () => navigator.clipboard?.writeText(props.state.text) }, "Copy"),
+      visible.value
+        ? h("div", { class: "markweave-codeblock-controls", "data-testid": "markweave-codeblock-controls", "data-positioned": "false", "data-readonly": props.readOnly ? "true" : "false" }, [
+            h("button", { type: "button", class: "markweave-codeblock-language-button", disabled: props.readOnly, title: displayedState.value.language, "data-testid": "markweave-codeblock-language" }, displayedState.value.language),
+            displayedState.value.language === "mermaid"
+              ? h(
+                  "button",
+                  {
+                    type: "button",
+                    class: "markweave-codeblock-preview-button",
+                    "data-testid": "markweave-codeblock-mermaid-preview",
+                    onClick: () => {
+                      const nextMode = displayedState.value.mermaidPreviewMode === "preview" ? "code" : "preview";
+                      if (props.readOnly && displayedState.value.pos !== null) {
+                        setReadonlyMermaidPreviewMode(props.editor, displayedState.value.pos, nextMode);
+                        hoveredCodeBlockState.value = getCodeBlockStateAtPosition(props.editor, displayedState.value.pos);
+                        return;
+                      }
+                      setActiveCodeBlockMermaidPreviewMode(props.editor, nextMode);
+                    },
+                  },
+                  displayedState.value.mermaidPreviewMode === "preview" ? "Code" : "Preview",
+                )
+              : null,
+            h("button", { type: "button", class: "markweave-codeblock-copy-button", "data-testid": "markweave-codeblock-copy", onClick: () => (props.readOnly ? copyDisplayedCodeBlock() : copyActiveCodeBlock(props.editor)) }, "Copy"),
+            displayedState.value.language === "mermaid" ? h("button", { type: "button", class: "markweave-codeblock-download-button", "data-testid": "markweave-codeblock-download" }, [createIcon(Download, "Download")]) : null,
           ])
         : null;
   },

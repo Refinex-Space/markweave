@@ -328,6 +328,8 @@ function createToolButton(label: string, iconComponent: Component, onClick: () =
 
 function createUploadPlaceholder(options: {
   messages: MarkweaveMessages["image"] | MarkweaveMessages["video"];
+  insertLabel: string;
+  cancelLabel: string;
   inputValue: string;
   error: string | null;
   dragActive: boolean;
@@ -400,8 +402,8 @@ function createUploadPlaceholder(options: {
             }
           },
         }),
-        h("button", { type: "button", disabled: options.isSubmitting, onClick: options.onSubmit }, options.messages === (options.messages as MarkweaveMessages["image"]) ? "Insert" : "Insert"),
-        h("button", { type: "button", onClick: options.onCancel }, "Cancel"),
+        h("button", { type: "button", disabled: options.isSubmitting, onClick: options.onSubmit }, options.insertLabel),
+        h("button", { type: "button", onClick: options.onCancel }, options.cancelLabel),
       ]),
       options.error ? h("div", { class: "markweave-media-placeholder-error", role: "alert" }, options.error) : null,
     ],
@@ -431,7 +433,8 @@ const MarkweaveVueImageNodeView = defineComponent({
     const captionValue = ref(stringAttribute((props.node as { attrs: Record<string, unknown> }).attrs.caption) ?? "");
     const modeState = computed(() => getMarkweaveEditorModeState(props.editor as never));
     const canEdit = computed(() => isMarkweaveEditorLiveEditable(modeState.value));
-    const messages = computed(() => ((props.extension as { options?: MarkweaveVueImageOptions }).options?.messages ?? getMarkweaveMessages("zh")).image);
+    const allMessages = computed(() => (props.extension as { options?: MarkweaveVueImageOptions }).options?.messages ?? getMarkweaveMessages("zh"));
+    const messages = computed(() => allMessages.value.image);
     const src = computed(() => stringAttribute((props.node as { attrs: Record<string, unknown> }).attrs.src));
     const align = computed(() => normalizeImageAlign((props.node as { attrs: Record<string, unknown> }).attrs.align));
     const width = computed(() => numberAttribute((props.node as { attrs: Record<string, unknown> }).attrs.width));
@@ -530,6 +533,8 @@ const MarkweaveVueImageNodeView = defineComponent({
         return h(NodeViewWrapper, { as: "figure", class: "markweave-image-node", "data-testid": "markweave-image-node", "data-empty": "true" }, () =>
           createUploadPlaceholder({
             messages: messages.value,
+            insertLabel: allMessages.value.common.insert,
+            cancelLabel: allMessages.value.common.cancel,
             inputValue: inputValue.value,
             error: error.value,
             dragActive: dragActive.value,
@@ -646,7 +651,8 @@ const MarkweaveVueVideoNodeView = defineComponent({
     const isSubmitting = ref(false);
     const modeState = computed(() => getMarkweaveEditorModeState(props.editor as never));
     const canEdit = computed(() => isMarkweaveEditorLiveEditable(modeState.value));
-    const messages = computed(() => ((props.extension as { options?: MarkweaveVueVideoOptions }).options?.messages ?? getMarkweaveMessages("zh")).video);
+    const allMessages = computed(() => (props.extension as { options?: MarkweaveVueVideoOptions }).options?.messages ?? getMarkweaveMessages("zh"));
+    const messages = computed(() => allMessages.value.video);
     const attrs = computed(() => (props.node as { attrs: Record<string, unknown> }).attrs);
     const src = computed(() => stringAttribute(attrs.value.src));
     const embedUrl = computed(() => stringAttribute(attrs.value.embedUrl));
@@ -709,6 +715,8 @@ const MarkweaveVueVideoNodeView = defineComponent({
         return h(NodeViewWrapper, { as: "figure", class: "markweave-video-node", "data-testid": "markweave-video-node", "data-empty": "true" }, () =>
           createUploadPlaceholder({
             messages: messages.value,
+            insertLabel: allMessages.value.common.insert,
+            cancelLabel: allMessages.value.common.cancel,
             inputValue: inputValue.value,
             error: error.value,
             dragActive: dragActive.value,

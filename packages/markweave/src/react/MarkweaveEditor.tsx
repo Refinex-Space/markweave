@@ -29,12 +29,12 @@ import {
   tableInteractionPluginKey,
   type TableInteractionState,
 } from "../plugins/table/table-interaction-layer";
-import { CodeBlockControls } from "../ui/codeblock/CodeBlockControls";
-import { FloatingToolbar } from "../ui/floating-toolbar/FloatingToolbar";
-import { SlashCommandMenu } from "../ui/slash-command/SlashCommandMenu";
-import { TableControls } from "../ui/table/TableControls";
-import { TableSelectionOverlay } from "../ui/table/TableSelectionOverlay";
-import { MarkweaveInnerToc } from "../ui/toc/MarkweaveInnerToc";
+import { CodeBlockControls } from "./ui/codeblock/CodeBlockControls";
+import { FloatingToolbar } from "./ui/floating-toolbar/FloatingToolbar";
+import { SlashCommandMenu } from "./ui/slash-command/SlashCommandMenu";
+import { TableControls } from "./ui/table/TableControls";
+import { TableSelectionOverlay } from "./ui/table/TableSelectionOverlay";
+import { MarkweaveInnerToc } from "./ui/toc/MarkweaveInnerToc";
 import { normalizeMarkweaveEditorMode, setMarkweaveEditorModeState, type MarkweaveEditorMode } from "../core/editor-mode-state";
 import type {
   FloatingToolbarAssistantRequest,

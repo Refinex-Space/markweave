@@ -15,9 +15,9 @@ import {
   setActiveCodeBlockMermaidPreviewMode,
   type MarkweaveCodeBlockCopyFeedbackSnapshot,
   type MarkweaveCodeBlockLanguage,
-} from "../../plugins/codeblock/codeblock-behavior";
-import { getEffectiveMermaidPreviewMode, setReadonlyMermaidPreviewMode } from "../../plugins/mermaid/mermaid-inline-preview";
-import { normalizeMermaidPreviewMode, type MermaidPreviewMode } from "../../plugins/mermaid/mermaid-renderer";
+} from "../../../plugins/codeblock/codeblock-behavior";
+import { getEffectiveMermaidPreviewMode, setReadonlyMermaidPreviewMode } from "../../../plugins/mermaid/mermaid-inline-preview";
+import { normalizeMermaidPreviewMode, type MermaidPreviewMode } from "../../../plugins/mermaid/mermaid-renderer";
 
 interface CodeBlockControlsProps {
   readonly active: boolean;

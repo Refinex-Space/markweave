@@ -25,7 +25,7 @@ import {
   setMarkweaveTableMenuAxisTarget,
   type MarkweaveMenuCopyPayload,
   type TableMenuCopyKind,
-} from "../../plugins/table/table-clipboard";
+} from "../../../plugins/table/table-clipboard";
 import {
   getExecutableTableMenuCommandSpecs,
   tableMenuSpecs,
@@ -33,16 +33,16 @@ import {
   type TableCommandId,
   type TableCommandMenuKind,
   type TableMenuItemSpec,
-} from "../../plugins/table/table-command-spec";
-import { getFirstTableDebugSnapshot } from "../../plugins/table/table-debug-snapshot";
-import { getTableFocusState } from "../../plugins/table/table-focus-state";
-import { focusFirstTableBodyCell } from "../../plugins/table/table-focus-position";
+} from "../../../plugins/table/table-command-spec";
+import { getFirstTableDebugSnapshot } from "../../../plugins/table/table-debug-snapshot";
+import { getTableFocusState } from "../../../plugins/table/table-focus-state";
+import { focusFirstTableBodyCell } from "../../../plugins/table/table-focus-position";
 import {
   initialTableInteractionState,
   type TableInteractionState,
-} from "../../plugins/table/table-interaction-layer";
-import { getMarkweaveMessages, type MarkweaveMessages } from "../../i18n";
-import type { TableCommandResult, TableCommandSnapshot, TableEditWithAiRequest } from "../../core/public-types";
+} from "../../../plugins/table/table-interaction-layer";
+import { getMarkweaveMessages, type MarkweaveMessages } from "../../../i18n";
+import type { TableCommandResult, TableCommandSnapshot, TableEditWithAiRequest } from "../../../core/public-types";
 
 interface TableControlsProps {
   readonly editor: Editor;

@@ -3,7 +3,7 @@ import {
   calculateTableControlsPosition,
   calculateTableEdgeHandlePosition,
   calculateTableMenuPosition,
-} from "../src/ui/table/TableControls";
+} from "../src/react/ui/table/TableControls";
 
 describe("table controls positioning", () => {
   it("places controls above the active cell inside the editor frame", () => {
