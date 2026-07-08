@@ -1,24 +1,55 @@
 import type { EditorView } from "@tiptap/pm/view";
+import type { Transaction } from "@tiptap/pm/state";
 import type { Editor as CoreEditor } from "@tiptap/core";
 import { BubbleMenu } from "@tiptap/vue-3/menus";
 import { EditorContent, useEditor, type Editor as VueEditor } from "@tiptap/vue-3";
 import {
+  AlignJustify,
   AlignCenter,
   AlignLeft,
   AlignRight,
+  AlertTriangle,
   Bold,
+  Braces,
+  Captions,
+  CheckCircle2,
+  ChevronDown,
+  ChevronUp,
+  CircleX,
   Code2,
+  CornerDownLeft,
   Eye,
+  ExternalLink,
+  Heading1,
+  Heading2,
+  Heading3,
+  Image as ImageIcon,
+  IndentDecrease,
+  IndentIncrease,
   Italic,
   Link2,
   List,
+  ListChecks,
   ListOrdered,
+  Info,
+  Lightbulb,
+  Minus,
   MoreVertical,
+  Paperclip,
   PencilLine,
+  Quote,
+  Sigma,
+  SmilePlus,
+  Sparkles,
   Strikethrough,
+  Subscript,
+  Superscript,
   Table2,
+  Text as TextIcon,
   Trash2,
+  Type as TypeIcon,
   Underline,
+  Video as VideoIcon,
   type LucideIcon,
 } from "lucide-vue-next";
 import {
@@ -36,7 +67,7 @@ import {
   type Ref,
 } from "vue";
 import { isEditorComposing } from "../editor-core/composition-guard";
-import { createSelectionSnapshot, type EditorSelectionSnapshot } from "../editor-core/selection-state";
+import { createSelectionSnapshot, shouldShowFloatingToolbar, type EditorSelectionSnapshot } from "../editor-core/selection-state";
 import { normalizeMarkweaveEditorMode, setMarkweaveEditorModeState, type MarkweaveEditorMode } from "../core/editor-mode-state";
 import type {
   FloatingToolbarAssistantRequest,
@@ -58,11 +89,58 @@ import {
   type MarkweaveTocState,
 } from "../core/toc-state";
 import { getLocalizedSlashCommandSpecs, getMarkweaveMessages, normalizeMarkweaveLang, type MarkweaveLang, type MarkweaveMessages } from "../i18n";
-import { getActiveCodeBlockState, markweaveCodeBlockBehavior, type MarkweaveCodeBlockState } from "../plugins/codeblock/codeblock-behavior";
+import {
+  copyActiveCodeBlock,
+  codeBlockCollapsePluginKey,
+  getCodeBlockCopyFeedbackSnapshot,
+  getActiveCodeBlockState,
+  markweaveCodeBlockBehavior,
+  setActiveCodeBlockLanguage,
+  setCodeBlockCollapsedAtPosition,
+  setActiveCodeBlockMermaidPreviewMode,
+  type MarkweaveCodeBlockCopyFeedbackSnapshot,
+  type MarkweaveCodeBlockLanguage,
+  type MarkweaveCodeBlockState,
+} from "../plugins/codeblock/codeblock-behavior";
+import {
+  calculateCodeBlockLanguageMenuPosition,
+  clampFullscreenScale,
+  codeBlockCopyFeedbackTimeoutMs,
+  copyCodeBlockText,
+  createCodeBlockOverlayPosition,
+  createMermaidFullscreenViewerState,
+  createMermaidTabPosition,
+  focusCodeBlockTarget,
+  formatCodeBlockLanguageLabel,
+  formatFullscreenZoom,
+  getActiveCodeBlockElement,
+  getAnchoredRect,
+  getCodeBlockLanguageItems,
+  getCodeBlockPositionFromEventTarget,
+  getCodeBlockStateAtPosition,
+  getFrameElement,
+  getMermaidCodeBlockTargets,
+  getMermaidSvgMarkup,
+  isCodeBlockTargetCollapsed,
+  mergeStableMermaidTabPositions,
+  mermaidFullscreenZoomStep,
+  moveMermaidFullscreenViewer,
+  type CodeBlockMenuPosition,
+  type CodeBlockOverlayPosition,
+  type CodeBlockTargetState,
+  type MermaidFullscreenDragState,
+  type MermaidFullscreenTooltip,
+  type MermaidFullscreenViewerState,
+  type MermaidTabPosition,
+} from "../plugins/codeblock/codeblock-ui-model";
 import { normalizeMarkdownLinkHref } from "../plugins/markdown/markdown-input";
-import { isMermaidInlinePreviewTransaction, setMermaidInlinePreviewEditorMode } from "../plugins/mermaid/mermaid-inline-preview";
+import {
+  isMermaidInlinePreviewTransaction,
+  setMermaidInlinePreviewEditorMode,
+  setReadonlyMermaidPreviewMode,
+} from "../plugins/mermaid/mermaid-inline-preview";
 import { getMermaidPreviewState, type MermaidPreviewMode } from "../plugins/mermaid/mermaid-renderer";
-import { filterSlashCommands, isExecutableSlashCommand, type SlashCommandSpec } from "../plugins/slash-command/command-spec";
+import { filterSlashCommands, isExecutableSlashCommand, type SlashCommandIconName, type SlashCommandSpec } from "../plugins/slash-command/command-spec";
 import { getSlashCommandKeyboardAction } from "../plugins/slash-command/slash-keyboard";
 import {
   executeSlashCommand,
@@ -73,16 +151,51 @@ import {
   type SlashCommandMenuPosition,
 } from "../plugins/slash-command/slash-runtime";
 import { initialSlashCommandState, reduceSlashCommandState, type SlashCommandState } from "../plugins/slash-command/slash-state";
-import { getDirectUploadResult, type MarkweaveSlashCommandUploadHandler } from "../plugins/slash-command/upload";
-import type { MarkweaveMenuCopyPayload } from "../plugins/table/table-clipboard";
+import {
+  detectUploadSource,
+  getDirectUploadResult,
+  resolveMarkweaveUploadResult,
+  type MarkweaveSlashCommandUploadHandler,
+  type MarkweaveUploadRequest,
+  type MarkweaveUploadResult,
+} from "../plugins/slash-command/upload";
+import { setMarkweaveTableMenuAxisTarget, type MarkweaveMenuCopyPayload } from "../plugins/table/table-clipboard";
+import { type TableCommandId } from "../plugins/table/table-command-spec";
 import { getFirstTableDebugSnapshot } from "../plugins/table/table-debug-snapshot";
 import { focusFirstTableBodyCell } from "../plugins/table/table-focus-position";
 import { getTableFocusState, type TableFocusState } from "../plugins/table/table-focus-state";
 import {
+  getTableSelectionOverlayState,
   initialTableInteractionState,
   tableInteractionPluginKey,
   type TableInteractionState,
 } from "../plugins/table/table-interaction-layer";
+import {
+  calculateAnchoredTableMenuPosition,
+  calculateTableEdgeHandlePosition,
+  canRunTableCommand,
+  executeTableMenuCommand,
+  formatTableCopyFeedback,
+  getActiveTableElement,
+  getAvailableCellMenuCommandSpecs,
+  getTableAxisTargetRect,
+  getTableControlAxisSelectionModel,
+  getTableEditWithAiRequest,
+  getTableMenuItemGroup,
+  getTableMenuItemLabel,
+  getTableMenuItems,
+  getTableSelectionTargetRect,
+  measureTableSelectionOverlay,
+  selectTableAxisFromCell,
+  tableCopyFeedbackTimeoutMs,
+  tableMenuLabel,
+  type TableCopyFeedbackSnapshot,
+  type TableEdgeHandlePosition,
+  type TableMenuAnchor,
+  type TableMenuKind,
+  type TableMenuPosition,
+  type TableSelectionOverlayRect,
+} from "../plugins/table/table-ui-model";
 import { createMarkweaveVue3EditorExtensions } from "./create-editor-extensions";
 
 export interface MarkweaveVue3EditorControllerActions {
@@ -128,8 +241,11 @@ interface VueControllerRenderState {
   readonly messages: MarkweaveMessages;
   readonly effectiveEditable: Ref<boolean>;
   readonly tableFocusState: Ref<TableFocusState>;
+  readonly tableInteractionState: Ref<TableInteractionState>;
   readonly codeBlockState: Ref<MarkweaveCodeBlockState>;
   readonly isCodeBlockActive: Ref<boolean>;
+  readonly mermaidMode: Ref<MermaidPreviewMode>;
+  readonly setMermaidMode: (mode: MermaidPreviewMode) => void;
   readonly tocState: Ref<MarkweaveTocState>;
   readonly filteredSlashCommands: Ref<readonly SlashCommandSpec[]>;
   readonly slashState: Ref<SlashCommandState>;
@@ -234,23 +350,201 @@ function getNearestScrollableAncestor(element: HTMLElement | null): HTMLElement 
   return null;
 }
 
-function createIcon(iconComponent: Component, label: string, size = 18) {
-  return h(iconComponent, { size, strokeWidth: 1.8, "aria-hidden": "true" }, { default: () => label });
+function createIcon(iconComponent: Component, label: string, size = 18, strokeWidth = 1.8) {
+  return h(iconComponent, { size, strokeWidth, "aria-hidden": "true" }, { default: () => label });
 }
 
-function toolbarButton(label: string, iconComponent: LucideIcon, onClick: () => void, active = false) {
+type VueCodeBlockIconName = "chevron" | "clipboard" | "search" | "check" | "expand" | "download" | "close" | "zoomIn" | "zoomOut" | "reset";
+
+function createCodeBlockIconPath(icon: VueCodeBlockIconName) {
+  if (icon === "clipboard") {
+    return [
+      h("path", { d: "M9 4.5h6a1.5 1.5 0 0 1 1.5 1.5v11A1.5 1.5 0 0 1 15 18.5H7A1.5 1.5 0 0 1 5.5 17V6A1.5 1.5 0 0 1 7 4.5h2" }),
+      h("path", { d: "M8.5 5.5v-1A1.5 1.5 0 0 1 10 3h2a1.5 1.5 0 0 1 1.5 1.5v1h-5Z" }),
+    ];
+  }
+
+  if (icon === "search") {
+    return [h("circle", { cx: "10", cy: "10", r: "5.5" }), h("path", { d: "m14 14 4 4" })];
+  }
+
+  if (icon === "check") {
+    return [h("path", { d: "m5 11 4 4 8-9" })];
+  }
+
+  if (icon === "expand") {
+    return [
+      h("path", { d: "M8 4H4v4" }),
+      h("path", { d: "M4 4l5 5" }),
+      h("path", { d: "M16 4h4v4" }),
+      h("path", { d: "m20 4-5 5" }),
+      h("path", { d: "M8 20H4v-4" }),
+      h("path", { d: "m4 20 5-5" }),
+      h("path", { d: "M16 20h4v-4" }),
+      h("path", { d: "m20 20-5-5" }),
+    ];
+  }
+
+  if (icon === "download") {
+    return [h("path", { d: "M12 4v10" }), h("path", { d: "m8 10 4 4 4-4" }), h("path", { d: "M5 19h14" })];
+  }
+
+  if (icon === "close") {
+    return [h("path", { d: "M6 6l12 12" }), h("path", { d: "M18 6 6 18" })];
+  }
+
+  if (icon === "zoomOut") {
+    return [h("circle", { cx: "10", cy: "10", r: "5.25" }), h("path", { d: "M7.5 10h5" }), h("path", { d: "m14 14 4 4" })];
+  }
+
+  if (icon === "zoomIn") {
+    return [
+      h("circle", { cx: "10", cy: "10", r: "5.25" }),
+      h("path", { d: "M7.5 10h5" }),
+      h("path", { d: "M10 7.5v5" }),
+      h("path", { d: "m14 14 4 4" }),
+    ];
+  }
+
+  if (icon === "reset") {
+    return [h("path", { d: "M6.5 8.5A6 6 0 1 1 6 15" }), h("path", { d: "M6.5 8.5H3.5v-3" })];
+  }
+
+  return [h("path", { d: "m6 9 6 6 6-6" })];
+}
+
+function createCodeBlockIcon(icon: VueCodeBlockIconName) {
   return h(
-    "button",
-    {
-      type: "button",
-      "aria-label": label,
-      title: label,
-      "data-active": active ? "true" : "false",
-      onMousedown: (event: MouseEvent) => event.preventDefault(),
-      onClick,
-    },
-    [createIcon(iconComponent, label)],
+    "svg",
+    { viewBox: "0 0 24 24", "aria-hidden": "true", focusable: "false" },
+    h("g", { fill: "none", stroke: "currentColor", "stroke-linecap": "round", "stroke-linejoin": "round", "stroke-width": "1.8" }, createCodeBlockIconPath(icon)),
   );
+}
+
+function preventVuePointerFocusLoss(event: Event) {
+  event.preventDefault();
+}
+
+function maybeOpenLinkHref(href: string) {
+  const normalized = normalizeMarkdownLinkHref(href);
+  if (!normalized || typeof window === "undefined" || typeof window.open !== "function") {
+    return false;
+  }
+
+  window.open(normalized, "_blank", "noopener,noreferrer");
+  return true;
+}
+
+const toolbarIconMap: Record<string, Component> = {
+  improve: Sparkles,
+  bold: Bold,
+  italic: Italic,
+  underline: Underline,
+  strike: Strikethrough,
+  "inline-code": Code2,
+  link: Link2,
+  more: MoreVertical,
+  superscript: Superscript,
+  subscript: Subscript,
+  "inline-math": Sigma,
+  "align-left": AlignLeft,
+  "align-center": AlignCenter,
+  "align-right": AlignRight,
+  "align-justify": AlignJustify,
+  "decrease-indent": IndentDecrease,
+  "increase-indent": IndentIncrease,
+};
+
+const slashIconMap: Record<SlashCommandIconName, Component> = {
+  type: TextIcon,
+  "heading-1": Heading1,
+  "heading-2": Heading2,
+  "heading-3": Heading3,
+  "bullet-list": List,
+  "ordered-list": ListOrdered,
+  "task-list": ListChecks,
+  blockquote: Quote,
+  "code-block": Braces,
+  info: Info,
+  tip: Lightbulb,
+  warning: AlertTriangle,
+  error: CircleX,
+  success: CheckCircle2,
+  emoji: SmilePlus,
+  table: Table2,
+  separator: Minus,
+  image: ImageIcon,
+  video: VideoIcon,
+  attachment: Paperclip,
+};
+
+function createSlashIcon(name: SlashCommandIconName) {
+  const Icon = slashIconMap[name];
+  return h(Icon, { size: 18, strokeWidth: 1.6, absoluteStrokeWidth: true, "aria-hidden": "true" });
+}
+
+type VueColorOption = readonly [id: string, value: string | null, label: string];
+
+function currentBlockType(editor: CoreEditor, messages: MarkweaveMessages) {
+  if (editor.isActive("heading", { level: 1 })) {
+    return messages.floatingToolbar.blockTypes["heading-1"];
+  }
+  if (editor.isActive("heading", { level: 2 })) {
+    return messages.floatingToolbar.blockTypes["heading-2"];
+  }
+  if (editor.isActive("heading", { level: 3 })) {
+    return messages.floatingToolbar.blockTypes["heading-3"];
+  }
+  return messages.floatingToolbar.blockTypes.paragraph;
+}
+
+function setBlockType(editor: CoreEditor, id: string) {
+  if (id === "paragraph") {
+    return editor.chain().focus().setParagraph().run();
+  }
+  if (id === "heading-1" || id === "heading-2" || id === "heading-3") {
+    return editor.chain().focus().setHeading({ level: Number(id.at(-1)) as 1 | 2 | 3 }).run();
+  }
+  if (id === "bullet-list") {
+    return editor.chain().focus().toggleBulletList().run();
+  }
+  if (id === "numbered-list") {
+    return editor.chain().focus().toggleOrderedList().run();
+  }
+  if (id === "todo-list") {
+    return editor.chain().focus().toggleTaskList().run();
+  }
+  if (id === "quote") {
+    return editor.chain().focus().toggleBlockquote().run();
+  }
+  if (id === "code-block") {
+    return editor.chain().focus().setCodeBlock({ language: "text" }).run();
+  }
+  return false;
+}
+
+function runToolbarMoreAction(editor: CoreEditor, id: string) {
+  if (id === "superscript") {
+    return editor.chain().focus().toggleSuperscript().run();
+  }
+  if (id === "subscript") {
+    return editor.chain().focus().toggleSubscript().run();
+  }
+  if (id === "inline-math") {
+    return editor.chain().focus().insertContent({ type: "inlineMath", attrs: { latex: "x" } }).run();
+  }
+  if (id === "align-left" || id === "align-center" || id === "align-right" || id === "align-justify") {
+    return editor.chain().focus().setTextAlign(id.replace("align-", "")).run();
+  }
+  if (id === "decrease-indent") {
+    editor.commands.focus();
+    return (editor.commands as unknown as { decreaseIndent?: () => boolean }).decreaseIndent?.() ?? false;
+  }
+  if (id === "increase-indent") {
+    editor.commands.focus();
+    return (editor.commands as unknown as { increaseIndent?: () => boolean }).increaseIndent?.() ?? false;
+  }
+  return false;
 }
 
 const VueFloatingToolbar = defineComponent({
@@ -258,24 +552,251 @@ const VueFloatingToolbar = defineComponent({
   props: {
     editor: { type: Object as PropType<CoreEditor>, required: true },
     messages: { type: Object as PropType<MarkweaveMessages>, required: true },
+    onRewriteSelection: { type: Function as PropType<((request: FloatingToolbarAssistantRequest) => void) | undefined>, default: undefined },
   },
   setup(props) {
-    const linkOpen = ref(false);
+    const openMenu = ref<"block-type" | "link" | "color" | "more" | null>(null);
     const linkValue = ref("");
     const safeHref = computed(() => normalizeMarkdownLinkHref(linkValue.value.trim()));
+    const toolbarMessages = computed(() => props.messages.floatingToolbar);
+    const blockOptions = computed(() => [
+      ["paragraph", toolbarMessages.value.turnInto.paragraph, TypeIcon],
+      ["heading-1", toolbarMessages.value.turnInto["heading-1"], Heading1],
+      ["heading-2", toolbarMessages.value.turnInto["heading-2"], Heading2],
+      ["heading-3", toolbarMessages.value.turnInto["heading-3"], Heading3],
+      ["bullet-list", toolbarMessages.value.turnInto["bullet-list"], List],
+      ["numbered-list", toolbarMessages.value.turnInto["numbered-list"], ListOrdered],
+      ["todo-list", toolbarMessages.value.turnInto["todo-list"], ListChecks],
+      ["quote", toolbarMessages.value.turnInto.quote, Quote],
+      ["code-block", toolbarMessages.value.turnInto["code-block"], Braces],
+    ] as const);
+    const textColorOptions = computed(() => [
+      ["default", null, toolbarMessages.value.textColors.default],
+      ["gray", "#646970", toolbarMessages.value.textColors.gray],
+      ["brown", "#8a5a44", toolbarMessages.value.textColors.brown],
+      ["orange", "#c76f2b", toolbarMessages.value.textColors.orange],
+      ["yellow", "#9a7400", toolbarMessages.value.textColors.yellow],
+      ["green", "#2f7d4f", toolbarMessages.value.textColors.green],
+      ["blue", "#2f66d0", toolbarMessages.value.textColors.blue],
+      ["purple", "#7651d5", toolbarMessages.value.textColors.purple],
+      ["pink", "#bf4e85", toolbarMessages.value.textColors.pink],
+      ["red", "#c23b3b", toolbarMessages.value.textColors.red],
+    ] as const);
+    const highlightOptions = computed(() => [
+      ["default", null, toolbarMessages.value.highlightColors.default],
+      ["gray", "#eceff3", toolbarMessages.value.highlightColors.gray],
+      ["brown", "#f1e6df", toolbarMessages.value.highlightColors.brown],
+      ["orange", "#fde7d1", toolbarMessages.value.highlightColors.orange],
+      ["yellow", "#fff4bf", toolbarMessages.value.highlightColors.yellow],
+      ["green", "#dff4e8", toolbarMessages.value.highlightColors.green],
+      ["blue", "#ddeaff", toolbarMessages.value.highlightColors.blue],
+      ["purple", "#ebe4ff", toolbarMessages.value.highlightColors.purple],
+      ["pink", "#fde3ef", toolbarMessages.value.highlightColors.pink],
+      ["red", "#ffe0df", toolbarMessages.value.highlightColors.red],
+    ] as const);
+    const moreActions = computed(() => [
+      "superscript",
+      "subscript",
+      "inline-math",
+      "align-left",
+      "align-center",
+      "align-right",
+      "align-justify",
+      "decrease-indent",
+      "increase-indent",
+    ]);
 
     const applyLink = () => {
       if (!safeHref.value) {
         return;
       }
       props.editor.chain().focus().extendMarkRange("link").setLink({ href: safeHref.value }).run();
-      linkOpen.value = false;
+      openMenu.value = null;
     };
 
     const unsetLink = () => {
-      props.editor.chain().focus().extendMarkRange("link").unsetLink().run();
+      if (props.editor.isActive("link")) {
+        props.editor.chain().focus().extendMarkRange("link").unsetLink().run();
+      }
       linkValue.value = "";
-      linkOpen.value = false;
+      openMenu.value = null;
+    };
+
+    const toggleMenu = (menu: typeof openMenu.value) => {
+      openMenu.value = openMenu.value === menu ? null : menu;
+      if (menu === "link") {
+        linkValue.value = (props.editor.getAttributes("link").href as string | undefined) ?? "";
+      }
+    };
+
+    const toolbarButton = (id: string, label: string, iconComponent: Component, onClick: () => void, active = false, glyph?: string) =>
+      h(
+        "button",
+        {
+          type: "button",
+          class: `markweave-floating-toolbar-button markweave-floating-toolbar-button--${id}`,
+          "aria-label": label,
+          "aria-expanded": ["block-type", "link", "color", "more"].includes(id) ? openMenu.value === id : undefined,
+          "data-active": active || openMenu.value === id,
+          "data-testid": `markweave-floating-toolbar-button-${id}`,
+          onMousedown: preventVuePointerFocusLoss,
+          onClick,
+        },
+        id === "block-type"
+          ? [
+              h("span", { class: "markweave-floating-toolbar-button-inner" }, [
+                h("span", { class: "markweave-floating-toolbar-block-label" }, currentBlockType(props.editor, props.messages)),
+                createIcon(openMenu.value === "block-type" ? ChevronUp : ChevronDown, label),
+              ]),
+            ]
+          : id === "color"
+            ? [
+                h("span", { class: "markweave-floating-toolbar-button-inner markweave-floating-toolbar-button-inner--color" }, [
+                  h("span", { class: "markweave-floating-toolbar-color-trigger" }, "A"),
+                  createIcon(openMenu.value === "color" ? ChevronUp : ChevronDown, label),
+                ]),
+              ]
+            : id === "improve"
+              ? [h("span", { class: "markweave-floating-toolbar-button-inner" }, [createIcon(iconComponent, label), h("span", null, glyph ?? label)])]
+              : [createIcon(iconComponent, label)],
+      );
+
+    const divider = () => h("span", { class: "markweave-floating-toolbar-divider", "aria-hidden": "true" });
+
+    const colorSection = (title: string, mode: "text" | "highlight", options: readonly VueColorOption[]) =>
+      h("section", { class: "markweave-floating-toolbar-color-section", "aria-label": title }, [
+        h("div", { class: "markweave-floating-toolbar-menu-title" }, title),
+        h("div", { class: "markweave-floating-toolbar-swatch-grid" }, options.map(([id, value, label]) =>
+          h(
+            "button",
+            {
+              key: `${mode}-${id}`,
+              type: "button",
+              "aria-label": label,
+              "data-testid": `markweave-floating-toolbar-${mode}-${id}`,
+              onMousedown: preventVuePointerFocusLoss,
+              onClick: () => {
+                if (mode === "text") {
+                  value ? props.editor.chain().focus().setColor(value).run() : props.editor.chain().focus().unsetColor().run();
+                } else {
+                  value ? props.editor.chain().focus().toggleHighlight({ color: value }).run() : props.editor.chain().focus().unsetHighlight().run();
+                }
+                openMenu.value = null;
+              },
+            },
+            mode === "text"
+              ? [h("span", { class: "markweave-floating-toolbar-text-swatch", style: { color: value ?? "#646970" } }, "A")]
+              : [h("span", { class: "markweave-floating-toolbar-highlight-swatch", style: { backgroundColor: value ?? "#ffffff" }, "aria-hidden": "true" })],
+          ),
+        )),
+      ]);
+
+    const createAssistantRequest = (): FloatingToolbarAssistantRequest => ({
+      source: "rewrite-selection",
+      text: props.editor.state.doc.textBetween(props.editor.state.selection.from, props.editor.state.selection.to, "\n"),
+      html: props.editor.getHTML(),
+      from: props.editor.state.selection.from,
+      to: props.editor.state.selection.to,
+    });
+
+    const renderPopover = () => {
+      if (openMenu.value === "block-type") {
+        return h("div", { class: "markweave-floating-toolbar-popover markweave-floating-toolbar-turn-menu", "data-testid": "markweave-floating-toolbar-turn-menu" }, [
+          h("div", { class: "markweave-floating-toolbar-menu-title" }, toolbarMessages.value.turnIntoTitle),
+          ...blockOptions.value.map(([id, label, icon]) =>
+            h(
+              "button",
+              {
+                key: id,
+                type: "button",
+                "data-testid": `markweave-floating-toolbar-turn-${id}`,
+                onMousedown: preventVuePointerFocusLoss,
+                onClick: () => {
+                  setBlockType(props.editor, id);
+                  openMenu.value = null;
+                },
+              },
+              [h("span", { class: "markweave-floating-toolbar-menu-icon" }, [createIcon(icon, label)]), h("span", null, label)],
+            ),
+          ),
+        ]);
+      }
+
+      if (openMenu.value === "link") {
+        return h(
+          "form",
+          {
+            class: "markweave-floating-toolbar-popover markweave-floating-toolbar-link-popover",
+            "data-testid": "markweave-floating-toolbar-link-popover",
+            onSubmit: (event: Event) => {
+              event.preventDefault();
+              applyLink();
+            },
+          },
+          [
+            h("input", {
+              value: linkValue.value,
+              placeholder: toolbarMessages.value.linkPlaceholder,
+              "aria-label": toolbarMessages.value.linkUrlLabel,
+              "data-testid": "markweave-floating-toolbar-link-input",
+              onInput: (event: Event) => {
+                linkValue.value = (event.target as HTMLInputElement).value;
+              },
+            }),
+            h("span", { class: "markweave-floating-toolbar-link-actions" }, [
+              h("button", { type: "submit", disabled: !safeHref.value, "aria-label": toolbarMessages.value.applyLink, "data-testid": "markweave-floating-toolbar-link-apply", onMousedown: preventVuePointerFocusLoss }, [
+                createIcon(CornerDownLeft, toolbarMessages.value.applyLink),
+              ]),
+              h("span", { class: "markweave-floating-toolbar-link-divider", "aria-hidden": "true" }),
+              h(
+                "button",
+                {
+                  type: "button",
+                  disabled: !safeHref.value,
+                  "aria-label": toolbarMessages.value.openLink,
+                  "data-testid": "markweave-floating-toolbar-link-open",
+                  onMousedown: preventVuePointerFocusLoss,
+                  onClick: () => maybeOpenLinkHref(linkValue.value),
+                },
+                [createIcon(ExternalLink, toolbarMessages.value.openLink)],
+              ),
+              h("button", { type: "button", "aria-label": toolbarMessages.value.removeLink, "data-testid": "markweave-floating-toolbar-link-remove", onMousedown: preventVuePointerFocusLoss, onClick: unsetLink }, [
+                createIcon(Trash2, toolbarMessages.value.removeLink),
+              ]),
+            ]),
+          ],
+        );
+      }
+
+      if (openMenu.value === "color") {
+        return h("div", { class: "markweave-floating-toolbar-popover markweave-floating-toolbar-color-popover", "data-testid": "markweave-floating-toolbar-color-menu" }, [
+          colorSection(toolbarMessages.value.textColorTitle, "text", textColorOptions.value),
+          colorSection(toolbarMessages.value.highlightColorTitle, "highlight", highlightOptions.value),
+        ]);
+      }
+
+      if (openMenu.value === "more") {
+        return h("div", { class: "markweave-floating-toolbar-popover markweave-floating-toolbar-more-menu", "data-testid": "markweave-floating-toolbar-more-menu" }, moreActions.value.map((id) =>
+          h("span", { key: id, class: "markweave-floating-toolbar-more-item" }, [
+            h(
+              "button",
+              {
+                type: "button",
+                "aria-label": toolbarMessages.value.moreActions[id],
+                "data-testid": `markweave-floating-toolbar-more-${id}`,
+                onMousedown: preventVuePointerFocusLoss,
+                onClick: () => {
+                  runToolbarMoreAction(props.editor, id);
+                  openMenu.value = null;
+                },
+              },
+              [createIcon(toolbarIconMap[id], toolbarMessages.value.moreActions[id])],
+            ),
+          ]),
+        ));
+      }
+
+      return null;
     };
 
     return () =>
@@ -283,59 +804,29 @@ const VueFloatingToolbar = defineComponent({
         BubbleMenu as unknown as Component,
         {
           editor: props.editor as unknown as VueEditor,
-          shouldShow: ({ editor }: { editor: CoreEditor }) => !editor.state.selection.empty,
+          shouldShow: ({ editor }: { editor: CoreEditor }) => editor.isEditable && shouldShowFloatingToolbar(createSelectionSnapshot(editor)),
           options: { placement: "top" },
         } as Record<string, unknown>,
         {
           default: () =>
-            h("div", { class: "markweave-floating-toolbar markweave-floating-toolbar--motion-entered" }, [
-              h("div", { class: "markweave-floating-toolbar-content" }, [
-                toolbarButton(props.messages.floatingToolbar.buttons.bold, Bold, () => props.editor.chain().focus().toggleBold().run(), props.editor.isActive("bold")),
-                toolbarButton(props.messages.floatingToolbar.buttons.italic, Italic, () => props.editor.chain().focus().toggleItalic().run(), props.editor.isActive("italic")),
-                toolbarButton(props.messages.floatingToolbar.buttons.underline, Underline, () => props.editor.chain().focus().toggleUnderline().run(), props.editor.isActive("underline")),
-                toolbarButton(props.messages.floatingToolbar.buttons.strike, Strikethrough, () => props.editor.chain().focus().toggleStrike().run(), props.editor.isActive("strike")),
-                toolbarButton(props.messages.floatingToolbar.buttons.inlineCode, Code2, () => props.editor.chain().focus().toggleCode().run(), props.editor.isActive("code")),
-                toolbarButton(
-                  props.messages.floatingToolbar.buttons.link,
-                  Link2,
-                  () => {
-                    linkOpen.value = !linkOpen.value;
-                    linkValue.value = (props.editor.getAttributes("link").href as string | undefined) ?? "";
-                  },
-                  props.editor.isActive("link"),
-                ),
-                toolbarButton(props.messages.floatingToolbar.moreActions["align-left"], AlignLeft, () => props.editor.chain().focus().setTextAlign("left").run(), props.editor.isActive({ textAlign: "left" })),
-                toolbarButton(props.messages.floatingToolbar.moreActions["align-center"], AlignCenter, () => props.editor.chain().focus().setTextAlign("center").run(), props.editor.isActive({ textAlign: "center" })),
-                toolbarButton(props.messages.floatingToolbar.moreActions["align-right"], AlignRight, () => props.editor.chain().focus().setTextAlign("right").run(), props.editor.isActive({ textAlign: "right" })),
+            h("div", { class: "markweave-floating-toolbar markweave-floating-toolbar--default markweave-floating-toolbar--motion-entered", "data-testid": "markweave-floating-toolbar" }, [
+              h("div", { class: "markweave-floating-toolbar-content", "data-menu": openMenu.value ?? "none" }, [
+                toolbarButton("improve", toolbarMessages.value.buttons.improve, Sparkles, () => props.onRewriteSelection?.(createAssistantRequest()), false, toolbarMessages.value.buttons.improve),
+                divider(),
+                toolbarButton("block-type", toolbarMessages.value.buttons["block-type"], TypeIcon, () => toggleMenu("block-type"), openMenu.value === "block-type"),
+                divider(),
+                toolbarButton("bold", toolbarMessages.value.buttons.bold, Bold, () => props.editor.chain().focus().toggleBold().run(), props.editor.isActive("bold")),
+                toolbarButton("italic", toolbarMessages.value.buttons.italic, Italic, () => props.editor.chain().focus().toggleItalic().run(), props.editor.isActive("italic")),
+                toolbarButton("underline", toolbarMessages.value.buttons.underline, Underline, () => props.editor.chain().focus().toggleUnderline().run(), props.editor.isActive("underline")),
+                toolbarButton("strike", toolbarMessages.value.buttons.strike, Strikethrough, () => props.editor.chain().focus().toggleStrike().run(), props.editor.isActive("strike")),
+                toolbarButton("inline-code", toolbarMessages.value.buttons["inline-code"], Code2, () => props.editor.chain().focus().toggleCode().run(), props.editor.isActive("code")),
+                divider(),
+                toolbarButton("link", toolbarMessages.value.buttons.link, Link2, () => toggleMenu("link"), props.editor.isActive("link")),
+                toolbarButton("color", toolbarMessages.value.buttons.color, TypeIcon, () => toggleMenu("color"), openMenu.value === "color"),
+                divider(),
+                toolbarButton("more", toolbarMessages.value.buttons.more, MoreVertical, () => toggleMenu("more"), openMenu.value === "more"),
+                renderPopover(),
               ]),
-              linkOpen.value
-                ? h("div", { class: "markweave-floating-toolbar-link-popover" }, [
-                    h("input", {
-                      value: linkValue.value,
-                      placeholder: props.messages.floatingToolbar.linkPlaceholder,
-                      "aria-label": props.messages.floatingToolbar.linkUrlLabel,
-                      onInput: (event: Event) => {
-                        linkValue.value = (event.target as HTMLInputElement).value;
-                      },
-                      onKeydown: (event: KeyboardEvent) => {
-                        if (event.key === "Enter") {
-                          event.preventDefault();
-                          applyLink();
-                        }
-                      },
-                    }),
-                    h("div", { class: "markweave-floating-toolbar-link-actions" }, [
-                      h("button", { type: "button", disabled: !safeHref.value, "aria-label": props.messages.floatingToolbar.applyLink, onClick: applyLink }, "↵"),
-                      h("button", {
-                        type: "button",
-                        disabled: !safeHref.value,
-                        "aria-label": props.messages.floatingToolbar.openLink,
-                        onClick: () => safeHref.value && window.open(safeHref.value, "_blank", "noopener,noreferrer"),
-                      }, "↗"),
-                      h("button", { type: "button", "aria-label": props.messages.floatingToolbar.removeLink, onClick: unsetLink }, "⌫"),
-                    ]),
-                  ])
-                : null,
             ]),
         },
       );
@@ -356,53 +847,135 @@ const VueSlashCommandMenu = defineComponent({
   },
   setup(props) {
     const inputValue = ref("");
+    const file = ref<File | null>(null);
     const error = ref<string | null>(null);
+    const isSubmitting = ref(false);
+    const emojiQuery = ref("");
+    const emojiActiveIndex = ref(0);
+    const visibleEmojiItems = computed(() => {
+      const query = emojiQuery.value.trim().toLowerCase();
+      const items = query
+        ? props.messages.slash.emojiItems.filter((item) => [item.emoji, item.label, ...item.terms].join(" ").toLowerCase().includes(query))
+        : props.messages.slash.emojiItems;
+      return items.slice(0, 12);
+    });
 
     const insertUpload = async () => {
       if (!props.inputCommand) {
         return;
       }
-      const source = inputValue.value.trim();
-      if (!source) {
-        error.value = props.messages.slash.uploadRequiredError;
+      error.value = null;
+      isSubmitting.value = true;
+      try {
+        const request: MarkweaveUploadRequest = file.value
+          ? { kind: props.inputCommand.uploadKind ?? "attachment", trigger: "slash-command", source: { type: "file", file: file.value, mimeType: file.value.type } }
+          : { kind: props.inputCommand.uploadKind ?? "attachment", trigger: "slash-command", source: detectUploadSource(inputValue.value) };
+        if (!file.value && !inputValue.value.trim()) {
+          error.value = props.messages.slash.uploadRequiredError;
+          return;
+        }
+        const uploadResult: MarkweaveUploadResult = await resolveMarkweaveUploadResult(request, props.onUpload);
+        props.onSelect(props.inputCommand, { uploadResult });
+        props.onInputCommandChange(null);
+        inputValue.value = "";
+        file.value = null;
+      } catch (errorValue) {
+        error.value = errorValue instanceof Error ? errorValue.message : props.messages.slash.uploadFailedError;
+      } finally {
+        isSubmitting.value = false;
+      }
+    };
+
+    const chooseEmoji = (index: number) => {
+      if (!props.inputCommand) {
         return;
       }
-      props.onSelect(props.inputCommand, {
-        uploadResult: {
-          src: source,
-          name: source.split("/").filter(Boolean).at(-1),
-        },
-      });
-      props.onInputCommandChange(null);
-      inputValue.value = "";
+      const item = visibleEmojiItems.value[Math.min(visibleEmojiItems.value.length - 1, Math.max(0, index))];
+      if (item) {
+        props.onSelect(props.inputCommand, { emoji: item.emoji });
+        props.onInputCommandChange(null);
+      }
     };
 
     return () => {
-      if (!props.position && !props.inputCommand) {
+      if (!props.position) {
         return null;
       }
 
-      const style = props.position
-        ? {
-            "--markweave-slash-menu-left": `${props.position.left}px`,
-            "--markweave-slash-menu-top": `${props.position.top}px`,
-            "--markweave-slash-menu-max-height": `${props.position.maxHeight}px`,
-          }
-        : {};
+      const style = {
+        left: `${props.position.left}px`,
+        top: `${props.position.top}px`,
+        maxHeight: `${props.position.maxHeight}px`,
+        "--markweave-slash-menu-max-height": `${props.position.maxHeight}px`,
+      };
+      const triggerStyle = {
+        left: `${props.position.triggerLeft}px`,
+        top: `${props.position.triggerTop}px`,
+      };
 
-      return h(
-        "div",
-        { class: "markweave-slash-menu", style, role: "menu", "aria-label": props.messages.slash.ariaLabel, "data-placement": props.position?.placement ?? "bottom" },
-        [
-          props.inputCommand
-            ? h("div", { class: "markweave-slash-upload" }, [
+      const groupedCommands = Object.values(props.messages.slash.groups)
+        .map((group) => ({ group, commands: props.commands.filter((command) => command.group === group) }))
+        .filter((entry) => entry.commands.length);
+
+      return [
+        h("div", { class: "markweave-slash-trigger", style: triggerStyle, "aria-hidden": "true", "data-testid": "markweave-slash-trigger" }, [
+          h("span", null, "/"),
+          h("em", null, props.state.query || props.messages.slash.filterPlaceholder),
+        ]),
+        h(
+          "div",
+          { class: "markweave-slash-menu", style, role: "listbox", "aria-label": props.messages.slash.ariaLabel, "data-placement": props.position.placement, "data-testid": "markweave-slash-menu" },
+          [
+            props.inputCommand?.inputKind === "emoji"
+              ? h("div", { class: "markweave-slash-subpanel", "data-testid": "markweave-slash-emoji-picker" }, [
+                  h("div", { class: "markweave-slash-subpanel-header" }, [
+                    h("button", { type: "button", onMousedown: preventVuePointerFocusLoss, onClick: () => props.onInputCommandChange(null) }, props.messages.common.back),
+                    h("span", null, props.messages.slash.emojiTitle),
+                  ]),
+                  h("label", { class: "markweave-slash-input" }, [
+                    h("span", null, "/"),
+                    h("input", {
+                      autofocus: true,
+                      value: emojiQuery.value,
+                      placeholder: props.messages.slash.emojiSearchPlaceholder,
+                      onInput: (event: Event) => {
+                        emojiQuery.value = (event.target as HTMLInputElement).value;
+                        emojiActiveIndex.value = 0;
+                      },
+                      onKeydown: (event: KeyboardEvent) => {
+                        if (event.key === "Escape") {
+                          event.preventDefault();
+                          props.onInputCommandChange(null);
+                        } else if (event.key === "ArrowDown") {
+                          event.preventDefault();
+                          emojiActiveIndex.value = visibleEmojiItems.value.length ? (emojiActiveIndex.value + 1) % visibleEmojiItems.value.length : 0;
+                        } else if (event.key === "ArrowUp") {
+                          event.preventDefault();
+                          emojiActiveIndex.value = visibleEmojiItems.value.length ? (emojiActiveIndex.value - 1 + visibleEmojiItems.value.length) % visibleEmojiItems.value.length : 0;
+                        } else if (event.key === "Enter" || event.key === "Tab") {
+                          event.preventDefault();
+                          chooseEmoji(emojiActiveIndex.value);
+                        }
+                      },
+                    }),
+                  ]),
+                  h("div", { class: "markweave-slash-emoji-grid", role: "listbox", "aria-label": props.messages.slash.emojiTitle }, visibleEmojiItems.value.map((item, index) =>
+                    h("button", { key: `${item.emoji}-${item.label}`, type: "button", role: "option", "aria-selected": index === emojiActiveIndex.value, "data-active": index === emojiActiveIndex.value, onMouseenter: () => (emojiActiveIndex.value = index), onMousedown: preventVuePointerFocusLoss, onClick: () => chooseEmoji(index) }, [
+                      h("span", null, item.emoji),
+                      h("small", null, item.label),
+                    ]),
+                  )),
+                ])
+              : props.inputCommand?.inputKind === "upload"
+                ? h("div", { class: "markweave-slash-subpanel", "data-testid": "markweave-slash-upload-panel" }, [
                 h("div", { class: "markweave-slash-upload-header" }, [
-                  h("button", { type: "button", onClick: () => props.onInputCommandChange(null) }, props.messages.common.back),
-                  h("strong", null, props.inputCommand.label),
+                  h("button", { type: "button", onMousedown: preventVuePointerFocusLoss, onClick: () => props.onInputCommandChange(null) }, props.messages.common.back),
+                  h("strong", null, props.inputCommand ? props.messages.slash.uploadKindLabels[props.inputCommand.uploadKind ?? "upload"] : props.messages.slash.uploadKindLabels.upload),
                 ]),
-                h("label", null, [
+                h("label", { class: "markweave-slash-upload-field" }, [
                   h("span", null, props.messages.slash.uploadValueLabel),
                   h("input", {
+                    autofocus: true,
                     value: inputValue.value,
                     placeholder: props.messages.slash.uploadValuePlaceholder,
                     onInput: (event: Event) => {
@@ -416,37 +989,58 @@ const VueSlashCommandMenu = defineComponent({
                     },
                   }),
                 ]),
-                error.value ? h("div", { role: "alert" }, error.value) : null,
+                h("label", { class: "markweave-slash-upload-field" }, [
+                  h("span", null, props.messages.common.file),
+                  h("input", { type: "file", onChange: (event: Event) => (file.value = (event.target as HTMLInputElement).files?.[0] ?? null) }),
+                ]),
+                error.value ? h("div", { class: "markweave-slash-upload-error", role: "alert" }, error.value) : null,
                 h("div", { class: "markweave-slash-upload-actions" }, [
-                  h("button", { type: "button", onClick: () => props.onInputCommandChange(null) }, props.messages.common.cancel),
-                  h("button", { type: "button", onClick: insertUpload }, props.messages.common.insert),
+                  h("button", { type: "button", onMousedown: preventVuePointerFocusLoss, onClick: () => props.onInputCommandChange(null) }, props.messages.common.cancel),
+                  h("button", { type: "button", "data-primary": "true", disabled: isSubmitting.value, onMousedown: preventVuePointerFocusLoss, onClick: insertUpload }, props.messages.common.insert),
                 ]),
               ])
-            : props.commands.length
-              ? props.commands.map((command, index) =>
-                  h(
-                    "button",
-                    {
-                      key: command.id,
-                      type: "button",
-                      role: "menuitem",
-                      "data-active": index === props.state.activeIndex ? "true" : "false",
-                      disabled: !isExecutableSlashCommand(command),
-                      onMouseenter: () => undefined,
-                      onClick: () => props.onSelect(command),
-                    },
-                    [
-                      h("span", { class: "markweave-slash-menu__item-icon" }, command.icon ?? command.label.charAt(0)),
-                      h("span", { class: "markweave-slash-menu__item-body" }, [
-                        h("span", { class: "markweave-slash-menu__item-label" }, command.label),
-                        h("span", { class: "markweave-slash-menu__item-description" }, command.description),
+                : props.commands.length
+                  ? h("div", { class: "markweave-slash-command-list" }, groupedCommands.map((entry) =>
+                      h("section", { key: entry.group, class: "markweave-slash-group", "aria-label": entry.group }, [
+                        h("div", { class: "markweave-slash-group-title" }, entry.group),
+                        ...entry.commands.map((command) => {
+                          const flatIndex = props.commands.indexOf(command);
+                          const active = flatIndex === props.state.activeIndex;
+                          const executable = isExecutableSlashCommand(command);
+                          return h(
+                            "button",
+                            {
+                              key: command.id,
+                              type: "button",
+                              role: "option",
+                              "aria-selected": active,
+                              "aria-disabled": !executable || command.disabled ? "true" : undefined,
+                              "data-active": active,
+                              "data-disabled": command.disabled ? "true" : "false",
+                              "data-execution-kind": command.executionKind,
+                              "data-testid": `markweave-slash-command-${command.id}`,
+                              title: command.disabledReason,
+                              onMousedown: preventVuePointerFocusLoss,
+                              onClick: () => {
+                                if (!executable) {
+                                  return;
+                                }
+                                if (command.inputKind) {
+                                  props.onInputCommandChange(command);
+                                  return;
+                                }
+                                props.onSelect(command);
+                              },
+                            },
+                            [createSlashIcon(command.icon), h("span", null, command.label), command.disabledReason ? h("small", null, command.disabledReason) : null],
+                          );
+                        }),
                       ]),
-                    ],
-                  ),
-                )
-              : h("div", { class: "markweave-slash-menu__empty" }, props.messages.slash.noResults),
-        ],
-      );
+                    ))
+                  : h("div", { class: "markweave-slash-menu__empty", role: "option", "aria-disabled": "true" }, props.messages.slash.noResults),
+          ],
+        ),
+      ];
     };
   },
 });
@@ -456,20 +1050,401 @@ const VueTableControls = defineComponent({
   props: {
     editor: { type: Object as PropType<CoreEditor>, required: true },
     active: { type: Boolean, required: true },
+    interactionState: { type: Object as PropType<TableInteractionState>, required: true },
     messages: { type: Object as PropType<MarkweaveMessages>, required: true },
+    onCopyPayload: { type: Function as PropType<((payload: MarkweaveMenuCopyPayload) => void) | undefined>, default: undefined },
+    onCommandResult: { type: Function as PropType<((result: TableCommandResult) => void) | undefined>, default: undefined },
+    onEditWithAi: { type: Function as PropType<((request: TableEditWithAiRequest) => void) | undefined>, default: undefined },
   },
   setup(props) {
+    const openMenu = ref<TableMenuKind | null>(null);
+    const menuAnchor = ref<TableMenuAnchor>("row-edge");
+    const rowEdgePosition = ref<TableEdgeHandlePosition | null>(null);
+    const columnEdgePosition = ref<TableEdgeHandlePosition | null>(null);
+    const selectionEdgePosition = ref<TableEdgeHandlePosition | null>(null);
+    const menuPosition = ref<TableMenuPosition | null>(null);
+    const copyFeedback = ref<TableCopyFeedbackSnapshot | null>(null);
+    const controlsRef = ref<HTMLElement | null>(null);
+    const rowEdgeRef = ref<HTMLElement | null>(null);
+    const columnEdgeRef = ref<HTMLElement | null>(null);
+    const selectionEdgeRef = ref<HTMLElement | null>(null);
+    const menuRef = ref<HTMLElement | null>(null);
+    let copyFeedbackTimeout: number | null = null;
+
+    const focusState = computed(() => (props.active ? getTableFocusState(props.editor.state) : outsideTableFocusState));
+    const rowAxisModel = computed(() => getTableControlAxisSelectionModel(props.editor, props.interactionState, "row", focusState.value.activeCellPos));
+    const columnAxisModel = computed(() => getTableControlAxisSelectionModel(props.editor, props.interactionState, "column", focusState.value.activeCellPos));
+    const cellMenuCommands = computed(() => getAvailableCellMenuCommandSpecs(props.editor));
+    const hasCellMenuCommands = computed(() => cellMenuCommands.value.length > 0);
+    const menuItems = computed(() => (openMenu.value ? getTableMenuItems(props.editor, openMenu.value) : []));
+
+    const clearCopyFeedbackTimeout = () => {
+      if (copyFeedbackTimeout === null || typeof window === "undefined") {
+        return;
+      }
+      window.clearTimeout(copyFeedbackTimeout);
+      copyFeedbackTimeout = null;
+    };
+
+    const setCopyFeedbackSnapshot = (snapshot: TableCopyFeedbackSnapshot | null) => {
+      clearCopyFeedbackTimeout();
+      copyFeedback.value = snapshot;
+      if (!snapshot || typeof window === "undefined") {
+        return;
+      }
+      copyFeedbackTimeout = window.setTimeout(() => {
+        copyFeedback.value = null;
+        copyFeedbackTimeout = null;
+      }, tableCopyFeedbackTimeoutMs);
+    };
+
+    const updateEdgePositions = () => {
+      if (!props.active) {
+        rowEdgePosition.value = null;
+        columnEdgePosition.value = null;
+        selectionEdgePosition.value = null;
+        setCopyFeedbackSnapshot(null);
+        return;
+      }
+
+      const frameElement = props.editor.view.dom.closest<HTMLElement>(".markweave-editor-frame") ?? props.editor.view.dom.parentElement;
+      if (!frameElement) {
+        rowEdgePosition.value = null;
+        columnEdgePosition.value = null;
+        selectionEdgePosition.value = null;
+        return;
+      }
+
+      const frameRect = frameElement.getBoundingClientRect();
+      const rowAxisRect = rowAxisModel.value ? getTableAxisTargetRect(props.editor, rowAxisModel.value) : null;
+      const columnAxisRect = columnAxisModel.value ? getTableAxisTargetRect(props.editor, columnAxisModel.value) : null;
+      const selectionRect = hasCellMenuCommands.value ? getTableSelectionTargetRect(props.editor) : null;
+
+      if (rowAxisRect) {
+        rowEdgePosition.value = calculateTableEdgeHandlePosition({ targetRect: rowAxisRect, frameRect, kind: "row" });
+      } else if (!(openMenu.value === "row" && menuAnchor.value === "row-edge")) {
+        rowEdgePosition.value = null;
+      }
+
+      if (columnAxisRect) {
+        columnEdgePosition.value = calculateTableEdgeHandlePosition({ targetRect: columnAxisRect, frameRect, kind: "column" });
+      } else if (!(openMenu.value === "column" && menuAnchor.value === "column-edge")) {
+        columnEdgePosition.value = null;
+      }
+
+      if (selectionRect) {
+        selectionEdgePosition.value = calculateTableEdgeHandlePosition({ targetRect: selectionRect, frameRect, kind: "selection" });
+      } else if (!(openMenu.value === "selection" && menuAnchor.value === "selection-edge")) {
+        selectionEdgePosition.value = null;
+      }
+    };
+
+    const updateMenuPosition = () => {
+      if (!props.active || !openMenu.value) {
+        menuPosition.value = null;
+        return;
+      }
+
+      const frameElement = props.editor.view.dom.closest<HTMLElement>(".markweave-editor-frame") ?? props.editor.view.dom.parentElement;
+      const anchorElement =
+        menuAnchor.value === "row-edge" ? rowEdgeRef.value : menuAnchor.value === "column-edge" ? columnEdgeRef.value : selectionEdgeRef.value;
+
+      if (!frameElement || !anchorElement || !menuRef.value) {
+        menuPosition.value = null;
+        return;
+      }
+
+      const rawAnchorRect = anchorElement.getBoundingClientRect();
+      const tableRect = openMenu.value === "row" ? getActiveTableElement(props.editor)?.getBoundingClientRect() : null;
+      const anchorRect = tableRect
+        ? {
+            left: rawAnchorRect.left,
+            top: tableRect.top,
+            width: rawAnchorRect.width,
+            height: rawAnchorRect.height,
+          }
+        : rawAnchorRect;
+      const frameRect = frameElement.getBoundingClientRect();
+      const menuRect = menuRef.value.getBoundingClientRect();
+      menuPosition.value = calculateAnchoredTableMenuPosition({
+        anchorRect,
+        frameRect,
+        menuSize: {
+          width: menuRect.width || 204,
+          height: menuRect.height || 220,
+        },
+        kind: openMenu.value,
+      });
+    };
+
+    const updatePositions = () => {
+      updateEdgePositions();
+      updateMenuPosition();
+    };
+
+    const scheduleUpdatePositions = () => {
+      void nextTick(updatePositions);
+    };
+
+    const toggleMenu = (menu: TableMenuKind, anchor: TableMenuAnchor) => {
+      const shouldClose = openMenu.value === menu && menuAnchor.value === anchor;
+      menuAnchor.value = anchor;
+      openMenu.value = shouldClose ? null : menu;
+      scheduleUpdatePositions();
+    };
+
+    const clearMenuAxisTarget = () => {
+      props.editor.view.dispatch(setMarkweaveTableMenuAxisTarget(props.editor.state.tr, null));
+    };
+
+    const openAxisMenuFromEdge = (menu: "row" | "column", anchor: Extract<TableMenuAnchor, "row-edge" | "column-edge">) => {
+      const targetCellPos = props.interactionState.hoverCellPos ?? focusState.value.activeCellPos;
+      const visualIndex = props.interactionState.hoverCellPos === null ? null : menu === "row" ? props.interactionState.hoverVisualRowIndex : props.interactionState.hoverVisualColumnIndex;
+
+      if (targetCellPos !== null) {
+        selectTableAxisFromCell(props.editor, targetCellPos, menu, { visualIndex });
+      }
+
+      toggleMenu(menu, anchor);
+    };
+
+    const openSelectionMenuFromEdge = () => {
+      clearMenuAxisTarget();
+      toggleMenu("selection", "selection-edge");
+    };
+
+    const closeMenu = (focusEditor = false) => {
+      openMenu.value = null;
+      menuPosition.value = null;
+      if (focusEditor) {
+        props.editor.view.focus();
+      }
+    };
+
+    const runMenuCommand = async (commandId: TableCommandId, menuOverride?: TableMenuKind) => {
+      const result = await executeTableMenuCommand({
+        editor: props.editor,
+        commandId,
+        menu: menuOverride ?? openMenu.value ?? "selection",
+        messages: props.messages,
+      });
+
+      if (result.copyFeedback) {
+        setCopyFeedbackSnapshot(result.copyFeedback);
+        if (result.copyPayload) {
+          props.onCopyPayload?.(result.copyPayload);
+        }
+      } else {
+        setCopyFeedbackSnapshot(null);
+      }
+
+      props.onCommandResult?.(result.commandResult);
+      return result.success;
+    };
+
+    const runEditWithAi = (source: TableEditWithAiRequest["source"]) => {
+      const request = getTableEditWithAiRequest(props.editor, source);
+
+      if (request) {
+        props.onEditWithAi?.(request);
+      }
+
+      closeMenu(true);
+    };
+
+    const onDocumentKeydown = (event: KeyboardEvent) => {
+      if (!openMenu.value || event.key !== "Escape") {
+        return;
+      }
+      closeMenu(true);
+    };
+
+    const onDocumentMousedown = (event: MouseEvent) => {
+      if (!openMenu.value) {
+        return;
+      }
+      if (event.target instanceof Node && controlsRef.value?.contains(event.target)) {
+        return;
+      }
+      closeMenu();
+    };
+
+    onMounted(() => {
+      updatePositions();
+      window.addEventListener("resize", updatePositions);
+      window.addEventListener("scroll", updatePositions, true);
+      document.addEventListener("keydown", onDocumentKeydown);
+      document.addEventListener("mousedown", onDocumentMousedown);
+    });
+
+    onBeforeUnmount(() => {
+      clearCopyFeedbackTimeout();
+      window.removeEventListener("resize", updatePositions);
+      window.removeEventListener("scroll", updatePositions, true);
+      document.removeEventListener("keydown", onDocumentKeydown);
+      document.removeEventListener("mousedown", onDocumentMousedown);
+    });
+
+    watch(
+      () => [
+        props.active,
+        focusState.value.activeCellPos,
+        focusState.value.selectionFrom,
+        focusState.value.selectionTo,
+        props.interactionState.hoverCellPos,
+        props.interactionState.hoverVisualColumnIndex,
+        props.interactionState.hoverVisualRowIndex,
+        openMenu.value,
+        menuAnchor.value,
+      ],
+      scheduleUpdatePositions,
+      { flush: "post" },
+    );
+
+    const menu = () => {
+      if (!openMenu.value) {
+        return null;
+      }
+
+      return h(
+        "div",
+        {
+          ref: menuRef,
+          class: "markweave-table-menu",
+          role: "menu",
+          "aria-label": tableMenuLabel(openMenu.value, props.messages),
+          "data-testid": "markweave-table-menu",
+          "data-positioned": menuPosition.value ? "true" : "false",
+          style: menuPosition.value ? { left: `${menuPosition.value.left}px`, top: `${menuPosition.value.top}px` } : undefined,
+        },
+        menuItems.value.map((item, index) => {
+          const group = getTableMenuItemGroup(item);
+          const previousGroup = index === 0 ? group : getTableMenuItemGroup(menuItems.value[index - 1]);
+          const startsGroup = index > 0 && previousGroup !== group;
+          const enabled = item.commandId === null ? Boolean(props.onEditWithAi) : canRunTableCommand(props.editor, item.commandId);
+          const label = getTableMenuItemLabel(item, props.messages);
+
+          return h(
+            "button",
+            {
+              key: `${item.id}-${index}`,
+              type: "button",
+              role: "menuitem",
+              "aria-label": label,
+              "aria-disabled": !enabled,
+              disabled: !enabled,
+              "data-menu-group": group,
+              "data-starts-group": startsGroup ? "true" : "false",
+              "data-command-enabled": enabled ? "true" : "false",
+              "data-testid": item.commandId ? `markweave-table-menu-command-${item.commandId}` : "markweave-table-menu-command-edit-with-ai",
+              onMousedown: preventVuePointerFocusLoss,
+              onClick: () => {
+                if (!enabled) {
+                  return;
+                }
+                if (item.commandId === null) {
+                  runEditWithAi(openMenu.value === "row" || openMenu.value === "column" ? openMenu.value : "selection");
+                  return;
+                }
+                void runMenuCommand(item.commandId).finally(() => closeMenu());
+              },
+            },
+            label,
+          );
+        }),
+      );
+    };
+
     return () =>
       props.active
-        ? h("div", { class: "markweave-table-controls", "data-positioned": "false" }, [
-            toolbarButton(props.messages.table.commands["add-row-before"], List, () => props.editor.chain().focus().addRowBefore().run()),
-            toolbarButton(props.messages.table.commands["add-row-after"], ListOrdered, () => props.editor.chain().focus().addRowAfter().run()),
-            toolbarButton(props.messages.table.commands["add-column-before"], Table2, () => props.editor.chain().focus().addColumnBefore().run()),
-            toolbarButton(props.messages.table.commands["add-column-after"], Table2, () => props.editor.chain().focus().addColumnAfter().run()),
-            toolbarButton(props.messages.table.commands["delete-row"], Trash2, () => props.editor.chain().focus().deleteRow().run()),
-            toolbarButton(props.messages.table.commands["delete-table"], MoreVertical, () => props.editor.chain().focus().deleteTable().run()),
+        ? h("div", { ref: controlsRef, class: "markweave-table-controls", "data-testid": "markweave-table-controls", "aria-label": props.messages.table.controlsAriaLabel, "data-open-menu": openMenu.value ?? "none", "data-positioned": rowEdgePosition.value || columnEdgePosition.value || selectionEdgePosition.value ? "true" : "false" }, [
+            copyFeedback.value
+              ? h("div", { class: "markweave-table-copy-feedback", role: "status", "aria-live": "polite", "data-testid": "markweave-table-copy-feedback", "data-copy-kind": copyFeedback.value.kind, "data-text-length": copyFeedback.value.textLength, "data-html-length": copyFeedback.value.htmlLength }, formatTableCopyFeedback(copyFeedback.value))
+              : null,
+            rowEdgePosition.value
+              ? h("button", { ref: rowEdgeRef, type: "button", class: "markweave-table-edge-handle markweave-table-edge-handle--row", "aria-label": props.messages.table.activeRowActions, "aria-expanded": openMenu.value === "row" && menuAnchor.value === "row-edge", "aria-haspopup": "menu", title: props.messages.table.rowActions, "data-testid": "markweave-table-hover-row-handle", "data-axis-index": rowAxisModel.value?.index ?? "", "data-axis-selected-cells": rowAxisModel.value?.selectedCellCount ?? "", "data-axis-visual-cells": rowAxisModel.value?.visualCellCount ?? "", "data-axis-visual-size": rowAxisModel.value?.visualHeight ?? "", style: { left: `${rowEdgePosition.value.left}px`, top: `${rowEdgePosition.value.top}px` }, onMousedown: preventVuePointerFocusLoss, onClick: () => openAxisMenuFromEdge("row", "row-edge") }, [h("span", { "aria-hidden": "true" }, "...")])
+              : null,
+            columnEdgePosition.value
+              ? h("button", { ref: columnEdgeRef, type: "button", class: "markweave-table-edge-handle markweave-table-edge-handle--column", "aria-label": props.messages.table.activeColumnActions, "aria-expanded": openMenu.value === "column" && menuAnchor.value === "column-edge", "aria-haspopup": "menu", title: props.messages.table.columnActions, "data-testid": "markweave-table-hover-column-handle", "data-axis-index": columnAxisModel.value?.index ?? "", "data-axis-selected-cells": columnAxisModel.value?.selectedCellCount ?? "", "data-axis-visual-cells": columnAxisModel.value?.visualCellCount ?? "", "data-axis-visual-size": columnAxisModel.value?.visualWidth ?? "", style: { left: `${columnEdgePosition.value.left}px`, top: `${columnEdgePosition.value.top}px` }, onMousedown: preventVuePointerFocusLoss, onClick: () => openAxisMenuFromEdge("column", "column-edge") }, [h("span", { "aria-hidden": "true" }, "...")])
+              : null,
+            hasCellMenuCommands.value && selectionEdgePosition.value
+              ? h("button", { ref: selectionEdgeRef, type: "button", class: "markweave-table-edge-handle markweave-table-edge-handle--selection", "aria-label": props.messages.table.selectionActions, "aria-expanded": openMenu.value === "selection" && menuAnchor.value === "selection-edge", "aria-haspopup": "menu", title: props.messages.table.selectionActions, "data-testid": "markweave-table-cell-handle", style: { left: `${selectionEdgePosition.value.left}px`, top: `${selectionEdgePosition.value.top}px` }, onMousedown: preventVuePointerFocusLoss, onClick: openSelectionMenuFromEdge }, [h("span", { "aria-hidden": "true" }, "...")])
+              : null,
+            menu(),
           ])
         : null;
+  },
+});
+
+const VueTableSelectionOverlay = defineComponent({
+  name: "MarkweaveVueTableSelectionOverlay",
+  props: {
+    editor: { type: Object as PropType<CoreEditor>, required: true },
+    focusState: { type: Object as PropType<TableFocusState>, required: true },
+  },
+  setup(props) {
+    const overlayRect = ref<TableSelectionOverlayRect | null>(null);
+
+    const updateOverlayRect = () => {
+      if (props.focusState.mode !== "cell-selection") {
+        overlayRect.value = null;
+        return;
+      }
+      overlayRect.value = measureTableSelectionOverlay(props.editor, getTableSelectionOverlayState(props.editor.state));
+    };
+
+    onMounted(() => {
+      updateOverlayRect();
+      window.addEventListener("resize", updateOverlayRect);
+      window.addEventListener("scroll", updateOverlayRect, true);
+    });
+
+    onBeforeUnmount(() => {
+      window.removeEventListener("resize", updateOverlayRect);
+      window.removeEventListener("scroll", updateOverlayRect, true);
+    });
+
+    watch(
+      () => [
+        props.focusState.activeCellPos,
+        props.focusState.anchorCellPos,
+        props.focusState.mode,
+        props.focusState.selectedCellCount,
+        props.focusState.selectionFrom,
+        props.focusState.selectionTo,
+      ],
+      () => {
+        void nextTick(updateOverlayRect);
+      },
+      { flush: "post" },
+    );
+
+    return () => {
+      const rect = overlayRect.value;
+      if (!rect) {
+        return null;
+      }
+
+      return h("div", {
+        "aria-hidden": "true",
+        class: "markweave-table-selection-overlay",
+        "data-anchor-cell-pos": rect.anchorCellPos ?? "",
+        "data-head-cell-pos": rect.headCellPos ?? "",
+        "data-selected-cells": rect.selectedCellCount,
+        "data-visual-columns": rect.visualColumnCount,
+        "data-visual-rows": rect.visualRowCount,
+        "data-visual-slots": rect.visualSlotCount,
+        "data-testid": "markweave-table-selection-overlay",
+        style: {
+          "--markweave-table-selection-columns": rect.visualColumnCount,
+          "--markweave-table-selection-rows": rect.visualRowCount,
+          left: `${rect.left}px`,
+          top: `${rect.top}px`,
+          width: `${rect.width}px`,
+          height: `${rect.height}px`,
+        },
+      });
+    };
   },
 });
 
@@ -479,16 +1454,755 @@ const VueCodeBlockControls = defineComponent({
     editor: { type: Object as PropType<CoreEditor>, required: true },
     state: { type: Object as PropType<MarkweaveCodeBlockState>, required: true },
     active: { type: Boolean, required: true },
+    mermaidMode: { type: String as PropType<MermaidPreviewMode>, required: true },
+    onMermaidModeChange: { type: Function as PropType<(mode: MermaidPreviewMode) => void>, required: true },
     readOnly: { type: Boolean, required: true },
   },
   setup(props) {
-    return () =>
-      props.active || props.readOnly
-        ? h("div", { class: "markweave-codeblock-controls", "data-positioned": "false" }, [
-            h("button", { type: "button", disabled: props.readOnly, title: props.state.language }, props.state.language),
-            h("button", { type: "button", onClick: () => navigator.clipboard?.writeText(props.state.text) }, "Copy"),
-          ])
-        : null;
+    const controlsRef = ref<HTMLDivElement | null>(null);
+    const languageButtonRef = ref<HTMLButtonElement | null>(null);
+    const searchInputRef = ref<HTMLInputElement | null>(null);
+    const hoveredCodeBlockPos = ref<number | null>(null);
+    const position = ref<CodeBlockOverlayPosition | null>(null);
+    const mermaidTabPositions = ref<readonly MermaidTabPosition[]>([]);
+    const languageMenuPosition = ref<CodeBlockMenuPosition | null>(null);
+    const languageMenuOpen = ref(false);
+    const languageQuery = ref("");
+    const copyFeedback = ref<MarkweaveCodeBlockCopyFeedbackSnapshot | null>(null);
+    const copyTooltipVisible = ref(false);
+    const fullscreenViewer = ref<MermaidFullscreenViewerState | null>(null);
+    const fullscreenTooltip = ref<MermaidFullscreenTooltip | null>(null);
+    const fullscreenDragging = ref(false);
+    const fullscreenDrag = ref<MermaidFullscreenDragState>({ active: false, lastX: 0, lastY: 0 });
+    const collapseRevision = ref(0);
+    const readonlyMermaidRevision = ref(0);
+    const controlsRevision = ref(0);
+    let copyFeedbackTimeout: number | null = null;
+
+    const hoveredCodeBlock = computed(() => {
+      controlsRevision.value;
+      return getCodeBlockStateAtPosition(props.editor, hoveredCodeBlockPos.value);
+    });
+    const activeTarget = computed<CodeBlockTargetState | null>(() =>
+      !props.readOnly && props.active && props.state.active && props.state.pos !== null
+        ? { ...props.state, pos: props.state.pos, active: true as const }
+        : null,
+    );
+    const codeBlock = computed(() => hoveredCodeBlock.value ?? activeTarget.value);
+    const codeBlockActive = computed(() => codeBlock.value !== null);
+    const isMermaid = computed(() => codeBlock.value?.language === "mermaid");
+    const collapsed = computed(() => isCodeBlockTargetCollapsed(props.editor, codeBlock.value));
+    const showTargetControls = computed(() => codeBlockActive.value && codeBlock.value !== null && !collapsed.value);
+    const showWritableControls = computed(() => !props.readOnly);
+    const currentLanguageLabel = computed(() => (codeBlock.value ? formatCodeBlockLanguageLabel(codeBlock.value.language) : formatCodeBlockLanguageLabel("text")));
+    const copyState = computed(() => copyFeedback.value?.status ?? "idle");
+    const visibleMermaidMode = computed(() => codeBlock.value?.mermaidPreviewMode ?? props.mermaidMode);
+    const svgAvailable = computed(() => isMermaid.value && visibleMermaidMode.value === "preview");
+    const mermaidTargets = computed(() => {
+      controlsRevision.value;
+      collapseRevision.value;
+      readonlyMermaidRevision.value;
+      return getMermaidCodeBlockTargets(props.editor);
+    });
+    const mermaidTargetKey = computed(() =>
+      `${readonlyMermaidRevision.value}|${mermaidTargets.value.map((target) => `${target.pos}:${target.mermaidPreviewMode}:${target.text.length}`).join("|")}`,
+    );
+    const languageItems = computed(() => getCodeBlockLanguageItems(languageQuery.value));
+    const codeBlockKey = computed(() => (codeBlock.value ? `${codeBlock.value.pos}:${codeBlock.value.language}:${codeBlock.value.text}` : "none"));
+
+    const clearCopyFeedbackTimeout = () => {
+      if (copyFeedbackTimeout !== null) {
+        window.clearTimeout(copyFeedbackTimeout);
+        copyFeedbackTimeout = null;
+      }
+    };
+    const setCopyFeedbackSnapshot = (snapshot: MarkweaveCodeBlockCopyFeedbackSnapshot | null) => {
+      clearCopyFeedbackTimeout();
+      copyFeedback.value = snapshot;
+      if (snapshot) {
+        copyFeedbackTimeout = window.setTimeout(() => {
+          copyFeedback.value = null;
+          copyFeedbackTimeout = null;
+        }, codeBlockCopyFeedbackTimeoutMs);
+      }
+    };
+    const closeFullscreenViewer = () => {
+      fullscreenViewer.value = null;
+      fullscreenTooltip.value = null;
+      fullscreenDragging.value = false;
+      fullscreenDrag.value = { active: false, lastX: 0, lastY: 0 };
+      props.editor.view.focus();
+    };
+
+    const updateMermaidTabPositions = () => {
+      const controlsElement = controlsRef.value;
+      if (!controlsElement) {
+        return;
+      }
+
+      const frameElement = getFrameElement(controlsElement);
+      if (!frameElement || mermaidTargets.value.length === 0) {
+        mermaidTabPositions.value = [];
+        return;
+      }
+
+      const overlayRect = controlsElement.getBoundingClientRect();
+      const nextPositions = mermaidTargets.value.flatMap((target) => {
+        const targetElement = getActiveCodeBlockElement(props.editor, target.pos, target.mermaidPreviewMode);
+        const targetRect = getAnchoredRect(targetElement, overlayRect);
+        return targetRect ? [createMermaidTabPosition(target, targetRect, overlayRect)] : [];
+      });
+
+      mermaidTabPositions.value = mergeStableMermaidTabPositions(
+        mermaidTabPositions.value,
+        nextPositions,
+        mermaidTargets.value.map((target) => target.pos),
+      );
+    };
+
+    const updatePosition = () => {
+      if (!showTargetControls.value || !codeBlock.value) {
+        position.value = null;
+        languageMenuPosition.value = null;
+        return;
+      }
+
+      const controlsElement = controlsRef.value;
+      if (!controlsElement) {
+        return;
+      }
+
+      const targetElement = getActiveCodeBlockElement(props.editor, codeBlock.value.pos, visibleMermaidMode.value);
+      const overlayRect = controlsElement.getBoundingClientRect();
+      const targetRect = getAnchoredRect(targetElement, overlayRect);
+
+      if (!targetRect) {
+        position.value = position.value?.pos === codeBlock.value.pos ? position.value : null;
+        languageMenuPosition.value = languageMenuOpen.value ? languageMenuPosition.value : null;
+        return;
+      }
+
+      position.value = createCodeBlockOverlayPosition(codeBlock.value.pos, targetRect, overlayRect);
+
+      if (languageMenuOpen.value && languageButtonRef.value) {
+        const buttonRect = languageButtonRef.value.getBoundingClientRect();
+        languageMenuPosition.value = calculateCodeBlockLanguageMenuPosition({
+          overlayRect,
+          buttonRect,
+          windowWidth: window.innerWidth,
+          windowHeight: window.innerHeight,
+        });
+      }
+    };
+
+    const copyCode = async () => {
+      if (props.readOnly) {
+        if (!codeBlock.value) {
+          return;
+        }
+        const didCopy = await copyCodeBlockText(codeBlock.value.text);
+        setCopyFeedbackSnapshot(getCodeBlockCopyFeedbackSnapshot(codeBlock.value, didCopy ? "copied" : "failed"));
+        return;
+      }
+
+      if (!focusCodeBlockTarget(props.editor, codeBlock.value)) {
+        return;
+      }
+
+      const didCopy = await copyActiveCodeBlock(props.editor);
+      setCopyFeedbackSnapshot(getCodeBlockCopyFeedbackSnapshot(getActiveCodeBlockState(props.editor), didCopy ? "copied" : "failed"));
+      props.editor.view.focus();
+    };
+
+    const setMermaidModeForTarget = (target: CodeBlockTargetState, mode: MermaidPreviewMode) => {
+      if (props.readOnly) {
+        if (setReadonlyMermaidPreviewMode(props.editor, target.pos, mode)) {
+          readonlyMermaidRevision.value += 1;
+          controlsRevision.value += 1;
+        }
+        return;
+      }
+
+      if (!focusCodeBlockTarget(props.editor, target)) {
+        return;
+      }
+
+      if (setActiveCodeBlockMermaidPreviewMode(props.editor, mode)) {
+        props.onMermaidModeChange(mode);
+        controlsRevision.value += 1;
+      }
+    };
+
+    const selectLanguage = (language: MarkweaveCodeBlockLanguage) => {
+      if (props.readOnly) {
+        return;
+      }
+
+      if (!focusCodeBlockTarget(props.editor, codeBlock.value)) {
+        return;
+      }
+
+      if (setActiveCodeBlockLanguage(props.editor, language)) {
+        if (language === "mermaid" && setActiveCodeBlockMermaidPreviewMode(props.editor, "preview")) {
+          props.onMermaidModeChange("preview");
+        }
+        languageMenuOpen.value = false;
+        languageQuery.value = "";
+        controlsRevision.value += 1;
+        props.editor.view.focus();
+      }
+    };
+
+    const toggleCollapse = () => {
+      if (props.readOnly || !codeBlock.value) {
+        return;
+      }
+
+      if (setCodeBlockCollapsedAtPosition(props.editor, codeBlock.value.pos, !collapsed.value)) {
+        collapseRevision.value += 1;
+        controlsRevision.value += 1;
+        hoveredCodeBlockPos.value = null;
+      }
+    };
+
+    const downloadMermaidSvg = () => {
+      if (!codeBlock.value) {
+        return;
+      }
+
+      const svg = getMermaidSvgMarkup(props.editor, codeBlock.value.pos);
+      if (!svg) {
+        return;
+      }
+
+      const blob = new Blob([svg], { type: "image/svg+xml" });
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = "markweave-mermaid.svg";
+      anchor.click();
+      URL.revokeObjectURL(url);
+      props.editor.view.focus();
+    };
+
+    const openMermaidFullscreen = () => {
+      if (!codeBlock.value) {
+        return;
+      }
+
+      const svg = getMermaidSvgMarkup(props.editor, codeBlock.value.pos);
+      if (!svg) {
+        return;
+      }
+
+      fullscreenViewer.value = createMermaidFullscreenViewerState(svg);
+      fullscreenTooltip.value = null;
+      fullscreenDragging.value = false;
+      fullscreenDrag.value = { active: false, lastX: 0, lastY: 0 };
+    };
+
+    const zoomMermaidFullscreen = (delta: number) => {
+      fullscreenViewer.value = fullscreenViewer.value ? { ...fullscreenViewer.value, scale: clampFullscreenScale(fullscreenViewer.value.scale + delta) } : null;
+    };
+
+    const resetMermaidFullscreen = () => {
+      fullscreenViewer.value = fullscreenViewer.value ? createMermaidFullscreenViewerState(fullscreenViewer.value.svg) : null;
+      fullscreenDrag.value = { active: false, lastX: 0, lastY: 0 };
+      fullscreenDragging.value = false;
+    };
+
+    const handleFullscreenWheel = (event: WheelEvent) => {
+      event.preventDefault();
+      zoomMermaidFullscreen(event.deltaY < 0 ? mermaidFullscreenZoomStep : -mermaidFullscreenZoomStep);
+    };
+
+    const startFullscreenDrag = (event: MouseEvent) => {
+      if (event.button !== 0) {
+        return;
+      }
+      event.preventDefault();
+      fullscreenDrag.value = { active: true, lastX: event.clientX, lastY: event.clientY };
+      fullscreenDragging.value = true;
+    };
+
+    const moveFullscreenDrag = (event: MouseEvent) => {
+      const drag = fullscreenDrag.value;
+      if (!drag.active) {
+        return;
+      }
+      const deltaX = event.clientX - drag.lastX;
+      const deltaY = event.clientY - drag.lastY;
+      fullscreenDrag.value = { active: true, lastX: event.clientX, lastY: event.clientY };
+      fullscreenViewer.value = moveMermaidFullscreenViewer(fullscreenViewer.value, deltaX, deltaY);
+    };
+
+    const stopFullscreenDrag = () => {
+      fullscreenDrag.value = { active: false, lastX: 0, lastY: 0 };
+      fullscreenDragging.value = false;
+    };
+
+    watch(
+      () => props.readOnly,
+      (readOnly) => {
+        if (readOnly) {
+          languageMenuOpen.value = false;
+          languageQuery.value = "";
+        }
+      },
+    );
+
+    watch(codeBlockKey, () => {
+      setCopyFeedbackSnapshot(null);
+      languageMenuOpen.value = false;
+      languageQuery.value = "";
+      fullscreenViewer.value = null;
+      fullscreenTooltip.value = null;
+      fullscreenDragging.value = false;
+    });
+
+    watch(languageMenuOpen, async (open) => {
+      if (!open) {
+        return;
+      }
+      await nextTick();
+      searchInputRef.value?.focus();
+      updatePosition();
+    });
+
+    watch(
+      () => [showTargetControls.value, collapseRevision.value, codeBlock.value?.pos ?? null, languageMenuOpen.value, visibleMermaidMode.value] as const,
+      async () => {
+        await nextTick();
+        updatePosition();
+      },
+      { flush: "post", immediate: true },
+    );
+
+    watch(
+      mermaidTargetKey,
+      async () => {
+        await nextTick();
+        updateMermaidTabPositions();
+        window.requestAnimationFrame(updateMermaidTabPositions);
+      },
+      { flush: "post", immediate: true },
+    );
+
+    let cleanupCodeBlockListeners: (() => void) | null = null;
+
+    onMounted(() => {
+      void nextTick(() => {
+        const frameElement = props.editor.view.dom.closest<HTMLElement>(".markweave-editor-frame");
+        const updateHoveredCodeBlock = (event: MouseEvent) => {
+          if (event.target instanceof Node && controlsRef.value?.contains(event.target)) {
+            return;
+          }
+          if (languageMenuOpen.value) {
+            return;
+          }
+          const nextPos = getCodeBlockPositionFromEventTarget(props.editor, event.target);
+          const nextState = getCodeBlockStateAtPosition(props.editor, nextPos);
+          const nextHoverPos = nextState && !isCodeBlockTargetCollapsed(props.editor, nextState) ? nextState.pos : null;
+          hoveredCodeBlockPos.value = hoveredCodeBlockPos.value === nextHoverPos ? hoveredCodeBlockPos.value : nextHoverPos;
+        };
+        const clearHoveredCodeBlock = () => {
+          if (!languageMenuOpen.value) {
+            hoveredCodeBlockPos.value = null;
+          }
+        };
+        const onDocumentKeydown = (event: KeyboardEvent) => {
+          if (event.key !== "Escape") {
+            return;
+          }
+          if (fullscreenViewer.value) {
+            closeFullscreenViewer();
+            return;
+          }
+          if (languageMenuOpen.value) {
+            languageMenuOpen.value = false;
+            props.editor.view.focus();
+          }
+        };
+        const onDocumentMousedown = (event: MouseEvent) => {
+          if (!languageMenuOpen.value) {
+            return;
+          }
+          if (event.target instanceof Node && controlsRef.value?.contains(event.target)) {
+            return;
+          }
+          languageMenuOpen.value = false;
+        };
+        const onTransaction = ({ transaction }: { readonly transaction: Transaction }) => {
+          if (transaction.getMeta(codeBlockCollapsePluginKey)) {
+            collapseRevision.value += 1;
+          }
+          if (transaction.docChanged || transaction.selectionSet || transaction.getMeta(codeBlockCollapsePluginKey) || isMermaidInlinePreviewTransaction(transaction)) {
+            controlsRevision.value += 1;
+          }
+        };
+
+        frameElement?.addEventListener("mousemove", updateHoveredCodeBlock);
+        frameElement?.addEventListener("mouseleave", clearHoveredCodeBlock);
+        window.addEventListener("resize", updatePosition);
+        window.addEventListener("scroll", updatePosition, true);
+        window.addEventListener("resize", updateMermaidTabPositions);
+        window.addEventListener("scroll", updateMermaidTabPositions, true);
+        document.addEventListener("keydown", onDocumentKeydown);
+        document.addEventListener("mousedown", onDocumentMousedown);
+        props.editor.on("transaction", onTransaction);
+
+        cleanupCodeBlockListeners = () => {
+          frameElement?.removeEventListener("mousemove", updateHoveredCodeBlock);
+          frameElement?.removeEventListener("mouseleave", clearHoveredCodeBlock);
+          window.removeEventListener("resize", updatePosition);
+          window.removeEventListener("scroll", updatePosition, true);
+          window.removeEventListener("resize", updateMermaidTabPositions);
+          window.removeEventListener("scroll", updateMermaidTabPositions, true);
+          document.removeEventListener("keydown", onDocumentKeydown);
+          document.removeEventListener("mousedown", onDocumentMousedown);
+          props.editor.off("transaction", onTransaction);
+          clearCopyFeedbackTimeout();
+        };
+      });
+    });
+
+    onBeforeUnmount(() => {
+      cleanupCodeBlockListeners?.();
+      cleanupCodeBlockListeners = null;
+      clearCopyFeedbackTimeout();
+    });
+
+    return () => {
+      if (!showTargetControls.value && mermaidTargets.value.length === 0 && !fullscreenViewer.value) {
+        return null;
+      }
+
+      const controlStyle = position.value
+        ? {
+            top: `${position.value.top}px`,
+            right: `${position.value.right}px`,
+          }
+        : undefined;
+
+      const languageMenuStyle = languageMenuPosition.value
+        ? {
+            left: `${languageMenuPosition.value.left}px`,
+            top: `${languageMenuPosition.value.top}px`,
+          }
+        : undefined;
+
+      return h("div", { ref: controlsRef, class: "markweave-codeblock-overlay", "data-testid": "markweave-codeblock-overlay", "data-read-only": props.readOnly ? "true" : "false" }, [
+        ...mermaidTargets.value.map((target) => {
+          const tabPosition = mermaidTabPositions.value.find((candidate) => candidate.pos === target.pos);
+          return h(
+            "div",
+            {
+              key: target.pos,
+              class: "markweave-mermaid-tabs",
+              "data-testid": "markweave-mermaid-tabs",
+              "data-code-block-pos": target.pos,
+              "data-positioned": tabPosition ? "true" : "false",
+              style: tabPosition ? { top: `${tabPosition.top}px`, left: `${tabPosition.left}px` } : undefined,
+            },
+            (["code", "preview"] as const).map((mode) =>
+              h(
+                "button",
+                {
+                  key: mode,
+                  type: "button",
+                  "data-testid": `markweave-mermaid-mode-${mode}`,
+                  "data-active": target.mermaidPreviewMode === mode ? "true" : "false",
+                  onMousedown: preventVuePointerFocusLoss,
+                  onClick: () => setMermaidModeForTarget(target, mode),
+                },
+                mode === "code" ? "Code" : "Preview",
+              ),
+            ),
+          );
+        }),
+        showTargetControls.value && codeBlock.value
+          ? h(
+              "div",
+              {
+                class: "markweave-codeblock-controls",
+                "data-testid": "markweave-codeblock-controls",
+                "data-positioned": position.value ? "true" : "false",
+                "data-collapsed": collapsed.value ? "true" : "false",
+                "data-read-only": props.readOnly ? "true" : "false",
+                "aria-label": "Code block controls",
+                style: controlStyle,
+              },
+              [
+                props.readOnly
+                  ? h("span", { class: "markweave-codeblock-language-button markweave-codeblock-language-label", "aria-label": "Code block language", "data-testid": "markweave-codeblock-language" }, [
+                      h("span", null, currentLanguageLabel.value),
+                    ])
+                  : h(
+                      "button",
+                      {
+                        ref: languageButtonRef,
+                        type: "button",
+                        class: "markweave-codeblock-language-button",
+                        "aria-label": "Code block language",
+                        "aria-expanded": languageMenuOpen.value ? "true" : "false",
+                        "aria-haspopup": "listbox",
+                        "data-testid": "markweave-codeblock-language",
+                        onMousedown: preventVuePointerFocusLoss,
+                        onClick: () => {
+                          languageMenuOpen.value = !languageMenuOpen.value;
+                        },
+                      },
+                      [h("span", null, currentLanguageLabel.value), createCodeBlockIcon("chevron")],
+                    ),
+                showWritableControls.value
+                  ? h(
+                      "button",
+                      {
+                        type: "button",
+                        class: "markweave-codeblock-icon-button markweave-codeblock-collapse-button",
+                        "aria-label": collapsed.value ? "Expand code block" : "Collapse code block",
+                        title: collapsed.value ? "Expand code block" : "Collapse code block",
+                        "data-testid": "markweave-codeblock-collapse",
+                        "data-collapsed": collapsed.value ? "true" : "false",
+                        onMousedown: preventVuePointerFocusLoss,
+                        onClick: toggleCollapse,
+                      },
+                      [createCodeBlockIcon("chevron")],
+                    )
+                  : null,
+                h("span", { class: "markweave-codeblock-copy-wrap" }, [
+                  h(
+                    "button",
+                    {
+                      type: "button",
+                      class: "markweave-codeblock-icon-button",
+                      "aria-label": "Copy to clipboard",
+                      "data-testid": "markweave-codeblock-copy",
+                      "data-copy-state": copyState.value,
+                      onMousedown: preventVuePointerFocusLoss,
+                      onMouseenter: () => {
+                        copyTooltipVisible.value = true;
+                      },
+                      onMouseleave: () => {
+                        copyTooltipVisible.value = false;
+                      },
+                      onFocus: () => {
+                        copyTooltipVisible.value = true;
+                      },
+                      onBlur: () => {
+                        copyTooltipVisible.value = false;
+                      },
+                      onClick: () => {
+                        void copyCode();
+                      },
+                    },
+                    [createCodeBlockIcon(copyState.value === "copied" ? "check" : "clipboard")],
+                  ),
+                  copyTooltipVisible.value ? h("span", { class: "markweave-codeblock-tooltip", role: "tooltip", "data-testid": "markweave-codeblock-copy-tooltip" }, "Copy to clipboard") : null,
+                ]),
+                isMermaid.value && visibleMermaidMode.value === "preview"
+                  ? h("div", { class: "markweave-mermaid-preview-actions", "data-testid": "markweave-mermaid-preview-actions" }, [
+                      h(
+                        "button",
+                        {
+                          type: "button",
+                          class: "markweave-codeblock-icon-button",
+                          "aria-label": "Fullscreen Mermaid preview",
+                          "data-testid": "markweave-mermaid-fullscreen",
+                          disabled: !svgAvailable.value,
+                          onMousedown: preventVuePointerFocusLoss,
+                          onClick: openMermaidFullscreen,
+                        },
+                        [createCodeBlockIcon("expand")],
+                      ),
+                      h(
+                        "button",
+                        {
+                          type: "button",
+                          class: "markweave-codeblock-icon-button",
+                          "aria-label": "Download Mermaid SVG",
+                          "data-testid": "markweave-mermaid-download",
+                          disabled: !svgAvailable.value,
+                          onMousedown: preventVuePointerFocusLoss,
+                          onClick: downloadMermaidSvg,
+                        },
+                        [createCodeBlockIcon("download")],
+                      ),
+                    ])
+                  : null,
+              ],
+            )
+          : null,
+        showWritableControls.value && showTargetControls.value && languageMenuOpen.value && codeBlock.value
+          ? h(
+              "div",
+              {
+                class: "markweave-codeblock-language-menu",
+                role: "listbox",
+                "aria-label": "Code block languages",
+                "data-testid": "markweave-codeblock-language-menu",
+                "data-positioned": languageMenuPosition.value ? "true" : "false",
+                style: languageMenuStyle,
+              },
+              [
+                h("label", { class: "markweave-codeblock-language-search" }, [
+                  h("input", {
+                    ref: searchInputRef,
+                    value: languageQuery.value,
+                    placeholder: "Search...",
+                    "data-testid": "markweave-codeblock-language-search",
+                    onInput: (event: Event) => {
+                      languageQuery.value = (event.target as HTMLInputElement).value;
+                    },
+                    onKeydown: (event: KeyboardEvent) => {
+                      if (event.key === "Escape") {
+                        event.preventDefault();
+                        languageMenuOpen.value = false;
+                        props.editor.view.focus();
+                      }
+                    },
+                  }),
+                  createCodeBlockIcon("search"),
+                ]),
+                h(
+                  "div",
+                  { class: "markweave-codeblock-language-list" },
+                  languageItems.value.map((item) => {
+                    const selected = codeBlock.value?.language === item.language;
+                    return h(
+                      "button",
+                      {
+                        key: item.language,
+                        type: "button",
+                        role: "option",
+                        "aria-selected": selected ? "true" : "false",
+                        "data-testid": `markweave-codeblock-language-option-${item.language}`,
+                        "data-active": selected ? "true" : "false",
+                        onMousedown: preventVuePointerFocusLoss,
+                        onClick: () => selectLanguage(item.language),
+                      },
+                      [h("span", null, item.label), selected ? createCodeBlockIcon("check") : null],
+                    );
+                  }),
+                ),
+              ],
+            )
+          : null,
+        fullscreenViewer.value
+          ? h("div", { class: "markweave-mermaid-fullscreen-layer", role: "dialog", "aria-modal": "true", "aria-label": "Mermaid preview", "data-testid": "markweave-mermaid-fullscreen-layer" }, [
+              h("div", { class: "markweave-mermaid-fullscreen-toolbar", "data-testid": "markweave-mermaid-fullscreen-toolbar" }, [
+                h(
+                  "button",
+                  {
+                    type: "button",
+                    class: "markweave-mermaid-fullscreen-control",
+                    "aria-label": "Zoom out",
+                    "data-testid": "markweave-mermaid-fullscreen-zoom-out",
+                    onMouseenter: () => {
+                      fullscreenTooltip.value = "zoom-out";
+                    },
+                    onMouseleave: () => {
+                      fullscreenTooltip.value = null;
+                    },
+                    onFocus: () => {
+                      fullscreenTooltip.value = "zoom-out";
+                    },
+                    onBlur: () => {
+                      fullscreenTooltip.value = null;
+                    },
+                    onClick: () => zoomMermaidFullscreen(-mermaidFullscreenZoomStep),
+                  },
+                  [createCodeBlockIcon("zoomOut")],
+                ),
+                h("span", { class: "markweave-mermaid-fullscreen-zoom-label", "data-testid": "markweave-mermaid-fullscreen-zoom-label" }, formatFullscreenZoom(fullscreenViewer.value.scale)),
+                h(
+                  "button",
+                  {
+                    type: "button",
+                    class: "markweave-mermaid-fullscreen-control",
+                    "aria-label": "Zoom in",
+                    "data-testid": "markweave-mermaid-fullscreen-zoom-in",
+                    onMouseenter: () => {
+                      fullscreenTooltip.value = "zoom-in";
+                    },
+                    onMouseleave: () => {
+                      fullscreenTooltip.value = null;
+                    },
+                    onFocus: () => {
+                      fullscreenTooltip.value = "zoom-in";
+                    },
+                    onBlur: () => {
+                      fullscreenTooltip.value = null;
+                    },
+                    onClick: () => zoomMermaidFullscreen(mermaidFullscreenZoomStep),
+                  },
+                  [createCodeBlockIcon("zoomIn")],
+                ),
+                h(
+                  "button",
+                  {
+                    type: "button",
+                    class: "markweave-mermaid-fullscreen-control",
+                    "aria-label": "Reset zoom",
+                    "data-testid": "markweave-mermaid-fullscreen-reset",
+                    onMouseenter: () => {
+                      fullscreenTooltip.value = "reset";
+                    },
+                    onMouseleave: () => {
+                      fullscreenTooltip.value = null;
+                    },
+                    onFocus: () => {
+                      fullscreenTooltip.value = "reset";
+                    },
+                    onBlur: () => {
+                      fullscreenTooltip.value = null;
+                    },
+                    onClick: resetMermaidFullscreen,
+                  },
+                  [createCodeBlockIcon("reset")],
+                ),
+                fullscreenTooltip.value
+                  ? h("span", { class: "markweave-mermaid-fullscreen-tooltip", role: "tooltip", "data-testid": "markweave-mermaid-fullscreen-tooltip" }, fullscreenTooltip.value === "zoom-out" ? "Zoom out" : fullscreenTooltip.value === "zoom-in" ? "Zoom in" : "Reset")
+                  : null,
+              ]),
+              h(
+                "button",
+                {
+                  type: "button",
+                  class: "markweave-mermaid-fullscreen-close",
+                  "aria-label": "Close fullscreen Mermaid preview",
+                  "data-testid": "markweave-mermaid-fullscreen-close",
+                  onClick: closeFullscreenViewer,
+                },
+                [createCodeBlockIcon("close")],
+              ),
+              h("div", {
+                class: "markweave-mermaid-fullscreen-viewport",
+                "data-testid": "markweave-mermaid-fullscreen-viewport",
+                "data-dragging": fullscreenDragging.value ? "true" : "false",
+                onWheel: handleFullscreenWheel,
+                onMousedown: startFullscreenDrag,
+                onMousemove: moveFullscreenDrag,
+                onMouseup: stopFullscreenDrag,
+                onMouseleave: stopFullscreenDrag,
+              }, [
+                h("div", {
+                  class: "markweave-mermaid-fullscreen-content",
+                  "data-testid": "markweave-mermaid-fullscreen-content",
+                  "data-scale-percent": Math.round(fullscreenViewer.value.scale * 100),
+                  "data-translate": `${Math.round(fullscreenViewer.value.translateX)},${Math.round(fullscreenViewer.value.translateY)}`,
+                  style: {
+                    width: `${fullscreenViewer.value.width}px`,
+                    height: `${fullscreenViewer.value.height}px`,
+                    transform: `translate(${fullscreenViewer.value.translateX}px, ${fullscreenViewer.value.translateY}px) scale(${fullscreenViewer.value.scale})`,
+                  },
+                  innerHTML: fullscreenViewer.value.svg,
+                }),
+              ]),
+            ])
+          : null,
+      ]);
+    };
   },
 });
 
@@ -588,6 +2302,8 @@ export function useMarkweaveEditorController(options: MarkweaveVue3EditorControl
     },
     onSelectionUpdate: ({ editor }) => syncSelectionState(editor),
     onCreate: ({ editor }) => {
+      setMarkweaveEditorModeState(editor, { mode: editorMode.value, editable: effectiveEditable.value });
+      setMermaidInlinePreviewEditorMode(editor, effectiveEditable.value ? "live" : "view");
       if (options.autoFocusFirstTableBodyCell && effectiveEditable.value) {
         focusFirstTableBodyCell(editor);
       }
@@ -824,8 +2540,13 @@ export function useMarkweaveEditorController(options: MarkweaveVue3EditorControl
       messages,
       effectiveEditable,
       tableFocusState,
+      tableInteractionState,
       codeBlockState,
       isCodeBlockActive,
+      mermaidMode,
+      setMermaidMode: (mode: MermaidPreviewMode) => {
+        mermaidMode.value = mode;
+      },
       tocState,
       filteredSlashCommands,
       slashState,
@@ -902,8 +2623,26 @@ export const MarkweaveEditor = defineComponent({
                 onUpload: props.onSlashCommandUpload,
               })
             : null,
-          render.effectiveEditable.value ? h(VueTableControls, { editor, active: render.tableFocusState.value.active, messages: render.messages }) : null,
-          h(VueCodeBlockControls, { editor, state: render.codeBlockState.value, active: render.effectiveEditable.value && render.isCodeBlockActive.value, readOnly: !render.effectiveEditable.value }),
+          render.effectiveEditable.value
+            ? h(VueTableControls, {
+                editor,
+                active: render.tableFocusState.value.active,
+                interactionState: render.tableInteractionState.value,
+                messages: render.messages,
+                onCopyPayload: props.onTableCopyPayload,
+                onCommandResult: props.onTableCommandResult,
+                onEditWithAi: props.onEditWithAi,
+              })
+            : null,
+          render.effectiveEditable.value ? h(VueTableSelectionOverlay, { editor, focusState: render.tableFocusState.value }) : null,
+          h(VueCodeBlockControls, {
+            editor,
+            state: render.codeBlockState.value,
+            active: render.effectiveEditable.value && render.isCodeBlockActive.value,
+            mermaidMode: render.mermaidMode.value,
+            onMermaidModeChange: render.setMermaidMode,
+            readOnly: !render.effectiveEditable.value,
+          }),
           props.innerToc && render.tocState.value.items.length
             ? h(VueInnerToc, { editor, state: render.tocState.value, messages: render.messages, editable: render.effectiveEditable.value })
             : null,

@@ -4,7 +4,7 @@ import { Editor } from "@tiptap/core";
 import { afterEach, describe, expect, it } from "vitest";
 import { createMarkweaveEditorExtensions } from "../src/editor-core/create-editor-extensions";
 import { getFirstTableDebugSnapshot } from "../src/plugins/table/table-debug-snapshot";
-import { runTableCommand, selectTableAxisFromCell } from "../src/ui/table/TableControls";
+import { runTableCommand, selectTableAxisFromCell } from "../src/plugins/table/table-ui-model";
 
 let activeEditor: Editor | null = null;
 

@@ -19,7 +19,7 @@ import {
   getSlashCommandOpenDecision,
 } from "../src/plugins/slash-command/slash-runtime";
 import { initialSlashCommandState, reduceSlashCommandState } from "../src/plugins/slash-command/slash-state";
-import { getSlashCommandMenuPresentation } from "../src/ui/slash-command/SlashCommandMenu";
+import { getSlashCommandMenuPresentation } from "../src/react/ui/slash-command/SlashCommandMenu";
 
 let activeEditor: Editor | null = null;
 

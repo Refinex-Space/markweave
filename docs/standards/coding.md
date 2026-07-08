@@ -1,6 +1,6 @@
 ---
 owner: refinex
-updated: 2026-07-06
+updated: 2026-07-07
 status: active
 referenced_by: AGENTS.md#knowledge-map
 ---
@@ -12,6 +12,7 @@ referenced_by: AGENTS.md#knowledge-map
 - Use TypeScript and the framework patterns already present in the owning adapter.
 - Keep framework-neutral public exports centralized through `packages/markweave/src/index.ts`; React and Vue 3 adapter exports belong in their subpath entrypoints.
 - Keep editor extension composition explicit in `packages/markweave/src/editor-core/create-editor-extensions.ts`.
+- Keep `packages/markweave/src/core`, `packages/markweave/src/editor-core`, and `packages/markweave/src/plugins` framework-neutral. `.tsx` and React-only code are allowed only under `packages/markweave/src/react/**`; Vue adapter code stays under `packages/markweave/src/vue3/**`.
 - Avoid broad refactors when a behavior change can be made in the owning plugin or UI module.
 - Add code comments only when they clarify non-obvious behavior. If an author marker is explicitly required, use `refinex`.
 
@@ -22,11 +23,11 @@ Before changing an editor behavior, identify the owning area:
 | Area | Typical owner |
 | --- | --- |
 | Markdown transforms | `packages/markweave/src/plugins/markdown/` |
-| Slash commands | `packages/markweave/src/plugins/slash-command/` and `packages/markweave/src/ui/slash-command/` |
-| Tables | `packages/markweave/src/plugins/table/` and `packages/markweave/src/ui/table/` |
-| Code blocks | `packages/markweave/src/plugins/codeblock/` and `packages/markweave/src/ui/codeblock/` |
-| Mermaid preview | `packages/markweave/src/plugins/mermaid/` and `packages/markweave/src/ui/mermaid/` |
-| Floating toolbar | `packages/markweave/src/ui/floating-toolbar/` |
+| Slash commands | `packages/markweave/src/plugins/slash-command/` and `packages/markweave/src/react/ui/slash-command/` |
+| Tables | `packages/markweave/src/plugins/table/` and `packages/markweave/src/react/ui/table/` |
+| Code blocks | `packages/markweave/src/plugins/codeblock/` and `packages/markweave/src/react/ui/codeblock/` |
+| Mermaid preview | `packages/markweave/src/plugins/mermaid/` and `packages/markweave/src/react/ui/mermaid/` |
+| Floating toolbar | `packages/markweave/src/react/ui/floating-toolbar/` |
 | React shell/controller | `packages/markweave/src/react/MarkweaveEditor.tsx` |
 | Vue 3 shell/controller | `packages/markweave/src/vue3/MarkweaveEditor.ts` |
 

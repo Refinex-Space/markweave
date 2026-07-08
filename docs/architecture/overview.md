@@ -1,6 +1,6 @@
 ---
 owner: refinex
-updated: 2026-07-06
+updated: 2026-07-07
 status: active
 referenced_by: AGENTS.md#knowledge-map
 ---
@@ -49,6 +49,8 @@ The built-in document outline is enabled by default with `innerToc={true}`. It d
 - editor modes: `mode="live"` keeps the full editable surface, while `mode="view"` is a UI-only read mode that reuses the same document rendering and keeps serialization output unchanged
 - inner TOC: framework adapters render the right-side hover outline by default and keep the TOC state available even when the built-in UI is disabled
 
+Framework-specific rendering must stay outside the core boundary. React `.tsx` files and React-only imports belong under `packages/markweave/src/react/**`; Vue 3 render functions belong under `packages/markweave/src/vue3/**`. The `src/core`, `src/editor-core`, and `src/plugins` layers must remain framework-neutral TypeScript and must not import React, Vue, Tiptap framework adapters, or framework-specific lucide packages.
+
 ## Behavior Contracts
 
 Behavior contract files list expected editor capabilities and should guide tests when changing related modules:
@@ -56,7 +58,7 @@ Behavior contract files list expected editor capabilities and should guide tests
 - `packages/markweave/src/plugins/markdown/behavior-contract.ts`
 - `packages/markweave/src/plugins/slash-command/behavior-contract.ts`
 - `packages/markweave/src/plugins/table/behavior-contract.ts`
-- `packages/markweave/src/ui/floating-toolbar/behavior-contract.ts`
+- `packages/markweave/src/react/ui/floating-toolbar/behavior-contract.ts`
 
 ## Non-Goals In This Repo
 

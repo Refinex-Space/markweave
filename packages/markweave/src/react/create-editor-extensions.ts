@@ -1,7 +1,7 @@
 import { createMarkweaveEditorExtensions as createMarkweaveCoreEditorExtensions } from "../editor-core/create-editor-extensions";
 import { getMarkweaveMessages, type MarkweaveLang } from "../i18n";
-import { MarkweaveImage } from "../plugins/media/image-node";
-import { MarkweaveVideo } from "../plugins/media/video-node";
+import { MarkweaveImage } from "./media/image-node";
+import { MarkweaveVideo } from "./media/video-node";
 import type { MarkweaveSlashCommandUploadHandler } from "../plugins/slash-command/upload";
 
 export interface CreateMarkweaveReactEditorExtensionsOptions {

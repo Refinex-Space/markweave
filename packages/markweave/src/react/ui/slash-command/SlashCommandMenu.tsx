@@ -28,18 +28,18 @@ import {
   type SlashCommandIconName,
   type SlashCommandSpec,
   type SlashCommandUploadKind,
-} from "../../plugins/slash-command/command-spec";
-import { isSlashCommandMenuState } from "../../plugins/slash-command/slash-keyboard";
-import type { SlashCommandMenuPosition } from "../../plugins/slash-command/slash-runtime";
-import type { SlashCommandState } from "../../plugins/slash-command/slash-state";
+} from "../../../plugins/slash-command/command-spec";
+import { isSlashCommandMenuState } from "../../../plugins/slash-command/slash-keyboard";
+import type { SlashCommandMenuPosition } from "../../../plugins/slash-command/slash-runtime";
+import type { SlashCommandState } from "../../../plugins/slash-command/slash-state";
 import {
   detectUploadSource,
   resolveMarkweaveUploadResult,
   type MarkweaveSlashCommandUploadHandler,
   type MarkweaveUploadRequest,
   type MarkweaveUploadResult,
-} from "../../plugins/slash-command/upload";
-import { getMarkweaveMessages, type MarkweaveMessages } from "../../i18n";
+} from "../../../plugins/slash-command/upload";
+import { getMarkweaveMessages, type MarkweaveMessages } from "../../../i18n";
 
 type SlashCommandSelectOptions = { readonly emoji?: string; readonly uploadResult?: MarkweaveUploadResult };
 

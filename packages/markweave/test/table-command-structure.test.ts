@@ -18,7 +18,7 @@ import {
   runTableCommand,
   selectTableAxisFromCell,
   writeMarkweaveMenuPayloadToClipboard,
-} from "../src/ui/table/TableControls";
+} from "../src/plugins/table/table-ui-model";
 
 const tableFixture = `
 <table>

@@ -45,12 +45,12 @@ import {
   type EditorSelectionSnapshot,
   type FloatingToolbarState,
   type FloatingToolbarVariant,
-} from "../../editor-core/selection-state";
-import type { FloatingToolbarAssistantRequest, FloatingToolbarAssistantSource } from "../../core/public-types";
-import { normalizeMarkweaveCalloutType, type MarkweaveCalloutType } from "../../plugins/callout/callout-node";
-import { normalizeMarkweaveIndentLevel } from "../../plugins/indent/indent-extension";
-import { normalizeMarkdownLinkHref } from "../../plugins/markdown/markdown-input";
-import { getMarkweaveMessages, type MarkweaveMessages } from "../../i18n";
+} from "../../../editor-core/selection-state";
+import type { FloatingToolbarAssistantRequest, FloatingToolbarAssistantSource } from "../../../core/public-types";
+import { normalizeMarkweaveCalloutType, type MarkweaveCalloutType } from "../../../plugins/callout/callout-node";
+import { normalizeMarkweaveIndentLevel } from "../../../plugins/indent/indent-extension";
+import { normalizeMarkdownLinkHref } from "../../../plugins/markdown/markdown-input";
+import { getMarkweaveMessages, type MarkweaveMessages } from "../../../i18n";
 
 interface FloatingToolbarProps {
   readonly editor: Editor;

@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { createMarkweaveEditorExtensions } from "../src/editor-core/create-editor-extensions";
 import { setMarkweaveTableMenuAxisTarget } from "../src/plugins/table/table-clipboard";
 import { getTableSelectionOverlayState } from "../src/plugins/table/table-interaction-layer";
-import { measureTableSelectionOverlay } from "../src/ui/table/TableSelectionOverlay";
+import { measureTableSelectionOverlay } from "../src/plugins/table/table-ui-model";
 
 const mergedTableFixture = `
 <table>

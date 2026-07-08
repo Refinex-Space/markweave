@@ -5,7 +5,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { getMarkweaveMessages } from "../src/i18n";
 import { defaultSlashCommandSpecs, getLocalizedSlashCommandSpecs } from "../src/plugins/slash-command/command-spec";
-import { SlashCommandMenu } from "../src/ui/slash-command/SlashCommandMenu";
+import { SlashCommandMenu } from "../src/react/ui/slash-command/SlashCommandMenu";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 

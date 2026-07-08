@@ -7,7 +7,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { createMarkweaveEditorExtensions } from "../src/editor-core/create-editor-extensions";
 import { getMarkweaveMessages, type MarkweaveMessages } from "../src/i18n";
 import { getTableFocusState } from "../src/plugins/table/table-focus-state";
-import { TableControls } from "../src/ui/table/TableControls";
+import { TableControls } from "../src/react/ui/table/TableControls";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -119,14 +119,21 @@ async function flushReact() {
   });
 }
 
-async function renderTableControls(messages?: MarkweaveMessages) {
+async function renderTableControls(
+  messages?: MarkweaveMessages,
+  options: {
+    readonly onCopyPayload?: Parameters<typeof TableControls>[0]["onCopyPayload"];
+    readonly onCommandResult?: Parameters<typeof TableControls>[0]["onCommandResult"];
+    readonly onEditWithAi?: Parameters<typeof TableControls>[0]["onEditWithAi"];
+  } = {},
+) {
   const { editor, frame } = createEditor();
   const host = document.createElement("div");
   frame.appendChild(host);
   activeRoot = createRoot(host);
 
   await act(async () => {
-    activeRoot?.render(createElement(TableControls, { active: true, editor, messages, onEditWithAi: vi.fn() }));
+    activeRoot?.render(createElement(TableControls, { active: true, editor, messages, onCopyPayload: options.onCopyPayload, onCommandResult: options.onCommandResult, onEditWithAi: options.onEditWithAi }));
   });
   await flushReact();
 
@@ -169,15 +176,18 @@ describe("table controls DOM i18n", () => {
     const rowHandle = getByTestId<HTMLButtonElement>("markweave-table-hover-row-handle");
     expect(rowHandle.getAttribute("aria-label")).toBe("当前行操作");
     expect(rowHandle.title).toBe("行操作");
+    expect(getByTestId("markweave-table-controls").getAttribute("data-positioned")).toBe("true");
 
     await click(rowHandle);
 
     const menu = getByTestId("markweave-table-menu");
     expect(menu.getAttribute("aria-label")).toBe("行操作");
+    expect(menu.getAttribute("data-positioned")).toBe("true");
     expect(menu.textContent).toContain("使用 AI 编辑");
     expect(menu.textContent).toContain("插入上方行");
     expect(menu.textContent).toContain("复制表格");
     expect(menu.textContent).toContain("删除行");
+    expect(getByTestId<HTMLButtonElement>("markweave-table-menu-command-edit-with-ai").getAttribute("data-command-enabled")).toBe("false");
   });
 
   it("renders the row handle menu in English when English messages are provided", async () => {
@@ -195,5 +205,33 @@ describe("table controls DOM i18n", () => {
     expect(menu.textContent).toContain("Insert Row Above");
     expect(menu.textContent).toContain("Copy Table");
     expect(menu.textContent).toContain("Delete Row");
+  });
+
+  it("enables the React AI menu item only when a handler is provided", async () => {
+    await renderTableControls(undefined, { onEditWithAi: vi.fn() });
+    await click(getByTestId("markweave-table-hover-row-handle"));
+
+    const aiButton = getByTestId<HTMLButtonElement>("markweave-table-menu-command-edit-with-ai");
+    expect(aiButton.disabled).toBe(false);
+    expect(aiButton.getAttribute("data-command-enabled")).toBe("true");
+  });
+
+  it("emits React table copy payloads, copy feedback, and command results", async () => {
+    Object.defineProperty(globalThis.navigator, "clipboard", {
+      configurable: true,
+      value: { writeText: vi.fn().mockResolvedValue(undefined) },
+    });
+    const copyPayload = vi.fn();
+    const commandResult = vi.fn();
+    await renderTableControls(undefined, { onCopyPayload: copyPayload, onCommandResult: commandResult });
+
+    await click(getByTestId("markweave-table-hover-row-handle"));
+    await click(getByTestId("markweave-table-menu-command-copy-table"));
+
+    expect(copyPayload).toHaveBeenCalledTimes(1);
+    expect(commandResult).toHaveBeenCalledWith(expect.objectContaining({ commandId: "copy-table", menu: "row", copyPayload: expect.objectContaining({ kind: "table" }) }));
+    const feedback = getByTestId("markweave-table-copy-feedback");
+    expect(feedback.getAttribute("data-copy-kind")).toBe("table");
+    expect(feedback.textContent).toContain("表格已复制到剪贴板");
   });
 });
