@@ -144,6 +144,14 @@ function isDefaultSlotObject(value: unknown): value is { default: (slotProps?: u
   return Boolean(value && typeof value === "object" && "default" in value && typeof (value as { default?: unknown }).default === "function");
 }
 
+function isVNodeLike(value: unknown) {
+  return Boolean(
+    value &&
+      typeof value === "object" &&
+      ("tag" in value || "text" in value || "elm" in value || "componentOptions" in value || "componentInstance" in value),
+  );
+}
+
 function normalizeChildren(children: unknown) {
   if (isDefaultSlotObject(children)) {
     const slotChildren = children.default();
@@ -151,6 +159,10 @@ function normalizeChildren(children: unknown) {
       return slotChildren;
     }
     return [slotChildren];
+  }
+
+  if (isVNodeLike(children)) {
+    return [children];
   }
 
   return children;

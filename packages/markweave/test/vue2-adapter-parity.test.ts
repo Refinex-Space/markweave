@@ -63,7 +63,7 @@ describe("Vue2 adapter parity source contract", () => {
     const compatSource = readProjectFile("src/vue2/vue2-compat.ts");
     const iconsSource = readProjectFile("src/vue2/vue2-icons.ts");
 
-    expectSourceContract(compatSource, ["isDefaultSlotObject", "children.default()", "return [slotChildren]"]);
+    expectSourceContract(compatSource, ["isDefaultSlotObject", "children.default()", "return [slotChildren]", "isVNodeLike", "return [children]"]);
     expectSourceContract(iconsSource, ["const lucideIcons", "iconName", "renderIconNode", "name: `MarkweaveVue2Icon${name}`"]);
     expect(iconsSource).not.toContain("pathForIcon");
     expect(iconsSource).not.toContain("name.includes");
