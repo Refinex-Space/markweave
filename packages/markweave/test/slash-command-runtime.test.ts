@@ -159,25 +159,17 @@ describe("slash command runtime", () => {
     expect(filterSlashCommands(state.query).map((command) => command.id)).toContain("table");
   });
 
-  it("classifies valid slash positions inside nested editor textblocks", () => {
+  it("opens only from empty paragraph slash queries, including quote and callout paragraphs", () => {
     const editor = createEditor(`
 <p>/plain</p>
-<ul><li><p>/list</p></li></ul>
 <blockquote><p>/quote</p></blockquote>
-<table>
-  <tbody>
-    <tr>
-      <td><p>/cell</p></td>
-    </tr>
-  </tbody>
-</table>
+<div data-markweave-callout-type="info"><p>/image</p></div>
 `);
 
     const cases = [
       { slashText: "/plain", query: "plain", scope: "paragraph" },
-      { slashText: "/list", query: "list", scope: "list-item" },
       { slashText: "/quote", query: "quote", scope: "blockquote" },
-      { slashText: "/cell", query: "cell", scope: "table-cell" },
+      { slashText: "/image", query: "image", scope: "callout" },
     ] as const;
 
     for (const testCase of cases) {
@@ -188,6 +180,43 @@ describe("slash command runtime", () => {
         scope: testCase.scope,
       });
       expect(getSlashCommandContext(editor.state)?.query).toBe(testCase.query);
+    }
+  });
+
+  it("does not open from tables, lists, headings, or non-empty text positions", () => {
+    const editor = createEditor(`
+<p>hello /</p>
+<p>hello /table</p>
+<p>/table hello</p>
+<p>he/llo</p>
+<h2>/h2</h2>
+<ul><li><p>/list</p></li></ul>
+<table>
+  <tbody>
+    <tr>
+      <th><p>/head</p></th>
+      <td><p>/cell</p></td>
+    </tr>
+  </tbody>
+</table>
+`);
+
+    const cases = [
+      { slashText: "hello /", scope: "paragraph" },
+      { slashText: "hello /table", scope: "paragraph" },
+      { slashText: "/table hello", scope: "paragraph" },
+      { slashText: "he/", scope: "paragraph" },
+      { slashText: "he/llo", scope: "paragraph" },
+      { slashText: "/h2", scope: "heading" },
+      { slashText: "/list", scope: "list-item" },
+      { slashText: "/head", scope: "table-header" },
+      { slashText: "/cell", scope: "table-cell" },
+    ] as const;
+
+    for (const testCase of cases) {
+      expect(editor.commands.setTextSelection(textPosition(editor, testCase.slashText))).toBe(true);
+      expect(getSlashCommandOpenDecision(editor.state).scope).toBe(testCase.scope);
+      expect(getSlashCommandContext(editor.state)).toBeNull();
     }
   });
 

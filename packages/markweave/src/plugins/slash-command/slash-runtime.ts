@@ -3,7 +3,7 @@ import type { EditorState } from "@tiptap/pm/state";
 import { isEditorComposing } from "../../editor-core/composition-guard";
 import { focusFirstTableBodyCell } from "../table/table-focus-position";
 import { isExecutableSlashCommand, type SlashCommandSpec } from "./command-spec";
-import { getSlashQueryFromTextBeforeCursor, initialSlashCommandState, reduceSlashCommandState, type SlashCommandState } from "./slash-state";
+import { initialSlashCommandState, reduceSlashCommandState, type SlashCommandState } from "./slash-state";
 import type { MarkweaveUploadResult } from "./upload";
 
 export interface SlashCommandContext {
@@ -49,9 +49,24 @@ export interface ExecuteSlashCommandOptions {
   readonly uploadResult?: MarkweaveUploadResult;
 }
 
-export type SlashCommandOpenReason = "valid-textblock" | "range-selection" | "active-composition" | "non-textblock" | "code-block";
+export type SlashCommandOpenReason =
+  | "valid-textblock"
+  | "range-selection"
+  | "active-composition"
+  | "non-textblock"
+  | "code-block"
+  | "unsupported-scope";
 
-export type SlashCommandScope = "paragraph" | "heading" | "blockquote" | "list-item" | "table-cell" | "table-header" | "code-block" | "other-textblock";
+export type SlashCommandScope =
+  | "paragraph"
+  | "heading"
+  | "blockquote"
+  | "callout"
+  | "list-item"
+  | "table-cell"
+  | "table-header"
+  | "code-block"
+  | "other-textblock";
 
 export interface SlashCommandOpenDecision {
   readonly canOpen: boolean;
@@ -93,6 +108,10 @@ function getSlashCommandScope(state: EditorState): SlashCommandScope | null {
 
   if (ancestorNodes.includes("blockquote")) {
     return "blockquote";
+  }
+
+  if (ancestorNodes.includes("markweaveCallout")) {
+    return "callout";
   }
 
   if (parentName === "paragraph") {
@@ -153,6 +172,15 @@ export function getSlashCommandOpenDecision(state: EditorState): SlashCommandOpe
     };
   }
 
+  if (parent.type.name !== "paragraph" || (scope !== "paragraph" && scope !== "blockquote" && scope !== "callout")) {
+    return {
+      canOpen: false,
+      reason: "unsupported-scope",
+      scope,
+      ancestorNodes,
+    };
+  }
+
   return {
     canOpen: true,
     reason: "valid-textblock",
@@ -161,22 +189,27 @@ export function getSlashCommandOpenDecision(state: EditorState): SlashCommandOpe
   };
 }
 
-export function getSlashCommandContext(state: EditorState, lookback = 80): SlashCommandContext | null {
+export function getSlashCommandContext(state: EditorState, _lookback = 80): SlashCommandContext | null {
   if (!getSlashCommandOpenDecision(state).canOpen) {
     return null;
   }
 
   const cursor = state.selection.from;
-  const textBeforeCursor = state.doc.textBetween(Math.max(0, cursor - lookback), cursor, "\n", "\n");
-  const query = getSlashQueryFromTextBeforeCursor(textBeforeCursor);
+  const $from = state.selection.$from;
+  const parentStart = $from.start();
+  const textBeforeCursor = state.doc.textBetween(parentStart, cursor, "\n", "\n");
+  const textAfterCursor = state.doc.textBetween(cursor, $from.end(), "\n", "\n");
+  const match = /^\/([\p{L}\p{N}\-_]*)$/u.exec(textBeforeCursor);
 
-  if (query === null) {
+  if (!match || textAfterCursor.length > 0) {
     return null;
   }
 
+  const query = match[1];
+
   return {
     query,
-    triggerFrom: cursor - query.length - 1,
+    triggerFrom: parentStart,
     triggerTo: cursor,
     cursor,
   };
