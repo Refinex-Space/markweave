@@ -95,7 +95,7 @@ function pathForIcon(name: string) {
 
 function createIconComponent(name: string) {
   return defineComponent({
-    name,
+    name: `MarkweaveVue2Icon${name}`,
     props: {
       size: { type: [Number, String], default: 18 },
       strokeWidth: { type: [Number, String], default: 1.8 },

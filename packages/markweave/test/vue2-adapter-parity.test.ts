@@ -46,6 +46,7 @@ describe("Vue2 adapter parity source contract", () => {
       "getMarkweaveTocItems",
       "getActiveMarkweaveTocId",
       "markweave-floating-toolbar-tooltip",
+      "markweave-slash-layer",
       "markweave-slash-menu",
       "markweave-table-controls",
       "markweave-codeblock-controls",
@@ -56,6 +57,14 @@ describe("Vue2 adapter parity source contract", () => {
     expect(source).not.toContain("@tiptap/vue-3");
     expect(source).not.toContain("lucide-vue-next");
     expect(source).not.toContain("useEditor");
+  });
+
+  it("keeps Vue2 render compatibility for component slots and reserved icon names", () => {
+    const compatSource = readProjectFile("src/vue2/vue2-compat.ts");
+    const iconsSource = readProjectFile("src/vue2/vue2-icons.ts");
+
+    expectSourceContract(compatSource, ["isDefaultSlotObject", "children.default()", "return [slotChildren]"]);
+    expect(iconsSource).toContain("name: `MarkweaveVue2Icon${name}`");
   });
 
   it("keeps Vue2 media NodeViews on the React-compatible media DOM contract", () => {

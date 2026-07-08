@@ -140,9 +140,17 @@ function normalizeComponentData(data: Record<string, unknown>) {
   return normalized;
 }
 
+function isDefaultSlotObject(value: unknown): value is { default: (slotProps?: unknown) => unknown } {
+  return Boolean(value && typeof value === "object" && "default" in value && typeof (value as { default?: unknown }).default === "function");
+}
+
 function normalizeChildren(children: unknown) {
-  if (children && typeof children === "object" && "default" in children && typeof (children as { default?: unknown }).default === "function") {
-    return (children as { default: () => unknown }).default();
+  if (isDefaultSlotObject(children)) {
+    const slotChildren = children.default();
+    if (slotChildren === null || slotChildren === undefined || Array.isArray(slotChildren)) {
+      return slotChildren;
+    }
+    return [slotChildren];
   }
 
   return children;
@@ -154,7 +162,8 @@ export function h(tag: unknown, data?: unknown, children?: unknown) {
   }
 
   const rawData = data && typeof data === "object" && !Array.isArray(data) ? (data as Record<string, unknown>) : {};
-  const normalizedData = typeof tag === "string" ? normalizeNativeData(rawData) : normalizeComponentData(rawData);
+  const isNativeElement = typeof tag === "string";
+  const normalizedData = isNativeElement ? normalizeNativeData(rawData) : normalizeComponentData(rawData);
   const normalizedChildren = arguments.length === 2 && (Array.isArray(data) || typeof data === "string") ? data : normalizeChildren(children);
 
   return currentCreateElement(tag, normalizedData, normalizedChildren);

@@ -986,7 +986,7 @@ const VueSlashCommandMenu = defineComponent({
         .map((group: string) => ({ group, commands: props.commands.filter((command: SlashCommandSpec) => command.group === group) }))
         .filter((entry) => entry.commands.length);
 
-      return [
+      return h("div", { class: "markweave-slash-layer", style: { display: "contents" }, "data-testid": "markweave-slash-layer" }, [
         h("div", { class: "markweave-slash-trigger", style: triggerStyle, "aria-hidden": "true", "data-testid": "markweave-slash-trigger" }, [
           h("span", null, "/"),
           h("em", null, props.state.query || props.messages.slash.filterPlaceholder),
@@ -1109,7 +1109,7 @@ const VueSlashCommandMenu = defineComponent({
                   : h("div", { class: "markweave-slash-menu__empty", role: "option", "aria-disabled": "true" }, props.messages.slash.noResults),
           ],
         ),
-      ];
+      ]);
     };
   },
 });
