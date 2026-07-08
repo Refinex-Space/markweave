@@ -1601,15 +1601,15 @@
   z-index: 58;
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
-  width: min(312px, calc(100vw - 32px));
+  width: min(292px, calc(100vw - 32px));
   overflow: visible;
   border: 1px solid rgba(229, 231, 235, 0.9);
-  border-radius: 12px;
+  border-radius: 10px;
   background: #ffffff;
   box-shadow:
-    0 14px 32px rgba(31, 35, 40, 0.11),
+    0 12px 28px rgba(31, 35, 40, 0.1),
     0 1px 2px rgba(31, 35, 40, 0.08);
-  padding: 8px 9px;
+  padding: 6px 7px;
   color: #5f636b;
   font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
@@ -1628,19 +1628,21 @@
   z-index: 59;
   display: inline-flex;
   align-items: center;
-  height: 30px;
-  max-width: 124px;
-  border-radius: 10px;
+  height: 26px;
+  max-width: 112px;
+  border-radius: 8px;
   background: #f3f4f6;
-  padding: 0 9px;
+  padding: 0 8px;
   color: #a2a7af;
-  font-size: 15px;
+  font-size: 14px;
   line-height: 1;
   pointer-events: none;
+  transform: translateX(-8px);
 }
 
 .markweave-slash-trigger span {
   color: #2f45ff;
+  margin-right: 1px;
 }
 
 .markweave-slash-trigger em {
@@ -1655,9 +1657,9 @@
 .markweave-slash-command-list,
 .markweave-slash-subpanel {
   min-height: 0;
-  max-height: calc(var(--markweave-slash-menu-max-height, 420px) - 20px);
+  max-height: calc(var(--markweave-slash-menu-max-height, 420px) - 14px);
   overflow-y: auto;
-  padding-right: 2px;
+  padding-right: 1px;
   scrollbar-color: #d7d7d7 transparent;
   scrollbar-width: thin;
 }
@@ -1682,19 +1684,19 @@
 
 .markweave-slash-group {
   display: grid;
-  gap: 2px;
-  padding: 0 0 8px;
+  gap: 1px;
+  padding: 0 0 6px;
 }
 
 .markweave-slash-group + .markweave-slash-group {
   border-top: 1px solid #ebecef;
-  padding-top: 10px;
+  padding-top: 8px;
 }
 
 .markweave-slash-group-title {
-  padding: 0 10px 5px;
+  padding: 0 8px 4px;
   color: #3f434a;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 650;
   line-height: 1.25;
 }
@@ -1709,12 +1711,12 @@
 
 .markweave-slash-group > button {
   display: grid;
-  grid-template-columns: 25px minmax(0, 1fr);
+  grid-template-columns: 22px minmax(0, 1fr);
   align-items: center;
   width: 100%;
-  min-height: 35px;
-  border-radius: 9px;
-  padding: 0 9px;
+  min-height: 30px;
+  border-radius: 8px;
+  padding: 0 8px;
   color: #62666d;
   text-align: left;
 }
@@ -1748,7 +1750,7 @@
 .markweave-slash-group > button span {
   min-width: 0;
   overflow: hidden;
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 450;
   line-height: 1.2;
   text-overflow: ellipsis;
@@ -1769,6 +1771,8 @@
 .markweave-slash-group > button svg {
   display: block;
   color: #6a6f77;
+  width: 17px;
+  height: 17px;
 }
 
 .markweave-slash-group > button[data-disabled="true"] svg {
