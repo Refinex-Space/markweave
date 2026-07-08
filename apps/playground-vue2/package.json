@@ -1,0 +1,27 @@
+{
+  "name": "@markweave/playground-vue2",
+  "private": true,
+  "scripts": {
+    "dev": "vue-cli-service serve --host 127.0.0.1 --port 5175",
+    "build": "vue-cli-service build",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@markweave/playground-fixtures": "workspace:*",
+    "@tiptap/vue-2": "3.27.1",
+    "element-ui": "^2.15.0",
+    "markweave": "workspace:*",
+    "vue": "2.6.12",
+    "vue-template-compiler": "2.6.12"
+  },
+  "devDependencies": {
+    "@vue/cli-plugin-babel": "4.4.6",
+    "@vue/cli-service": "4.4.6",
+    "babel-loader": "^8.3.0",
+    "sass": "1.32.0",
+    "sass-loader": "10.1.0",
+    "ts-loader": "^8.4.0",
+    "vue-loader": "^15.11.1",
+    "webpack": "4.47.0"
+  }
+}

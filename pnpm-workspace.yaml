@@ -1,3 +1,10 @@
 packages:
   - "packages/*"
   - "apps/*"
+allowBuilds:
+  core-js: set this to true or false
+  ejs: set this to true or false
+packageExtensions:
+  vue-template-compiler@2.6.12:
+    dependencies:
+      vue: 2.6.12

@@ -34,6 +34,18 @@ Open:
 http://127.0.0.1:5174/
 ```
 
+For the Vue 2 playground:
+
+```sh
+pnpm dev:vue2
+```
+
+Open:
+
+```text
+http://127.0.0.1:5175/
+```
+
 ## Focused Verification
 
 Use focused Vitest commands for the first check. Example:
@@ -61,7 +73,7 @@ python3 ~/.codex/skills/harness-init/scripts/harness_audit.py .
 
 ## Build Notes
 
-`pnpm build` builds `markweave` first and then `@markweave/playground-react` and `@markweave/playground-vue3`. The package build removes `packages/markweave/dist`, runs Vite library build for the framework-neutral root plus React and Vue 3 subpaths, emits TypeScript declarations, and copies the editor stylesheet to `dist/styles.css`.
+`pnpm build` builds `markweave` first and then `@markweave/playground-react`, `@markweave/playground-vue2`, and `@markweave/playground-vue3`. The package build removes `packages/markweave/dist`, runs Vite library build for the framework-neutral root plus React, Vue 2, and Vue 3 subpaths, emits TypeScript declarations, and copies the editor stylesheet to `dist/styles.css`.
 
 The playground production build can emit Vite large-chunk warnings because Mermaid and diagram assets are bundled into the demo app. Treat those warnings as a package-size signal, not as a Harness failure.
 
@@ -70,7 +82,7 @@ The playground production build can emit Vite large-chunk warnings because Merma
 No publish script is configured as of the 2026-07-05 scan. Before publishing, verify:
 
 - package exports still match `packages/markweave/package.json`
-- `packages/markweave/dist/index.js`, `dist/react.js`, `dist/vue3.js`, `dist/types/index.d.ts`, and `dist/styles.css` are produced by `pnpm build`
+- `packages/markweave/dist/index.js`, `dist/react.js`, `dist/vue2.js`, `dist/vue3.js`, `dist/types/index.d.ts`, and `dist/styles.css` are produced by `pnpm build`
 - playground-only files are not included in package `files`
 - README usage examples match the exported API
 

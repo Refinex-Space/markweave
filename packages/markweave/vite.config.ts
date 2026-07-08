@@ -24,6 +24,7 @@ const externalPackages = [
   "@tiptap/pm",
   "@tiptap/react",
   "@tiptap/starter-kit",
+  "@tiptap/vue-2",
   "@tiptap/vue-3",
   "lowlight",
   "lucide-react",
@@ -43,6 +44,7 @@ export default defineConfig({
       entry: {
         index: resolve(__dirname, "src/index.ts"),
         react: resolve(__dirname, "src/react/index.ts"),
+        vue2: resolve(__dirname, "src/vue2/index.ts"),
         vue3: resolve(__dirname, "src/vue3/index.ts"),
       },
       formats: ["es"],

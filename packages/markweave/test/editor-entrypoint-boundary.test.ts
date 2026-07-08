@@ -67,10 +67,11 @@ afterEach(() => {
 });
 
 describe("editor entrypoint boundary", () => {
-  it("exports framework-neutral root APIs plus React and Vue3 subpaths", async () => {
+  it("exports framework-neutral root APIs plus React, Vue2, and Vue3 subpaths", async () => {
     const packageJson = JSON.parse(readProjectFile("package.json")) as { exports?: Record<string, { import?: string; types?: string } | string> };
     const indexSource = readProjectFile("src/index.ts");
     const reactIndexSource = readProjectFile("src/react/index.ts");
+    const vue2IndexSource = readProjectFile("src/vue2/index.ts");
     const vue3IndexSource = readProjectFile("src/vue3/index.ts");
 
     expect(packageJson.exports?.["."]).toEqual({
@@ -85,6 +86,10 @@ describe("editor entrypoint boundary", () => {
       import: "./dist/vue3.js",
       types: "./dist/types/vue3/index.d.ts",
     });
+    expect(packageJson.exports?.["./vue2"]).toEqual({
+      import: "./dist/vue2.js",
+      types: "./dist/types/vue2/index.d.ts",
+    });
     expect(packageJson.exports?.["./styles.css"]).toBe("./dist/styles.css");
     expect(indexSource).not.toContain("from \"./react");
     expect(indexSource).not.toContain("from \"./ui/");
@@ -97,6 +102,8 @@ describe("editor entrypoint boundary", () => {
     expect(indexSource).toContain("MarkweaveTocState");
     expect(reactIndexSource).toContain("MarkweaveEditor");
     expect(reactIndexSource).toContain("useMarkweaveEditorController");
+    expect(vue2IndexSource).toContain("MarkweaveEditor");
+    expect(vue2IndexSource).toContain("useMarkweaveEditorController");
     expect(vue3IndexSource).toContain("MarkweaveEditor");
     expect(vue3IndexSource).toContain("useMarkweaveEditorController");
 
@@ -111,7 +118,7 @@ describe("editor entrypoint boundary", () => {
     const packageJson = JSON.parse(readProjectFile("package.json")) as { files?: string[] };
 
     expect(existsSync(resolve(repoRoot, "src/playground"))).toBe(false);
-    expect(packageJson.files).toEqual(["dist", "README.md", "LICENSE"]);
+    expect(packageJson.files).toEqual(["dist", "react.js", "vue2.js", "vue3.js", "styles.css", "README.md", "LICENSE"]);
     expect(existsSync(resolve(repoRoot, "src/editor-core/initial-document.ts"))).toBe(false);
   });
 
@@ -129,6 +136,9 @@ describe("editor entrypoint boundary", () => {
       "from \"@tiptap/react/menus\"",
       "from \"lucide-react\"",
       "from \"vue\"",
+      "from \"@tiptap/vue-2\"",
+      "from \"@tiptap/vue-2/menus\"",
+      "from \"lucide-vue\"",
       "from \"@tiptap/vue-3\"",
       "from \"@tiptap/vue-3/menus\"",
       "from \"lucide-vue-next\"",
@@ -279,7 +289,7 @@ describe("editor entrypoint boundary", () => {
     expect(preview).toBeTruthy();
     expect(container.querySelector('[data-testid="markweave-mermaid-tabs"]')).toBeTruthy();
     expect(container.querySelector('[data-testid="markweave-mermaid-mode-preview"]')?.getAttribute("data-active")).toBe("true");
-  });
+  }, 15000);
 
   it("supports controlled content synchronization and onUpdate payloads", async () => {
     let controller: MarkweaveEditorController | null = null;

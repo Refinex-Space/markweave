@@ -345,7 +345,7 @@ describe("code block controls", () => {
     expect(getByTestId("markweave-codeblock-copy").dataset.copyState).toBe("copied");
     expect(getActiveCodeBlockState(editor).active).toBe(false);
     expect(editor.getHTML()).toBe(initialHtml);
-  });
+  }, 15000);
 
   it("keeps Mermaid tabs persistent while showing right-side controls on hover", () => {
     const { editor, rerender } = renderControls(

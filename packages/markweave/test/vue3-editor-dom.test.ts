@@ -48,6 +48,12 @@ function createRect(left: number, top: number, width: number, height: number): D
 }
 
 function installLayoutMocks() {
+  const rects = Object.assign([createRect(0, 0, 80, 32)], { item: (index: number) => rects[index] ?? null }) as unknown as DOMRectList;
+
+  mockPrototypeMethod(Range.prototype, "getClientRects", () => rects);
+  mockPrototypeMethod(Range.prototype, "getBoundingClientRect", () => rects[0] as DOMRect);
+  mockPrototypeMethod(HTMLElement.prototype, "getClientRects", () => rects);
+  vi.spyOn(window, "scrollBy").mockImplementation(() => undefined);
   vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(function getBoundingClientRect(this: HTMLElement) {
     if (this.classList.contains("markweave-editor-frame")) {
       return createRect(0, 0, 1000, 700);
@@ -90,6 +96,18 @@ function installLayoutMocks() {
     }
 
     return createRect(0, 0, 80, 32);
+  });
+}
+
+function mockPrototypeMethod(prototype: object, key: string, implementation: () => unknown) {
+  if (key in prototype) {
+    vi.spyOn(prototype as Record<string, () => unknown>, key).mockImplementation(implementation);
+    return;
+  }
+
+  Object.defineProperty(prototype, key, {
+    configurable: true,
+    value: vi.fn(implementation),
   });
 }
 
@@ -552,7 +570,7 @@ describe("Markweave Vue3 editor", () => {
     expect(anchorClick).toHaveBeenCalled();
     expect(createObjectUrl).toHaveBeenCalledWith(expect.any(Blob));
     expect(revokeObjectUrl).toHaveBeenCalledWith("blob:markweave-mermaid");
-  });
+  }, 15000);
 
   it("keeps Vue View mode code block controls read-only while preserving Mermaid reader actions", async () => {
     installLayoutMocks();

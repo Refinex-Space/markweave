@@ -1,0 +1,124 @@
+:root {
+  color: #1f2328;
+  background: #ffffff;
+  font-family: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+  background: #ffffff;
+}
+
+.markweave-playground {
+  position: relative;
+  width: min(100%, 1180px);
+  margin: 0 auto;
+  padding: 48px 24px 64px;
+}
+
+.markweave-playground-toolbar {
+  position: absolute;
+  top: 18px;
+  right: 24px;
+  z-index: 10;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.markweave-playground-mode-toggle {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border: 1px solid #d9dee6;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.96);
+  color: #4f5661;
+  cursor: pointer;
+}
+
+.markweave-playground-mode-toggle:hover {
+  background: #f5f6f8;
+  color: #1f2328;
+}
+
+.markweave-playground-mode-toggle:focus-visible {
+  outline: 2px solid #3f4650;
+  outline-offset: 2px;
+}
+
+.markweave-debug-panel {
+  margin-top: 28px;
+  border-top: 1px solid #e2e5ea;
+  padding-top: 12px;
+  color: #59616d;
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-size: 12px;
+}
+
+.markweave-debug-panel summary {
+  cursor: default;
+}
+
+.markweave-debug-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 10px 0;
+}
+
+.markweave-debug-actions button {
+  border: 1px solid #d6dbe3;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #374151;
+  padding: 5px 9px;
+  font: inherit;
+  font-size: 12px;
+  line-height: 1.25;
+}
+
+.markweave-debug-actions button:hover {
+  background: #f4f6f8;
+}
+
+.markweave-debug-command,
+.markweave-debug-copy,
+.markweave-debug-ai,
+.markweave-debug-table {
+  margin: 10px 0;
+  color: #374151;
+}
+
+.markweave-debug-command>div,
+.markweave-debug-copy>div,
+.markweave-debug-ai>div,
+.markweave-debug-table>div {
+  margin-bottom: 4px;
+  font-weight: 600;
+}
+
+.markweave-debug-panel pre {
+  overflow-x: auto;
+}
+
+@media (max-width: 720px) {
+  .markweave-playground {
+    padding: 28px 18px 48px;
+  }
+
+  .markweave-playground-toolbar {
+    top: 14px;
+    right: 18px;
+  }
+}

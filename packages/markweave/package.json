@@ -8,7 +8,28 @@
     "**/*.css"
   ],
   "style": "./dist/styles.css",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
   "types": "./dist/types/index.d.ts",
+  "typesVersions": {
+    "*": {
+      "react": [
+        "./dist/types/react/index.d.ts"
+      ],
+      "vue2": [
+        "./dist/types/vue2/index.d.ts"
+      ],
+      "vue3": [
+        "./dist/types/vue3/index.d.ts"
+      ],
+      "styles.css": [
+        "./dist/styles.css"
+      ],
+      "*": [
+        "./dist/types/index.d.ts"
+      ]
+    }
+  },
   "exports": {
     ".": {
       "types": "./dist/types/index.d.ts",
@@ -22,31 +43,43 @@
       "types": "./dist/types/vue3/index.d.ts",
       "import": "./dist/vue3.js"
     },
+    "./vue2": {
+      "types": "./dist/types/vue2/index.d.ts",
+      "import": "./dist/vue2.js"
+    },
     "./styles.css": "./dist/styles.css"
   },
   "files": [
     "dist",
+    "react.js",
+    "vue2.js",
+    "vue3.js",
+    "styles.css",
     "README.md",
     "LICENSE"
   ],
   "scripts": {
-    "build": "rm -rf dist && vite build && tsc -p tsconfig.build.json && cp src/editor-core/markweave-editor.css dist/styles.css",
+    "build": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\" && vite build && tsc -p tsconfig.build.json && node -e \"require('node:fs').copyFileSync('src/editor-core/markweave-editor.css','dist/styles.css')\"",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "peerDependencies": {
     "@tiptap/react": "^3.27.1",
+    "@tiptap/vue-2": "3.27.1",
     "@tiptap/vue-3": "^3.27.1",
     "lucide-react": "^0.547.0",
     "lucide-vue-next": "^0.547.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "vue": "^3.5.0"
+    "vue": "^2.6.12 || ^3.5.0"
   },
   "peerDependenciesMeta": {
     "@tiptap/react": {
       "optional": true
     },
     "@tiptap/vue-3": {
+      "optional": true
+    },
+    "@tiptap/vue-2": {
       "optional": true
     },
     "lucide-react": {
@@ -96,6 +129,7 @@
   },
   "devDependencies": {
     "@tiptap/react": "^3.27.1",
+    "@tiptap/vue-2": "3.27.1",
     "@tiptap/vue-3": "^3.27.1",
     "lucide-react": "^0.547.0",
     "lucide-vue-next": "^0.547.0",

@@ -13,6 +13,7 @@ Markweave is a Markdown-first WYSIWYG editor package. The workspace has four act
 | --- | --- |
 | `packages/markweave` | Publishable npm package named `markweave`. |
 | `apps/playground-react` | Private Vite/React demo app for local development and verification. |
+| `apps/playground-vue2` | Private Vue CLI 4 / Webpack 4 / Vue 2 demo app for legacy adapter verification. |
 | `apps/playground-vue3` | Private Vite/Vue 3 demo app for local development and adapter verification. |
 | `apps/playground-fixtures` | Private shared Markdown fixture package for playground parity. |
 
@@ -26,9 +27,10 @@ The package root exports from `packages/markweave/src/index.ts` are framework-ne
 Framework adapters are exposed through subpaths:
 
 - `markweave/react`: React `MarkweaveEditor`, controller hook, React extension factory, and React adapter props.
+- `markweave/vue2`: Vue 2 `MarkweaveEditor`, controller helper, Vue 2 extension factory, and Vue adapter props.
 - `markweave/vue3`: Vue 3 `MarkweaveEditor`, composable, Vue 3 extension factory, and Vue adapter props.
 
-The package exports `markweave`, `markweave/react`, `markweave/vue3`, and `markweave/styles.css`; package-boundary changes should keep `packages/markweave/test/editor-entrypoint-boundary.test.ts` current.
+The package exports `markweave`, `markweave/react`, `markweave/vue2`, `markweave/vue3`, and `markweave/styles.css`; package-boundary changes should keep `packages/markweave/test/editor-entrypoint-boundary.test.ts` current.
 
 `MarkweaveEditor` is Markdown-first at the content API boundary. `defaultContent` and controlled `content` default to Markdown parsing, `onUpdate.markdown` is the recommended storage output, and legacy HTML/JSON inputs must declare `defaultContentFormat` or `contentFormat` explicitly. `mode="live"` and `mode="view"` are UI-only rendering modes and do not change the serialized document output.
 
@@ -49,7 +51,7 @@ The built-in document outline is enabled by default with `innerToc={true}`. It d
 - editor modes: `mode="live"` keeps the full editable surface, while `mode="view"` is a UI-only read mode that reuses the same document rendering and keeps serialization output unchanged
 - inner TOC: framework adapters render the right-side hover outline by default and keep the TOC state available even when the built-in UI is disabled
 
-Framework-specific rendering must stay outside the core boundary. React `.tsx` files and React-only imports belong under `packages/markweave/src/react/**`; Vue 3 render functions belong under `packages/markweave/src/vue3/**`. The `src/core`, `src/editor-core`, and `src/plugins` layers must remain framework-neutral TypeScript and must not import React, Vue, Tiptap framework adapters, or framework-specific lucide packages.
+Framework-specific rendering must stay outside the core boundary. React `.tsx` files and React-only imports belong under `packages/markweave/src/react/**`; Vue 2 render functions belong under `packages/markweave/src/vue2/**`; Vue 3 render functions belong under `packages/markweave/src/vue3/**`. The `src/core`, `src/editor-core`, and `src/plugins` layers must remain framework-neutral TypeScript and must not import React, Vue, Tiptap framework adapters, or framework-specific lucide packages.
 
 ## Behavior Contracts
 
