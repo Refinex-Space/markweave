@@ -28,6 +28,14 @@ describe("Vue3 adapter parity source contract", () => {
       "markweave-floating-toolbar-color-menu",
       "markweave-floating-toolbar-more-menu",
       "markweave-floating-toolbar-more-",
+      "markweave-floating-toolbar-tooltip",
+      "markweave-floating-toolbar-tooltip--more",
+      "markweave-floating-toolbar-tooltip-left",
+      "data-tooltip-active",
+      "data-button-id",
+      "setAnchoredTooltip",
+      "onMouseenter",
+      "onMouseleave",
     ]);
   });
 

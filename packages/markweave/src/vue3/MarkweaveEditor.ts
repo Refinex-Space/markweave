@@ -555,6 +555,9 @@ const VueFloatingToolbar = defineComponent({
   setup(props) {
     const openMenu = ref<"block-type" | "link" | "color" | "more" | null>(null);
     const linkValue = ref("");
+    const tooltipButtonId = ref<string | null>(null);
+    const tooltipAnchorX = ref<number | null>(null);
+    const toolbarContentRef = ref<HTMLElement | null>(null);
     const safeHref = computed(() => normalizeMarkdownLinkHref(linkValue.value.trim()));
     const toolbarMessages = computed(() => props.messages.floatingToolbar);
     const blockOptions = computed(() => [
@@ -627,6 +630,68 @@ const VueFloatingToolbar = defineComponent({
       }
     };
 
+    const getMainToolbarButtonActive = (id: string) => {
+      if (id === "block-type" || id === "color" || id === "more") {
+        return openMenu.value === id;
+      }
+      if (id === "bold") {
+        return props.editor.isActive("bold");
+      }
+      if (id === "italic") {
+        return props.editor.isActive("italic");
+      }
+      if (id === "underline") {
+        return props.editor.isActive("underline");
+      }
+      if (id === "strike") {
+        return props.editor.isActive("strike");
+      }
+      if (id === "inline-code") {
+        return props.editor.isActive("code");
+      }
+      if (id === "link") {
+        return props.editor.isActive("link");
+      }
+      return false;
+    };
+
+    const setAnchoredTooltip = (id: string | null, target?: EventTarget | null) => {
+      tooltipButtonId.value = id;
+      if (!id || !(target instanceof HTMLElement) || !toolbarContentRef.value) {
+        tooltipAnchorX.value = null;
+        return;
+      }
+
+      const buttonRect = target.getBoundingClientRect();
+      const contentRect = toolbarContentRef.value.getBoundingClientRect();
+      tooltipAnchorX.value = buttonRect.left + buttonRect.width / 2 - contentRect.left;
+    };
+
+    const renderMainTooltip = () => {
+      const id = tooltipButtonId.value;
+      if (!id || openMenu.value !== null) {
+        return null;
+      }
+
+      const label = toolbarMessages.value.buttons[id];
+      if (!label) {
+        return null;
+      }
+
+      return h(
+        "div",
+        {
+          class: "markweave-floating-toolbar-tooltip",
+          role: "tooltip",
+          "data-testid": "markweave-floating-toolbar-tooltip",
+          "data-button-id": id,
+          "data-active": getMainToolbarButtonActive(id),
+          style: tooltipAnchorX.value === null ? undefined : { "--markweave-floating-toolbar-tooltip-left": `${tooltipAnchorX.value}px` },
+        },
+        label,
+      );
+    };
+
     const toolbarButton = (id: string, label: string, iconComponent: Component, onClick: () => void, active = false, glyph?: string) =>
       h(
         "button",
@@ -636,8 +701,13 @@ const VueFloatingToolbar = defineComponent({
           "aria-label": label,
           "aria-expanded": ["block-type", "link", "color", "more"].includes(id) ? openMenu.value === id : undefined,
           "data-active": active || openMenu.value === id,
+          "data-tooltip-active": tooltipButtonId.value === id ? "true" : "false",
           "data-testid": `markweave-floating-toolbar-button-${id}`,
+          onBlur: () => setAnchoredTooltip(null),
+          onFocus: (event: FocusEvent) => setAnchoredTooltip(id, event.currentTarget),
           onMousedown: preventVuePointerFocusLoss,
+          onMouseenter: (event: MouseEvent) => setAnchoredTooltip(id, event.currentTarget),
+          onMouseleave: () => setAnchoredTooltip(null),
           onClick,
         },
         id === "block-type"
@@ -772,7 +842,14 @@ const VueFloatingToolbar = defineComponent({
                 type: "button",
                 "aria-label": toolbarMessages.value.moreActions[id],
                 "data-testid": `markweave-floating-toolbar-more-${id}`,
+                "data-tooltip-active": tooltipButtonId.value === id ? "true" : "false",
                 onMousedown: preventVuePointerFocusLoss,
+                onMouseenter: () => {
+                  tooltipButtonId.value = id;
+                },
+                onMouseleave: () => {
+                  tooltipButtonId.value = null;
+                },
                 onClick: () => {
                   runToolbarMoreAction(props.editor, id);
                   openMenu.value = null;
@@ -780,6 +857,9 @@ const VueFloatingToolbar = defineComponent({
               },
               [createIcon(toolbarIconMap[id], toolbarMessages.value.moreActions[id])],
             ),
+            tooltipButtonId.value === id
+              ? h("div", { class: "markweave-floating-toolbar-tooltip markweave-floating-toolbar-tooltip--more", role: "tooltip" }, toolbarMessages.value.moreActions[id])
+              : null,
           ]),
         ));
       }
@@ -798,7 +878,7 @@ const VueFloatingToolbar = defineComponent({
         {
           default: () =>
             h("div", { class: "markweave-floating-toolbar markweave-floating-toolbar--default markweave-floating-toolbar--motion-entered", "data-testid": "markweave-floating-toolbar" }, [
-              h("div", { class: "markweave-floating-toolbar-content", "data-menu": openMenu.value ?? "none" }, [
+              h("div", { ref: toolbarContentRef, class: "markweave-floating-toolbar-content", "data-menu": openMenu.value ?? "none" }, [
                 toolbarButton("block-type", toolbarMessages.value.buttons["block-type"], TypeIcon, () => toggleMenu("block-type"), openMenu.value === "block-type"),
                 divider(),
                 toolbarButton("bold", toolbarMessages.value.buttons.bold, Bold, () => props.editor.chain().focus().toggleBold().run(), props.editor.isActive("bold")),
@@ -812,6 +892,7 @@ const VueFloatingToolbar = defineComponent({
                 divider(),
                 toolbarButton("more", toolbarMessages.value.buttons.more, MoreVertical, () => toggleMenu("more"), openMenu.value === "more"),
                 renderPopover(),
+                renderMainTooltip(),
               ]),
             ]),
         },

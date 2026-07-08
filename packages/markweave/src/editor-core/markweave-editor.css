@@ -1388,14 +1388,14 @@
 
 .markweave-floating-toolbar-popover {
   position: absolute;
-  top: calc(100% + 8px);
+  top: calc(100% + 6px);
   z-index: 42;
   border: 1px solid rgba(229, 231, 235, 0.92);
-  border-radius: 16px;
+  border-radius: 12px;
   background: #ffffff;
   box-shadow:
-    0 20px 46px rgba(31, 35, 40, 0.12),
-    0 2px 6px rgba(31, 35, 40, 0.06);
+    0 14px 32px rgba(31, 35, 40, 0.1),
+    0 1px 3px rgba(31, 35, 40, 0.07);
   color: #3f434a;
   font-family: ui-sans-serif, system-ui, sans-serif;
 }
@@ -1403,12 +1403,12 @@
 .markweave-floating-toolbar-link-popover {
   right: -48px;
   display: grid;
-  grid-template-columns: minmax(170px, 1fr) auto;
+  grid-template-columns: minmax(150px, 1fr) auto;
   align-items: center;
-  width: min(456px, calc(100vw - 32px));
-  min-height: 42px;
-  border-radius: 14px;
-  padding: 0 10px 0 16px;
+  width: min(400px, calc(100vw - 32px));
+  min-height: 36px;
+  border-radius: 11px;
+  padding: 0 8px 0 12px;
 }
 
 .markweave-floating-toolbar-link-popover input {
@@ -1419,7 +1419,7 @@
   background: transparent;
   color: #2f343b;
   font: inherit;
-  font-size: 14px;
+  font-size: 13px;
   line-height: 1.3;
 }
 
@@ -1430,17 +1430,17 @@
 .markweave-floating-toolbar-link-actions {
   display: inline-flex;
   align-items: center;
-  gap: 2px;
-  padding-left: 10px;
+  gap: 1px;
+  padding-left: 8px;
 }
 
 .markweave-floating-toolbar-link-actions button {
   display: grid;
-  width: 28px;
-  height: 28px;
+  width: 26px;
+  height: 26px;
   place-items: center;
   border: 0;
-  border-radius: 9px;
+  border-radius: 8px;
   background: transparent;
   padding: 0;
   color: #a5a9af;
@@ -1459,15 +1459,15 @@
 
 .markweave-floating-toolbar-link-divider {
   width: 1px;
-  height: 26px;
-  margin: 0 5px 0 3px;
+  height: 22px;
+  margin: 0 4px 0 2px;
   background: #ebecef;
 }
 
 .markweave-floating-toolbar-menu-title {
-  padding: 6px 10px 8px;
+  padding: 4px 8px 5px;
   color: #3f434a;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 600;
   line-height: 1.2;
 }
@@ -1475,25 +1475,25 @@
 .markweave-floating-toolbar-turn-menu {
   left: 0;
   display: grid;
-  gap: 3px;
-  width: 276px;
-  padding: 10px;
+  gap: 1px;
+  width: 236px;
+  padding: 6px;
 }
 
 .markweave-floating-toolbar-turn-menu button {
   display: flex;
   align-items: center;
   width: 100%;
-  height: 36px;
-  gap: 11px;
+  height: 30px;
+  gap: 8px;
   border: 0;
-  border-radius: 9px;
+  border-radius: 8px;
   background: transparent;
-  padding: 0 12px;
+  padding: 0 9px;
   color: #5f636b;
   cursor: default;
   font-family: inherit;
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 400;
   text-align: left;
 }
@@ -1506,42 +1506,47 @@
 
 .markweave-floating-toolbar-menu-icon {
   display: grid;
-  width: 26px;
+  width: 22px;
   place-items: center;
   color: #5f636b;
   font-family: ui-sans-serif, system-ui, sans-serif;
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 500;
   line-height: 1;
+}
+
+.markweave-floating-toolbar-menu-icon svg {
+  width: 17px;
+  height: 17px;
 }
 
 .markweave-floating-toolbar-color-popover {
   right: 20px;
   display: grid;
-  width: 246px;
-  gap: 13px;
-  padding: 15px 17px 16px;
+  width: 196px;
+  gap: 9px;
+  padding: 11px 12px 12px;
 }
 
 .markweave-floating-toolbar-color-section {
   display: grid;
-  gap: 8px;
+  gap: 6px;
 }
 
 .markweave-floating-toolbar-color-section .markweave-floating-toolbar-menu-title {
-  padding: 0 0 2px;
+  padding: 0 0 1px;
 }
 
 .markweave-floating-toolbar-swatch-grid {
   display: grid;
-  grid-template-columns: repeat(5, 32px);
-  gap: 9px 13px;
+  grid-template-columns: repeat(5, 28px);
+  gap: 7px 8px;
 }
 
 .markweave-floating-toolbar-swatch-grid button {
   display: grid;
-  width: 32px;
-  height: 32px;
+  width: 28px;
+  height: 28px;
   place-items: center;
   border: 0;
   border-radius: 999px;
@@ -1557,19 +1562,19 @@
 
 .markweave-floating-toolbar-text-swatch {
   display: grid;
-  width: 24px;
-  height: 24px;
+  width: 21px;
+  height: 21px;
   place-items: center;
   border: 1px solid #e5e7eb;
   border-radius: 999px;
   background: #ffffff;
-  font-size: 18px;
+  font-size: 16px;
   line-height: 1;
 }
 
 .markweave-floating-toolbar-highlight-swatch {
-  width: 24px;
-  height: 24px;
+  width: 21px;
+  height: 21px;
   border: 1px solid rgba(31, 35, 40, 0.12);
   border-radius: 999px;
 }
@@ -1580,10 +1585,10 @@
   bottom: calc(100% + 8px);
   display: inline-flex;
   align-items: center;
-  gap: 3px;
-  height: 40px;
-  padding: 5px;
-  border-radius: 16px;
+  gap: 1px;
+  height: 36px;
+  padding: 3px;
+  border-radius: 12px;
 }
 
 .markweave-floating-toolbar-more-item {
