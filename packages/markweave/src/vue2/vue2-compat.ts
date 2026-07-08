@@ -152,13 +152,20 @@ function isVNodeLike(value: unknown) {
   );
 }
 
+function normalizeSlotChildren(slotChildren: unknown) {
+  if (slotChildren === null || slotChildren === undefined || Array.isArray(slotChildren)) {
+    return slotChildren;
+  }
+  return [slotChildren];
+}
+
 function normalizeChildren(children: unknown) {
+  if (typeof children === "function") {
+    return normalizeSlotChildren(children());
+  }
+
   if (isDefaultSlotObject(children)) {
-    const slotChildren = children.default();
-    if (slotChildren === null || slotChildren === undefined || Array.isArray(slotChildren)) {
-      return slotChildren;
-    }
-    return [slotChildren];
+    return normalizeSlotChildren(children.default());
   }
 
   if (isVNodeLike(children)) {
