@@ -1,13 +1,13 @@
 ---
 owner: refinex
-updated: 2026-07-07
+updated: 2026-07-08
 status: active
 referenced_by: AGENTS.md#knowledge-map
 ---
 
 # Architecture Overview
 
-Markweave is a Markdown-first WYSIWYG editor package. The workspace has four active projects:
+Markweave is a Markdown-first WYSIWYG editor package. The workspace has five active projects:
 
 | Path | Role |
 | --- | --- |
@@ -38,7 +38,7 @@ The built-in document outline is enabled by default with `innerToc={true}`. It d
 
 ## Editor Core
 
-`packages/markweave/src/editor-core/create-editor-extensions.ts` composes the framework-neutral Tiptap/ProseMirror extension set and accepts framework-specific media extensions from React or Vue 3 adapters. The current extension boundary includes:
+`packages/markweave/src/editor-core/create-editor-extensions.ts` composes the framework-neutral Tiptap/ProseMirror extension set and accepts framework-specific media extensions from React, Vue 2, or Vue 3 adapters. The current extension boundary includes:
 
 - core editing: StarterKit, composition guard, mark boundary, indent, text style, color, underline, highlight, links, math, emoji
 - blocks and media: code blocks through lowlight, callouts, images, videos, attachments, horizontal rules, task lists
@@ -52,6 +52,10 @@ The built-in document outline is enabled by default with `innerToc={true}`. It d
 - inner TOC: framework adapters render the right-side hover outline by default and keep the TOC state available even when the built-in UI is disabled
 
 Framework-specific rendering must stay outside the core boundary. React `.tsx` files and React-only imports belong under `packages/markweave/src/react/**`; Vue 2 render functions belong under `packages/markweave/src/vue2/**`; Vue 3 render functions belong under `packages/markweave/src/vue3/**`. The `src/core`, `src/editor-core`, and `src/plugins` layers must remain framework-neutral TypeScript and must not import React, Vue, Tiptap framework adapters, or framework-specific lucide packages.
+
+User-visible behavior must not fork by adapter. Markdown parsing and serialization, content format normalization, mode/read-only decisions, slash/table/codeblock/Mermaid/TOC state, media attrs/upload mapping, link handling, and behavior contracts belong in `src/core`, `src/editor-core`, or `src/plugins`. Adapter directories may wrap that behavior with framework lifecycle, render functions or JSX, NodeView DOM/event binding, and framework-specific icon components.
+
+When one adapter needs a behavior fix, first look for the smallest framework-neutral helper that React, Vue 2, and Vue 3 can share. Copying logic between adapter files is a temporary containment only when an explicit compatibility limitation prevents sharing; document that limitation and cover the divergence with parity tests.
 
 ## Behavior Contracts
 

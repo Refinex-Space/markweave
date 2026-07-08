@@ -1,6 +1,6 @@
 ---
 owner: refinex
-updated: 2026-07-06
+updated: 2026-07-08
 status: active
 referenced_by: AGENTS.md#knowledge-map
 ---
@@ -31,7 +31,7 @@ Do not introduce additional lockfiles or package-manager workflows without a sep
 | `typecheck` | `pnpm -r typecheck` | Runs TypeScript checks across workspace projects. |
 | `test` | `vitest run` | Runs all Vitest tests. |
 | `test:watch` | `vitest` | Starts Vitest watch mode. |
-| `harness:check` | `python3 ops/harness/check-harness.py` | Runs the local Harness knowledge gate. |
+| `harness:check` | `python ops/harness/check-harness.py` | Runs the local Harness knowledge gate. |
 
 No root lint script is configured as of the 2026-07-05 scan.
 
@@ -44,7 +44,7 @@ No root lint script is configured as of the 2026-07-05 scan.
 - declaration output: `packages/markweave/dist/types/index.d.ts`, `dist/types/react/index.d.ts`, `dist/types/vue2/index.d.ts`, `dist/types/vue3/index.d.ts`
 - stylesheet output: `packages/markweave/dist/styles.css`
 
-The package externalizes React, Vue 3, Tiptap adapter packages, ProseMirror, lowlight, lucide icons, Mermaid, and related peer/runtime dependencies in `packages/markweave/vite.config.ts`.
+The package externalizes React, Vue 2, Vue 3, Tiptap adapter packages, ProseMirror, lowlight, lucide icons, Mermaid, and related peer/runtime dependencies in `packages/markweave/vite.config.ts`.
 
 ## Exports
 

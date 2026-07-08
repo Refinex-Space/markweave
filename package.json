@@ -14,7 +14,7 @@
     "typecheck": "pnpm -r typecheck",
     "test": "vitest run",
     "test:watch": "vitest",
-    "harness:check": "python3 ops/harness/check-harness.py"
+    "harness:check": "python ops/harness/check-harness.py"
   },
   "devDependencies": {
     "@types/node": "^24.10.2",

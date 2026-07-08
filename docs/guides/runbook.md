@@ -1,6 +1,6 @@
 ---
 owner: refinex
-updated: 2026-07-06
+updated: 2026-07-08
 status: active
 referenced_by: AGENTS.md#knowledge-map
 ---
@@ -68,8 +68,9 @@ For control-plane or documentation changes:
 
 ```sh
 pnpm harness:check
-python3 ~/.codex/skills/harness-init/scripts/harness_audit.py .
 ```
+
+`pnpm harness:check` wraps the bundled Harness audit and the repo-local required-docs gate. Prefer it over hardcoding the bundled audit path because Codex skill installs can use either a flat or nested `harness-init` directory layout.
 
 ## Build Notes
 

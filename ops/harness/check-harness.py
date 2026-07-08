@@ -10,7 +10,10 @@ from pathlib import Path
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-AUDIT_SCRIPT = Path.home() / ".codex/skills/harness-init/scripts/harness_audit.py"
+AUDIT_SCRIPT_CANDIDATES = [
+    Path.home() / ".codex/skills/harness-init/scripts/harness_audit.py",
+    Path.home() / ".codex/skills/harness-init/harness-init/scripts/harness_audit.py",
+]
 REQUIRED_DOCS = [
     "docs/README.md",
     "docs/architecture/overview.md",
@@ -33,12 +36,15 @@ def has_frontmatter_key(text: str, key: str) -> bool:
 
 
 def run_bundled_audit() -> int:
-    if not AUDIT_SCRIPT.exists():
-        print(f"ERROR: missing bundled Harness audit script: {AUDIT_SCRIPT}", file=sys.stderr)
+    audit_script = next((candidate for candidate in AUDIT_SCRIPT_CANDIDATES if candidate.exists()), None)
+
+    if audit_script is None:
+        paths = ", ".join(str(candidate) for candidate in AUDIT_SCRIPT_CANDIDATES)
+        print(f"ERROR: missing bundled Harness audit script. Checked: {paths}", file=sys.stderr)
         return 1
 
     result = subprocess.run(
-        ["python3", str(AUDIT_SCRIPT), str(REPO_ROOT)],
+        [sys.executable, str(audit_script), str(REPO_ROOT)],
         cwd=REPO_ROOT,
         text=True,
         stdout=subprocess.PIPE,

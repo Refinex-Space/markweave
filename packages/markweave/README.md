@@ -48,6 +48,30 @@ function handleUpdate({ markdown }: { markdown: string }) {
 </template>
 ```
 
+### Vue 2
+
+```js
+import Vue from "vue";
+import { MarkweaveEditor } from "markweave/vue2";
+import "markweave/styles.css";
+
+new Vue({
+  components: { MarkweaveEditor },
+  template: `
+    <MarkweaveEditor
+      default-content="# Hello Markweave\n\nStart writing in **Markdown**."
+      mode="live"
+      :on-update="handleUpdate"
+    />
+  `,
+  methods: {
+    handleUpdate({ markdown }) {
+      console.log(markdown);
+    },
+  },
+}).$mount("#app");
+```
+
 `defaultContent` and controlled `content` are Markdown by default. Use `defaultContentFormat="html"` or `contentFormat="html"` when migrating an existing HTML integration. `onUpdate.markdown` is the recommended storage output; `html`, `json`, and `text` remain available.
 
 `mode` defaults to `"live"`. Use `mode="view"` for a read-only rendered view. `editable={false}` remains a compatibility lock, including when `mode="live"`.
@@ -58,5 +82,6 @@ function handleUpdate({ markdown }: { markdown: string }) {
 
 - `markweave`: framework-neutral types and helpers, including content format, mode, lang, TOC, upload, and table payload types.
 - `markweave/react`: React editor component, controller hook, and React extension factory.
+- `markweave/vue2`: Vue 2 editor component, controller helper, and Vue 2 extension factory.
 - `markweave/vue3`: Vue 3 editor component, composable, and Vue 3 extension factory.
 - `markweave/styles.css`: editor runtime stylesheet.

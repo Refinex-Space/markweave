@@ -1,23 +1,25 @@
 # AGENTS.md
 
 ## Project
-Markweave is a pnpm workspace for a Markdown-first WYSIWYG editor built on Tiptap and ProseMirror, with React and Vue 3 adapters. The publishable npm package is `packages/markweave`; `apps/playground-react` and `apps/playground-vue3` are private local demo apps.
+Markweave is a pnpm workspace for a Markdown-first WYSIWYG editor built on Tiptap and ProseMirror, with React, Vue 2, and Vue 3 adapters. The publishable npm package is `packages/markweave`; `apps/playground-react`, `apps/playground-vue2`, and `apps/playground-vue3` are private local demo apps.
 
 ## Environment And Commands
 - Install: `pnpm install`
 - Develop React: `pnpm dev` or `pnpm dev:react` and open `http://127.0.0.1:5173/`
+- Develop Vue 2: `pnpm dev:vue2` and open `http://127.0.0.1:5175/`
 - Develop Vue 3: `pnpm dev:vue3` and open `http://127.0.0.1:5174/`
 - Minimal package-boundary test: `pnpm exec vitest run packages/markweave/test/editor-entrypoint-boundary.test.ts`
 - Test: `pnpm test`
 - Typecheck: `pnpm typecheck`
 - Build: `pnpm build`
 - Harness docs check: `pnpm harness:check`
-- Bundled Harness audit: `python3 ~/.codex/skills/harness-init/scripts/harness_audit.py .`
 
 ## Repository Boundaries
 - Use pnpm workspace commands; do not introduce npm, yarn, or bun lockfiles.
 - Keep playground-only code out of `packages/markweave`; the published package exposes `markweave` and `markweave/styles.css`.
 - Treat `packages/markweave/src/index.ts` and `packages/markweave/src/editor-core/create-editor-extensions.ts` as public surface and extension-boundary files.
+- Put shared editor behavior in `packages/markweave/src/core`, `src/editor-core`, or `src/plugins`; React, Vue 2, and Vue 3 adapters should only own framework shells, NodeViews, rendering, events, and icons.
+- When React, Vue 2, or Vue 3 gains user-visible behavior, route it through shared core/helper code or document why the adapter-specific behavior is intentional.
 - Do not commit secrets, credentials, production tokens, or `.env*` contents.
 - Do not change CI, infrastructure manifests, package publishing boundaries, or dependency policy without calling it out separately.
 - For editor behavior changes, preserve or update the relevant behavior-contract tests before broad refactors.

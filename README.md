@@ -58,6 +58,30 @@ function handleUpdate({ markdown }: { markdown: string }) {
 </template>
 ```
 
+### Vue 2
+
+```js
+import Vue from "vue";
+import { MarkweaveEditor } from "markweave/vue2";
+import "markweave/styles.css";
+
+new Vue({
+  components: { MarkweaveEditor },
+  template: `
+    <MarkweaveEditor
+      default-content="# Hello Markweave\n\nStart writing in **Markdown**."
+      mode="live"
+      :on-update="handleUpdate"
+    />
+  `,
+  methods: {
+    handleUpdate({ markdown }) {
+      console.log(markdown);
+    },
+  },
+}).$mount("#app");
+```
+
 `defaultContent` and controlled `content` are parsed as Markdown unless you explicitly pass `defaultContentFormat` or `contentFormat`. Store `onUpdate.markdown` as the canonical product value; `html`, `json`, and `text` remain available for rendering and integration needs.
 
 Legacy HTML input remains supported when declared explicitly:
@@ -85,9 +109,10 @@ Legacy HTML input remains supported when declared explicitly:
 - `packages/markweave` contains the npm package named `markweave`.
 - `markweave` exports framework-neutral types and helpers.
 - `markweave/react` exports the React editor component, hook, and React extension factory.
+- `markweave/vue2` exports the Vue 2 editor component, controller helper, and Vue 2 extension factory.
 - `markweave/vue3` exports the Vue 3 editor component, composable, and Vue 3 extension factory.
 - `markweave/styles.css` remains the shared stylesheet entry.
-- `apps/playground-react` and `apps/playground-vue3` contain private local demo apps.
+- `apps/playground-react`, `apps/playground-vue2`, and `apps/playground-vue3` contain private local demo apps.
 - `apps/playground-fixtures` contains shared private playground Markdown fixtures.
 
 ## Local Development
@@ -113,6 +138,18 @@ Open:
 
 ```text
 http://127.0.0.1:5174/
+```
+
+For Vue 2:
+
+```sh
+pnpm dev:vue2
+```
+
+Open:
+
+```text
+http://127.0.0.1:5175/
 ```
 
 Useful checks:
