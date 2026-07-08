@@ -53,6 +53,14 @@ function installLayoutMocks() {
       return createRect(0, 0, 1000, 700);
     }
 
+    if (this.classList.contains("markweave-editor-surface")) {
+      return createRect(0, 0, 800, 500);
+    }
+
+    if (this.classList.contains("markweave-image-box")) {
+      return createRect(0, 0, 400, 240);
+    }
+
     if (this.classList.contains("markweave-codeblock-overlay")) {
       return createRect(0, 0, 1000, 700);
     }
@@ -114,6 +122,11 @@ async function click(element: Element) {
   await flushVue();
 }
 
+async function keyDown(element: Element, key: string) {
+  element.dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true }));
+  await flushVue();
+}
+
 async function pointerMove(element: Element) {
   element.dispatchEvent(new MouseEvent("mousemove", { bubbles: true, cancelable: true }));
   await flushVue();
@@ -129,6 +142,13 @@ async function inputValue(input: HTMLInputElement, value: string) {
   const valueSetter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
   valueSetter?.call(input, value);
   input.dispatchEvent(new Event("input", { bubbles: true, cancelable: true }));
+  await flushVue();
+}
+
+async function pointerResize(element: Element, fromX: number, toX: number) {
+  element.dispatchEvent(new MouseEvent("pointerdown", { bubbles: true, cancelable: true, clientX: fromX }));
+  window.dispatchEvent(new MouseEvent("pointermove", { bubbles: true, cancelable: true, clientX: toX }));
+  window.dispatchEvent(new MouseEvent("pointerup", { bubbles: true, cancelable: true, clientX: toX }));
   await flushVue();
 }
 
@@ -196,7 +216,7 @@ describe("Markweave Vue3 editor", () => {
     expect(container.querySelector('[data-testid="markweave-editor-frame"]')?.getAttribute("data-markweave-mode")).toBe("view");
   });
 
-  it("renders image and video placeholders through Vue NodeViews", async () => {
+  it("renders image and video placeholders through Vue NodeViews and keeps attachment public", async () => {
     const container = await mountVue(
       defineComponent({
         setup() {
@@ -208,6 +228,7 @@ describe("Markweave Vue3 editor", () => {
                 content: [
                   { type: "image", attrs: { src: null, align: "center", caption: null } },
                   { type: "markweaveVideo", attrs: { src: null } },
+                  { type: "markweaveAttachment", attrs: { src: "markweave://sample/spec.pdf", name: "spec.pdf", mimeType: "application/pdf", size: 1280 } },
                 ],
               },
             });
@@ -217,7 +238,114 @@ describe("Markweave Vue3 editor", () => {
 
     expect(container.querySelector('[data-testid="markweave-image-node"]')).toBeTruthy();
     expect(container.querySelector('[data-testid="markweave-video-node"]')).toBeTruthy();
-    expect(container.querySelectorAll(".markweave-media-placeholder")).toHaveLength(2);
+    expect(container.querySelector('[data-testid="markweave-image-upload-placeholder"]')).toBeTruthy();
+    expect(container.querySelector('[data-testid="markweave-video-upload-placeholder"]')).toBeTruthy();
+    expect(container.querySelector(".markweave-media-placeholder")).toBeNull();
+    expect(container.querySelector(".markweave-video-delete")).toBeNull();
+
+    const attachment = container.querySelector<HTMLAnchorElement>('a.markweave-attachment[data-markweave-attachment="true"]');
+    expect(attachment?.textContent).toBe("spec.pdf");
+    expect(attachment?.getAttribute("href")).toBe("markweave://sample/spec.pdf");
+  });
+
+  it("aligns Vue image toolbar, caption, resize handles, and upload DOM with React", async () => {
+    installLayoutMocks();
+    const anchorClick = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => undefined);
+    const container = await mountVue(
+      defineComponent({
+        setup() {
+          return () =>
+            h(MarkweaveEditor, {
+              defaultContent:
+                '<figure data-markweave-image="true" data-markweave-image-align="center"><img src="https://example.com/vue-image.png" alt="Vue"><figcaption>Vue caption</figcaption></figure>',
+              defaultContentFormat: "html",
+            });
+        },
+      }),
+    );
+
+    const imageNode = getByTestId(container, "markweave-image-node");
+    expect(imageNode.getAttribute("data-align")).toBe("center");
+    expect(getByTestId(container, "markweave-image-toolbar")).toBeTruthy();
+    expect(getByTestId(container, "markweave-image-align-right").querySelector(".markweave-image-tooltip")?.textContent).toBe("图片右对齐");
+    expect(container.querySelector(".markweave-image-box img.markweave-image")?.getAttribute("src")).toBe("https://example.com/vue-image.png");
+    expect(getByTestId(container, "markweave-image-resize-left").getAttribute("data-side")).toBe("left");
+    expect(getByTestId(container, "markweave-image-resize-right").getAttribute("data-side")).toBe("right");
+
+    const captionInput = getByTestId<HTMLInputElement>(container, "markweave-image-caption-input");
+    expect(captionInput.value).toBe("Vue caption");
+    await inputValue(captionInput, "Updated Vue caption");
+    expect(container.querySelector("figcaption")).toBeNull();
+
+    await click(getByTestId(container, "markweave-image-align-right"));
+    expect(getByTestId(container, "markweave-image-node").getAttribute("data-align")).toBe("right");
+
+    await pointerResize(getByTestId(container, "markweave-image-resize-right"), 400, 500);
+    expect((container.querySelector(".markweave-image-box") as HTMLElement | null)?.style.width).toBe("500px");
+
+    await click(getByTestId(container, "markweave-image-download"));
+    expect(anchorClick).toHaveBeenCalledTimes(1);
+  });
+
+  it("aligns Vue video selection layer and selected-only delete behavior with React", async () => {
+    const container = await mountVue(
+      defineComponent({
+        setup() {
+          return () =>
+            h(MarkweaveEditor, {
+              defaultContent:
+                '<p>before</p><iframe class="markweave-video-iframe" src="https://www.youtube.com/embed/fPiUC5NxFic?si=GifL60l94AOaMV93" data-markweave-video-embed="true" data-markweave-video-provider="youtube" data-markweave-video-src="https://www.youtube.com/embed/fPiUC5NxFic?si=GifL60l94AOaMV93"></iframe><p>after</p>',
+              defaultContentFormat: "html",
+            });
+        },
+      }),
+    );
+
+    const videoNode = getByTestId(container, "markweave-video-node");
+    expect(container.querySelector(".markweave-video-delete")).toBeNull();
+    expect(container.querySelector(".markweave-video-embed iframe.markweave-video-iframe")?.getAttribute("src")).toBe(
+      "https://www.youtube.com/embed/fPiUC5NxFic?si=GifL60l94AOaMV93",
+    );
+
+    await keyDown(videoNode, "Delete");
+    expect(container.querySelector("iframe.markweave-video-iframe")).toBeTruthy();
+
+    await click(getByTestId(container, "markweave-video-selection-layer"));
+    expect(getByTestId(container, "markweave-video-node").getAttribute("data-selected")).toBe("true");
+
+    await keyDown(getByTestId(container, "markweave-video-node"), "Delete");
+    expect(container.querySelector("iframe.markweave-video-iframe")).toBeNull();
+  });
+
+  it("hides Vue image and video edit controls when switching to View mode", async () => {
+    const mode = ref<MarkweaveEditorMode>("live");
+    const container = await mountVue(
+      defineComponent({
+        setup() {
+          return () =>
+            h(MarkweaveEditor, {
+              defaultContent:
+                '<figure data-markweave-image="true"><img src="https://example.com/view.png" alt="View"><figcaption>Read-only caption</figcaption></figure><iframe class="markweave-video-iframe" src="https://www.youtube.com/embed/fPiUC5NxFic" data-markweave-video-embed="true" data-markweave-video-provider="youtube" data-markweave-video-src="https://www.youtube.com/embed/fPiUC5NxFic"></iframe>',
+              defaultContentFormat: "html",
+              mode: mode.value,
+            });
+        },
+      }),
+    );
+
+    expect(getByTestId(container, "markweave-image-toolbar")).toBeTruthy();
+    expect(getByTestId(container, "markweave-image-caption-input")).toBeTruthy();
+    expect(getByTestId(container, "markweave-video-selection-layer")).toBeTruthy();
+
+    mode.value = "view";
+    await flushVue();
+
+    expect(container.querySelector('[data-testid="markweave-image-toolbar"]')).toBeNull();
+    expect(container.querySelector('[data-testid="markweave-image-resize-left"]')).toBeNull();
+    expect(container.querySelector('[data-testid="markweave-image-caption-input"]')).toBeNull();
+    expect(getByTestId(container, "markweave-image-caption").textContent).toBe("Read-only caption");
+    expect(container.querySelector('[data-testid="markweave-video-selection-layer"]')).toBeNull();
+    expect(getByTestId(container, "markweave-video-node").getAttribute("data-selected")).toBe("false");
   });
 
   it("renders positioned table handles and row menu like the React adapter", async () => {

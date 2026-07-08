@@ -1,5 +1,5 @@
-import { mergeAttributes, type NodeViewProps } from "@tiptap/core";
-import Image, { type ImageOptions } from "@tiptap/extension-image";
+import type { NodeViewProps } from "@tiptap/core";
+import type { ImageOptions } from "@tiptap/extension-image";
 import { NodeViewWrapper, ReactNodeViewRenderer } from "@tiptap/react";
 import {
   AlignCenter,
@@ -17,142 +17,31 @@ import {
   detectUploadSource,
   resolveMarkweaveUploadResult,
   type MarkweaveSlashCommandUploadHandler,
-  type MarkweaveUploadRequest,
-  type MarkweaveUploadResult,
   type MarkweaveUploadSource,
 } from "../../plugins/slash-command/upload";
+import {
+  attrsFromMarkweaveImageUploadResult,
+  clampMarkweaveImageWidth,
+  createMarkweaveImageUploadRequest,
+  downloadMarkweaveImage,
+  MarkweaveCoreImage,
+  normalizeMarkweaveCoreImageAlign,
+  numberAttribute,
+  stringAttribute,
+  type MarkweaveCoreImageAlign,
+} from "../../plugins/media/core-media-nodes";
 import { getMarkweaveMessages, type MarkweaveMessages } from "../../i18n";
 import { isMarkweaveEditorLiveEditable } from "../../core/editor-mode-state";
 import { useMarkweaveEditorModeState } from "../editor-mode-state";
 
-export type MarkweaveImageAlign = "left" | "center" | "right";
+export type MarkweaveImageAlign = MarkweaveCoreImageAlign;
 
 export interface MarkweaveImageOptions extends ImageOptions {
   readonly messages?: MarkweaveMessages;
   readonly onUpload?: MarkweaveSlashCommandUploadHandler;
 }
 
-const imageAlignments = new Set<MarkweaveImageAlign>(["left", "center", "right"]);
-
-function stringAttribute(value: unknown) {
-  return typeof value === "string" && value.length > 0 ? value : null;
-}
-
-function numberAttribute(value: unknown) {
-  if (typeof value === "number" && Number.isFinite(value) && value > 0) {
-    return value;
-  }
-
-  if (typeof value !== "string" || !value.trim()) {
-    return null;
-  }
-
-  const parsed = Number.parseFloat(value);
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
-}
-
-function parseDimension(value: string | null) {
-  if (!value) {
-    return null;
-  }
-
-  return numberAttribute(value.replace(/px$/i, ""));
-}
-
-function compactAttributes(attributes: Record<string, unknown>) {
-  return Object.fromEntries(Object.entries(attributes).filter(([, value]) => value !== null && value !== undefined && value !== ""));
-}
-
-function escapeHtmlAttribute(value: string) {
-  return value.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-}
-
-function escapeHtmlText(value: string) {
-  return value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-}
-
-function renderHtmlAttributes(attributes: Record<string, unknown>) {
-  return Object.entries(compactAttributes(attributes))
-    .map(([key, value]) => `${key}="${escapeHtmlAttribute(String(value))}"`)
-    .join(" ");
-}
-
-export function normalizeMarkweaveImageAlign(value: unknown): MarkweaveImageAlign {
-  return typeof value === "string" && imageAlignments.has(value as MarkweaveImageAlign) ? (value as MarkweaveImageAlign) : "center";
-}
-
-export function clampMarkweaveImageWidth(width: number, containerWidth: number) {
-  const safeContainerWidth = Number.isFinite(containerWidth) && containerWidth > 0 ? containerWidth : 720;
-  const minWidth = Math.min(safeContainerWidth, Math.max(120, safeContainerWidth * 0.2));
-  return Math.round(Math.min(safeContainerWidth, Math.max(minWidth, width)));
-}
-
-function getImageFileName(src: string) {
-  const cleanSrc = src.split(/[?#]/)[0] ?? "";
-  const lastSegment = cleanSrc.split("/").filter(Boolean).at(-1);
-  return lastSegment || "markweave-image";
-}
-
-export function downloadMarkweaveImage(src: string, ownerDocument: Document = document) {
-  const trimmedSrc = src.trim();
-
-  if (!trimmedSrc) {
-    return false;
-  }
-
-  const anchor = ownerDocument.createElement("a");
-  anchor.href = trimmedSrc;
-  anchor.download = getImageFileName(trimmedSrc);
-  anchor.rel = "noopener noreferrer";
-  ownerDocument.body.appendChild(anchor);
-  anchor.click();
-  anchor.remove();
-  return true;
-}
-
-function getImageAttrsFromElement(element: Element) {
-  const imageElement = element.matches("img") ? element : element.querySelector("img");
-
-  if (!(imageElement instanceof HTMLElement)) {
-    return false;
-  }
-
-  const src = imageElement.getAttribute("src");
-  if (!src) {
-    return false;
-  }
-
-  const figure = imageElement.closest("figure[data-markweave-image]");
-  const caption = figure?.querySelector("figcaption")?.textContent?.trim() || null;
-
-  return {
-    src,
-    alt: imageElement.getAttribute("alt"),
-    title: imageElement.getAttribute("title"),
-    width: parseDimension(imageElement.getAttribute("width") ?? imageElement.style.width),
-    height: parseDimension(imageElement.getAttribute("height") ?? imageElement.style.height),
-    align: normalizeMarkweaveImageAlign(figure?.getAttribute("data-markweave-image-align") ?? imageElement.getAttribute("data-markweave-image-align")),
-    caption,
-  };
-}
-
-function attrsFromUploadResult(nodeAttrs: Record<string, unknown>, result: MarkweaveUploadResult) {
-  return {
-    src: result.src,
-    alt: result.alt ?? result.name ?? stringAttribute(nodeAttrs.alt),
-    title: result.title ?? stringAttribute(nodeAttrs.title),
-    width: null,
-    height: null,
-  };
-}
-
-function createImageRequest(source: MarkweaveUploadSource, trigger: MarkweaveUploadRequest["trigger"]): MarkweaveUploadRequest {
-  return {
-    kind: "image",
-    source,
-    trigger,
-  };
-}
+export const normalizeMarkweaveImageAlign = normalizeMarkweaveCoreImageAlign;
 
 function isImageUiEventTarget(target: EventTarget | null) {
   return target instanceof Element && Boolean(target.closest('[data-markweave-image-ui="true"]'));
@@ -225,8 +114,8 @@ function MarkweaveImageNodeView(props: NodeViewProps) {
     setIsSubmitting(true);
 
     try {
-      const result = await resolveMarkweaveUploadResult(createImageRequest(source, src && replacing ? "image-replace" : "image-insert"), options.onUpload);
-      updateAttributes(attrsFromUploadResult(node.attrs, result));
+      const result = await resolveMarkweaveUploadResult(createMarkweaveImageUploadRequest(source, src && replacing ? "image-replace" : "image-insert"), options.onUpload);
+      updateAttributes(attrsFromMarkweaveImageUploadResult(node.attrs, result));
       setReplacing(false);
       setInputValue("");
     } catch (errorValue) {
@@ -588,151 +477,13 @@ function ResizeHandle({
   );
 }
 
-export const MarkweaveImage = Image.extend<MarkweaveImageOptions>({
+export const MarkweaveImage = MarkweaveCoreImage.extend<MarkweaveImageOptions>({
   addOptions() {
     return {
       ...(this.parent?.() as ImageOptions),
       messages: getMarkweaveMessages("zh"),
       onUpload: undefined,
     };
-  },
-
-  addAttributes() {
-    return {
-      ...(this.parent?.() ?? {}),
-      align: {
-        default: "center",
-        parseHTML: (element: Element) =>
-          normalizeMarkweaveImageAlign(element.closest("figure[data-markweave-image]")?.getAttribute("data-markweave-image-align") ?? element.getAttribute("data-markweave-image-align")),
-        renderHTML: (attributes: Record<string, unknown>) => ({
-          "data-markweave-image-align": normalizeMarkweaveImageAlign(attributes.align),
-        }),
-      },
-      caption: {
-        default: null,
-        parseHTML: (element: Element) => element.closest("figure[data-markweave-image]")?.querySelector("figcaption")?.textContent?.trim() || null,
-        renderHTML: () => ({}),
-      },
-      width: {
-        default: null,
-        parseHTML: (element: Element) => parseDimension(element.getAttribute("width") ?? (element instanceof HTMLElement ? element.style.width : null)),
-        renderHTML: (attributes: Record<string, unknown>) => {
-          const width = numberAttribute(attributes.width);
-          return width ? { width: String(Math.round(width)) } : {};
-        },
-      },
-      height: {
-        default: null,
-        parseHTML: (element: Element) => parseDimension(element.getAttribute("height") ?? (element instanceof HTMLElement ? element.style.height : null)),
-        renderHTML: (attributes: Record<string, unknown>) => {
-          const height = numberAttribute(attributes.height);
-          return height ? { height: String(Math.round(height)) } : {};
-        },
-      },
-    };
-  },
-
-  parseHTML() {
-    return [
-      {
-        tag: "figure[data-markweave-image]",
-        getAttrs: (element) => {
-          if (!(element instanceof Element)) {
-            return false;
-          }
-
-          const attrs = getImageAttrsFromElement(element);
-          if (!attrs || (!this.options.allowBase64 && attrs.src.startsWith("data:"))) {
-            return false;
-          }
-
-          return attrs;
-        },
-      },
-      {
-        tag: this.options.allowBase64 ? "img[src]" : 'img[src]:not([src^="data:"])',
-      },
-    ];
-  },
-
-  renderHTML({ node }) {
-    const src = stringAttribute(node.attrs.src);
-    const align = normalizeMarkweaveImageAlign(node.attrs.align);
-    const caption = stringAttribute(node.attrs.caption);
-    const imageAttributes = mergeAttributes(
-      this.options.HTMLAttributes,
-      compactAttributes({
-        src,
-        alt: stringAttribute(node.attrs.alt),
-        title: stringAttribute(node.attrs.title),
-        width: numberAttribute(node.attrs.width) ? String(Math.round(numberAttribute(node.attrs.width) ?? 0)) : null,
-        height: numberAttribute(node.attrs.height) ? String(Math.round(numberAttribute(node.attrs.height) ?? 0)) : null,
-        "data-markweave-image-align": align,
-      }),
-    );
-
-    if (!src) {
-      return [
-        "figure",
-        {
-          class: "markweave-image-figure",
-          "data-markweave-image": "true",
-          "data-markweave-image-empty": "true",
-          "data-markweave-image-align": align,
-        },
-      ];
-    }
-
-    if (!caption) {
-      return ["img", imageAttributes];
-    }
-
-    return [
-      "figure",
-      {
-        class: "markweave-image-figure",
-        "data-markweave-image": "true",
-        "data-markweave-image-align": align,
-      },
-      ["img", imageAttributes],
-      ["figcaption", { "data-markweave-image-caption": "true" }, caption],
-    ];
-  },
-
-  renderMarkdown: (node) => {
-    const src = stringAttribute(node.attrs?.src);
-    const alt = stringAttribute(node.attrs?.alt) ?? "";
-    const title = stringAttribute(node.attrs?.title);
-    const align = normalizeMarkweaveImageAlign(node.attrs?.align);
-    const caption = stringAttribute(node.attrs?.caption);
-    const width = numberAttribute(node.attrs?.width);
-    const height = numberAttribute(node.attrs?.height);
-
-    if (!src) {
-      return `<figure class="markweave-image-figure" data-markweave-image="true" data-markweave-image-empty="true" data-markweave-image-align="${align}"></figure>`;
-    }
-
-    if (!caption && align === "center" && !width && !height) {
-      return title ? `![${alt}](${src} "${title}")` : `![${alt}](${src})`;
-    }
-
-    const figureAttrs = renderHtmlAttributes({
-      class: "markweave-image-figure",
-      "data-markweave-image": "true",
-      "data-markweave-image-align": align,
-    });
-    const imageAttrs = renderHtmlAttributes({
-      class: "markweave-image",
-      src,
-      alt,
-      title,
-      width: width ? String(Math.round(width)) : null,
-      height: height ? String(Math.round(height)) : null,
-      "data-markweave-image-align": align,
-    });
-    const captionHtml = caption ? `<figcaption data-markweave-image-caption="true">${escapeHtmlText(caption)}</figcaption>` : "";
-
-    return `<figure ${figureAttrs}><img ${imageAttrs} />${captionHtml}</figure>`;
   },
 
   addNodeView() {
@@ -743,9 +494,5 @@ export const MarkweaveImage = Image.extend<MarkweaveImageOptions>({
     return ReactNodeViewRenderer(MarkweaveImageNodeView, {
       stopEvent: ({ event }) => isImageUiEventTarget(event.target),
     });
-  },
-
-  addInputRules() {
-    return [];
   },
 });

@@ -108,17 +108,34 @@ describe("Vue3 adapter parity source contract", () => {
     const source = readProjectFile("src/vue3/media-nodeviews.ts");
 
     expectSourceContract(source, [
+      "MarkweaveCoreImage",
+      "MarkweaveCoreVideo",
+      "attrsFromMarkweaveVideoUrl",
       "markweave-image-node",
       "markweave-image-toolbar",
-      "markweave-image-resize-handle-left",
-      "markweave-image-resize-handle-right",
+      "markweave-image-align-left",
+      "markweave-image-align-center",
+      "markweave-image-align-right",
+      "markweave-image-tooltip",
+      "markweave-image-box",
+      "markweave-image-resize-handle",
+      "markweave-image-resize-left",
+      "markweave-image-resize-right",
+      "data-side",
+      "markweave-image-caption-input",
+      "markweave-image-caption",
+      "markweave-image-upload-placeholder",
+      "markweave-image-upload-submit",
       "markweave-video-node",
-      "markweave-video-delete",
-      "markweave-media-placeholder",
-      "markweave-media-placeholder-icon",
-      "markweave-media-placeholder-form",
+      "markweave-video-upload-placeholder",
+      "markweave-video-selection-layer",
+      "markweave-video-readonly-empty",
+      "markweave-video-embed",
+      "markweave-video-box",
       "data-markweave-image-ui",
       "data-markweave-video-ui",
     ]);
+    expect(source).not.toContain("markweave-video-delete");
+    expect(source).not.toContain("markweave-media-placeholder");
   });
 });

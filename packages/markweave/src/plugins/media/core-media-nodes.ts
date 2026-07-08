@@ -1,20 +1,27 @@
 import { mergeAttributes, Node } from "@tiptap/core";
 import Image, { type ImageOptions } from "@tiptap/extension-image";
+import type { MarkweaveUploadRequest, MarkweaveUploadResult, MarkweaveUploadSource } from "../slash-command/upload";
 
 export type MarkweaveCoreImageAlign = "left" | "center" | "right";
 export type MarkweaveCoreVideoProvider = "youtube" | "bilibili";
+
+export interface MarkweaveCoreVideoEmbed {
+  readonly provider: MarkweaveCoreVideoProvider;
+  readonly embedUrl: string;
+}
 
 export interface MarkweaveCoreVideoOptions {
   readonly HTMLAttributes: Record<string, unknown>;
 }
 
 const imageAlignments = new Set<MarkweaveCoreImageAlign>(["left", "center", "right"]);
+const videoFileUrlRegex = /\.(?:mp4|webm|ogg|mov|m4v)(?:[?#].*)?$/i;
 
-function stringAttribute(value: unknown) {
+export function stringAttribute(value: unknown) {
   return typeof value === "string" && value.length > 0 ? value : null;
 }
 
-function numberAttribute(value: unknown) {
+export function numberAttribute(value: unknown) {
   if (typeof value === "number" && Number.isFinite(value) && value > 0) {
     return value;
   }
@@ -27,7 +34,7 @@ function numberAttribute(value: unknown) {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
 }
 
-function parseDimension(value: string | null) {
+export function parseDimension(value: string | null) {
   if (!value) {
     return null;
   }
@@ -55,6 +62,192 @@ function renderHtmlAttributes(attributes: Record<string, unknown>) {
 
 export function normalizeMarkweaveCoreImageAlign(value: unknown): MarkweaveCoreImageAlign {
   return typeof value === "string" && imageAlignments.has(value as MarkweaveCoreImageAlign) ? (value as MarkweaveCoreImageAlign) : "center";
+}
+
+export function clampMarkweaveImageWidth(width: number, containerWidth: number) {
+  const safeContainerWidth = Number.isFinite(containerWidth) && containerWidth > 0 ? containerWidth : 720;
+  const minWidth = Math.min(safeContainerWidth, Math.max(120, safeContainerWidth * 0.2));
+  return Math.round(Math.min(safeContainerWidth, Math.max(minWidth, width)));
+}
+
+function getImageFileName(src: string) {
+  const cleanSrc = src.split(/[?#]/)[0] ?? "";
+  return cleanSrc.split("/").filter(Boolean).at(-1) || "markweave-image";
+}
+
+export function downloadMarkweaveImage(src: string, ownerDocument: Document = document) {
+  const trimmedSrc = src.trim();
+
+  if (!trimmedSrc) {
+    return false;
+  }
+
+  const anchor = ownerDocument.createElement("a");
+  anchor.href = trimmedSrc;
+  anchor.download = getImageFileName(trimmedSrc);
+  anchor.rel = "noopener noreferrer";
+  ownerDocument.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  return true;
+}
+
+export function attrsFromMarkweaveImageUploadResult(nodeAttrs: Record<string, unknown>, result: MarkweaveUploadResult) {
+  return {
+    src: result.src,
+    alt: result.alt ?? result.name ?? stringAttribute(nodeAttrs.alt),
+    title: result.title ?? stringAttribute(nodeAttrs.title),
+    width: null,
+    height: null,
+  };
+}
+
+export function createMarkweaveImageUploadRequest(source: MarkweaveUploadSource, trigger: MarkweaveUploadRequest["trigger"]): MarkweaveUploadRequest {
+  return {
+    kind: "image",
+    source,
+    trigger,
+  };
+}
+
+function normalizeVideoUrl(input: string) {
+  const trimmed = input.trim();
+
+  if (!trimmed) {
+    return null;
+  }
+
+  try {
+    const url = new URL(trimmed.startsWith("//") ? `https:${trimmed}` : trimmed);
+    return url.protocol === "http:" || url.protocol === "https:" ? url : null;
+  } catch {
+    return null;
+  }
+}
+
+function toHttpsUrl(url: URL) {
+  const nextUrl = new URL(url.href);
+  nextUrl.protocol = "https:";
+  return nextUrl.toString();
+}
+
+function firstMatchValue(url: URL, keys: readonly string[]) {
+  for (const key of keys) {
+    const value = url.searchParams.get(key);
+
+    if (value) {
+      return value;
+    }
+  }
+
+  return null;
+}
+
+export function parseMarkweaveVideoEmbed(input: string): MarkweaveCoreVideoEmbed | null {
+  const url = normalizeVideoUrl(input);
+
+  if (!url) {
+    return null;
+  }
+
+  const host = url.hostname.replace(/^www\./, "").toLowerCase();
+
+  if (host === "youtu.be") {
+    const id = url.pathname.split("/").filter(Boolean)[0];
+    return id ? { provider: "youtube", embedUrl: `https://www.youtube.com/embed/${encodeURIComponent(id)}` } : null;
+  }
+
+  if (host === "youtube.com" || host === "youtube-nocookie.com") {
+    const pathParts = url.pathname.split("/").filter(Boolean);
+
+    if (pathParts[0] === "embed" && pathParts[1]) {
+      return { provider: "youtube", embedUrl: toHttpsUrl(url) };
+    }
+
+    const id = pathParts[0] === "shorts" ? pathParts[1] : url.searchParams.get("v");
+    return id ? { provider: "youtube", embedUrl: `https://www.youtube.com/embed/${encodeURIComponent(id)}` } : null;
+  }
+
+  if (host === "player.bilibili.com" && url.pathname === "/player.html") {
+    const hasVideoIdentity = ["aid", "bvid", "cid"].some((key) => url.searchParams.has(key));
+    return hasVideoIdentity ? { provider: "bilibili", embedUrl: toHttpsUrl(url) } : null;
+  }
+
+  if (host.endsWith("bilibili.com")) {
+    const bvid = firstMatchValue(url, ["bvid"]) ?? url.pathname.match(/\/video\/(BV[a-zA-Z0-9]+)/)?.[1];
+    const aid = firstMatchValue(url, ["aid"]) ?? url.pathname.match(/\/video\/av(\d+)/i)?.[1];
+    const cid = firstMatchValue(url, ["cid"]);
+    const page = firstMatchValue(url, ["p", "page"]);
+    const params = new URLSearchParams();
+
+    if (bvid) {
+      params.set("bvid", bvid);
+    } else if (aid) {
+      params.set("aid", aid);
+    }
+
+    if (cid) {
+      params.set("cid", cid);
+    }
+
+    if (page) {
+      params.set("p", page);
+    }
+
+    const query = params.toString();
+    return query ? { provider: "bilibili", embedUrl: `https://player.bilibili.com/player.html?${query}` } : null;
+  }
+
+  return null;
+}
+
+export function isDirectMarkweaveVideoUrl(input: string) {
+  const url = normalizeVideoUrl(input);
+  return Boolean(url && videoFileUrlRegex.test(url.href));
+}
+
+export function attrsFromMarkweaveVideoUrl(url: string) {
+  const embed = parseMarkweaveVideoEmbed(url);
+
+  if (embed) {
+    return {
+      src: url.trim(),
+      embedUrl: embed.embedUrl,
+      provider: embed.provider,
+      mimeType: null,
+      title: null,
+    };
+  }
+
+  if (!isDirectMarkweaveVideoUrl(url)) {
+    return null;
+  }
+
+  return {
+    src: url.trim(),
+    embedUrl: null,
+    provider: null,
+    mimeType: null,
+    title: url.trim().split("/").filter(Boolean).at(-1),
+  };
+}
+
+export function attrsFromMarkweaveVideoUploadResult(result: MarkweaveUploadResult) {
+  return {
+    src: result.src,
+    embedUrl: null,
+    provider: null,
+    title: result.title ?? result.name,
+    mimeType: result.mimeType,
+  };
+}
+
+export function createMarkweaveVideoUploadRequest(source: MarkweaveUploadSource): MarkweaveUploadRequest {
+  return {
+    kind: "video",
+    source,
+    trigger: "video-insert",
+  };
 }
 
 function getImageAttrsFromElement(element: Element) {
