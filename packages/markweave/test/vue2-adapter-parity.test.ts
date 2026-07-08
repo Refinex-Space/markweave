@@ -64,7 +64,9 @@ describe("Vue2 adapter parity source contract", () => {
     const iconsSource = readProjectFile("src/vue2/vue2-icons.ts");
 
     expectSourceContract(compatSource, ["isDefaultSlotObject", "children.default()", "return [slotChildren]"]);
-    expect(iconsSource).toContain("name: `MarkweaveVue2Icon${name}`");
+    expectSourceContract(iconsSource, ["const lucideIcons", "iconName", "renderIconNode", "name: `MarkweaveVue2Icon${name}`"]);
+    expect(iconsSource).not.toContain("pathForIcon");
+    expect(iconsSource).not.toContain("name.includes");
   });
 
   it("keeps Vue2 media NodeViews on the React-compatible media DOM contract", () => {
