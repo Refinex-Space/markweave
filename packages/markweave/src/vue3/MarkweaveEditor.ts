@@ -40,7 +40,6 @@ import {
   Quote,
   Sigma,
   SmilePlus,
-  Sparkles,
   Strikethrough,
   Subscript,
   Superscript,
@@ -436,7 +435,6 @@ function maybeOpenLinkHref(href: string) {
 }
 
 const toolbarIconMap: Record<string, Component> = {
-  improve: Sparkles,
   bold: Bold,
   italic: Italic,
   underline: Underline,
@@ -656,9 +654,7 @@ const VueFloatingToolbar = defineComponent({
                   createIcon(openMenu.value === "color" ? ChevronUp : ChevronDown, label),
                 ]),
               ]
-            : id === "improve"
-              ? [h("span", { class: "markweave-floating-toolbar-button-inner" }, [createIcon(iconComponent, label), h("span", null, glyph ?? label)])]
-              : [createIcon(iconComponent, label)],
+            : [createIcon(iconComponent, label)],
       );
 
     const divider = () => h("span", { class: "markweave-floating-toolbar-divider", "aria-hidden": "true" });
@@ -690,14 +686,6 @@ const VueFloatingToolbar = defineComponent({
           ),
         )),
       ]);
-
-    const createAssistantRequest = (): FloatingToolbarAssistantRequest => ({
-      source: "rewrite-selection",
-      text: props.editor.state.doc.textBetween(props.editor.state.selection.from, props.editor.state.selection.to, "\n"),
-      html: props.editor.getHTML(),
-      from: props.editor.state.selection.from,
-      to: props.editor.state.selection.to,
-    });
 
     const renderPopover = () => {
       if (openMenu.value === "block-type") {
@@ -811,8 +799,6 @@ const VueFloatingToolbar = defineComponent({
           default: () =>
             h("div", { class: "markweave-floating-toolbar markweave-floating-toolbar--default markweave-floating-toolbar--motion-entered", "data-testid": "markweave-floating-toolbar" }, [
               h("div", { class: "markweave-floating-toolbar-content", "data-menu": openMenu.value ?? "none" }, [
-                toolbarButton("improve", toolbarMessages.value.buttons.improve, Sparkles, () => props.onRewriteSelection?.(createAssistantRequest()), false, toolbarMessages.value.buttons.improve),
-                divider(),
                 toolbarButton("block-type", toolbarMessages.value.buttons["block-type"], TypeIcon, () => toggleMenu("block-type"), openMenu.value === "block-type"),
                 divider(),
                 toolbarButton("bold", toolbarMessages.value.buttons.bold, Bold, () => props.editor.chain().focus().toggleBold().run(), props.editor.isActive("bold")),
