@@ -254,8 +254,10 @@ describe("code block controls", () => {
   A --> B</code></pre>`,
       { selectText: "outside" },
     );
+    const outsidePosition = textPosition(editor, "outside");
 
     expect(getActiveCodeBlockState(editor).active).toBe(false);
+    expect(editor.state.selection.from).toBe(outsidePosition);
     expect(queryByTestId("markweave-codeblock-controls")).toBeNull();
     expect(getByTestId("markweave-mermaid-tabs").dataset.positioned).toBe("true");
     expect(getByTestId("markweave-mermaid-tabs").style.top).toBe("60px");
@@ -264,11 +266,9 @@ describe("code block controls", () => {
 
     click(getByTestId("markweave-mermaid-mode-preview"));
 
-    expect(getActiveCodeBlockState(editor)).toMatchObject({
-      active: true,
-      language: "mermaid",
-      mermaidPreviewMode: "preview",
-    });
+    expect(getActiveCodeBlockState(editor).active).toBe(false);
+    expect(editor.state.selection.from).toBe(outsidePosition);
+    expect(editor.getHTML()).toContain('data-mermaid-preview-mode="preview"');
   });
 
   it("shows code block controls on hover without requiring editor focus inside the block", async () => {
@@ -353,8 +353,10 @@ describe("code block controls", () => {
   A --> B</code></pre>`,
       { selectText: "outside" },
     );
+    const outsidePosition = textPosition(editor, "outside");
 
     expect(getActiveCodeBlockState(editor).active).toBe(false);
+    expect(editor.state.selection.from).toBe(outsidePosition);
     expect(getByTestId("markweave-mermaid-tabs")).not.toBeNull();
     expect(queryByTestId("markweave-codeblock-controls")).toBeNull();
 
@@ -371,15 +373,13 @@ describe("code block controls", () => {
     click(getByTestId("markweave-mermaid-mode-preview"));
     rerender("preview");
 
-    expect(getActiveCodeBlockState(editor)).toMatchObject({
-      active: true,
-      language: "mermaid",
-      mermaidPreviewMode: "preview",
-    });
+    expect(getActiveCodeBlockState(editor).active).toBe(false);
+    expect(editor.state.selection.from).toBe(outsidePosition);
     expect(editor.getHTML()).toContain('data-mermaid-preview-mode="preview"');
   });
 
   it("opens the Markweave-style language menu, filters languages, and restores editor focus after selection", () => {
+    const inputFocus = vi.spyOn(HTMLInputElement.prototype, "focus");
     const { editor } = renderControls('<pre><code class="language-java">public class HarnessAgent {}</code></pre>', {
       selectText: "HarnessAgent",
     });
@@ -388,6 +388,7 @@ describe("code block controls", () => {
 
     click(getByTestId("markweave-codeblock-language"));
     expect(getByTestId("markweave-codeblock-language-menu").dataset.positioned).toBe("true");
+    expect(inputFocus).toHaveBeenCalledWith({ preventScroll: true });
 
     inputValue(getByTestId<HTMLInputElement>("markweave-codeblock-language-search"), "json");
     expect(getByTestId("markweave-codeblock-language-option-json")).not.toBeNull();
@@ -398,6 +399,27 @@ describe("code block controls", () => {
     expect(getActiveCodeBlockState(editor).language).toBe("json");
     expect(queryByTestId("markweave-codeblock-language-menu")).toBeNull();
     expect(editor.view.hasFocus()).toBe(true);
+  });
+
+  it("changes a hovered code block language without moving the editor selection", () => {
+    const { editor } = renderControls('<p>outside</p><pre><code class="language-ts">const value = 1;</code></pre>', {
+      selectText: "outside",
+    });
+    const outsidePosition = textPosition(editor, "outside");
+    const codeBlockElement = editor.view.dom.querySelector("pre");
+
+    if (!codeBlockElement) {
+      throw new Error("Expected code block element.");
+    }
+
+    pointerMove(codeBlockElement);
+    click(getByTestId("markweave-codeblock-language"));
+    click(getByTestId("markweave-codeblock-language-option-json"));
+
+    expect(getActiveCodeBlockState(editor).active).toBe(false);
+    expect(editor.state.selection.from).toBe(outsidePosition);
+    expect(editor.getHTML()).toContain('class="language-json"');
+    expect(getByTestId("markweave-codeblock-language").textContent).toContain("JSON");
   });
 
   it("closes the language menu on Escape and outside pointer down", () => {

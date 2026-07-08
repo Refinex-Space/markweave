@@ -7,9 +7,9 @@ import {
   codeBlockCollapsePluginKey,
   getActiveCodeBlockState,
   getCodeBlockCopyFeedbackSnapshot,
-  setActiveCodeBlockLanguage,
   setCodeBlockCollapsedAtPosition,
-  setActiveCodeBlockMermaidPreviewMode,
+  setCodeBlockLanguageAtPosition,
+  setCodeBlockMermaidPreviewModeAtPosition,
   type MarkweaveCodeBlockCopyFeedbackSnapshot,
   type MarkweaveCodeBlockLanguage,
 } from "../../../plugins/codeblock/codeblock-behavior";
@@ -176,7 +176,7 @@ export function CodeBlockControls({ active, editor, mermaidMode, onMermaidModeCh
   const [fullscreenTooltip, setFullscreenTooltip] = useState<MermaidFullscreenTooltip | null>(null);
   const [fullscreenDragging, setFullscreenDragging] = useState(false);
   const [collapseRevision, setCollapseRevision] = useState(0);
-  const [readonlyMermaidRevision, setReadonlyMermaidRevision] = useState(0);
+  const [controlsRevision, setControlsRevision] = useState(0);
   const activeCodeBlock = getActiveCodeBlockState(editor);
   const hoveredCodeBlock = getCodeBlockStateAtPosition(editor, hoveredCodeBlockPos);
   const activeTarget =
@@ -192,7 +192,7 @@ export function CodeBlockControls({ active, editor, mermaidMode, onMermaidModeCh
   const visibleMermaidMode = codeBlock?.mermaidPreviewMode ?? mermaidMode;
   const svgAvailable = isMermaid && visibleMermaidMode === "preview";
   const mermaidTargets = getMermaidCodeBlockTargets(editor);
-  const mermaidTargetKey = `${readonlyMermaidRevision}|${mermaidTargets
+  const mermaidTargetKey = `${controlsRevision}|${mermaidTargets
     .map((target) => `${target.pos}:${target.mermaidPreviewMode}:${target.text.length}`)
     .join("|")}`;
 
@@ -288,7 +288,7 @@ export function CodeBlockControls({ active, editor, mermaidMode, onMermaidModeCh
       return;
     }
 
-    searchInputRef.current?.focus();
+    searchInputRef.current?.focus({ preventScroll: true });
   }, [languageMenuOpen]);
 
   useEffect(() => {
@@ -471,17 +471,19 @@ export function CodeBlockControls({ active, editor, mermaidMode, onMermaidModeCh
   const setMermaidModeForTarget = (target: CodeBlockTargetState, mode: MermaidPreviewMode) => {
     if (readOnly) {
       if (setReadonlyMermaidPreviewMode(editor, target.pos, mode)) {
-        setReadonlyMermaidRevision((revision) => revision + 1);
+        setControlsRevision((revision) => revision + 1);
       }
       return;
     }
 
-    if (!focusCodeBlockTarget(editor, target)) {
-      return;
-    }
+    const refocusEditor = activeCodeBlock.active && activeCodeBlock.pos === target.pos;
 
-    if (setActiveCodeBlockMermaidPreviewMode(editor, mode)) {
+    if (setCodeBlockMermaidPreviewModeAtPosition(editor, target.pos, mode)) {
       onMermaidModeChange(mode);
+      setControlsRevision((revision) => revision + 1);
+      if (refocusEditor) {
+        editor.view.focus();
+      }
     }
   };
 
@@ -498,18 +500,23 @@ export function CodeBlockControls({ active, editor, mermaidMode, onMermaidModeCh
       return;
     }
 
-    if (!focusCodeBlockTarget(editor, codeBlock)) {
+    if (!codeBlock) {
       return;
     }
 
-    if (setActiveCodeBlockLanguage(editor, language)) {
-      if (language === "mermaid" && setActiveCodeBlockMermaidPreviewMode(editor, "preview")) {
+    const refocusEditor = activeCodeBlock.active && activeCodeBlock.pos === codeBlock.pos;
+
+    if (setCodeBlockLanguageAtPosition(editor, codeBlock.pos, language)) {
+      if (language === "mermaid" && setCodeBlockMermaidPreviewModeAtPosition(editor, codeBlock.pos, "preview")) {
         onMermaidModeChange("preview");
       }
 
       setLanguageMenuOpen(false);
       setLanguageQuery("");
-      editor.view.focus();
+      setControlsRevision((revision) => revision + 1);
+      if (refocusEditor) {
+        editor.view.focus();
+      }
     }
   };
 

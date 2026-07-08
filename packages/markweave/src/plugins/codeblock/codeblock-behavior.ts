@@ -192,6 +192,22 @@ function getCodeBlockContextAtPos(state: EditorState, pos: number): CodeBlockCon
   };
 }
 
+function updateCodeBlockAttrsAtPos(editor: Editor, pos: number, attrs: Record<string, unknown>) {
+  const context = getCodeBlockContextAtPos(editor.state, pos);
+
+  if (!context) {
+    return false;
+  }
+
+  editor.view.dispatch(
+    editor.state.tr.setNodeMarkup(context.pos, undefined, {
+      ...context.node.attrs,
+      ...attrs,
+    }),
+  );
+  return true;
+}
+
 function getCodeBlockContextForElement(view: EditorView, codeBlockElement: HTMLElement): CodeBlockContext | null {
   let context: CodeBlockContext | null = null;
 
@@ -400,6 +416,10 @@ export function setActiveCodeBlockLanguage(editor: Editor, language: MarkweaveCo
   return editor.chain().focus().updateAttributes("codeBlock", { language }).run();
 }
 
+export function setCodeBlockLanguageAtPosition(editor: Editor, pos: number, language: MarkweaveCodeBlockLanguage) {
+  return updateCodeBlockAttrsAtPos(editor, pos, { language });
+}
+
 export function setActiveCodeBlockMermaidPreviewMode(editor: Editor, mode: MermaidPreviewMode) {
   const codeBlock = getActiveCodeBlockState(editor);
 
@@ -408,6 +428,16 @@ export function setActiveCodeBlockMermaidPreviewMode(editor: Editor, mode: Merma
   }
 
   return editor.chain().focus().updateAttributes("codeBlock", { mermaidPreviewMode: mode }).run();
+}
+
+export function setCodeBlockMermaidPreviewModeAtPosition(editor: Editor, pos: number, mode: MermaidPreviewMode) {
+  const context = getCodeBlockContextAtPos(editor.state, pos);
+
+  if (!context || normalizeCodeBlockLanguage(context.node.attrs.language) !== "mermaid") {
+    return false;
+  }
+
+  return updateCodeBlockAttrsAtPos(editor, pos, { mermaidPreviewMode: mode });
 }
 
 export function isActiveCodeBlockCollapsed(editor: Editor) {

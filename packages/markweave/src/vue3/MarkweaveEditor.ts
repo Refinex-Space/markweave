@@ -95,9 +95,9 @@ import {
   getCodeBlockCopyFeedbackSnapshot,
   getActiveCodeBlockState,
   markweaveCodeBlockBehavior,
-  setActiveCodeBlockLanguage,
   setCodeBlockCollapsedAtPosition,
-  setActiveCodeBlockMermaidPreviewMode,
+  setCodeBlockLanguageAtPosition,
+  setCodeBlockMermaidPreviewModeAtPosition,
   type MarkweaveCodeBlockCopyFeedbackSnapshot,
   type MarkweaveCodeBlockLanguage,
   type MarkweaveCodeBlockState,
@@ -1623,13 +1623,14 @@ const VueCodeBlockControls = defineComponent({
         return;
       }
 
-      if (!focusCodeBlockTarget(props.editor, target)) {
-        return;
-      }
+      const refocusEditor = props.state.active && props.state.pos === target.pos;
 
-      if (setActiveCodeBlockMermaidPreviewMode(props.editor, mode)) {
+      if (setCodeBlockMermaidPreviewModeAtPosition(props.editor, target.pos, mode)) {
         props.onMermaidModeChange(mode);
         controlsRevision.value += 1;
+        if (refocusEditor) {
+          props.editor.view.focus();
+        }
       }
     };
 
@@ -1638,18 +1639,22 @@ const VueCodeBlockControls = defineComponent({
         return;
       }
 
-      if (!focusCodeBlockTarget(props.editor, codeBlock.value)) {
+      if (!codeBlock.value) {
         return;
       }
 
-      if (setActiveCodeBlockLanguage(props.editor, language)) {
-        if (language === "mermaid" && setActiveCodeBlockMermaidPreviewMode(props.editor, "preview")) {
+      const refocusEditor = props.state.active && props.state.pos === codeBlock.value.pos;
+
+      if (setCodeBlockLanguageAtPosition(props.editor, codeBlock.value.pos, language)) {
+        if (language === "mermaid" && setCodeBlockMermaidPreviewModeAtPosition(props.editor, codeBlock.value.pos, "preview")) {
           props.onMermaidModeChange("preview");
         }
         languageMenuOpen.value = false;
         languageQuery.value = "";
         controlsRevision.value += 1;
-        props.editor.view.focus();
+        if (refocusEditor) {
+          props.editor.view.focus();
+        }
       }
     };
 
@@ -1765,8 +1770,8 @@ const VueCodeBlockControls = defineComponent({
         return;
       }
       await nextTick();
-      searchInputRef.value?.focus();
       updatePosition();
+      searchInputRef.value?.focus({ preventScroll: true });
     });
 
     watch(

@@ -334,6 +334,7 @@ describe("Markweave Vue3 editor", () => {
 
   it("aligns Vue code block language menu and copy controls with React", async () => {
     installLayoutMocks();
+    const inputFocus = vi.spyOn(HTMLInputElement.prototype, "focus");
     const writeText = vi.fn<Clipboard["writeText"]>().mockResolvedValue(undefined);
     Object.defineProperty(globalThis.navigator, "clipboard", {
       configurable: true,
@@ -357,6 +358,7 @@ describe("Markweave Vue3 editor", () => {
 
     await click(getByTestId(container, "markweave-codeblock-language"));
     expect(getByTestId(container, "markweave-codeblock-language-menu").getAttribute("data-positioned")).toBe("true");
+    expect(inputFocus).toHaveBeenCalledWith({ preventScroll: true });
     await inputValue(getByTestId<HTMLInputElement>(container, "markweave-codeblock-language-search"), "json");
     expect(getByTestId(container, "markweave-codeblock-language-option-json")).toBeTruthy();
     expect(queryByTestId(container, "markweave-codeblock-language-option-java")).toBeNull();
