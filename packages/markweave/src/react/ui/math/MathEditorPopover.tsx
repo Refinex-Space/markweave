@@ -34,8 +34,8 @@ export function MathEditorPopover({ editor, messages, onClose, target }: MathEdi
       return { html: renderedPreviewHtml, error: false };
     }
 
-    return renderMarkweaveMathPreview(value, target.kind);
-  }, [renderedPreviewHtml, target.kind, target.latex, value]);
+    return renderMarkweaveMathPreview(value, target.kind, editor);
+  }, [editor, renderedPreviewHtml, target.kind, target.latex, value]);
   const canApply = value.trim().length > 0;
 
   const updatePosition = useCallback(() => {
@@ -71,7 +71,7 @@ export function MathEditorPopover({ editor, messages, onClose, target }: MathEdi
     setMarkweaveMathEditingDomState(editor, target, true);
     updatePosition();
     const frame = window.requestAnimationFrame(() => {
-      inputRef.current?.focus();
+      inputRef.current?.focus({ preventScroll: true });
       inputRef.current?.select();
       updatePosition();
     });
@@ -168,6 +168,7 @@ export function MathEditorPopover({ editor, messages, onClose, target }: MathEdi
             onChange={(event) => setValue(event.currentTarget.value)}
             onKeyDown={handleKeyDown}
             placeholder={mathMessages.latexPlaceholder}
+            size={Math.max(value.length, 1)}
             spellCheck={false}
             value={value}
           />

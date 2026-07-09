@@ -1194,6 +1194,9 @@
 }
 
 .tiptap-mathematics-render[data-type="inline-math"][data-markweave-math-editing="true"] {
+  display: inline-block;
+  min-width: var(--markweave-inline-math-editing-width, auto);
+  box-sizing: border-box;
   opacity: 0;
 }
 
@@ -1403,7 +1406,7 @@
 
 .tiptap-mathematics-render[data-type="block-math"][data-markweave-math-editing="true"] {
   display: block;
-  min-height: 250px;
+  min-height: 286px;
   margin: 1.05em 0 1.45em;
   padding: 0;
   overflow: visible;
@@ -1431,7 +1434,7 @@
 .markweave-math-editor-popover--inline {
   position: absolute;
   display: grid;
-  justify-items: center;
+  justify-items: start;
   gap: 8px;
   padding: 0;
   background: transparent;
@@ -1440,7 +1443,9 @@
 .markweave-math-inline-source {
   display: inline-flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
+  justify-self: start;
+  gap: 2px;
   width: 100%;
   box-sizing: border-box;
   color: #b8b8bd;
@@ -1449,20 +1454,27 @@
 }
 
 .markweave-math-inline-source input {
+  flex: 0 1 auto;
   min-width: 0;
-  width: 100%;
+  min-inline-size: 0;
+  width: auto;
+  max-width: calc(100% - 2.4ch - 4px);
+  box-sizing: border-box;
   border: 0;
   outline: 0;
+  margin: 0;
+  padding: 0;
   background: transparent;
   color: #7c3f9d;
   font: inherit;
   line-height: inherit;
-  text-align: center;
+  text-align: left;
 }
 
 .markweave-math-inline-preview {
   position: relative;
   display: grid;
+  justify-self: center;
   justify-items: center;
   min-width: 118px;
   max-width: min(360px, calc(100vw - 28px));
@@ -1507,7 +1519,7 @@
   width: 100%;
   border-radius: 3px;
   background: #f3f3f3;
-  box-shadow: 0 1px 2px rgba(31, 35, 40, 0.16);
+  box-shadow: none;
 }
 
 .markweave-math-block-toolbar {
@@ -1584,7 +1596,8 @@
 }
 
 .markweave-math-block-preview > div {
-  overflow-x: auto;
+  max-width: 100%;
+  overflow-x: clip;
 }
 
 .markweave-math-block-preview::after {

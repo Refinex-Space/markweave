@@ -813,14 +813,13 @@ const VueMathEditorPopover = defineComponent({
     const position = shallowRef<MarkweaveMathPopoverPosition | null>(null);
     const popoverRef = ref<HTMLElement | null>(null);
     const inputRef = ref<HTMLInputElement | HTMLTextAreaElement | null>(null);
+    const renderedPreviewHtml = shallowRef(getMarkweaveMathRenderedHtml(props.editor, props.target));
     const preview = computed(() => {
-      const renderedHtml = getMarkweaveMathRenderedHtml(props.editor, props.target);
-
-      if (value.value === props.target.latex && renderedHtml) {
-        return { html: renderedHtml, error: false };
+      if (value.value === props.target.latex && renderedPreviewHtml.value) {
+        return { html: renderedPreviewHtml.value, error: false };
       }
 
-      return renderMarkweaveMathPreview(value.value, props.target.kind);
+      return renderMarkweaveMathPreview(value.value, props.target.kind, props.editor);
     });
     const canApply = computed(() => value.value.trim().length > 0);
     const mathMessages = computed(() => props.messages.math);
@@ -884,6 +883,7 @@ const VueMathEditorPopover = defineComponent({
       () => [props.target.pos, props.target.latex] as const,
       () => {
         value.value = props.target.latex;
+        renderedPreviewHtml.value = getMarkweaveMathRenderedHtml(props.editor, props.target);
         nextTick(updatePosition);
       },
     );
@@ -892,7 +892,7 @@ const VueMathEditorPopover = defineComponent({
       setMarkweaveMathEditingDomState(props.editor, props.target, true);
       updatePosition();
       nextTick(() => {
-        inputRef.value?.focus();
+        inputRef.value?.focus({ preventScroll: true });
         inputRef.value?.select();
         updatePosition();
       });
@@ -941,11 +941,11 @@ const VueMathEditorPopover = defineComponent({
           [
             h("label", { class: "markweave-math-inline-source", "data-testid": "markweave-math-inline-source" }, [
               h("span", { attrs: { "aria-hidden": "true" } }, "$"),
-              h("input", { ...inputProps, "aria-label": mathMessages.value.latexLabel }),
+              h("input", { ...inputProps, "aria-label": mathMessages.value.latexLabel, size: Math.max(value.value.length, 1) }),
               h("span", { attrs: { "aria-hidden": "true" } }, "$"),
             ]),
             h("div", { class: "markweave-math-inline-preview", "data-error": preview.value.error ? "true" : "false", "data-testid": "markweave-math-editor-preview" }, [
-              h("div", { domProps: { innerHTML: preview.value.html || "&nbsp;" } }),
+              h("div", { innerHTML: preview.value.html || "&nbsp;" }),
               preview.value.error ? h("small", null, mathMessages.value.invalidPreview) : null,
             ]),
           ],
@@ -986,7 +986,7 @@ const VueMathEditorPopover = defineComponent({
             "data-math-number": String(blockNumber.value),
             "data-testid": "markweave-math-editor-preview",
           }, [
-            h("div", { domProps: { innerHTML: preview.value.html || "&nbsp;" } }),
+            h("div", { innerHTML: preview.value.html || "&nbsp;" }),
             preview.value.error ? h("small", null, mathMessages.value.invalidPreview) : null,
           ]),
         ],

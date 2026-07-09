@@ -131,6 +131,8 @@ describe("math editor popover", () => {
 
     const input = getByTestId<HTMLInputElement>(container, "markweave-math-editor-input");
     await inputValue(input, "b^2");
+    expect(getByTestId(container, "markweave-math-editor-preview").innerHTML).toContain("katex");
+    expect(getByTestId(container, "markweave-math-editor-preview").innerHTML).not.toContain("<code>");
     await keyDown(input, "Enter");
 
     expect(container.querySelector('[data-testid="markweave-math-editor-popover"]')).toBeNull();
@@ -174,10 +176,13 @@ describe("math editor popover", () => {
     expect(math?.getAttribute("data-markweave-math-editing")).toBe("true");
     expect(getByTestId(container, "markweave-math-block-source").textContent).toContain("$$");
     expect(getByTestId(container, "markweave-math-editor-preview").getAttribute("data-math-number")).toBe("1");
+    expect(getByTestId(container, "markweave-math-editor-preview").innerHTML).toContain("katex");
     expect(getByTestId(container, "markweave-math-editor-input").tagName).toBe("TEXTAREA");
 
     const textarea = getByTestId<HTMLTextAreaElement>(container, "markweave-math-editor-input");
     await inputValue(textarea, "y");
+    expect(getByTestId(container, "markweave-math-editor-preview").innerHTML).toContain("katex");
+    expect(getByTestId(container, "markweave-math-editor-preview").innerHTML).not.toContain("<code>");
     await submit(getByTestId<HTMLFormElement>(container, "markweave-math-editor-popover"));
     expect(container.querySelector("[data-markweave-math-editing]")).toBeNull();
     expect(container.innerHTML).toContain('data-latex="y"');
