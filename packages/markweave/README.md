@@ -76,6 +76,8 @@ new Vue({
 
 `mode` defaults to `"live"`. Use `mode="view"` for a read-only rendered view. `editable={false}` remains a compatibility lock, including when `mode="live"`.
 
+Math formulas are editable in Live mode: click inline `$...$` or display `$$...$$` formulas to open the in-place LaTeX editor. View mode keeps formulas read-only while preserving the rendered layout.
+
 `innerToc` defaults to `true` and shows a built-in right-side outline derived from document headings. Set `innerToc={false}` when rendering your own outline from `onTocChange` or `runtimeSnapshot.toc`.
 
 ## Exports

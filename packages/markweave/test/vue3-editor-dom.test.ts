@@ -50,6 +50,10 @@ function createRect(left: number, top: number, width: number, height: number): D
 function installLayoutMocks() {
   const rects = Object.assign([createRect(0, 0, 80, 32)], { item: (index: number) => rects[index] ?? null }) as unknown as DOMRectList;
 
+  Object.defineProperty(document, "elementFromPoint", {
+    configurable: true,
+    value: () => document.body,
+  });
   mockPrototypeMethod(Range.prototype, "getClientRects", () => rects);
   mockPrototypeMethod(Range.prototype, "getBoundingClientRect", () => rects[0] as DOMRect);
   mockPrototypeMethod(HTMLElement.prototype, "getClientRects", () => rects);
@@ -69,6 +73,10 @@ function installLayoutMocks() {
 
     if (this.classList.contains("markweave-codeblock-overlay")) {
       return createRect(0, 0, 1000, 700);
+    }
+
+    if (this.classList.contains("tiptap-mathematics-render")) {
+      return this.dataset.type === "block-math" ? createRect(180, 220, 360, 64) : createRect(180, 120, 120, 28);
     }
 
     if (this.dataset.testid === "markweave-codeblock-language") {
@@ -232,6 +240,54 @@ describe("Markweave Vue3 editor", () => {
     mode.value = "view";
     await flushVue();
     expect(container.querySelector('[data-testid="markweave-editor-frame"]')?.getAttribute("data-markweave-mode")).toBe("view");
+  });
+
+  it("opens Vue math formulas in Live mode and keeps them read-only in View mode", async () => {
+    installLayoutMocks();
+    const mode = ref<MarkweaveEditorMode>("live");
+    const container = await mountVue(
+      defineComponent({
+        setup() {
+          return () =>
+            h(MarkweaveEditor, {
+              defaultContent: '<p>Formula <span data-type="inline-math" data-latex="a^2"></span></p><div data-type="block-math" data-latex="x"></div>',
+              defaultContentFormat: "html",
+              mode: mode.value,
+            });
+        },
+      }),
+    );
+
+    const inlineMath = container.querySelector('.tiptap-mathematics-render[data-type="inline-math"]');
+    expect(inlineMath).toBeTruthy();
+    await click(inlineMath as Element);
+
+    expect(getByTestId(container, "markweave-math-editor-popover").getAttribute("data-kind")).toBe("inline");
+    expect(inlineMath?.getAttribute("data-markweave-math-editing")).toBe("true");
+    expect(getByTestId(container, "markweave-math-inline-source").textContent).toContain("$");
+    const inlineInput = getByTestId<HTMLInputElement>(container, "markweave-math-editor-input");
+    await inputValue(inlineInput, "b^2");
+    await keyDown(inlineInput, "Enter");
+    expect(container.querySelector("[data-markweave-math-editing]")).toBeNull();
+    expect(container.innerHTML).toContain('data-latex="b^2"');
+
+    const blockMath = container.querySelector('.tiptap-mathematics-render[data-type="block-math"]');
+    expect(blockMath).toBeTruthy();
+    await click(blockMath as Element);
+    const blockPopover = getByTestId(container, "markweave-math-editor-popover");
+    expect(blockPopover.getAttribute("data-kind")).toBe("block");
+    expect(blockPopover.parentElement).not.toBe(blockMath);
+    expect(blockMath?.contains(blockPopover)).toBe(false);
+    expect(blockMath?.getAttribute("data-markweave-math-editing")).toBe("true");
+    expect(getByTestId(container, "markweave-math-block-source").textContent).toContain("$$");
+    expect(getByTestId(container, "markweave-math-editor-input").tagName).toBe("TEXTAREA");
+
+    await keyDown(getByTestId(container, "markweave-math-editor-input"), "Escape");
+    expect(container.querySelector("[data-markweave-math-editing]")).toBeNull();
+    mode.value = "view";
+    await flushVue();
+    await click(container.querySelector('.tiptap-mathematics-render[data-type="inline-math"]') as Element);
+    expect(queryByTestId(container, "markweave-math-editor-popover")).toBeNull();
   });
 
   it("renders image and video placeholders through Vue NodeViews and keeps attachment public", async () => {

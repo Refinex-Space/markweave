@@ -28,6 +28,7 @@
 }
 
 .markweave-editor-surface {
+  counter-reset: markweave-math-block;
   width: 100%;
   min-height: 72vh;
   padding: 16px 0 40px;
@@ -1175,18 +1176,425 @@
 }
 
 .tiptap-mathematics-render {
-  display: inline-grid;
-  place-items: center;
-  border-radius: 5px;
-  background: rgba(99, 102, 241, 0.08);
-  padding: 0 0.25em;
-  color: #3730a3;
+  display: inline;
+  border: 0;
+  background: transparent;
+  color: inherit;
   font-family: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
+  line-height: inherit;
+  vertical-align: baseline;
 }
 
-.tiptap-mathematics-render.inline-math-error {
-  background: #fee2e2;
+.markweave-editor-surface[contenteditable="true"] .tiptap-mathematics-render--editable {
+  cursor: text;
+}
+
+.tiptap-mathematics-render[data-type="inline-math"] {
+  padding: 0 0.08em;
+}
+
+.tiptap-mathematics-render[data-type="inline-math"][data-markweave-math-editing="true"] {
+  opacity: 0;
+}
+
+.tiptap-mathematics-render[data-type="inline-math"] .katex {
+  font-size: 0.96em;
+}
+
+.katex {
+  position: relative;
+  font: normal 1.21em "Times New Roman", Times, serif;
+  line-height: 1.2;
+  text-indent: 0;
+  text-rendering: auto;
+}
+
+.katex * {
+  border-color: currentColor;
+}
+
+.katex .katex-mathml {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  border: 0;
+  clip-path: inset(50%);
+  overflow: hidden;
+  padding: 0;
+}
+
+.katex .katex-html {
+  display: inline-block;
+}
+
+.katex .base {
+  position: relative;
+  display: inline-block;
+  width: min-content;
+  white-space: nowrap;
+}
+
+.katex .strut,
+.katex .mspace {
+  display: inline-block;
+}
+
+.katex .mathnormal {
+  font-style: italic;
+}
+
+.katex .vlist-t {
+  display: inline-table;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.katex .vlist-r {
+  display: table-row;
+}
+
+.katex .vlist {
+  position: relative;
+  display: table-cell;
+  vertical-align: bottom;
+}
+
+.katex .vlist > span {
+  position: relative;
+  display: block;
+  height: 0;
+}
+
+.katex .vlist > span > span {
+  display: inline-block;
+}
+
+.katex .vlist > span > .pstrut {
+  width: 0;
+  overflow: hidden;
+}
+
+.katex .vlist-t2 {
+  margin-right: -2px;
+}
+
+.katex .vlist-s {
+  display: table-cell;
+  width: 2px;
+  min-width: 2px;
+  font-size: 1px;
+  vertical-align: bottom;
+}
+
+.katex .msupsub {
+  text-align: left;
+}
+
+.katex .mfrac > span > span {
+  text-align: center;
+}
+
+.katex .mfrac .frac-line {
+  display: inline-block;
+  width: 100%;
+  min-height: 1px;
+  border-bottom-style: solid;
+}
+
+.katex .svg-align {
+  text-align: left;
+}
+
+.katex svg {
+  position: absolute;
+  display: block;
+  width: 100%;
+  height: inherit;
+  fill: currentColor;
+  fill-opacity: 1;
+  fill-rule: nonzero;
+  stroke: currentColor;
+  stroke-width: 1;
+}
+
+.katex svg path {
+  stroke: none;
+}
+
+.katex .stretchy,
+.katex .hide-tail {
+  position: relative;
+  display: block;
+  width: 100%;
+  overflow: hidden;
+}
+
+.katex .sqrt > .root {
+  margin-right: -0.5555555556em;
+  margin-left: 0.2777777778em;
+}
+
+.katex .sizing.reset-size3.size1,
+.katex .fontsize-ensurer.reset-size3.size1 {
+  font-size: 0.7em;
+}
+
+.katex .sizing.reset-size6.size3,
+.katex .fontsize-ensurer.reset-size6.size3 {
+  font-size: 0.786em;
+}
+
+.tiptap-mathematics-render[data-type="block-math"] {
+  position: relative;
+  display: flex;
+  counter-increment: markweave-math-block;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 92px;
+  margin: 1.05em 0 1.15em;
+  padding: 1.35em 4.6em;
+  overflow-x: auto;
+  text-align: center;
+  transition: background 120ms ease;
+}
+
+.tiptap-mathematics-render[data-type="block-math"]::before {
+  position: absolute;
+  top: 0;
+  right: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 28px;
+  padding: 0 12px;
+  background: #f3f4f6;
+  color: #8a8f98;
+  content: "公式  </>";
+  font: 500 13px/1 ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.tiptap-mathematics-render[data-type="block-math"]::after {
+  position: absolute;
+  top: 50%;
+  right: 1.2em;
+  color: #3f3f46;
+  content: "(" counter(markweave-math-block) ")";
+  font: 400 1.05em/1.2 ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
+  transform: translateY(-50%);
+}
+
+.markweave-editor-surface[contenteditable="true"] .tiptap-mathematics-render[data-type="block-math"]:hover,
+.tiptap-mathematics-render[data-type="block-math"].ProseMirror-selectednode {
+  background: #f5f5f5;
+}
+
+.markweave-editor-surface[contenteditable="true"] .tiptap-mathematics-render[data-type="block-math"]:hover::before,
+.tiptap-mathematics-render[data-type="block-math"].ProseMirror-selectednode::before {
+  opacity: 1;
+}
+
+.tiptap-mathematics-render[data-type="block-math"] .block-math-inner {
+  max-width: 100%;
+}
+
+.tiptap-mathematics-render[data-type="block-math"][data-markweave-math-editing="true"] {
+  display: block;
+  min-height: 250px;
+  margin: 1.05em 0 1.45em;
+  padding: 0;
+  overflow: visible;
+  background: transparent;
+  text-align: initial;
+}
+
+.tiptap-mathematics-render[data-type="block-math"][data-markweave-math-editing="true"]::before,
+.tiptap-mathematics-render[data-type="block-math"][data-markweave-math-editing="true"]::after,
+.tiptap-mathematics-render[data-type="block-math"][data-markweave-math-editing="true"] .block-math-inner {
+  display: none;
+}
+
+.tiptap-mathematics-render.inline-math-error,
+.tiptap-mathematics-render.block-math-error {
   color: #b91c1c;
+}
+
+.markweave-math-editor-popover {
+  z-index: 48;
+  box-sizing: border-box;
+  color: #24292f;
+}
+
+.markweave-math-editor-popover--inline {
+  position: absolute;
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  padding: 0;
+  background: transparent;
+}
+
+.markweave-math-inline-source {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  box-sizing: border-box;
+  color: #b8b8bd;
+  font: 14px/1.35 ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", Menlo, monospace;
+  white-space: nowrap;
+}
+
+.markweave-math-inline-source input {
+  min-width: 0;
+  width: 100%;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: #7c3f9d;
+  font: inherit;
+  line-height: inherit;
+  text-align: center;
+}
+
+.markweave-math-inline-preview {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  min-width: 118px;
+  max-width: min(360px, calc(100vw - 28px));
+  border-radius: 4px;
+  background: #050505;
+  box-shadow: 0 5px 14px rgba(0, 0, 0, 0.18);
+  padding: 9px 13px;
+  color: #ffffff;
+}
+
+.markweave-math-inline-preview::before {
+  position: absolute;
+  top: -7px;
+  left: 50%;
+  width: 0;
+  height: 0;
+  border-right: 7px solid transparent;
+  border-bottom: 7px solid #050505;
+  border-left: 7px solid transparent;
+  content: "";
+  transform: translateX(-50%);
+}
+
+.markweave-math-inline-preview > div {
+  overflow-x: auto;
+}
+
+.markweave-math-inline-preview .katex {
+  color: #ffffff;
+  font-size: 1.05em;
+}
+
+.markweave-math-inline-preview small,
+.markweave-math-block-preview small {
+  color: #b91c1c;
+  font: 12px/1.35 ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.markweave-math-editor-popover--block {
+  position: absolute;
+  display: grid;
+  width: 100%;
+  border-radius: 3px;
+  background: #f3f3f3;
+  box-shadow: 0 1px 2px rgba(31, 35, 40, 0.16);
+}
+
+.markweave-math-block-toolbar {
+  position: absolute;
+  top: 0;
+  right: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 28px;
+  padding: 0 12px;
+  background: #f3f3f3;
+  color: #8a8f98;
+  font: 500 13px/1 ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.markweave-math-block-toolbar button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: #24292f;
+  cursor: pointer;
+  padding: 0;
+}
+
+.markweave-math-block-toolbar button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.markweave-math-block-source {
+  display: grid;
+  gap: 5px;
+  min-height: 112px;
+  box-sizing: border-box;
+  padding: 10px 16px 12px;
+  color: #8a8f98;
+  font: 16px/1.5 ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", Menlo, monospace;
+}
+
+.markweave-math-block-source textarea {
+  width: 100%;
+  min-height: 46px;
+  border: 0;
+  outline: 0;
+  resize: none;
+  background: transparent;
+  color: #2f343b;
+  font: inherit;
+  line-height: 1.5;
+}
+
+.markweave-math-block-source textarea::selection,
+.markweave-math-inline-source input::selection {
+  background: #b9d7ff;
+}
+
+.markweave-math-block-preview {
+  position: relative;
+  display: grid;
+  align-items: center;
+  justify-items: center;
+  min-height: 116px;
+  box-sizing: border-box;
+  border: 1px solid rgba(216, 220, 225, 0.92);
+  border-radius: 0 0 3px 3px;
+  background: #ffffff;
+  padding: 24px 4.6em;
+}
+
+.markweave-math-block-preview > div {
+  overflow-x: auto;
+}
+
+.markweave-math-block-preview::after {
+  position: absolute;
+  top: 50%;
+  right: 1.2em;
+  color: #3f3f46;
+  content: "(" attr(data-math-number) ")";
+  font: 400 1.05em/1.2 ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
+  transform: translateY(-50%);
 }
 
 .markweave-floating-toolbar {

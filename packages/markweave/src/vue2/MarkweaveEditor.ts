@@ -134,6 +134,22 @@ import {
 } from "../plugins/codeblock/codeblock-ui-model";
 import { normalizeMarkdownLinkHref } from "../plugins/markdown/markdown-input";
 import {
+  applyMarkweaveMathLatex,
+  calculateMarkweaveMathPopoverPosition,
+  getMarkweaveMathAnchorRect,
+  getMarkweaveMathBlockIndex,
+  getMarkweaveMathRenderedHtml,
+  getMarkweaveMathTargetAtPos,
+  getMarkweaveMathTargetFromDomEvent,
+  getMarkweaveMathTargetFromSelection,
+  insertMarkweaveInlineMath,
+  renderMarkweaveMathPreview,
+  setMarkweaveMathEditingDomState,
+  setMarkweaveMathSelectionInView,
+  type MarkweaveMathPopoverPosition,
+  type MarkweaveMathTarget,
+} from "../plugins/math/math-ui-model";
+import {
   isMermaidInlinePreviewTransaction,
   setMermaidInlinePreviewEditorMode,
   setReadonlyMermaidPreviewMode,
@@ -244,6 +260,7 @@ interface VueControllerRenderState {
   readonly codeBlockState: Ref<MarkweaveCodeBlockState>;
   readonly isCodeBlockActive: Ref<boolean>;
   readonly mermaidMode: Ref<MermaidPreviewMode>;
+  readonly mathTarget: Ref<MarkweaveMathTarget | null>;
   readonly setMermaidMode: (mode: MermaidPreviewMode) => void;
   readonly tocState: Ref<MarkweaveTocState>;
   readonly filteredSlashCommands: Ref<readonly SlashCommandSpec[]>;
@@ -469,6 +486,7 @@ const slashIconMap: Record<SlashCommandIconName, Component> = {
   error: CircleX,
   success: CheckCircle2,
   emoji: SmilePlus,
+  math: Sigma,
   table: Table2,
   separator: Minus,
   image: ImageIcon,
@@ -531,7 +549,7 @@ function runToolbarMoreAction(editor: CoreEditor, id: string) {
     return editor.chain().focus().toggleSubscript().run();
   }
   if (id === "inline-math") {
-    return editor.chain().focus().insertContent({ type: "inlineMath", attrs: { latex: "x" } }).run();
+    return insertMarkweaveInlineMath(editor, "x");
   }
   if (id === "align-left" || id === "align-center" || id === "align-right" || id === "align-justify") {
     return editor.chain().focus().setTextAlign(id.replace("align-", "")).run();
@@ -899,6 +917,201 @@ const VueFloatingToolbar = defineComponent({
             ]),
         },
       );
+  },
+});
+
+const VueMathEditorPopover = defineComponent({
+  name: "MarkweaveVueMathEditorPopover",
+  props: {
+    editor: { type: Object as PropType<CoreEditor>, required: true },
+    messages: { type: Object as PropType<MarkweaveMessages>, required: true },
+    target: { type: Object as PropType<MarkweaveMathTarget>, required: true },
+    onClose: { type: Function as PropType<() => void>, required: true },
+  },
+  setup(props) {
+    const value = ref(props.target.latex);
+    const position = shallowRef<MarkweaveMathPopoverPosition | null>(null);
+    const popoverRef = ref<HTMLElement | null>(null);
+    const inputRef = ref<HTMLInputElement | HTMLTextAreaElement | null>(null);
+    const preview = computed(() => {
+      const renderedHtml = getMarkweaveMathRenderedHtml(props.editor, props.target);
+
+      if (value.value === props.target.latex && renderedHtml) {
+        return { html: renderedHtml, error: false };
+      }
+
+      return renderMarkweaveMathPreview(value.value, props.target.kind);
+    });
+    const canApply = computed(() => value.value.trim().length > 0);
+    const mathMessages = computed(() => props.messages.math);
+    const blockNumber = computed(() => getMarkweaveMathBlockIndex(props.editor, props.target) ?? 1);
+
+    const updatePosition = () => {
+      if (typeof window === "undefined") {
+        return;
+      }
+      const anchorRect = getMarkweaveMathAnchorRect(props.editor, props.target);
+      const frameRect = props.editor.view.dom.closest(".markweave-editor-frame")?.getBoundingClientRect();
+      if (!anchorRect || !frameRect) {
+        props.onClose();
+        return;
+      }
+      position.value = calculateMarkweaveMathPopoverPosition({
+        anchorRect,
+        frameRect,
+        kind: props.target.kind,
+        latex: value.value,
+        viewportHeight: window.innerHeight,
+        viewportWidth: window.innerWidth,
+      });
+    };
+
+    const apply = () => {
+      if (canApply.value && applyMarkweaveMathLatex(props.editor, props.target, value.value)) {
+        props.onClose();
+      }
+    };
+
+    const onKeydown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        props.onClose();
+        props.editor.commands.focus();
+        return;
+      }
+      if (event.key === "Enter" && (props.target.kind === "inline" || event.metaKey || event.ctrlKey)) {
+        event.preventDefault();
+        apply();
+      }
+    };
+
+    const onDocumentMousedown = (event: MouseEvent) => {
+      const eventTarget = event.target;
+      if (!(eventTarget instanceof Node)) {
+        return;
+      }
+      if (popoverRef.value?.contains(eventTarget)) {
+        return;
+      }
+      const mathElement = eventTarget instanceof Element ? eventTarget.closest(".tiptap-mathematics-render") : null;
+      if (mathElement) {
+        return;
+      }
+      props.onClose();
+    };
+
+    watch(
+      () => [props.target.pos, props.target.latex] as const,
+      () => {
+        value.value = props.target.latex;
+        nextTick(updatePosition);
+      },
+    );
+
+    onMounted(() => {
+      setMarkweaveMathEditingDomState(props.editor, props.target, true);
+      updatePosition();
+      nextTick(() => {
+        inputRef.value?.focus();
+        inputRef.value?.select();
+        updatePosition();
+      });
+      window.addEventListener("resize", updatePosition);
+      window.addEventListener("scroll", updatePosition, true);
+      document.addEventListener("mousedown", onDocumentMousedown);
+    });
+
+    onBeforeUnmount(() => {
+      setMarkweaveMathEditingDomState(props.editor, props.target, false);
+      window.removeEventListener("resize", updatePosition);
+      window.removeEventListener("scroll", updatePosition, true);
+      document.removeEventListener("mousedown", onDocumentMousedown);
+    });
+
+    return () => {
+      const title = props.target.kind === "block" ? mathMessages.value.blockTitle : mathMessages.value.inlineTitle;
+      const inputProps = {
+        ref: inputRef,
+        "data-testid": "markweave-math-editor-input",
+        placeholder: mathMessages.value.latexPlaceholder,
+        spellcheck: "false",
+        value: value.value,
+        onInput: (event: Event) => {
+          value.value = (event.target as HTMLInputElement | HTMLTextAreaElement).value;
+        },
+        onKeydown,
+      };
+
+      if (props.target.kind === "inline") {
+        return h(
+          "form",
+          {
+            ref: popoverRef,
+            class: "markweave-math-editor-popover markweave-math-editor-popover--inline",
+            "aria-label": title,
+            "data-kind": "inline",
+            "data-placement": position.value?.placement ?? "bottom",
+            "data-testid": "markweave-math-editor-popover",
+            style: position.value ? { left: `${position.value.left}px`, top: `${position.value.top}px`, width: `${position.value.width}px` } : undefined,
+            onSubmit: (event: Event) => {
+              event.preventDefault();
+              apply();
+            },
+          },
+          [
+            h("label", { class: "markweave-math-inline-source", "data-testid": "markweave-math-inline-source" }, [
+              h("span", { attrs: { "aria-hidden": "true" } }, "$"),
+              h("input", { ...inputProps, "aria-label": mathMessages.value.latexLabel }),
+              h("span", { attrs: { "aria-hidden": "true" } }, "$"),
+            ]),
+            h("div", { class: "markweave-math-inline-preview", "data-error": preview.value.error ? "true" : "false", "data-testid": "markweave-math-editor-preview" }, [
+              h("div", { domProps: { innerHTML: preview.value.html || "&nbsp;" } }),
+              preview.value.error ? h("small", null, mathMessages.value.invalidPreview) : null,
+            ]),
+          ],
+        );
+      }
+
+      return h(
+        "form",
+        {
+          ref: popoverRef,
+          class: "markweave-math-editor-popover markweave-math-editor-popover--block",
+          "aria-label": title,
+          "data-kind": props.target.kind,
+          "data-placement": position.value?.placement ?? "bottom",
+          "data-testid": "markweave-math-editor-popover",
+          style: position.value ? { left: `${position.value.left}px`, top: `${position.value.top}px`, width: `${position.value.width}px` } : undefined,
+          onSubmit: (event: Event) => {
+            event.preventDefault();
+            apply();
+          },
+        },
+        [
+          h("div", { class: "markweave-math-block-toolbar" }, [
+            h("span", null, mathMessages.value.label),
+            createIcon(Code2, mathMessages.value.label, 15, 1.75),
+            h("button", { type: "submit", title: mathMessages.value.apply, "aria-label": mathMessages.value.apply, disabled: !canApply.value, "data-testid": "markweave-math-editor-apply" }, [
+              createIcon(CheckCircle2, mathMessages.value.apply, 16, 2),
+            ]),
+          ]),
+          h("label", { class: "markweave-math-block-source", "data-testid": "markweave-math-block-source" }, [
+            h("span", { attrs: { "aria-hidden": "true" } }, "$$"),
+            h("textarea", { ...inputProps, "aria-label": mathMessages.value.latexLabel, rows: 3 }),
+            h("span", { attrs: { "aria-hidden": "true" } }, "$$"),
+          ]),
+          h("div", {
+            class: "markweave-math-block-preview",
+            "data-error": preview.value.error ? "true" : "false",
+            "data-math-number": String(blockNumber.value),
+            "data-testid": "markweave-math-editor-preview",
+          }, [
+            h("div", { domProps: { innerHTML: preview.value.html || "&nbsp;" } }),
+            preview.value.error ? h("small", null, mathMessages.value.invalidPreview) : null,
+          ]),
+        ],
+      );
+    };
   },
 });
 
@@ -2329,6 +2542,7 @@ export function useMarkweaveEditorController(options: MarkweaveVue2EditorControl
   const slashMenuPosition = shallowRef<SlashCommandMenuPosition | null>(null);
   const slashInputCommand = shallowRef<SlashCommandSpec | null>(null);
   const mermaidMode = ref<MermaidPreviewMode>("code");
+  const mathTarget = shallowRef<MarkweaveMathTarget | null>(null);
   const tableInteractionState = shallowRef<TableInteractionState>(initialTableInteractionState);
   const tocActiveId = ref<string | null>(null);
   const applyingControlledContent = ref(false);
@@ -2356,7 +2570,22 @@ export function useMarkweaveEditorController(options: MarkweaveVue2EditorControl
         spellcheck: "false",
         translate: "no",
       },
-      handleClick: (_view, _pos, event) => (effectiveEditable.value ? false : openReadonlyLinkFromEvent(event)),
+      handleClick: (view, _pos, event) => {
+        if (!effectiveEditable.value) {
+          return openReadonlyLinkFromEvent(event);
+        }
+        const nextMathTarget = getMarkweaveMathTargetFromDomEvent(view, event);
+        if (!nextMathTarget) {
+          mathTarget.value = null;
+          return false;
+        }
+        event.preventDefault();
+        event.stopPropagation();
+        closeSlashMenu();
+        setMarkweaveMathSelectionInView(view, nextMathTarget);
+        mathTarget.value = nextMathTarget;
+        return true;
+      },
       handleDOMEvents: {
         compositionstart: () => {
           if (!effectiveEditable.value) {
@@ -2373,7 +2602,22 @@ export function useMarkweaveEditorController(options: MarkweaveVue2EditorControl
           window.setTimeout(() => syncSlashCommandStateFromView(view), 0);
           return false;
         },
-        click: (_view, event) => (effectiveEditable.value ? false : openReadonlyLinkFromEvent(event)),
+        click: (view, event) => {
+          if (!effectiveEditable.value) {
+            return openReadonlyLinkFromEvent(event);
+          }
+          const nextMathTarget = getMarkweaveMathTargetFromDomEvent(view, event);
+          if (!nextMathTarget) {
+            mathTarget.value = null;
+            return false;
+          }
+          event.preventDefault();
+          event.stopPropagation();
+          closeSlashMenu();
+          setMarkweaveMathSelectionInView(view, nextMathTarget);
+          mathTarget.value = nextMathTarget;
+          return true;
+        },
       },
     },
     onSelectionUpdate: ({ editor }) => syncSelectionState(editor),
@@ -2391,6 +2635,10 @@ export function useMarkweaveEditorController(options: MarkweaveVue2EditorControl
       syncTableInteractionState(editor);
       if (transaction.docChanged || isMermaidInlinePreviewTransaction(transaction)) {
         revision.value += 1;
+      }
+      if (transaction.docChanged && mathTarget.value) {
+        const nextTarget = getMarkweaveMathTargetAtPos(editor, mathTarget.value.pos);
+        mathTarget.value = nextTarget?.kind === mathTarget.value.kind ? nextTarget : null;
       }
     },
     onUpdate: ({ editor }) => {
@@ -2434,6 +2682,10 @@ export function useMarkweaveEditorController(options: MarkweaveVue2EditorControl
 
   function syncSelectionState(activeEditor: CoreEditor) {
     selectionSnapshot.value = createSelectionSnapshot(activeEditor);
+    const selectedMathTarget = getMarkweaveMathTargetFromSelection(activeEditor);
+    if (selectedMathTarget) {
+      mathTarget.value = selectedMathTarget;
+    }
     const codeBlock = getActiveCodeBlockState(activeEditor);
     if (codeBlock.active && codeBlock.language === "mermaid") {
       mermaidMode.value = codeBlock.mermaidPreviewMode;
@@ -2622,6 +2874,7 @@ export function useMarkweaveEditorController(options: MarkweaveVue2EditorControl
       codeBlockState,
       isCodeBlockActive,
       mermaidMode,
+      mathTarget,
       setMermaidMode: (mode: MermaidPreviewMode) => {
         mermaidMode.value = mode;
       },
@@ -2723,6 +2976,9 @@ export const MarkweaveEditor = defineComponent({
           }),
           props.innerToc && render.tocState.value.items.length
             ? h(VueInnerToc, { editor, state: render.tocState.value, messages: render.messages, editable: render.effectiveEditable.value })
+            : null,
+          render.effectiveEditable.value && render.mathTarget.value
+            ? h(VueMathEditorPopover, { editor, messages: render.messages, target: render.mathTarget.value, onClose: () => (render.mathTarget.value = null) })
             : null,
           h(EditorContent as Component, { editor: editor as unknown as VueEditor }),
         ],

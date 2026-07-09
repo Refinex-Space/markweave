@@ -8,6 +8,13 @@ import { getActiveCodeBlockState, markweaveCodeBlockBehavior, type MarkweaveCode
 import { normalizeMarkdownLinkHref } from "../plugins/markdown/markdown-input";
 import { isMermaidInlinePreviewTransaction, setMermaidInlinePreviewEditorMode } from "../plugins/mermaid/mermaid-inline-preview";
 import { getMermaidPreviewState, type MermaidPreviewMode, type MermaidPreviewState } from "../plugins/mermaid/mermaid-renderer";
+import {
+  getMarkweaveMathTargetAtPos,
+  getMarkweaveMathTargetFromDomEvent,
+  getMarkweaveMathTargetFromSelection,
+  setMarkweaveMathSelectionInView,
+  type MarkweaveMathTarget,
+} from "../plugins/math/math-ui-model";
 import { filterSlashCommands, isExecutableSlashCommand, type SlashCommandSpec } from "../plugins/slash-command/command-spec";
 import { getSlashCommandKeyboardAction } from "../plugins/slash-command/slash-keyboard";
 import {
@@ -31,6 +38,7 @@ import {
 } from "../plugins/table/table-interaction-layer";
 import { CodeBlockControls } from "./ui/codeblock/CodeBlockControls";
 import { FloatingToolbar } from "./ui/floating-toolbar/FloatingToolbar";
+import { MathEditorPopover } from "./ui/math/MathEditorPopover";
 import { SlashCommandMenu } from "./ui/slash-command/SlashCommandMenu";
 import { TableControls } from "./ui/table/TableControls";
 import { TableSelectionOverlay } from "./ui/table/TableSelectionOverlay";
@@ -69,6 +77,7 @@ export interface MarkweaveEditorOverlayProps {
   readonly tableSelectionOverlay: ComponentProps<typeof TableSelectionOverlay> | null;
   readonly codeBlockControls: ComponentProps<typeof CodeBlockControls> | null;
   readonly innerToc: ComponentProps<typeof MarkweaveInnerToc> | null;
+  readonly mathEditorPopover: ComponentProps<typeof MathEditorPopover> | null;
 }
 
 export interface MarkweaveEditorFrameProps extends HTMLAttributes<HTMLElement> {
@@ -313,6 +322,7 @@ export function useMarkweaveEditorController({
   const [slashMenuPosition, setSlashMenuPosition] = useState<SlashCommandMenuPosition | null>(null);
   const [slashInputCommand, setSlashInputCommand] = useState<SlashCommandSpec | null>(null);
   const [mermaidMode, setMermaidMode] = useState<MermaidPreviewMode>("code");
+  const [mathTarget, setMathTarget] = useState<MarkweaveMathTarget | null>(null);
   const [tableInteractionState, setTableInteractionState] = useState<TableInteractionState>(initialTableInteractionState);
   const [tocActiveId, setTocActiveId] = useState<string | null>(null);
   const [revision, setRevision] = useState(0);
@@ -349,6 +359,10 @@ export function useMarkweaveEditorController({
 
   const syncSelectionState = useCallback((editor: Editor) => {
     setSelectionSnapshot(createSelectionSnapshot(editor));
+    const selectedMathTarget = getMarkweaveMathTargetFromSelection(editor);
+    if (selectedMathTarget) {
+      setMathTarget(selectedMathTarget);
+    }
 
     const codeBlock = getActiveCodeBlockState(editor);
     if (codeBlock.active && codeBlock.language === "mermaid") {
@@ -400,8 +414,20 @@ export function useMarkweaveEditorController({
           window.setTimeout(() => syncSlashCommandStateFromView(view), 0);
           return false;
         },
-        click: (_view, event) => {
+        click: (view, event) => {
           if (runtimeModeRef.current.effectiveEditable) {
+            const nextMathTarget = getMarkweaveMathTargetFromDomEvent(view, event);
+
+            if (nextMathTarget) {
+              event.preventDefault();
+              event.stopPropagation();
+              closeSlashMenu();
+              setMarkweaveMathSelectionInView(view, nextMathTarget);
+              setMathTarget(nextMathTarget);
+              return true;
+            }
+
+            setMathTarget(null);
             return false;
           }
 
@@ -425,6 +451,16 @@ export function useMarkweaveEditorController({
       syncTableInteractionState(activeEditor);
       if (transaction.docChanged || isMermaidInlinePreviewTransaction(transaction)) {
         setRevision((current) => current + 1);
+      }
+      if (transaction.docChanged) {
+        setMathTarget((current) => {
+          if (!current) {
+            return null;
+          }
+
+          const nextTarget = getMarkweaveMathTargetAtPos(activeEditor, current.pos);
+          return nextTarget?.kind === current.kind ? nextTarget : null;
+        });
       }
     },
     onUpdate: ({ editor: activeEditor }) => {
@@ -766,6 +802,14 @@ export function useMarkweaveEditorController({
             state: tocState,
           }
         : null,
+      mathEditorPopover: editor && effectiveEditable && mathTarget
+        ? {
+            editor,
+            messages,
+            target: mathTarget,
+            onClose: () => setMathTarget(null),
+          }
+        : null,
     }),
     [
       effectiveEditable,
@@ -775,6 +819,7 @@ export function useMarkweaveEditorController({
       isCodeBlockActive,
       mermaidMode,
       messages,
+      mathTarget,
       onEditWithAi,
       onExtractToNote,
       onRewriteSelection,
@@ -819,6 +864,7 @@ export function MarkweaveEditor({ className, ...controllerOptions }: MarkweaveEd
       {controller.overlayProps.tableSelectionOverlay ? <TableSelectionOverlay {...controller.overlayProps.tableSelectionOverlay} /> : null}
       {controller.overlayProps.codeBlockControls ? <CodeBlockControls {...controller.overlayProps.codeBlockControls} /> : null}
       {controller.overlayProps.innerToc ? <MarkweaveInnerToc {...controller.overlayProps.innerToc} /> : null}
+      {controller.overlayProps.mathEditorPopover ? <MathEditorPopover {...controller.overlayProps.mathEditorPopover} /> : null}
       <EditorContent editor={controller.editor} />
     </section>
   );

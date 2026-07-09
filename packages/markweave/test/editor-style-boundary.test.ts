@@ -52,6 +52,11 @@ const editorRuntimeSelectors = [
   ".markweave-codeblock-language-menu",
   ".markweave-mermaid-tabs",
   ".markweave-mermaid-preview",
+  ".markweave-math-editor-popover",
+  ".markweave-math-inline-source",
+  ".markweave-math-inline-preview",
+  ".markweave-math-block-source",
+  ".markweave-math-block-preview",
   ".markweave-link",
   ".markweave-highlight",
   ".markweave-callout",
@@ -132,6 +137,13 @@ describe("editor style boundary", () => {
     expect(editorCss).toContain('pre.markweave-code-block[data-markweave-mermaid-block="true"]');
     expect(editorCss).toContain("padding-top: 42px");
     expect(editorCss).toContain(".markweave-mermaid-preview");
+    expect(editorCss).toContain(".markweave-math-editor-popover");
+    expect(editorCss).toContain('[data-markweave-math-editing="true"]');
+    expect(editorCss).toContain(".markweave-math-inline-preview");
+    expect(editorCss).toContain(".markweave-math-block-preview");
+    expect(editorCss).toContain("counter-increment: markweave-math-block");
+    expect(editorCss).toContain(".katex .katex-mathml");
+    expect(editorCss).toContain(".katex .hide-tail");
     expect(editorCss).toContain("width: 100%");
   });
 });

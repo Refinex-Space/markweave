@@ -1,6 +1,7 @@
 import type { Editor } from "@tiptap/core";
 import type { EditorState } from "@tiptap/pm/state";
 import { isEditorComposing } from "../../editor-core/composition-guard";
+import { insertMarkweaveBlockMath } from "../math/math-ui-model";
 import { focusFirstTableBodyCell } from "../table/table-focus-position";
 import { isExecutableSlashCommand, type SlashCommandSpec } from "./command-spec";
 import { initialSlashCommandState, reduceSlashCommandState, type SlashCommandState } from "./slash-state";
@@ -333,6 +334,9 @@ export function executeSlashCommand(editor: Editor, state: SlashCommandState, co
       return chain.setCodeBlock({ language: "text" }).run();
     case "separator":
       return chain.setHorizontalRule().run();
+    case "block-math":
+      chain.run();
+      return insertMarkweaveBlockMath(editor, "x");
     case "callout-info":
     case "callout-tip":
     case "callout-warning":

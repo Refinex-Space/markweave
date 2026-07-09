@@ -359,6 +359,7 @@ describe("slash command runtime", () => {
       "emoji",
       "table",
       "separator",
+      "block-math",
       "image",
       "video",
       "attachment",
@@ -378,6 +379,7 @@ describe("slash command runtime", () => {
       "标注",
       "标注",
       "标注",
+      "插入",
       "插入",
       "插入",
       "插入",
@@ -401,8 +403,8 @@ describe("slash command runtime", () => {
     });
   });
 
-  it("executes heading 3, task list, separator, callout, emoji, and enabled upload commands", () => {
-    const editor = createEditor("<p>/h3</p><p>/task</p><p>/sep</p><p>/callout</p><p>/emoji</p><p>/image</p><p>/video</p>");
+  it("executes heading 3, task list, separator, callout, emoji, math, and enabled upload commands", () => {
+    const editor = createEditor("<p>/h3</p><p>/task</p><p>/sep</p><p>/callout</p><p>/emoji</p><p>/math</p><p>/image</p><p>/video</p>");
     const runCommandAtText = (text: string, commandId: string, options = {}) => {
       expect(editor.commands.setTextSelection(textPosition(editor, text))).toBe(true);
       const state = getNextSlashCommandState(initialSlashCommandState, getSlashCommandContext(editor.state));
@@ -420,6 +422,7 @@ describe("slash command runtime", () => {
     runCommandAtText("/sep", "separator");
     runCommandAtText("/callout", "callout-tip");
     runCommandAtText("/emoji", "emoji", { emoji: "✅" });
+    runCommandAtText("/math", "block-math");
     runCommandAtText("/image", "image", { uploadResult: { src: "https://example.com/image.png", alt: "Example" } });
     runCommandAtText("/video", "video", { uploadResult: { src: "/video.mp4", name: "video.mp4", mimeType: "video/mp4" } });
 
@@ -428,6 +431,7 @@ describe("slash command runtime", () => {
     expect(editor.getHTML()).toContain("<hr");
     expect(editor.getHTML()).toContain('data-markweave-callout-type="tip"');
     expect(editor.getText()).toContain("✅");
+    expect(editor.getHTML()).toContain('data-type="block-math"');
     expect(editor.getHTML()).toContain('src="https://example.com/image.png"');
     expect(editor.getHTML()).toContain('data-markweave-video="true"');
     expect(editor.getHTML()).not.toContain('data-markweave-attachment="true"');

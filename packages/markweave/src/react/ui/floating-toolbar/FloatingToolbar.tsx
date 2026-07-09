@@ -50,6 +50,7 @@ import type { FloatingToolbarAssistantRequest, FloatingToolbarAssistantSource } 
 import { normalizeMarkweaveCalloutType, type MarkweaveCalloutType } from "../../../plugins/callout/callout-node";
 import { normalizeMarkweaveIndentLevel } from "../../../plugins/indent/indent-extension";
 import { normalizeMarkdownLinkHref } from "../../../plugins/markdown/markdown-input";
+import { insertMarkweaveInlineMath } from "../../../plugins/math/math-ui-model";
 import { getMarkweaveMessages, type MarkweaveMessages } from "../../../i18n";
 
 interface FloatingToolbarProps {
@@ -476,16 +477,7 @@ export function insertFloatingToolbarInlineMath(editor: Editor, latex?: string) 
   const { from, to } = editor.state.selection;
   const selectedText = editor.state.doc.textBetween(from, to, " ", " ").trim();
   const resolvedLatex = ((latex ?? selectedText) || "x").trim();
-
-  if (!resolvedLatex) {
-    return false;
-  }
-
-  if (from !== to) {
-    return editor.chain().focus().deleteRange({ from, to }).insertInlineMath({ latex: resolvedLatex }).run();
-  }
-
-  return editor.chain().focus().insertInlineMath({ latex: resolvedLatex }).run();
+  return insertMarkweaveInlineMath(editor, resolvedLatex);
 }
 
 export function increaseFloatingToolbarIndent(editor: Editor) {

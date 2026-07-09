@@ -52,7 +52,8 @@ describe("playground fixtures", () => {
     expect(initialPlaygroundDocument).toContain('data-markweave-image="true"');
     expect(initialPlaygroundDocument).toContain('data-markweave-video-embed="true"');
     expect(initialPlaygroundDocument).toContain('data-markweave-attachment="true"');
-    expect(initialPlaygroundDocument).toContain('data-type="block-math"');
+    expect(initialPlaygroundDocument).toContain("$E = mc^2$");
+    expect(initialPlaygroundDocument).toContain("$$\n\\int_{-\\infty}^{\\infty} e^{-x^2} \\, dx = \\sqrt{\\pi}\n$$");
   });
 
   it("renders the default fixture through the public Markweave editor", async () => {
@@ -66,6 +67,8 @@ describe("playground fixtures", () => {
     expect(container.querySelector('[data-markweave-video-embed="true"]')).toBeTruthy();
     expect(container.querySelector('[data-type="taskList"]')).toBeTruthy();
     expect(container.querySelector('[data-markweave-attachment="true"]')).toBeTruthy();
+    expect(container.querySelector('.tiptap-mathematics-render[data-type="inline-math"]')).toBeTruthy();
+    expect(container.querySelector('.tiptap-mathematics-render[data-type="block-math"]')).toBeTruthy();
   });
 
   it("exposes merged table cases without creating another editor entry", () => {
