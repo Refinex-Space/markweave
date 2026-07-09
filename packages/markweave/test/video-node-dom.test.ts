@@ -5,7 +5,7 @@ import { NodeSelection } from "@tiptap/pm/state";
 import { act, createElement, useEffect } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { useMarkweaveEditorController, type MarkweaveEditorController, type MarkweaveEditorMode, type MarkweaveLang } from "../src/react";
+import { useMarkweaveEditorController, type MarkweaveEditorController, type MarkweaveEditorMode, type MarkweaveLang } from "@markweave/react";
 import type { MarkweaveSlashCommandUploadHandler } from "../src/plugins/slash-command/upload";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -174,8 +174,23 @@ describe("video node view", () => {
     await inputValue(getByTestId<HTMLInputElement>("markweave-video-url-input"), " https://cdn.example.com/media/demo.mp4 ");
     await click(getByTestId("markweave-video-upload-submit"));
 
-    expect(document.querySelector("video.markweave-video")?.getAttribute("src")).toBe("https://cdn.example.com/media/demo.mp4");
+    const video = document.querySelector<HTMLVideoElement>("video.markweave-video");
+    const videoNode = getByTestId("markweave-video-node");
+    expect(video?.getAttribute("src")).toBe("https://cdn.example.com/media/demo.mp4");
     expect(controller.editor?.getHTML()).toContain('data-markweave-video="true"');
+
+    if (!video) {
+      throw new Error("Expected direct video element.");
+    }
+
+    await act(async () => {
+      controller.editor?.commands.setTextSelection(1);
+    });
+    await flushReact();
+    expect(videoNode.dataset.selected).toBe("false");
+
+    await click(video);
+    expect(videoNode.dataset.selected).toBe("false");
   });
 
   it("uses the host upload handler for local video files", async () => {
@@ -208,6 +223,7 @@ describe("video node view", () => {
 
     const youtubeFrame = document.querySelector<HTMLIFrameElement>("iframe.markweave-video-iframe");
     expect(youtubeFrame?.getAttribute("src")).toBe("https://www.youtube.com/embed/dQw4w9WgXcQ");
+    expect(youtubeFrame?.getAttribute("allow")).not.toContain("autoplay");
     expect(youtubeFrame?.dataset.markweaveVideoProvider).toBe("youtube");
 
     await act(async () => {
@@ -220,7 +236,8 @@ describe("video node view", () => {
     await click(getByTestId("markweave-video-upload-submit"));
 
     const bilibiliFrame = document.querySelector<HTMLIFrameElement>("iframe.markweave-video-iframe");
-    expect(bilibiliFrame?.getAttribute("src")).toBe("https://player.bilibili.com/player.html?bvid=BV1xx411c7mD&p=2");
+    expect(bilibiliFrame?.getAttribute("src")).toBe("https://player.bilibili.com/player.html?bvid=BV1xx411c7mD&p=2&autoplay=0");
+    expect(bilibiliFrame?.getAttribute("allow")).not.toContain("autoplay");
     expect(bilibiliFrame?.dataset.markweaveVideoProvider).toBe("bilibili");
     expect(controller.editor?.getHTML()).toContain('data-markweave-video-embed="true"');
   });
@@ -250,9 +267,22 @@ describe("video node view", () => {
 
     const bilibiliFrame = document.querySelector<HTMLIFrameElement>("iframe.markweave-video-iframe");
     expect(bilibiliFrame?.getAttribute("src")).toBe(
-      "https://player.bilibili.com/player.html?isOutside=true&aid=116254899899358&bvid=BV18nwkzoEMk&cid=38742722382&p=1",
+      "https://player.bilibili.com/player.html?isOutside=true&aid=116254899899358&bvid=BV18nwkzoEMk&cid=38742722382&p=1&autoplay=0",
     );
     expect(bilibiliFrame?.dataset.markweaveVideoProvider).toBe("bilibili");
+  });
+
+  it("disables explicit autoplay on platform embeds", async () => {
+    const controller = await renderEditor();
+
+    await insertEmptyVideo(controller);
+    await inputValue(getByTestId<HTMLInputElement>("markweave-video-url-input"), "https://www.youtube.com/embed/fPiUC5NxFic?autoplay=1&si=GifL60l94AOaMV93");
+    await click(getByTestId("markweave-video-upload-submit"));
+
+    const youtubeFrame = document.querySelector<HTMLIFrameElement>("iframe.markweave-video-iframe");
+    expect(youtubeFrame?.getAttribute("src")).toBe("https://www.youtube.com/embed/fPiUC5NxFic?autoplay=0&si=GifL60l94AOaMV93");
+    expect(youtubeFrame?.getAttribute("allow")).not.toContain("autoplay");
+    expect(controller.editor?.getHTML()).not.toContain("autoplay=1");
   });
 
   it("selects an embedded video on click and deletes it with the Delete key", async () => {
@@ -269,6 +299,15 @@ describe("video node view", () => {
     if (!youtubeFrame) {
       throw new Error("Expected YouTube iframe.");
     }
+
+    await act(async () => {
+      controller.editor?.commands.setTextSelection(1);
+    });
+    await flushReact();
+    expect(videoNode.dataset.selected).toBe("false");
+
+    await click(youtubeFrame);
+    expect(videoNode.dataset.selected).toBe("false");
 
     await click(selectionLayer);
     expect(controller.editor?.state.selection).toBeInstanceOf(NodeSelection);

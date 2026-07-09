@@ -1,7 +1,21 @@
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    "types": ["node", "vitest/globals"]
+    "baseUrl": ".",
+    "paths": {
+      "@markweave/react": ["../markweave-react/src/index.ts"],
+      "@markweave/vue2": ["../markweave-vue2/src/index.ts"],
+      "@markweave/vue3": ["../markweave-vue3/src/index.ts"],
+      "markweave": ["src/index.ts"],
+      "markweave/internal/*": ["src/*"],
+      "markweave/styles.css": ["src/editor-core/markweave-editor.css"],
+      "react": ["node_modules/@types/react/index.d.ts"],
+      "react/jsx-runtime": ["node_modules/@types/react/jsx-runtime.d.ts"],
+      "react/jsx-dev-runtime": ["node_modules/@types/react/jsx-dev-runtime.d.ts"],
+      "react-dom": ["node_modules/@types/react-dom/index.d.ts"],
+      "react-dom/client": ["node_modules/@types/react-dom/client.d.ts"]
+    },
+    "types": ["node", "vitest/globals", "react", "react-dom"]
   },
   "include": ["src", "test"]
 }

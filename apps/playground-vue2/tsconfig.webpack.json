@@ -1,0 +1,12 @@
+{
+  "compilerOptions": {
+    "allowJs": true,
+    "checkJs": false,
+    "jsx": "react-jsx",
+    "module": "ESNext",
+    "moduleResolution": "Node",
+    "skipLibCheck": true,
+    "target": "ES2019"
+  },
+  "include": ["src/**/*", "../../packages/markweave/src/**/*", "../../packages/markweave-vue2/src/**/*", "../playground-fixtures/src/**/*"]
+}

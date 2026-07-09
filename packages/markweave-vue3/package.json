@@ -1,0 +1,43 @@
+{
+  "name": "@markweave/vue3",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Vue 3 adapter for the Markweave Markdown-first WYSIWYG editor.",
+  "license": "MIT",
+  "sideEffects": [
+    "**/*.css"
+  ],
+  "style": "./styles.css",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/types/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/types/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./styles.css": "./styles.css"
+  },
+  "files": [
+    "dist",
+    "styles.css",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\" && vite build && tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@tiptap/core": "^3.27.1",
+    "@tiptap/extension-image": "^3.27.1",
+    "@tiptap/pm": "^3.27.1",
+    "@tiptap/vue-3": "^3.27.1",
+    "lucide-vue-next": "^0.547.0",
+    "markweave": "workspace:^"
+  },
+  "peerDependencies": {
+    "vue": "^3.3.0"
+  },
+  "devDependencies": {}
+}

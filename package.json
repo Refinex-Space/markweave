@@ -9,7 +9,7 @@
     "dev:react": "pnpm --filter @markweave/playground-react dev",
     "dev:vue2": "pnpm --filter @markweave/playground-vue2 dev",
     "dev:vue3": "pnpm --filter @markweave/playground-vue3 dev",
-    "build": "pnpm --filter markweave build && pnpm --filter @markweave/playground-react build && pnpm --filter @markweave/playground-vue2 build && pnpm --filter @markweave/playground-vue3 build",
+    "build": "pnpm --filter markweave build && pnpm --filter @markweave/react build && pnpm --filter @markweave/vue2 build && pnpm --filter @markweave/vue3 build && pnpm --filter @markweave/playground-react build && pnpm --filter @markweave/playground-vue2 build && pnpm --filter @markweave/playground-vue3 build",
     "build:vue2": "pnpm --filter @markweave/playground-vue2 build",
     "typecheck": "pnpm -r typecheck",
     "test": "vitest run",
@@ -18,8 +18,6 @@
   },
   "devDependencies": {
     "@types/node": "^24.10.2",
-    "@types/react": "^19.2.17",
-    "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.3",
     "@vitejs/plugin-vue": "^6.0.3",
     "jsdom": "^29.1.1",

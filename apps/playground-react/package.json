@@ -8,10 +8,14 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
+    "@markweave/react": "workspace:*",
     "@markweave/playground-fixtures": "workspace:*",
     "lucide-react": "^0.547.0",
-    "markweave": "workspace:*",
     "react": "^19.2.7",
     "react-dom": "^19.2.7"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3"
   }
 }

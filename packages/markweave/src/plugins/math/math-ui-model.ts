@@ -93,16 +93,25 @@ function escapeHtml(value: string) {
     .replace(/'/g, "&#39;");
 }
 
-function getMarkweaveMathNodeElement(editor: Editor, target: MarkweaveMathTarget): HTMLElement | null {
+function getInlineMathSourceWidth(anchorWidth: number, latex?: string) {
+  const sourceWidth = Math.min(560, Math.max(96, (latex?.length ?? 8) * 7 + 48));
+  return Math.max(anchorWidth, sourceWidth);
+}
+
+function getMarkweaveMathNodeElementFromView(view: EditorView, target: MarkweaveMathTarget): HTMLElement | null {
   let nodeDom: unknown;
 
   try {
-    nodeDom = editor.view.nodeDOM(target.pos);
+    nodeDom = view.nodeDOM(target.pos);
   } catch {
     return null;
   }
 
   return nodeDom instanceof HTMLElement ? nodeDom : null;
+}
+
+function getMarkweaveMathNodeElement(editor: Editor, target: MarkweaveMathTarget): HTMLElement | null {
+  return getMarkweaveMathNodeElementFromView(editor.view, target);
 }
 
 export function getMarkweaveMathTargetAtPos(editor: Editor, pos: number): MarkweaveMathTarget | null {
@@ -135,6 +144,32 @@ export function getMarkweaveMathTargetAtPos(editor: Editor, pos: number): Markwe
   }
 
   return null;
+}
+
+function extractRenderedMathHtml(element: HTMLElement) {
+  const clone = element.cloneNode(true);
+
+  if (!(clone instanceof HTMLElement)) {
+    return "";
+  }
+
+  clone.removeAttribute("data-markweave-math-editing");
+  clone.style.removeProperty("--markweave-inline-math-editing-width");
+  clone.style.removeProperty("min-width");
+  clone.querySelectorAll(".katex-mathml").forEach((mathElement) => mathElement.remove());
+  clone.querySelectorAll("annotation").forEach((annotation) => annotation.remove());
+
+  const katex = clone.querySelector(".katex");
+  const katexHtml = clone.querySelector(".katex-html");
+  if (katex instanceof HTMLElement && katexHtml instanceof HTMLElement) {
+    const katexClone = katex.cloneNode(false);
+    if (katexClone instanceof HTMLElement) {
+      katexClone.appendChild(katexHtml.cloneNode(true));
+      return katexClone.outerHTML;
+    }
+  }
+
+  return clone.innerHTML;
 }
 
 export function getMarkweaveMathTargetFromSelection(editor: Editor): MarkweaveMathTarget | null {
@@ -303,7 +338,7 @@ export function insertMarkweaveBlockMath(editor: Editor, latex = "x") {
   return setMarkweaveMathSelection(editor, target);
 }
 
-export function renderMarkweaveMathPreview(latex: string, kind: MarkweaveMathKind): MarkweaveMathPreview {
+export function renderMarkweaveMathPreview(latex: string, kind: MarkweaveMathKind, editor?: Editor): MarkweaveMathPreview {
   const normalizedLatex = latex.trim();
 
   if (!normalizedLatex) {
@@ -311,6 +346,25 @@ export function renderMarkweaveMathPreview(latex: string, kind: MarkweaveMathKin
       html: "",
       error: false,
     };
+  }
+
+  if (editor && typeof document !== "undefined") {
+    const type = editor.schema.nodes[mathNodeNames[kind]];
+    const renderNodeView = editor.extensionManager.nodeViews[mathNodeNames[kind]];
+
+    if (type && renderNodeView) {
+      const node = type.create({ latex: normalizedLatex });
+      const nodeView = renderNodeView(node, editor.view, () => 0, [], undefined as never);
+      const html = nodeView.dom instanceof HTMLElement ? extractRenderedMathHtml(nodeView.dom) : "";
+      nodeView.destroy?.();
+
+      if (html) {
+        return {
+          html,
+          error: nodeView.dom instanceof HTMLElement && nodeView.dom.classList.contains(`${kind}-math-error`),
+        };
+      }
+    }
   }
 
   return {
@@ -328,14 +382,14 @@ export function calculateMarkweaveMathPopoverPosition(input: {
   readonly viewportHeight: number;
 }): MarkweaveMathPopoverPosition {
   const edgePadding = 12;
-  const sourceWidth = Math.max(input.anchorRect.width + 26, Math.min(560, (input.latex?.length ?? 8) * 9 + 34));
+  const sourceWidth = getInlineMathSourceWidth(input.anchorRect.width, input.latex);
   const blockWidth = Math.max(320, Math.min(input.anchorRect.width, input.frameRect.width - edgePadding * 2, input.viewportWidth - edgePadding * 2));
   const width = input.kind === "block" ? blockWidth : sourceWidth;
   const minLeft = edgePadding;
   const maxLeft = Math.max(minLeft, Math.min(input.frameRect.width, input.viewportWidth) - width - edgePadding);
   const anchorLeft = input.anchorRect.left - input.frameRect.left;
   const anchorCenter = anchorLeft + input.anchorRect.width / 2;
-  const left = input.kind === "block" ? Math.round(Math.min(maxLeft, Math.max(minLeft, anchorLeft))) : Math.round(Math.min(maxLeft, Math.max(minLeft, anchorCenter - width / 2)));
+  const left = input.kind === "block" ? Math.round(Math.min(maxLeft, Math.max(minLeft, anchorLeft))) : Math.round(Math.min(maxLeft, Math.max(minLeft, anchorLeft)));
 
   if (input.kind === "block") {
     return {
@@ -346,7 +400,7 @@ export function calculateMarkweaveMathPopoverPosition(input: {
     };
   }
 
-  const topBelow = input.anchorRect.top - input.frameRect.top - 2;
+  const topBelow = input.anchorRect.top - input.frameRect.top + 4;
   const estimatedHeight = 92;
   const maxTop = Math.max(edgePadding, input.frameRect.height - estimatedHeight - edgePadding);
 
@@ -375,26 +429,7 @@ export function getMarkweaveMathRenderedHtml(editor: Editor, target: MarkweaveMa
     return "";
   }
 
-  const clone = nodeDom.cloneNode(true);
-
-  if (!(clone instanceof HTMLElement)) {
-    return "";
-  }
-
-  clone.querySelectorAll(".katex-mathml").forEach((element) => element.remove());
-  clone.querySelectorAll("annotation").forEach((element) => element.remove());
-
-  const katex = clone.querySelector(".katex");
-  const katexHtml = clone.querySelector(".katex-html");
-  if (katex instanceof HTMLElement && katexHtml instanceof HTMLElement) {
-    const katexClone = katex.cloneNode(false);
-    if (katexClone instanceof HTMLElement) {
-      katexClone.appendChild(katexHtml.cloneNode(true));
-      return katexClone.outerHTML;
-    }
-  }
-
-  return clone.innerHTML;
+  return extractRenderedMathHtml(nodeDom);
 }
 
 export function getMarkweaveMathBlockIndex(editor: Editor, target: MarkweaveMathTarget) {
@@ -423,17 +458,26 @@ export function getMarkweaveMathBlockIndex(editor: Editor, target: MarkweaveMath
 }
 
 export function setMarkweaveMathEditingDomState(editor: Editor, target: MarkweaveMathTarget, editing: boolean) {
-  const nodeDom = getMarkweaveMathNodeElement(editor, target);
+  return setMarkweaveMathEditingDomStateInView(editor.view, target, editing);
+}
+
+export function setMarkweaveMathEditingDomStateInView(view: EditorView, target: MarkweaveMathTarget, editing: boolean) {
+  const nodeDom = getMarkweaveMathNodeElementFromView(view, target);
 
   if (!nodeDom) {
     return false;
   }
 
   if (editing) {
+    if (target.kind === "inline") {
+      const width = getInlineMathSourceWidth(nodeDom.getBoundingClientRect().width, target.latex);
+      nodeDom.style.setProperty("--markweave-inline-math-editing-width", `${Math.ceil(width)}px`);
+    }
     nodeDom.setAttribute("data-markweave-math-editing", "true");
     return true;
   }
 
   nodeDom.removeAttribute("data-markweave-math-editing");
+  nodeDom.style.removeProperty("--markweave-inline-math-editing-width");
   return true;
 }

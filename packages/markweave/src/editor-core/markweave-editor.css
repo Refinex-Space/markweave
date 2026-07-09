@@ -753,12 +753,40 @@
 
 .markweave-video-selection-layer {
   position: absolute;
-  z-index: 1;
-  inset: 0;
-  border: 0;
-  background: transparent;
-  cursor: default;
+  z-index: 2;
+  top: 10px;
+  right: 10px;
+  width: 28px;
+  height: 28px;
+  border: 1px solid rgba(255, 255, 255, 0.52);
+  border-radius: 999px;
+  background: rgba(17, 19, 24, 0.62);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18);
+  cursor: pointer;
+  opacity: 0;
   padding: 0;
+  transition: opacity 0.15s ease, background 0.15s ease, border-color 0.15s ease;
+}
+
+.markweave-video-selection-layer::before {
+  content: "";
+  position: absolute;
+  inset: 7px;
+  border: 2px solid #fff;
+  border-radius: 999px;
+}
+
+.markweave-video-selection-layer:hover,
+.markweave-video-selection-layer:focus-visible {
+  background: rgba(17, 19, 24, 0.78);
+  border-color: rgba(255, 255, 255, 0.78);
+  outline: none;
+}
+
+.markweave-video-node:hover .markweave-video-selection-layer,
+.markweave-video-node:focus-within .markweave-video-selection-layer,
+.markweave-video-node[data-selected="true"] .markweave-video-selection-layer {
+  opacity: 1;
 }
 
 .markweave-editor-surface .markweave-video-node video.markweave-video {
@@ -1194,6 +1222,9 @@
 }
 
 .tiptap-mathematics-render[data-type="inline-math"][data-markweave-math-editing="true"] {
+  display: inline-block;
+  min-width: var(--markweave-inline-math-editing-width, auto);
+  box-sizing: border-box;
   opacity: 0;
 }
 
@@ -1403,7 +1434,7 @@
 
 .tiptap-mathematics-render[data-type="block-math"][data-markweave-math-editing="true"] {
   display: block;
-  min-height: 250px;
+  min-height: 286px;
   margin: 1.05em 0 1.45em;
   padding: 0;
   overflow: visible;
@@ -1431,7 +1462,7 @@
 .markweave-math-editor-popover--inline {
   position: absolute;
   display: grid;
-  justify-items: center;
+  justify-items: start;
   gap: 8px;
   padding: 0;
   background: transparent;
@@ -1440,7 +1471,9 @@
 .markweave-math-inline-source {
   display: inline-flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
+  justify-self: start;
+  gap: 2px;
   width: 100%;
   box-sizing: border-box;
   color: #b8b8bd;
@@ -1449,20 +1482,27 @@
 }
 
 .markweave-math-inline-source input {
+  flex: 0 1 auto;
   min-width: 0;
-  width: 100%;
+  min-inline-size: 0;
+  width: auto;
+  max-width: calc(100% - 2.4ch - 4px);
+  box-sizing: border-box;
   border: 0;
   outline: 0;
+  margin: 0;
+  padding: 0;
   background: transparent;
   color: #7c3f9d;
   font: inherit;
   line-height: inherit;
-  text-align: center;
+  text-align: left;
 }
 
 .markweave-math-inline-preview {
   position: relative;
   display: grid;
+  justify-self: center;
   justify-items: center;
   min-width: 118px;
   max-width: min(360px, calc(100vw - 28px));
@@ -1507,7 +1547,7 @@
   width: 100%;
   border-radius: 3px;
   background: #f3f3f3;
-  box-shadow: 0 1px 2px rgba(31, 35, 40, 0.16);
+  box-shadow: none;
 }
 
 .markweave-math-block-toolbar {
@@ -1584,7 +1624,8 @@
 }
 
 .markweave-math-block-preview > div {
-  overflow-x: auto;
+  max-width: 100%;
+  overflow-x: clip;
 }
 
 .markweave-math-block-preview::after {

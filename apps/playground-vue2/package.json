@@ -7,10 +7,9 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
+    "@markweave/vue2": "workspace:*",
     "@markweave/playground-fixtures": "workspace:*",
-    "@tiptap/vue-2": "3.27.1",
     "element-ui": "^2.15.0",
-    "markweave": "workspace:*",
     "vue": "2.6.12",
     "vue-template-compiler": "2.6.12"
   },

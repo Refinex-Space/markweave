@@ -1,6 +1,6 @@
 ---
 owner: refinex
-updated: 2026-07-06
+updated: 2026-07-09
 status: active
 referenced_by: AGENTS.md#knowledge-map
 ---
@@ -11,11 +11,11 @@ referenced_by: AGENTS.md#knowledge-map
 | --- | --- |
 | Markweave | The editor package and workspace name. |
 | Markdown-first WYSIWYG | Editing model that preserves Markdown-oriented input behavior while rendering rich editor UI. |
-| Publishable package | `packages/markweave`, the npm package named `markweave`. |
-| Playground | `apps/playground-react` and `apps/playground-vue3`, the private local demo apps used for development checks. |
-| Playground fixture | `apps/playground-fixtures`, the private shared Markdown fixture package used by both playground apps. |
+| Publishable package | `packages/markweave`, `packages/markweave-react`, `packages/markweave-vue2`, and `packages/markweave-vue3`, published as `markweave`, `@markweave/react`, `@markweave/vue2`, and `@markweave/vue3`. |
+| Playground | `apps/playground-react`, `apps/playground-vue2`, and `apps/playground-vue3`, the private local demo apps used for development checks. |
+| Playground fixture | `apps/playground-fixtures`, the private shared Markdown fixture package used by all playground apps. |
 | Editor core | Shared extension and behavior setup under `packages/markweave/src/editor-core/`. |
-| Framework adapter | React or Vue 3 binding under `packages/markweave/src/react/` or `packages/markweave/src/vue3/`. |
+| Framework adapter | React, Vue 2, or Vue 3 binding under `packages/markweave-react/`, `packages/markweave-vue2/`, or `packages/markweave-vue3/`. |
 | Extension boundary | The explicit Tiptap/ProseMirror extension set returned by `createMarkweaveEditorExtensions`. |
 | Runtime snapshot | The state payload from `MarkweaveEditorRuntimeSnapshot`, including selection, slash command, table, code block, Mermaid, and debug state. |
 | Behavior contract | Source-level list of expected behaviors used to guide tests and prevent regressions. |

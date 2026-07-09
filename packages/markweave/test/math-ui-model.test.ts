@@ -9,9 +9,11 @@ import {
   deleteMarkweaveMathNode,
   getMarkweaveMathTargetAtPos,
   getMarkweaveMathTargetFromSelection,
+  getMarkweaveMathRenderedHtml,
   insertMarkweaveBlockMath,
   insertMarkweaveInlineMath,
   renderMarkweaveMathPreview,
+  setMarkweaveMathEditingDomState,
 } from "../src/plugins/math/math-ui-model";
 
 let activeEditor: Editor | null = null;
@@ -92,6 +94,23 @@ describe("math UI model", () => {
     expect(preview.html).toContain("&lt;script&gt;");
   });
 
+  it("renders math previews through the shared math node view", () => {
+    const editor = createEditor('<p><span data-type="inline-math" data-latex="E = mc^2"></span></p><div data-type="block-math" data-latex="x^2"></div>');
+    const inlineTarget = firstMathTarget(editor, "inlineMath");
+    const blockTarget = firstMathTarget(editor, "blockMath");
+
+    expect(getMarkweaveMathRenderedHtml(editor, blockTarget)).toContain("katex");
+    expect(renderMarkweaveMathPreview("a^2 + b^2 = c^2", "inline", editor).html).toContain("katex");
+    expect(renderMarkweaveMathPreview("\\\\int_{-\\\\infty}^{\\\\infty} e^{-x^2}\\\\, dx = \\\\sqrt{\\\\pi}", "block", editor).html).toContain("katex");
+
+    expect(setMarkweaveMathEditingDomState(editor, inlineTarget, true)).toBe(true);
+    const inlineDom = editor.view.nodeDOM(inlineTarget.pos);
+    expect(inlineDom).toBeInstanceOf(HTMLElement);
+    expect((inlineDom as HTMLElement).style.getPropertyValue("--markweave-inline-math-editing-width")).toMatch(/px$/);
+    expect(setMarkweaveMathEditingDomState(editor, inlineTarget, false)).toBe(true);
+    expect((inlineDom as HTMLElement).style.getPropertyValue("--markweave-inline-math-editing-width")).toBe("");
+  });
+
   it("keeps inline math editing anchored at the formula position", () => {
     const position = calculateMarkweaveMathPopoverPosition({
       anchorRect: { left: 420, top: 360, width: 84, height: 22 } as DOMRect,
@@ -103,7 +122,9 @@ describe("math UI model", () => {
     });
 
     expect(position.placement).toBe("bottom");
-    expect(position.top).toBe(318);
+    expect(position.left).toBe(300);
+    expect(position.top).toBe(324);
+    expect(position.width).toBeGreaterThan(100);
   });
 
   it("does not clamp inline math editing to the viewport in long documents", () => {
@@ -116,6 +137,6 @@ describe("math UI model", () => {
       viewportWidth: 1280,
     });
 
-    expect(position.top).toBe(2923);
+    expect(position.top).toBe(2929);
   });
 });

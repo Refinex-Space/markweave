@@ -2,11 +2,13 @@ const path = require("node:path");
 
 const workspaceRoot = path.resolve(__dirname, "../..");
 const markweaveRoot = path.resolve(workspaceRoot, "packages/markweave");
+const markweaveVue2Root = path.resolve(workspaceRoot, "packages/markweave-vue2");
 const markweaveNodeModules = path.resolve(markweaveRoot, "node_modules");
+const markweaveVue2NodeModules = path.resolve(markweaveVue2Root, "node_modules");
 const playgroundNodeModules = path.resolve(__dirname, "node_modules");
 
-function packagePath(packageName, subpath = "") {
-  return path.resolve(markweaveNodeModules, packageName, subpath);
+function packagePath(packageName, subpath = "", baseNodeModules = markweaveNodeModules) {
+  return path.resolve(baseNodeModules, packageName, subpath);
 }
 
 function playgroundPackagePath(packageName, subpath = "") {
@@ -25,6 +27,7 @@ module.exports = {
   productionSourceMap: false,
   transpileDependencies: [
     "markweave",
+    "@markweave/vue2",
     "@markweave/playground-fixtures",
     "@tiptap",
     "prosemirror",
@@ -43,11 +46,12 @@ module.exports = {
       alias: {
         vue$: playgroundPackagePath("vue", "dist/vue.runtime.common.js"),
         markweave$: path.resolve(markweaveRoot, "src/index.ts"),
-        "markweave/vue2": path.resolve(markweaveRoot, "src/vue2/index.ts"),
+        "@markweave/vue2": path.resolve(markweaveVue2Root, "src/index.ts"),
+        "markweave/internal": path.resolve(markweaveRoot, "src"),
         "markweave/styles.css": path.resolve(markweaveRoot, "src/editor-core/markweave-editor.css"),
         "@markweave/playground-fixtures": path.resolve(workspaceRoot, "apps/playground-fixtures/src/index.ts"),
-        "@tiptap/vue-2$": playgroundPackagePath("@tiptap/vue-2", "dist/index.js"),
-        "@tiptap/vue-2/menus": playgroundPackagePath("@tiptap/vue-2", "dist/menus/index.js"),
+        "@tiptap/vue-2$": packagePath("@tiptap/vue-2", "dist/index.js", markweaveVue2NodeModules),
+        "@tiptap/vue-2/menus": packagePath("@tiptap/vue-2", "dist/menus/index.js", markweaveVue2NodeModules),
         "@tiptap/pm/changeset": tiptapPmPath("changeset"),
         "@tiptap/pm/commands": tiptapPmPath("commands"),
         "@tiptap/pm/dropcursor": tiptapPmPath("dropcursor"),
@@ -81,6 +85,7 @@ module.exports = {
               loader: "ts-loader",
               options: {
                 transpileOnly: true,
+                configFile: path.resolve(__dirname, "tsconfig.webpack.json"),
                 compilerOptions: {
                   target: "ES2019",
                   module: "ESNext",
@@ -91,6 +96,7 @@ module.exports = {
           ],
           include: [
             path.resolve(markweaveRoot, "src"),
+            path.resolve(markweaveVue2Root, "src"),
             path.resolve(workspaceRoot, "apps/playground-fixtures/src")
           ]
         }

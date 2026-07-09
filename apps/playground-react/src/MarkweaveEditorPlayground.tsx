@@ -11,12 +11,8 @@ import {
   type MarkweaveUploadResult,
   type TableCommandResult,
   type TableEditWithAiRequest,
-} from "markweave/react";
-import { initialPlaygroundDocument, mergedTablePlaygroundDocument } from "@markweave/playground-fixtures";
-
-function getUploadResultName(value: string) {
-  return value.split("/").filter(Boolean).at(-1);
-}
+} from "@markweave/react";
+import { createPlaygroundUploadResult, initialPlaygroundDocument, mergedTablePlaygroundDocument } from "@markweave/playground-fixtures";
 
 export function MarkweaveEditorPlayground() {
   const [fixtureContent, setFixtureContent] = useState(initialPlaygroundDocument);
@@ -48,25 +44,7 @@ export function MarkweaveEditorPlayground() {
 
   const handleSlashUpload = (request: MarkweaveUploadRequest): MarkweaveUploadResult => {
     setLastSlashUploadRequest(request);
-
-    if (request.source.file) {
-      return {
-        src: URL.createObjectURL(request.source.file),
-        name: request.source.file.name,
-        mimeType: request.source.file.type,
-        size: request.source.file.size,
-      };
-    }
-
-    if (request.source.value) {
-      return {
-        src: request.source.value,
-        name: getUploadResultName(request.source.value),
-        mimeType: request.source.mimeType,
-      };
-    }
-
-    throw new Error("Unsupported upload source.");
+    return createPlaygroundUploadResult(request);
   };
 
   const isLiveMode = editorMode === "live";

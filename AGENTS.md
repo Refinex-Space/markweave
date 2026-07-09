@@ -1,7 +1,7 @@
 # AGENTS.md
 
 ## Project
-Markweave is a pnpm workspace for a Markdown-first WYSIWYG editor built on Tiptap and ProseMirror, with React, Vue 2, and Vue 3 adapters. The publishable npm package is `packages/markweave`; `apps/playground-react`, `apps/playground-vue2`, and `apps/playground-vue3` are private local demo apps.
+Markweave is a pnpm workspace for a Markdown-first WYSIWYG editor built on Tiptap and ProseMirror, with React, Vue 2, and Vue 3 adapters. Publishable packages are `packages/markweave`, `packages/markweave-react`, `packages/markweave-vue2`, and `packages/markweave-vue3`; `apps/playground-react`, `apps/playground-vue2`, and `apps/playground-vue3` are private local demo apps.
 
 ## Environment And Commands
 - Install: `pnpm install`
@@ -16,9 +16,9 @@ Markweave is a pnpm workspace for a Markdown-first WYSIWYG editor built on Tipta
 
 ## Repository Boundaries
 - Use pnpm workspace commands; do not introduce npm, yarn, or bun lockfiles.
-- Keep playground-only code out of `packages/markweave`; the published package exposes `markweave` and `markweave/styles.css`.
+- Keep playground-only code out of publishable packages; the core package exposes `markweave`, `markweave/styles.css`, and internal `markweave/internal/*` for adapter packages.
 - Treat `packages/markweave/src/index.ts` and `packages/markweave/src/editor-core/create-editor-extensions.ts` as public surface and extension-boundary files.
-- Put shared editor behavior in `packages/markweave/src/core`, `src/editor-core`, or `src/plugins`; React, Vue 2, and Vue 3 adapters should only own framework shells, NodeViews, rendering, events, and icons.
+- Put shared editor behavior in `packages/markweave/src/core`, `src/editor-core`, or `src/plugins`; React, Vue 2, and Vue 3 adapter packages should only own framework shells, NodeViews, rendering, events, and icons.
 - When React, Vue 2, or Vue 3 gains user-visible behavior, route it through shared core/helper code or document why the adapter-specific behavior is intentional.
 - Do not commit secrets, credentials, production tokens, or `.env*` contents.
 - Do not change CI, infrastructure manifests, package publishing boundaries, or dependency policy without calling it out separately.

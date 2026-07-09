@@ -11,8 +11,12 @@ export default defineConfig({
         replacement: resolve(__dirname, "../../packages/markweave/src/editor-core/markweave-editor.css"),
       },
       {
-        find: "markweave/vue3",
-        replacement: resolve(__dirname, "../../packages/markweave/src/vue3/index.ts"),
+        find: "@markweave/vue3",
+        replacement: resolve(__dirname, "../../packages/markweave-vue3/src/index.ts"),
+      },
+      {
+        find: "markweave/internal",
+        replacement: resolve(__dirname, "../../packages/markweave/src"),
       },
       {
         find: "@markweave/playground-fixtures",
