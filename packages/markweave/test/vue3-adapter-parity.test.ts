@@ -109,6 +109,16 @@ describe("Vue3 adapter parity source contract", () => {
       "markweave-mermaid-fullscreen-close",
       "markweave-mermaid-fullscreen-viewport",
       "markweave-mermaid-fullscreen-content",
+      "getMarkweaveMathTargetFromDomEvent",
+      "setMarkweaveMathEditingDomState",
+      "setMarkweaveMathSelectionInView",
+      "VueMathEditorPopover",
+      "markweave-math-editor-popover",
+      "markweave-math-editor-input",
+      "markweave-math-inline-source",
+      "markweave-math-inline-preview",
+      "markweave-math-block-source",
+      "markweave-math-block-preview",
     ]);
   });
 

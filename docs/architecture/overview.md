@@ -46,6 +46,7 @@ The built-in document outline is enabled by default with `innerToc={true}`. It d
 - interaction layers: slash command runtime, table clipboard, table arrow navigation, table keyboard, table interaction state
 - previews and controls: Mermaid inline preview, floating toolbar, slash menu, table controls, table selection overlay, code block controls
 - link editing: the floating toolbar opens an inline link popover for selected text, with apply, open, and remove actions
+- math editing: inline and block math render through the shared mathematics extension, while Live mode adapters expose the shared in-place LaTeX editor and View mode remains read-only
 - image editing: the image node renders an inline upload placeholder for empty images, then exposes align, caption, download, replace, delete, and width-resize controls through framework-specific NodeViews
 - video insertion: the video node renders an inline upload placeholder for empty videos, supports local-file host uploads and direct video URLs, and automatically embeds YouTube and Bilibili links or whitelisted platform embed sources through framework-specific NodeViews
 - editor modes: `mode="live"` keeps the full editable surface, while `mode="view"` is a UI-only read mode that reuses the same document rendering and keeps serialization output unchanged

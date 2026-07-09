@@ -21,6 +21,7 @@ export type SlashCommandIconName =
   | "error"
   | "success"
   | "emoji"
+  | "math"
   | "table"
   | "separator"
   | "image"

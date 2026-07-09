@@ -95,6 +95,18 @@ export interface MarkweaveMessages {
     readonly ariaLabel: string;
     readonly itemAriaLabel: string;
   };
+  readonly math: {
+    readonly label: string;
+    readonly inlineTitle: string;
+    readonly blockTitle: string;
+    readonly latexLabel: string;
+    readonly latexPlaceholder: string;
+    readonly previewLabel: string;
+    readonly apply: string;
+    readonly delete: string;
+    readonly cancel: string;
+    readonly invalidPreview: string;
+  };
 }
 
 interface LocalizedSlashCommandText {
@@ -214,6 +226,12 @@ const baseSlashCommandSpecs = [
     icon: "separator",
   },
   {
+    id: "block-math",
+    category: "insert",
+    executionKind: "editor",
+    icon: "math",
+  },
+  {
     id: "image",
     category: "upload",
     executionKind: "editor",
@@ -256,6 +274,7 @@ const slashCommandGroupsById: Record<string, keyof MarkweaveMessages["slash"]["g
   emoji: "Insert",
   table: "Insert",
   separator: "Insert",
+  "block-math": "Insert",
   image: "Upload",
   video: "Upload",
   attachment: "Upload",
@@ -383,6 +402,11 @@ const slashCommandsZh: Record<string, LocalizedSlashCommandText> = {
     description: "插入一条水平分割线。",
     searchTerms: ["separator", "divider", "horizontal", "rule", "line", "分割线", "横线"],
   },
+  "block-math": {
+    label: "块公式",
+    description: "插入独立的数学公式块。",
+    searchTerms: ["math", "formula", "latex", "equation", "block math", "数学", "公式", "块公式"],
+  },
   image: {
     label: "图片",
     description: "插入图片。",
@@ -486,6 +510,11 @@ const slashCommandsEn: Record<string, LocalizedSlashCommandText> = {
     label: "Separator",
     description: "Insert a horizontal divider.",
     searchTerms: ["divider", "horizontal", "rule", "separator", "line", "分割线", "横线"],
+  },
+  "block-math": {
+    label: "Math block",
+    description: "Insert a standalone LaTeX formula block.",
+    searchTerms: ["math", "formula", "latex", "equation", "block math", "数学", "公式", "块公式"],
   },
   image: {
     label: "Image",
@@ -681,6 +710,18 @@ const messagesByLang: Record<MarkweaveLang, MarkweaveMessages> = {
       ariaLabel: "文档目录",
       itemAriaLabel: "跳转到标题",
     },
+    math: {
+      label: "公式",
+      inlineTitle: "编辑行内公式",
+      blockTitle: "编辑块公式",
+      latexLabel: "LaTeX",
+      latexPlaceholder: "\\\\frac{1}{2} 或 a^2 + b^2 = c^2",
+      previewLabel: "预览",
+      apply: "应用公式",
+      delete: "删除公式",
+      cancel: "取消",
+      invalidPreview: "公式暂时无法渲染，请检查 LaTeX。",
+    },
   },
   en: {
     common: {
@@ -856,6 +897,18 @@ const messagesByLang: Record<MarkweaveLang, MarkweaveMessages> = {
     toc: {
       ariaLabel: "Document outline",
       itemAriaLabel: "Jump to heading",
+    },
+    math: {
+      label: "Formula",
+      inlineTitle: "Edit inline formula",
+      blockTitle: "Edit math block",
+      latexLabel: "LaTeX",
+      latexPlaceholder: "\\\\frac{1}{2} or a^2 + b^2 = c^2",
+      previewLabel: "Preview",
+      apply: "Apply formula",
+      delete: "Delete formula",
+      cancel: "Cancel",
+      invalidPreview: "Formula cannot be rendered yet. Check the LaTeX.",
     },
   },
 } as const;
