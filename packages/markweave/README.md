@@ -66,27 +66,34 @@ function handleUpdate({ markdown }: { markdown: string }) {
 
 ### Vue 2
 
-```js
-import Vue from "vue";
+Vue CLI 4 / Webpack 4 projects must install `vue-template-compiler` with the same `2.6.x` version as Vue.
+
+```vue
+<template>
+  <MarkweaveEditor
+    default-content="# Hello Markweave\n\nStart writing in **Markdown**."
+    mode="live"
+    :on-update="handleUpdate"
+  />
+</template>
+
+<script>
 import { MarkweaveEditor } from "markweave/vue2";
 import "markweave/styles.css";
 
-new Vue({
+export default {
+  name: "Editor",
   components: { MarkweaveEditor },
-  template: `
-    <MarkweaveEditor
-      default-content="# Hello Markweave\n\nStart writing in **Markdown**."
-      mode="live"
-      :on-update="handleUpdate"
-    />
-  `,
   methods: {
     handleUpdate({ markdown }) {
       console.log(markdown);
     },
   },
-}).$mount("#app");
+};
+</script>
 ```
+
+You can import `markweave/styles.css` once in the app entry instead of inside each component.
 
 `defaultContent` and controlled `content` are Markdown by default. Use `defaultContentFormat="html"` or `contentFormat="html"` when migrating an existing HTML integration. `onUpdate.markdown` is the recommended storage output; `html`, `json`, and `text` remain available.
 

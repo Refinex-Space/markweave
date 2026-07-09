@@ -92,6 +92,7 @@ No publish script is configured as of the 2026-07-05 scan. Before publishing, ve
 
 - package exports still match `packages/markweave/package.json`
 - `packages/markweave/dist/index.js`, `dist/react.js`, `dist/vue2.js`, `dist/vue3.js`, `dist/types/index.d.ts`, and `dist/styles.css` are produced by `pnpm build`
+- `pnpm --filter markweave pack --dry-run` includes only package files such as `dist`, root adapter shims, `styles.css`, `README.md`, `LICENSE`, and package metadata
 - playground-only files are not included in package `files`
 - README usage examples match the exported API
 

@@ -12,6 +12,13 @@ const playgroundSources = {
   vue3: readFileSync(resolve(workspaceRoot, "apps/playground-vue3/src/MarkweaveEditorPlayground.vue"), "utf8"),
 };
 
+const readmeSources = {
+  root: readFileSync(resolve(workspaceRoot, "README.md"), "utf8"),
+  package: readFileSync(resolve(workspaceRoot, "packages/markweave/README.md"), "utf8"),
+};
+
+const runbookSource = readFileSync(resolve(workspaceRoot, "docs/guides/runbook.md"), "utf8");
+
 const requiredEditorProps = [
   ["autoFocusFirstTableBodyCell", "auto-focus-first-table-body-cell"],
   ["defaultContentFormat", "default-content-format"],
@@ -72,5 +79,23 @@ describe("playground integration contract", () => {
         expect(source, `${framework} playground should expose ${testId}`).toContain(testId);
       }
     }
+  });
+
+  it("documents framework-native published integration shapes", () => {
+    for (const [name, source] of Object.entries(readmeSources)) {
+      expect(source, `${name} README should document React TSX usage`).toContain('from "markweave/react"');
+      expect(source, `${name} README should document Vue 3 SFC usage`).toContain('<script setup lang="ts">');
+      expect(source, `${name} README should document Vue 2 SFC usage`).toContain("Vue CLI 4 / Webpack 4 projects must install `vue-template-compiler`");
+      expect(source, `${name} README should document Vue 2 SFC template`).toContain("<template>");
+      expect(source, `${name} README should document Vue 2 component registration`).toContain("components: { MarkweaveEditor }");
+      expect(source, `${name} README should not use inline Vue 2 root templates`).not.toContain("new Vue({");
+      expect(source, `${name} README should document shared stylesheet import`).toContain('import "markweave/styles.css";');
+      expect(source, `${name} README should allow app-level stylesheet import`).toContain("You can import `markweave/styles.css` once in the app entry");
+    }
+  });
+
+  it("documents package dry-run verification before publishing", () => {
+    expect(runbookSource).toContain("pnpm --filter markweave pack --dry-run");
+    expect(runbookSource).toContain("playground-only files are not included in package `files`");
   });
 });
