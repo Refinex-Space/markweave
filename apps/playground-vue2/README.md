@@ -20,4 +20,6 @@ Open `http://127.0.0.1:5175/`.
 
 ## Integration Shape
 
-The playground aliases `markweave`, `markweave/vue2`, and `markweave/styles.css` to local source files so adapter changes can be inspected without publishing a package. Published consumers should install `markweave` plus the Vue 2 peers documented in the root README, then import from `markweave/vue2`.
+`src/MarkweaveEditorPlayground.vue` is a normal Vue single-file component using `<template>` plus Vue 2 Options API `<script>`, matching the shape published consumers are expected to copy into Vue CLI 4 / Webpack 4 projects.
+
+The playground aliases `markweave`, `markweave/vue2`, and `markweave/styles.css` to local source files so adapter changes can be inspected without publishing a package. Published consumers should install `markweave` plus the Vue 2 peers documented in the root README, import from `markweave/vue2`, and import `markweave/styles.css` once in their app entry.

@@ -19,4 +19,6 @@ Open `http://127.0.0.1:5174/`.
 
 ## Integration Shape
 
-The playground aliases `markweave`, `markweave/vue3`, and `markweave/styles.css` to local source files so adapter changes can be inspected without publishing a package. Published consumers should install `markweave` plus the Vue 3 peers documented in the root README, then import from `markweave/vue3`.
+`src/MarkweaveEditorPlayground.vue` is a normal Vue single-file component using `<template>` plus `<script setup lang="ts">`, matching the shape published consumers are expected to copy into Vue 3 projects.
+
+The playground aliases `markweave`, `markweave/vue3`, and `markweave/styles.css` to local source files so adapter changes can be inspected without publishing a package. Published consumers should install `markweave` plus the Vue 3 peers documented in the root README, import from `markweave/vue3`, and import `markweave/styles.css` once in their app entry.

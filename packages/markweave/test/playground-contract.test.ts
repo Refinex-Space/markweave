@@ -8,20 +8,20 @@ const workspaceRoot = resolve(fileURLToPath(new URL("../../..", import.meta.url)
 
 const playgroundSources = {
   react: readFileSync(resolve(workspaceRoot, "apps/playground-react/src/MarkweaveEditorPlayground.tsx"), "utf8"),
-  vue2: readFileSync(resolve(workspaceRoot, "apps/playground-vue2/src/MarkweaveEditorPlayground.js"), "utf8"),
-  vue3: readFileSync(resolve(workspaceRoot, "apps/playground-vue3/src/MarkweaveEditorPlayground.ts"), "utf8"),
+  vue2: readFileSync(resolve(workspaceRoot, "apps/playground-vue2/src/MarkweaveEditorPlayground.vue"), "utf8"),
+  vue3: readFileSync(resolve(workspaceRoot, "apps/playground-vue3/src/MarkweaveEditorPlayground.vue"), "utf8"),
 };
 
 const requiredEditorProps = [
-  "autoFocusFirstTableBodyCell",
-  "defaultContentFormat",
-  "onEditWithAi",
-  "onExtractToNote",
-  "onRewriteSelection",
-  "onRuntimeStateChange",
-  "onSlashCommandUpload",
-  "onTableCommandResult",
-  "onTableCopyPayload",
+  ["autoFocusFirstTableBodyCell", "auto-focus-first-table-body-cell"],
+  ["defaultContentFormat", "default-content-format"],
+  ["onEditWithAi", "on-edit-with-ai"],
+  ["onExtractToNote", "on-extract-to-note"],
+  ["onRewriteSelection", "on-rewrite-selection"],
+  ["onRuntimeStateChange", "on-runtime-state-change"],
+  ["onSlashCommandUpload", "on-slash-command-upload"],
+  ["onTableCommandResult", "on-table-command-result"],
+  ["onTableCopyPayload", "on-table-copy-payload"],
 ] as const;
 
 describe("playground integration contract", () => {
@@ -53,10 +53,17 @@ describe("playground integration contract", () => {
 
   it("wires the complete editor callback surface in every playground", () => {
     for (const [framework, source] of Object.entries(playgroundSources)) {
-      for (const prop of requiredEditorProps) {
-        expect(source, `${framework} playground should wire ${prop}`).toContain(prop);
+      for (const propAliases of requiredEditorProps) {
+        expect(propAliases.some((prop) => source.includes(prop)), `${framework} playground should wire ${propAliases[0]}`).toBe(true);
       }
     }
+  });
+
+  it("keeps Vue playgrounds in single-file component form", () => {
+    expect(playgroundSources.vue2).toContain("<template>");
+    expect(playgroundSources.vue2).toContain("<script>");
+    expect(playgroundSources.vue3).toContain("<template>");
+    expect(playgroundSources.vue3).toContain('<script setup lang="ts">');
   });
 
   it("keeps debug surfaces discoverable across all playgrounds", () => {

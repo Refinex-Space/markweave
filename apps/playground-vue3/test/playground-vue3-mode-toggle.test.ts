@@ -3,7 +3,7 @@
 import { createApp, nextTick, type App } from "vue";
 import { afterEach, describe, expect, it } from "vitest";
 
-import { MarkweaveEditorPlayground } from "../src/MarkweaveEditorPlayground";
+import MarkweaveEditorPlayground from "../src/MarkweaveEditorPlayground.vue";
 
 let activeApp: App<Element> | null = null;
 let activeContainer: HTMLDivElement | null = null;
