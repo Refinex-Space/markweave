@@ -2,6 +2,8 @@
 
 Vue 3 adapter for Markweave.
 
+Full guide: [Vue 3 Integration](https://github.com/Refinex-Space/markweave/blob/main/docs/guides/vue3-integration.md) | [Vue 3 接入手册](https://github.com/Refinex-Space/markweave/blob/main/docs/guides/vue3-integration-zh-cn.md)
+
 ```sh
 pnpm add @markweave/vue3
 ```

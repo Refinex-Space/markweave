@@ -2,6 +2,12 @@
 
 Markdown-first WYSIWYG editor built on Tiptap and CodeMirror, providing Typora-like editing experience with block-level structure, slash commands, and rich text tooling.
 
+Full guides:
+
+- React: [English](https://github.com/Refinex-Space/markweave/blob/main/docs/guides/react-integration.md) | [中文](https://github.com/Refinex-Space/markweave/blob/main/docs/guides/react-integration-zh-cn.md)
+- Vue 3: [English](https://github.com/Refinex-Space/markweave/blob/main/docs/guides/vue3-integration.md) | [中文](https://github.com/Refinex-Space/markweave/blob/main/docs/guides/vue3-integration-zh-cn.md)
+- Vue 2: [English](https://github.com/Refinex-Space/markweave/blob/main/docs/guides/vue2-integration.md) | [中文](https://github.com/Refinex-Space/markweave/blob/main/docs/guides/vue2-integration-zh-cn.md)
+
 ## Install
 
 Install one Markweave adapter package in an existing framework app. React or Vue itself remains owned by the host app.
