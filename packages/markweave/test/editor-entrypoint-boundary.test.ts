@@ -21,6 +21,9 @@ const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const workspaceRoot = resolve(packageRoot, "../..");
 const readPackageFile = (path: string) => readFileSync(resolve(packageRoot, path), "utf8");
 const readWorkspaceFile = (path: string) => readFileSync(resolve(workspaceRoot, path), "utf8");
+const repositoryUrl = "git+https://github.com/Refinex-Space/markweave.git";
+const homepageUrl = "https://github.com/Refinex-Space/markweave#readme";
+const bugsUrl = "https://github.com/Refinex-Space/markweave/issues";
 
 function listProjectFiles(path: string): string[] {
   const absolutePath = resolve(packageRoot, path);
@@ -69,6 +72,36 @@ afterEach(() => {
 });
 
 describe("editor entrypoint boundary", () => {
+  it("keeps npm publishing metadata explicit for every publishable package", () => {
+    const packages = [
+      { path: "packages/markweave", scoped: false },
+      { path: "packages/markweave-react", scoped: true },
+      { path: "packages/markweave-vue2", scoped: true },
+      { path: "packages/markweave-vue3", scoped: true },
+    ] as const;
+
+    for (const item of packages) {
+      const packageJson = JSON.parse(readWorkspaceFile(`${item.path}/package.json`)) as {
+        bugs?: { url?: string };
+        homepage?: string;
+        keywords?: string[];
+        publishConfig?: { access?: string; registry?: string };
+        repository?: { directory?: string; type?: string; url?: string };
+      };
+
+      expect(packageJson.homepage).toBe(homepageUrl);
+      expect(packageJson.bugs).toEqual({ url: bugsUrl });
+      expect(packageJson.repository).toEqual({
+        directory: item.path,
+        type: "git",
+        url: repositoryUrl,
+      });
+      expect(packageJson.keywords).toEqual(expect.arrayContaining(["markdown", "wysiwyg", "editor", "tiptap", "prosemirror"]));
+      expect(packageJson.publishConfig?.registry).toBe("https://registry.npmjs.org/");
+      expect(packageJson.publishConfig?.access).toBe(item.scoped ? "public" : undefined);
+    }
+  });
+
   it("exports framework-neutral root APIs plus legacy adapter shims", async () => {
     const packageJson = JSON.parse(readPackageFile("package.json")) as { exports?: Record<string, { import?: string; types?: string } | string> };
     const indexSource = readPackageFile("src/index.ts");
@@ -172,6 +205,7 @@ describe("editor entrypoint boundary", () => {
   });
 
   it("keeps adapter package dependencies scoped to their owning frameworks", () => {
+    const corePackage = JSON.parse(readPackageFile("package.json")) as { version?: string };
     const reactPackage = JSON.parse(readWorkspaceFile("packages/markweave-react/package.json")) as {
       dependencies?: Record<string, string>;
       peerDependencies?: Record<string, string>;
@@ -184,18 +218,22 @@ describe("editor entrypoint boundary", () => {
       dependencies?: Record<string, string>;
       peerDependencies?: Record<string, string>;
     };
+    const publishedCoreDependency = `^${corePackage.version}`;
 
     expect(reactPackage.dependencies).toEqual(expect.objectContaining({ markweave: "workspace:^", "@tiptap/react": "^3.27.1" }));
+    expect(publishedCoreDependency).toBe("^0.1.0");
     expect(reactPackage.peerDependencies).toEqual({ react: "^18.2.0 || ^19.0.0", "react-dom": "^18.2.0 || ^19.0.0" });
     expect(reactPackage.dependencies).not.toHaveProperty("@tiptap/vue-2");
     expect(reactPackage.dependencies).not.toHaveProperty("@tiptap/vue-3");
 
     expect(vue2Package.dependencies).toEqual(expect.objectContaining({ markweave: "workspace:^", "@tiptap/vue-2": "3.27.1" }));
+    expect(publishedCoreDependency).toBe("^0.1.0");
     expect(vue2Package.peerDependencies).toEqual({ vue: "^2.6.12" });
     expect(vue2Package.dependencies).not.toHaveProperty("@tiptap/react");
     expect(vue2Package.dependencies).not.toHaveProperty("@tiptap/vue-3");
 
     expect(vue3Package.dependencies).toEqual(expect.objectContaining({ markweave: "workspace:^", "@tiptap/vue-3": "^3.27.1" }));
+    expect(publishedCoreDependency).toBe("^0.1.0");
     expect(vue3Package.peerDependencies).toEqual({ vue: "^3.3.0" });
     expect(vue3Package.dependencies).not.toHaveProperty("@tiptap/react");
     expect(vue3Package.dependencies).not.toHaveProperty("@tiptap/vue-2");

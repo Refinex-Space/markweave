@@ -4,6 +4,28 @@
   "type": "module",
   "description": "React adapter for the Markweave Markdown-first WYSIWYG editor.",
   "license": "MIT",
+  "keywords": [
+    "markdown",
+    "wysiwyg",
+    "editor",
+    "tiptap",
+    "prosemirror",
+    "react",
+    "markweave"
+  ],
+  "homepage": "https://github.com/Refinex-Space/markweave#readme",
+  "bugs": {
+    "url": "https://github.com/Refinex-Space/markweave/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Refinex-Space/markweave.git",
+    "directory": "packages/markweave-react"
+  },
+  "publishConfig": {
+    "registry": "https://registry.npmjs.org/",
+    "access": "public"
+  },
   "sideEffects": [
     "**/*.css"
   ],

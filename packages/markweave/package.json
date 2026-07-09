@@ -4,6 +4,29 @@
   "type": "module",
   "description": "Markdown-first WYSIWYG editor built on Tiptap and CodeMirror, providing Typora-like editing experience with block-level structure, slash commands, and rich text tooling.",
   "license": "MIT",
+  "keywords": [
+    "markdown",
+    "wysiwyg",
+    "editor",
+    "tiptap",
+    "prosemirror",
+    "mermaid",
+    "math",
+    "react",
+    "vue"
+  ],
+  "homepage": "https://github.com/Refinex-Space/markweave#readme",
+  "bugs": {
+    "url": "https://github.com/Refinex-Space/markweave/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Refinex-Space/markweave.git",
+    "directory": "packages/markweave"
+  },
+  "publishConfig": {
+    "registry": "https://registry.npmjs.org/"
+  },
   "sideEffects": [
     "**/*.css"
   ],

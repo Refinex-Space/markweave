@@ -11,6 +11,8 @@
     "dev:vue3": "pnpm --filter @markweave/playground-vue3 dev",
     "build": "pnpm --filter markweave build && pnpm --filter @markweave/react build && pnpm --filter @markweave/vue2 build && pnpm --filter @markweave/vue3 build && pnpm --filter @markweave/playground-react build && pnpm --filter @markweave/playground-vue2 build && pnpm --filter @markweave/playground-vue3 build",
     "build:vue2": "pnpm --filter @markweave/playground-vue2 build",
+    "release:pack": "pnpm --filter markweave pack --dry-run && pnpm --filter @markweave/react pack --dry-run && pnpm --filter @markweave/vue2 pack --dry-run && pnpm --filter @markweave/vue3 pack --dry-run",
+    "release:dry-run": "pnpm --filter markweave publish --dry-run --no-git-checks && pnpm --filter @markweave/react publish --dry-run --access public --no-git-checks && pnpm --filter @markweave/vue2 publish --dry-run --access public --no-git-checks && pnpm --filter @markweave/vue3 publish --dry-run --access public --no-git-checks",
     "typecheck": "pnpm -r typecheck",
     "test": "vitest run",
     "test:watch": "vitest",

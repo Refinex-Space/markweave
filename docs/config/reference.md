@@ -28,6 +28,8 @@ Do not introduce additional lockfiles or package-manager workflows without a sep
 | `dev:vue3` | `pnpm --filter @markweave/playground-vue3 dev` | Starts the private Vue 3 playground. |
 | `build` | `pnpm --filter markweave build && pnpm --filter @markweave/react build && pnpm --filter @markweave/vue2 build && pnpm --filter @markweave/vue3 build && pnpm --filter @markweave/playground-react build && pnpm --filter @markweave/playground-vue2 build && pnpm --filter @markweave/playground-vue3 build` | Builds the core package, adapter packages, then all playground apps. |
 | `build:vue2` | `pnpm --filter @markweave/playground-vue2 build` | Builds the private Vue 2 playground. |
+| `release:pack` | `pnpm --filter markweave pack --dry-run && pnpm --filter @markweave/react pack --dry-run && pnpm --filter @markweave/vue2 pack --dry-run && pnpm --filter @markweave/vue3 pack --dry-run` | Checks npm tarball contents for all publishable packages without publishing. |
+| `release:dry-run` | `pnpm --filter markweave publish --dry-run --no-git-checks && pnpm --filter @markweave/react publish --dry-run --access public --no-git-checks && pnpm --filter @markweave/vue2 publish --dry-run --access public --no-git-checks && pnpm --filter @markweave/vue3 publish --dry-run --access public --no-git-checks` | Exercises the publish command path for all publishable packages without publishing. |
 | `typecheck` | `pnpm -r typecheck` | Runs TypeScript checks across workspace projects. |
 | `test` | `vitest run` | Runs all Vitest tests. |
 | `test:watch` | `vitest` | Starts Vitest watch mode. |
@@ -53,6 +55,8 @@ The adapter packages build with Vite library mode:
 Adapter packages externalize `markweave`, `markweave/internal/*`, their Tiptap framework adapter, and the host framework runtime.
 
 ## Exports
+
+All publishable packages set npm metadata for the GitHub repository, issues page, discoverability keywords, and npm registry. Scoped adapter packages set `publishConfig.access` to `public`; the unscoped core package only pins `publishConfig.registry`.
 
 The public package exports are:
 
