@@ -24,8 +24,10 @@ import {
   createMarkweaveImageUploadRequest,
   createMarkweaveVideoUploadRequest,
   downloadMarkweaveImage,
+  markweaveVideoIframeAllow,
   MarkweaveCoreImage,
   MarkweaveCoreVideo,
+  normalizeMarkweaveVideoEmbedUrl,
   normalizeMarkweaveCoreImageAlign,
   numberAttribute,
   stringAttribute,
@@ -98,7 +100,7 @@ function isImageUiEventTarget(target: EventTarget | null) {
 }
 
 function isVideoUiEventTarget(target: EventTarget | null) {
-  return target instanceof Element && Boolean(target.closest('[data-markweave-video-ui="true"]'));
+  return target instanceof Element && Boolean(target.closest('[data-markweave-video-ui="true"], iframe[data-markweave-video-embed], video[data-markweave-video]'));
 }
 
 function icon(iconComponent: Component, label: string) {
@@ -649,6 +651,7 @@ const MarkweaveVueVideoNodeView = defineComponent({
     const src = computed(() => stringAttribute(attrs.value.src));
     const embedUrl = computed(() => stringAttribute(attrs.value.embedUrl));
     const provider = computed(() => stringAttribute(attrs.value.provider));
+    const safeEmbedUrl = computed(() => (embedUrl.value ? normalizeMarkweaveVideoEmbedUrl(embedUrl.value, provider.value) : null));
     const mimeType = computed(() => stringAttribute(attrs.value.mimeType));
     const title = computed(() => stringAttribute(attrs.value.title));
 
@@ -770,16 +773,16 @@ const MarkweaveVueVideoNodeView = defineComponent({
           },
         },
         () => [
-          embedUrl.value
+          safeEmbedUrl.value
             ? h("div", { class: "markweave-video-embed" }, [
                 h("iframe", {
                   class: "markweave-video-iframe",
-                  src: embedUrl.value,
+                  src: safeEmbedUrl.value,
                   title: title.value ?? `${provider.value ?? "Video"} embed`,
                   "data-markweave-video-embed": "true",
                   "data-markweave-video-provider": provider.value ?? undefined,
                   "data-markweave-video-src": src.value ?? undefined,
-                  allow: "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share",
+                  allow: markweaveVideoIframeAllow,
                   allowfullscreen: "true",
                 }),
                 canEdit.value

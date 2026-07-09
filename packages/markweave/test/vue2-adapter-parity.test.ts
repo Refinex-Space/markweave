@@ -113,6 +113,9 @@ describe("Vue2 adapter parity source contract", () => {
       "markweave-video-upload-placeholder",
       "markweave-video-selection-layer",
       "markweave-video-readonly-empty",
+      "markweaveVideoIframeAllow",
+      "normalizeMarkweaveVideoEmbedUrl",
+      "iframe[data-markweave-video-embed], video[data-markweave-video]",
       "data-markweave-image-ui",
       "data-markweave-video-ui",
     ]);

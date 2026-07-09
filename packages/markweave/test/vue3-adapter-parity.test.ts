@@ -155,6 +155,9 @@ describe("Vue3 adapter parity source contract", () => {
       "markweave-video-readonly-empty",
       "markweave-video-embed",
       "markweave-video-box",
+      "markweaveVideoIframeAllow",
+      "normalizeMarkweaveVideoEmbedUrl",
+      "iframe[data-markweave-video-embed], video[data-markweave-video]",
       "data-markweave-image-ui",
       "data-markweave-video-ui",
     ]);

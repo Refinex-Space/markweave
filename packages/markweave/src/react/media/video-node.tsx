@@ -11,7 +11,9 @@ import {
   attrsFromMarkweaveVideoUploadResult,
   attrsFromMarkweaveVideoUrl,
   createMarkweaveVideoUploadRequest,
+  markweaveVideoIframeAllow,
   MarkweaveCoreVideo,
+  normalizeMarkweaveVideoEmbedUrl,
   stringAttribute,
   type MarkweaveCoreVideoEmbed,
   type MarkweaveCoreVideoProvider,
@@ -32,7 +34,7 @@ export interface MarkweaveVideoOptions extends MarkweaveCoreVideoOptions {
 export type MarkweaveVideoEmbed = MarkweaveCoreVideoEmbed;
 
 function isVideoUiEventTarget(target: EventTarget | null) {
-  return target instanceof Element && Boolean(target.closest('[data-markweave-video-ui="true"]'));
+  return target instanceof Element && Boolean(target.closest('[data-markweave-video-ui="true"], iframe[data-markweave-video-embed], video[data-markweave-video]'));
 }
 
 function MarkweaveVideoNodeView(props: NodeViewProps) {
@@ -45,6 +47,7 @@ function MarkweaveVideoNodeView(props: NodeViewProps) {
   const src = stringAttribute(node.attrs.src);
   const embedUrl = stringAttribute(node.attrs.embedUrl);
   const provider = stringAttribute(node.attrs.provider);
+  const safeEmbedUrl = embedUrl ? normalizeMarkweaveVideoEmbedUrl(embedUrl, provider) : null;
   const mimeType = stringAttribute(node.attrs.mimeType);
   const title = stringAttribute(node.attrs.title);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -173,16 +176,16 @@ function MarkweaveVideoNodeView(props: NodeViewProps) {
       onKeyDown={deleteSelectedVideo}
       onMouseDown={selectVideoFromMouseDown}
     >
-      {embedUrl ? (
+      {safeEmbedUrl ? (
         <div className="markweave-video-embed">
           <iframe
             className="markweave-video-iframe"
-            src={embedUrl}
+            src={safeEmbedUrl}
             title={title ?? `${provider ?? "Video"} embed`}
             data-markweave-video-embed="true"
             data-markweave-video-provider={provider ?? undefined}
             data-markweave-video-src={src ?? undefined}
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+            allow={markweaveVideoIframeAllow}
             allowFullScreen
           />
           {canEditVideo ? <button type="button" className="markweave-video-selection-layer" data-testid="markweave-video-selection-layer" tabIndex={-1} aria-label={videoMessages.selectAriaLabel} /> : null}

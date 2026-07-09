@@ -10,6 +10,8 @@ export interface MarkweaveCoreVideoEmbed {
   readonly embedUrl: string;
 }
 
+export const markweaveVideoIframeAllow = "accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share";
+
 export interface MarkweaveCoreVideoOptions {
   readonly HTMLAttributes: Record<string, unknown>;
 }
@@ -131,6 +133,28 @@ function toHttpsUrl(url: URL) {
   return nextUrl.toString();
 }
 
+export function normalizeMarkweaveVideoEmbedUrl(input: string, provider?: MarkweaveCoreVideoProvider | string | null) {
+  const url = normalizeVideoUrl(input);
+
+  if (!url) {
+    return input;
+  }
+
+  const host = url.hostname.replace(/^www\./, "").toLowerCase();
+  const detectedProvider = host.includes("youtube") || host === "youtu.be" ? "youtube" : host.endsWith("bilibili.com") ? "bilibili" : null;
+  const normalizedProvider = detectedProvider ?? provider;
+  const nextUrl = new URL(url.href);
+  nextUrl.protocol = "https:";
+
+  if (normalizedProvider === "bilibili") {
+    nextUrl.searchParams.set("autoplay", "0");
+  } else if (normalizedProvider === "youtube" && nextUrl.searchParams.has("autoplay")) {
+    nextUrl.searchParams.set("autoplay", "0");
+  }
+
+  return nextUrl.toString();
+}
+
 function firstMatchValue(url: URL, keys: readonly string[]) {
   for (const key of keys) {
     const value = url.searchParams.get(key);
@@ -161,7 +185,7 @@ export function parseMarkweaveVideoEmbed(input: string): MarkweaveCoreVideoEmbed
     const pathParts = url.pathname.split("/").filter(Boolean);
 
     if (pathParts[0] === "embed" && pathParts[1]) {
-      return { provider: "youtube", embedUrl: toHttpsUrl(url) };
+      return { provider: "youtube", embedUrl: normalizeMarkweaveVideoEmbedUrl(toHttpsUrl(url), "youtube") };
     }
 
     const id = pathParts[0] === "shorts" ? pathParts[1] : url.searchParams.get("v");
@@ -170,7 +194,7 @@ export function parseMarkweaveVideoEmbed(input: string): MarkweaveCoreVideoEmbed
 
   if (host === "player.bilibili.com" && url.pathname === "/player.html") {
     const hasVideoIdentity = ["aid", "bvid", "cid"].some((key) => url.searchParams.has(key));
-    return hasVideoIdentity ? { provider: "bilibili", embedUrl: toHttpsUrl(url) } : null;
+    return hasVideoIdentity ? { provider: "bilibili", embedUrl: normalizeMarkweaveVideoEmbedUrl(toHttpsUrl(url), "bilibili") } : null;
   }
 
   if (host.endsWith("bilibili.com")) {
@@ -195,7 +219,7 @@ export function parseMarkweaveVideoEmbed(input: string): MarkweaveCoreVideoEmbed
     }
 
     const query = params.toString();
-    return query ? { provider: "bilibili", embedUrl: `https://player.bilibili.com/player.html?${query}` } : null;
+    return query ? { provider: "bilibili", embedUrl: normalizeMarkweaveVideoEmbedUrl(`https://player.bilibili.com/player.html?${query}`, "bilibili") } : null;
   }
 
   return null;
@@ -211,7 +235,7 @@ export function attrsFromMarkweaveVideoUrl(url: string) {
 
   if (embed) {
     return {
-      src: url.trim(),
+      src: normalizeMarkweaveVideoEmbedUrl(url.trim(), embed.provider),
       embedUrl: embed.embedUrl,
       provider: embed.provider,
       mimeType: null,
@@ -279,10 +303,12 @@ function getImageAttrsFromElement(element: Element) {
 function getVideoAttrsFromElement(element: Element) {
   if (element.matches("iframe[data-markweave-video-embed]")) {
     const iframe = element as HTMLIFrameElement;
+    const provider = stringAttribute(iframe.getAttribute("data-markweave-video-provider"));
+    const src = stringAttribute(iframe.getAttribute("data-markweave-video-src")) ?? iframe.src;
     return {
-      src: stringAttribute(iframe.getAttribute("data-markweave-video-src")) ?? iframe.src,
-      embedUrl: iframe.src,
-      provider: stringAttribute(iframe.getAttribute("data-markweave-video-provider")),
+      src: normalizeMarkweaveVideoEmbedUrl(src, provider),
+      embedUrl: normalizeMarkweaveVideoEmbedUrl(iframe.src, provider),
+      provider,
       title: stringAttribute(iframe.getAttribute("title")),
       mimeType: null,
     };
@@ -516,18 +542,19 @@ export const MarkweaveCoreVideo = Node.create<MarkweaveCoreVideoOptions>({
     }
 
     if (embedUrl) {
+      const safeEmbedUrl = normalizeMarkweaveVideoEmbedUrl(embedUrl, provider);
       return [
         "iframe",
         mergeAttributes(
           HTMLAttributes,
           compactAttributes({
             class: "markweave-video-iframe",
-            src: embedUrl,
+            src: safeEmbedUrl,
             title: stringAttribute(node.attrs.title) ?? `${provider ?? "Video"} embed`,
             "data-markweave-video-embed": "true",
             "data-markweave-video-provider": provider,
             "data-markweave-video-src": src,
-            allow: "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share",
+            allow: markweaveVideoIframeAllow,
             allowfullscreen: "true",
           }),
         ),
@@ -561,14 +588,15 @@ export const MarkweaveCoreVideo = Node.create<MarkweaveCoreVideoOptions>({
     }
 
     if (embedUrl) {
+      const safeEmbedUrl = normalizeMarkweaveVideoEmbedUrl(embedUrl, provider);
       return `<iframe ${renderHtmlAttributes({
         class: "markweave-video-iframe",
-        src: embedUrl,
+        src: safeEmbedUrl,
         title: stringAttribute(node.attrs?.title) ?? `${provider ?? "Video"} embed`,
         "data-markweave-video-embed": "true",
         "data-markweave-video-provider": provider,
         "data-markweave-video-src": src,
-        allow: "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share",
+        allow: markweaveVideoIframeAllow,
         allowfullscreen: "true",
       })}></iframe>`;
     }
