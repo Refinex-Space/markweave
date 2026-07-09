@@ -49,6 +49,7 @@ describe("Vue2 adapter parity source contract", () => {
       "setMermaidInlinePreviewEditorMode",
       "getMarkweaveMathTargetFromDomEvent",
       "setMarkweaveMathEditingDomState",
+      "setMarkweaveMathEditingDomStateInView(view, nextMathTarget, true)",
       "setMarkweaveMathSelectionInView",
       "VueMathEditorPopover",
       "getMarkweaveTocItems",

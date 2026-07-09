@@ -1,11 +1,17 @@
 // @vitest-environment jsdom
 
+import { readFileSync } from "node:fs";
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import { act, createElement, type ReactNode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { MarkweaveEditor } from "../src/react";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+
+const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+const readProjectFile = (path: string) => readFileSync(resolve(repoRoot, path), "utf8");
 
 let activeRoot: Root | null = null;
 let activeContainer: HTMLDivElement | null = null;
@@ -110,6 +116,15 @@ afterEach(() => {
 });
 
 describe("math editor popover", () => {
+  it("marks clicked math nodes as editing before rendering the React popover state", () => {
+    const source = readProjectFile("src/react/MarkweaveEditor.tsx");
+    const markEditingIndex = source.indexOf("setMarkweaveMathEditingDomStateInView(view, nextMathTarget, true);");
+    const renderStateIndex = source.indexOf("setMathTarget(nextMathTarget);", markEditingIndex);
+
+    expect(markEditingIndex).toBeGreaterThan(-1);
+    expect(renderStateIndex).toBeGreaterThan(markEditingIndex);
+  });
+
   it("opens inline math in Live mode and applies edited LaTeX", async () => {
     const container = await renderReact(
       createElement(MarkweaveEditor, {

@@ -115,6 +115,7 @@ describe("Vue3 adapter parity source contract", () => {
       "markweave-mermaid-fullscreen-content",
       "getMarkweaveMathTargetFromDomEvent",
       "setMarkweaveMathEditingDomState",
+      "setMarkweaveMathEditingDomStateInView(view, nextMathTarget, true)",
       "setMarkweaveMathSelectionInView",
       "VueMathEditorPopover",
       "markweave-math-editor-popover",

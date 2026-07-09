@@ -163,6 +163,7 @@ import {
   getMarkweaveMathTargetFromSelection,
   renderMarkweaveMathPreview,
   setMarkweaveMathEditingDomState,
+  setMarkweaveMathEditingDomStateInView,
   setMarkweaveMathSelectionInView,
   type MarkweaveMathPopoverPosition,
   type MarkweaveMathTarget,
@@ -2458,6 +2459,7 @@ export function useMarkweaveEditorController(options: MarkweaveVue3EditorControl
         event.preventDefault();
         event.stopPropagation();
         closeSlashMenu();
+        setMarkweaveMathEditingDomStateInView(view, nextMathTarget, true);
         setMarkweaveMathSelectionInView(view, nextMathTarget);
         mathTarget.value = nextMathTarget;
         return true;
@@ -2490,6 +2492,7 @@ export function useMarkweaveEditorController(options: MarkweaveVue3EditorControl
           event.preventDefault();
           event.stopPropagation();
           closeSlashMenu();
+          setMarkweaveMathEditingDomStateInView(view, nextMathTarget, true);
           setMarkweaveMathSelectionInView(view, nextMathTarget);
           mathTarget.value = nextMathTarget;
           return true;
@@ -2560,6 +2563,7 @@ export function useMarkweaveEditorController(options: MarkweaveVue3EditorControl
     selectionSnapshot.value = createSelectionSnapshot(activeEditor);
     const selectedMathTarget = getMarkweaveMathTargetFromSelection(activeEditor);
     if (selectedMathTarget) {
+      setMarkweaveMathEditingDomState(activeEditor, selectedMathTarget, true);
       mathTarget.value = selectedMathTarget;
     }
     const codeBlock = getActiveCodeBlockState(activeEditor);

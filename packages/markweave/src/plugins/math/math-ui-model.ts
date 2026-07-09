@@ -98,16 +98,20 @@ function getInlineMathSourceWidth(anchorWidth: number, latex?: string) {
   return Math.max(anchorWidth, sourceWidth);
 }
 
-function getMarkweaveMathNodeElement(editor: Editor, target: MarkweaveMathTarget): HTMLElement | null {
+function getMarkweaveMathNodeElementFromView(view: EditorView, target: MarkweaveMathTarget): HTMLElement | null {
   let nodeDom: unknown;
 
   try {
-    nodeDom = editor.view.nodeDOM(target.pos);
+    nodeDom = view.nodeDOM(target.pos);
   } catch {
     return null;
   }
 
   return nodeDom instanceof HTMLElement ? nodeDom : null;
+}
+
+function getMarkweaveMathNodeElement(editor: Editor, target: MarkweaveMathTarget): HTMLElement | null {
+  return getMarkweaveMathNodeElementFromView(editor.view, target);
 }
 
 export function getMarkweaveMathTargetAtPos(editor: Editor, pos: number): MarkweaveMathTarget | null {
@@ -454,7 +458,11 @@ export function getMarkweaveMathBlockIndex(editor: Editor, target: MarkweaveMath
 }
 
 export function setMarkweaveMathEditingDomState(editor: Editor, target: MarkweaveMathTarget, editing: boolean) {
-  const nodeDom = getMarkweaveMathNodeElement(editor, target);
+  return setMarkweaveMathEditingDomStateInView(editor.view, target, editing);
+}
+
+export function setMarkweaveMathEditingDomStateInView(view: EditorView, target: MarkweaveMathTarget, editing: boolean) {
+  const nodeDom = getMarkweaveMathNodeElementFromView(view, target);
 
   if (!nodeDom) {
     return false;

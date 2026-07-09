@@ -19,6 +19,8 @@ import {
   getMarkweaveMathTargetAtPos,
   getMarkweaveMathTargetFromDomEvent,
   getMarkweaveMathTargetFromSelection,
+  setMarkweaveMathEditingDomState,
+  setMarkweaveMathEditingDomStateInView,
   setMarkweaveMathSelectionInView,
   type MarkweaveMathTarget,
 } from "../plugins/math/math-ui-model";
@@ -306,6 +308,7 @@ export function useMarkweaveEditorController({
     setSelectionSnapshot(createSelectionSnapshot(editor));
     const selectedMathTarget = getMarkweaveMathTargetFromSelection(editor);
     if (selectedMathTarget) {
+      setMarkweaveMathEditingDomState(editor, selectedMathTarget, true);
       setMathTarget(selectedMathTarget);
     }
 
@@ -367,6 +370,7 @@ export function useMarkweaveEditorController({
               event.preventDefault();
               event.stopPropagation();
               closeSlashMenu();
+              setMarkweaveMathEditingDomStateInView(view, nextMathTarget, true);
               setMarkweaveMathSelectionInView(view, nextMathTarget);
               setMathTarget(nextMathTarget);
               return true;
