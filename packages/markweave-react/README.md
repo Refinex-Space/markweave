@@ -2,6 +2,8 @@
 
 React adapter for Markweave.
 
+Full guide: [React Integration](https://github.com/Refinex-Space/markweave/blob/main/docs/guides/react-integration.md) | [React 接入手册](https://github.com/Refinex-Space/markweave/blob/main/docs/guides/react-integration-zh-cn.md)
+
 ```sh
 pnpm add @markweave/react
 ```

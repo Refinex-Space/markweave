@@ -1,8 +1,20 @@
 # markweave
 
+Language: English | [中文](./README.zh-CN.md)
+
 Markdown-first WYSIWYG editor built on Tiptap and CodeMirror, providing Typora-like editing experience with block-level structure, slash commands, and rich text tooling.
 
 Markweave publishes a framework-neutral core package plus React, Vue 2, and Vue 3 adapter packages. The playground apps are private workspace demos for local development checks and are not included in any npm package.
+
+## Full Integration Guides
+
+Read the guide for your framework when integrating the complete editor surface, including Markdown storage, uploads, Live/View mode, TOC, table callbacks, AI callbacks, media nodes, Mermaid, math, and production notes.
+
+| Framework | English | Chinese |
+| --- | --- | --- |
+| React | [React Integration](./docs/guides/react-integration.md) | [React 接入手册](./docs/guides/react-integration-zh-cn.md) |
+| Vue 3 | [Vue 3 Integration](./docs/guides/vue3-integration.md) | [Vue 3 接入手册](./docs/guides/vue3-integration-zh-cn.md) |
+| Vue 2 | [Vue 2 Integration](./docs/guides/vue2-integration.md) | [Vue 2 接入手册](./docs/guides/vue2-integration-zh-cn.md) |
 
 ## Install
 

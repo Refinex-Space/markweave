@@ -18,6 +18,9 @@ const readmeSources = {
 };
 
 const runbookSource = readFileSync(resolve(workspaceRoot, "docs/guides/runbook.md"), "utf8");
+const rootPackageJson = JSON.parse(readFileSync(resolve(workspaceRoot, "package.json"), "utf8")) as {
+  scripts?: Record<string, string>;
+};
 
 const requiredEditorProps = [
   ["autoFocusFirstTableBodyCell", "auto-focus-first-table-body-cell"],
@@ -98,10 +101,17 @@ describe("playground integration contract", () => {
   });
 
   it("documents package dry-run verification before publishing", () => {
+    expect(rootPackageJson.scripts?.["release:pack"]).toContain("pnpm --filter markweave pack --dry-run");
+    expect(rootPackageJson.scripts?.["release:pack"]).toContain("pnpm --filter @markweave/react pack --dry-run");
+    expect(rootPackageJson.scripts?.["release:dry-run"]).toContain("pnpm --filter markweave publish --dry-run --no-git-checks");
+    expect(rootPackageJson.scripts?.["release:dry-run"]).toContain("pnpm --filter @markweave/react publish --dry-run --access public --no-git-checks");
     expect(runbookSource).toContain("pnpm --filter markweave pack --dry-run");
     expect(runbookSource).toContain("pnpm --filter @markweave/react pack --dry-run");
     expect(runbookSource).toContain("pnpm --filter @markweave/vue2 pack --dry-run");
     expect(runbookSource).toContain("pnpm --filter @markweave/vue3 pack --dry-run");
+    expect(runbookSource).toContain("pnpm release:pack");
+    expect(runbookSource).toContain("pnpm release:dry-run");
+    expect(runbookSource).toContain("publishConfig.access");
     expect(runbookSource).toContain("playground-only files are not included in package `files`");
   });
 });
