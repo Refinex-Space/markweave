@@ -1,12 +1,6 @@
 import Vue from "vue";
-import {
-  MarkweaveEditor,
-} from "markweave/vue2";
-import { initialPlaygroundDocument, mergedTablePlaygroundDocument } from "@markweave/playground-fixtures";
-
-function getUploadResultName(value) {
-  return value.split("/").filter(Boolean).pop();
-}
+import { MarkweaveEditor } from "markweave/vue2";
+import { createPlaygroundUploadResult, initialPlaygroundDocument, mergedTablePlaygroundDocument } from "@markweave/playground-fixtures";
 
 function debugBlock(h, testId, title, value) {
   return h("div", { class: "markweave-debug-ai", attrs: { "data-testid": testId } }, [
@@ -78,25 +72,7 @@ export const MarkweaveEditorPlayground = Vue.extend({
     },
     handleSlashUpload(request) {
       this.lastSlashUploadRequest = request;
-
-      if (request.source.file) {
-        return {
-          src: URL.createObjectURL(request.source.file),
-          name: request.source.file.name,
-          mimeType: request.source.file.type,
-          size: request.source.file.size,
-        };
-      }
-
-      if (request.source.value) {
-        return {
-          src: request.source.value,
-          name: getUploadResultName(request.source.value),
-          mimeType: request.source.mimeType,
-        };
-      }
-
-      throw new Error("Unsupported upload source.");
+      return createPlaygroundUploadResult(request);
     },
   },
   render(h) {

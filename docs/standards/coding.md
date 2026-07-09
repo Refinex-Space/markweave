@@ -1,6 +1,6 @@
 ---
 owner: refinex
-updated: 2026-07-08
+updated: 2026-07-09
 status: active
 referenced_by: AGENTS.md#knowledge-map
 ---
@@ -20,6 +20,7 @@ referenced_by: AGENTS.md#knowledge-map
 
 - Treat React, Vue 2, and Vue 3 as three bindings over the same editor behavior, not three independent implementations.
 - Put Markdown parse/serialize rules, content payload shaping, upload request/result mapping, slash command detection, table behavior, codeblock and Mermaid state, TOC state, and mode/read-only decisions in `src/core`, `src/editor-core`, or `src/plugins`.
+- Keep floating toolbar menu data, color values, link commands, assistant request payloads, content comparison, update payload shaping, and read-only link opening in `src/editor-core` rather than in a framework adapter.
 - Keep adapter files limited to lifecycle, prop wiring, framework NodeView rendering, DOM/event binding, framework-specific icons, and view composition.
 - Before duplicating logic between adapters, extract the smallest framework-neutral helper that all three adapters can call. If a framework limitation blocks sharing, keep the duplicated code narrow and add parity coverage.
 - For Vue 2, preserve Vue CLI 4 / Webpack 4 compatibility: do not rely on Vite behavior, Vue 3-only APIs, package `exports`-only resolution, or modern syntax that the Vue 2 playground cannot build.
@@ -35,7 +36,7 @@ Before changing an editor behavior, identify the owning area:
 | Tables | `packages/markweave/src/plugins/table/` plus adapter table controls in `src/react`, `src/vue2`, and `src/vue3` |
 | Code blocks | `packages/markweave/src/plugins/codeblock/` plus adapter codeblock controls in `src/react`, `src/vue2`, and `src/vue3` |
 | Mermaid preview | `packages/markweave/src/plugins/mermaid/` plus adapter preview controls in `src/react`, `src/vue2`, and `src/vue3` |
-| Floating toolbar | Shared toolbar models and adapter rendering under `src/react`, `src/vue2`, and `src/vue3` |
+| Floating toolbar | `packages/markweave/src/editor-core/floating-toolbar-model.ts` plus adapter rendering under `src/react`, `src/vue2`, and `src/vue3` |
 | React shell/controller | `packages/markweave/src/react/MarkweaveEditor.tsx` |
 | Vue 2 shell/controller | `packages/markweave/src/vue2/MarkweaveEditor.ts` |
 | Vue 3 shell/controller | `packages/markweave/src/vue3/MarkweaveEditor.ts` |

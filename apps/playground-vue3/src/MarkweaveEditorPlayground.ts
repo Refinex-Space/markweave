@@ -12,11 +12,7 @@ import {
   type TableCommandResult,
   type TableEditWithAiRequest,
 } from "markweave/vue3";
-import { initialPlaygroundDocument, mergedTablePlaygroundDocument } from "@markweave/playground-fixtures";
-
-function getUploadResultName(value: string) {
-  return value.split("/").filter(Boolean).at(-1);
-}
+import { createPlaygroundUploadResult, initialPlaygroundDocument, mergedTablePlaygroundDocument } from "@markweave/playground-fixtures";
 
 function debugBlock(testId: string, title: string, value: unknown) {
   return h("div", { class: "markweave-debug-ai", "data-testid": testId }, [h("div", null, title), h("pre", null, JSON.stringify(value, null, 2))]);
@@ -54,24 +50,7 @@ export const MarkweaveEditorPlayground = defineComponent({
 
     const handleSlashUpload = (request: MarkweaveUploadRequest): MarkweaveUploadResult => {
       lastSlashUploadRequest.value = request;
-      if (request.source.file) {
-        return {
-          src: URL.createObjectURL(request.source.file),
-          name: request.source.file.name,
-          mimeType: request.source.file.type,
-          size: request.source.file.size,
-        };
-      }
-
-      if (request.source.value) {
-        return {
-          src: request.source.value,
-          name: getUploadResultName(request.source.value),
-          mimeType: request.source.mimeType,
-        };
-      }
-
-      throw new Error("Unsupported upload source.");
+      return createPlaygroundUploadResult(request);
     };
 
     const isLiveMode = computed(() => editorMode.value === "live");

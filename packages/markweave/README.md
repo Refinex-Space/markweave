@@ -4,8 +4,24 @@ Markdown-first WYSIWYG editor built on Tiptap and CodeMirror, providing Typora-l
 
 ## Install
 
+Install `markweave` with the framework adapter peers you use.
+
+### React
+
 ```sh
-pnpm add markweave
+pnpm add markweave @tiptap/react react react-dom lucide-react
+```
+
+### Vue 3
+
+```sh
+pnpm add markweave @tiptap/vue-3 vue lucide-vue-next
+```
+
+### Vue 2
+
+```sh
+pnpm add markweave @tiptap/vue-2 vue@2.6.12 vue-template-compiler@2.6.12
 ```
 
 ## Usage
@@ -79,6 +95,21 @@ new Vue({
 Math formulas are editable in Live mode: click inline `$...$` or display `$$...$$` formulas to open the in-place LaTeX editor. View mode keeps formulas read-only while preserving the rendered layout.
 
 `innerToc` defaults to `true` and shows a built-in right-side outline derived from document headings. Set `innerToc={false}` when rendering your own outline from `onTocChange` or `runtimeSnapshot.toc`.
+
+## Framework Parity
+
+| Capability | React | Vue 3 | Vue 2 |
+| --- | --- | --- | --- |
+| Markdown input/output | Yes | Yes | Yes |
+| Live/View mode | Yes | Yes | Yes |
+| Floating toolbar | Yes | Yes | Yes |
+| Slash command menu | Yes | Yes | Yes |
+| Tables and clipboard callbacks | Yes | Yes | Yes |
+| Image/video/attachment rendering | Yes | Yes | Yes |
+| Code blocks and Mermaid | Yes | Yes | Yes |
+| Math editing/rendering | Yes | Yes | Yes |
+| Inner TOC | Yes | Yes | Yes |
+| Upload and AI callbacks | Yes | Yes | Yes |
 
 ## Exports
 

@@ -17,13 +17,11 @@ describe("Vue2 adapter parity source contract", () => {
 
     expectSourceContract(source, [
       "createMarkweaveCoreEditorExtensions",
-      "getMarkweaveMessages",
-      "MarkweaveVueImage.configure",
-      "MarkweaveVueVideo.configure",
+      "createMarkweaveAdapterMediaExtensions",
+      "image: MarkweaveVueImage",
+      "video: MarkweaveVueVideo",
       "onImageUpload",
       "onVideoUpload",
-      "class: \"markweave-image\"",
-      "class: \"markweave-video\"",
     ]);
   });
 
@@ -34,6 +32,12 @@ describe("Vue2 adapter parity source contract", () => {
       "@tiptap/vue-2",
       "@tiptap/vue-2/menus",
       "createMarkweaveVue2EditorExtensions",
+      "createMarkweaveEditorUpdatePayload",
+      "createMarkweaveEditorRuntimeSnapshot",
+      "openMarkweaveReadonlyLinkFromEvent",
+      "getFloatingToolbarTurnIntoOptions",
+      "getFloatingToolbarTextColorOptions",
+      "runFloatingToolbarMoreAction",
       "createSelectionSnapshot",
       "shouldShowFloatingToolbar",
       "getSlashCommandContext",

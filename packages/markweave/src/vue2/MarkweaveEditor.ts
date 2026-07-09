@@ -66,6 +66,25 @@ import {
   type Ref,
 } from "./vue2-compat";
 import { isEditorComposing } from "../editor-core/composition-guard";
+import {
+  createMarkweaveEditorUpdatePayload,
+  getMarkweaveContentType,
+  isEditorContentCurrent,
+  normalizeMarkweaveContentFormat,
+} from "../editor-core/editor-content";
+import {
+  getCurrentFloatingToolbarBlockType,
+  getFloatingToolbarHighlightColorOptions,
+  getFloatingToolbarMoreActions,
+  getFloatingToolbarTextColorOptions,
+  getFloatingToolbarTurnIntoOptions,
+  runFloatingToolbarMoreAction,
+  setFloatingToolbarTurnInto,
+  type FloatingToolbarMoreActionId,
+  type FloatingToolbarTurnIntoId,
+} from "../editor-core/floating-toolbar-model";
+import { openMarkweaveReadonlyLinkFromEvent } from "../editor-core/readonly-link";
+import { createMarkweaveEditorRuntimeSnapshot } from "../editor-core/runtime-snapshot";
 import { createSelectionSnapshot, shouldShowFloatingToolbar, type EditorSelectionSnapshot } from "../editor-core/selection-state";
 import { normalizeMarkweaveEditorMode, setMarkweaveEditorModeState, type MarkweaveEditorMode } from "../core/editor-mode-state";
 import type {
@@ -142,7 +161,6 @@ import {
   getMarkweaveMathTargetAtPos,
   getMarkweaveMathTargetFromDomEvent,
   getMarkweaveMathTargetFromSelection,
-  insertMarkweaveInlineMath,
   renderMarkweaveMathPreview,
   setMarkweaveMathEditingDomState,
   setMarkweaveMathSelectionInView,
@@ -289,61 +307,6 @@ const inactiveCodeBlockState: MarkweaveCodeBlockState = {
   pos: null,
   text: "",
 };
-
-function normalizeMarkweaveContentFormat(format: MarkweaveContentFormat | undefined): MarkweaveContentFormat {
-  return format === "html" || format === "json" || format === "markdown" ? format : "markdown";
-}
-
-function getEditorMarkdown(editor: CoreEditor) {
-  return (editor as CoreEditor & { getMarkdown?: () => string }).getMarkdown?.() ?? editor.getText();
-}
-
-function stringifyJsonContent(content: MarkweaveContentValue) {
-  return typeof content === "string" ? content : JSON.stringify(content);
-}
-
-function isEditorContentCurrent(editor: CoreEditor, content: MarkweaveContentValue, format: MarkweaveContentFormat) {
-  if (format === "html") {
-    return typeof content === "string" && editor.getHTML() === content;
-  }
-
-  if (format === "json") {
-    return JSON.stringify(editor.getJSON()) === stringifyJsonContent(content);
-  }
-
-  return typeof content === "string" && getEditorMarkdown(editor).trim() === content.trim();
-}
-
-function createUpdatePayload(editor: CoreEditor): MarkweaveEditorUpdatePayload {
-  return {
-    editor,
-    html: editor.getHTML(),
-    json: editor.getJSON(),
-    markdown: getEditorMarkdown(editor),
-    text: editor.getText(),
-  };
-}
-
-function openReadonlyLinkFromEvent(event: MouseEvent) {
-  const target = event.target;
-  if (!(target instanceof Element)) {
-    return false;
-  }
-
-  const anchor = target.closest<HTMLAnchorElement>("a[href]");
-  if (!anchor) {
-    return false;
-  }
-
-  const href = normalizeMarkdownLinkHref(anchor.getAttribute("href") ?? "");
-  event.preventDefault();
-  if (!href || typeof window === "undefined" || typeof window.open !== "function") {
-    return true;
-  }
-
-  window.open(href, "_blank", "noopener,noreferrer");
-  return true;
-}
 
 function getTableInteractionState(editor: CoreEditor) {
   return tableInteractionPluginKey.getState(editor.state) ?? initialTableInteractionState;
@@ -500,71 +463,25 @@ function createSlashIcon(name: SlashCommandIconName) {
 }
 
 type VueColorOption = readonly [id: string, value: string | null, label: string];
+type VueBlockOption = readonly [id: FloatingToolbarTurnIntoId, label: string, icon: Component];
 type MarkweaveEmojiItem = MarkweaveMessages["slash"]["emojiItems"][number];
 type MarkweaveTocItem = MarkweaveTocState["items"][number];
 
+const toolbarTurnIntoIconMap: Record<FloatingToolbarTurnIntoId, Component> = {
+  paragraph: TypeIcon,
+  "heading-1": Heading1,
+  "heading-2": Heading2,
+  "heading-3": Heading3,
+  "bullet-list": List,
+  "numbered-list": ListOrdered,
+  "todo-list": ListChecks,
+  quote: Quote,
+  "code-block": Braces,
+};
+
 function currentBlockType(editor: CoreEditor, messages: MarkweaveMessages) {
-  if (editor.isActive("heading", { level: 1 })) {
-    return messages.floatingToolbar.blockTypes["heading-1"];
-  }
-  if (editor.isActive("heading", { level: 2 })) {
-    return messages.floatingToolbar.blockTypes["heading-2"];
-  }
-  if (editor.isActive("heading", { level: 3 })) {
-    return messages.floatingToolbar.blockTypes["heading-3"];
-  }
-  return messages.floatingToolbar.blockTypes.paragraph;
+  return getCurrentFloatingToolbarBlockType(editor, messages).label;
 }
-
-function setBlockType(editor: CoreEditor, id: string) {
-  if (id === "paragraph") {
-    return editor.chain().focus().setParagraph().run();
-  }
-  if (id === "heading-1" || id === "heading-2" || id === "heading-3") {
-    return editor.chain().focus().setHeading({ level: Number(id.at(-1)) as 1 | 2 | 3 }).run();
-  }
-  if (id === "bullet-list") {
-    return editor.chain().focus().toggleBulletList().run();
-  }
-  if (id === "numbered-list") {
-    return editor.chain().focus().toggleOrderedList().run();
-  }
-  if (id === "todo-list") {
-    return editor.chain().focus().toggleTaskList().run();
-  }
-  if (id === "quote") {
-    return editor.chain().focus().toggleBlockquote().run();
-  }
-  if (id === "code-block") {
-    return editor.chain().focus().setCodeBlock({ language: "text" }).run();
-  }
-  return false;
-}
-
-function runToolbarMoreAction(editor: CoreEditor, id: string) {
-  if (id === "superscript") {
-    return editor.chain().focus().toggleSuperscript().run();
-  }
-  if (id === "subscript") {
-    return editor.chain().focus().toggleSubscript().run();
-  }
-  if (id === "inline-math") {
-    return insertMarkweaveInlineMath(editor, "x");
-  }
-  if (id === "align-left" || id === "align-center" || id === "align-right" || id === "align-justify") {
-    return editor.chain().focus().setTextAlign(id.replace("align-", "")).run();
-  }
-  if (id === "decrease-indent") {
-    editor.commands.focus();
-    return (editor.commands as unknown as { decreaseIndent?: () => boolean }).decreaseIndent?.() ?? false;
-  }
-  if (id === "increase-indent") {
-    editor.commands.focus();
-    return (editor.commands as unknown as { increaseIndent?: () => boolean }).increaseIndent?.() ?? false;
-  }
-  return false;
-}
-
 const VueFloatingToolbar = defineComponent({
   name: "MarkweaveVueFloatingToolbar",
   props: {
@@ -580,53 +497,16 @@ const VueFloatingToolbar = defineComponent({
     const toolbarContentRef = ref<HTMLElement | null>(null);
     const safeHref = computed(() => normalizeMarkdownLinkHref(linkValue.value.trim()));
     const toolbarMessages = computed(() => props.messages.floatingToolbar);
-    const blockOptions = computed(() => [
-      ["paragraph", toolbarMessages.value.turnInto.paragraph, TypeIcon],
-      ["heading-1", toolbarMessages.value.turnInto["heading-1"], Heading1],
-      ["heading-2", toolbarMessages.value.turnInto["heading-2"], Heading2],
-      ["heading-3", toolbarMessages.value.turnInto["heading-3"], Heading3],
-      ["bullet-list", toolbarMessages.value.turnInto["bullet-list"], List],
-      ["numbered-list", toolbarMessages.value.turnInto["numbered-list"], ListOrdered],
-      ["todo-list", toolbarMessages.value.turnInto["todo-list"], ListChecks],
-      ["quote", toolbarMessages.value.turnInto.quote, Quote],
-      ["code-block", toolbarMessages.value.turnInto["code-block"], Braces],
-    ] as const);
-    const textColorOptions = computed(() => [
-      ["default", null, toolbarMessages.value.textColors.default],
-      ["gray", "#646970", toolbarMessages.value.textColors.gray],
-      ["brown", "#8a5a44", toolbarMessages.value.textColors.brown],
-      ["orange", "#c76f2b", toolbarMessages.value.textColors.orange],
-      ["yellow", "#9a7400", toolbarMessages.value.textColors.yellow],
-      ["green", "#2f7d4f", toolbarMessages.value.textColors.green],
-      ["blue", "#2f66d0", toolbarMessages.value.textColors.blue],
-      ["purple", "#7651d5", toolbarMessages.value.textColors.purple],
-      ["pink", "#bf4e85", toolbarMessages.value.textColors.pink],
-      ["red", "#c23b3b", toolbarMessages.value.textColors.red],
-    ] as const);
-    const highlightOptions = computed(() => [
-      ["default", null, toolbarMessages.value.highlightColors.default],
-      ["gray", "#eceff3", toolbarMessages.value.highlightColors.gray],
-      ["brown", "#f1e6df", toolbarMessages.value.highlightColors.brown],
-      ["orange", "#fde7d1", toolbarMessages.value.highlightColors.orange],
-      ["yellow", "#fff4bf", toolbarMessages.value.highlightColors.yellow],
-      ["green", "#dff4e8", toolbarMessages.value.highlightColors.green],
-      ["blue", "#ddeaff", toolbarMessages.value.highlightColors.blue],
-      ["purple", "#ebe4ff", toolbarMessages.value.highlightColors.purple],
-      ["pink", "#fde3ef", toolbarMessages.value.highlightColors.pink],
-      ["red", "#ffe0df", toolbarMessages.value.highlightColors.red],
-    ] as const);
-    const moreActions = computed(() => [
-      "superscript",
-      "subscript",
-      "inline-math",
-      "align-left",
-      "align-center",
-      "align-right",
-      "align-justify",
-      "decrease-indent",
-      "increase-indent",
-    ]);
-
+    const blockOptions = computed<readonly VueBlockOption[]>(() =>
+      getFloatingToolbarTurnIntoOptions(props.messages).map((option) => [option.id, option.label, toolbarTurnIntoIconMap[option.id]] as const),
+    );
+    const textColorOptions = computed<readonly VueColorOption[]>(() =>
+      getFloatingToolbarTextColorOptions(props.messages).map((option) => [option.id, option.value, option.label] as const),
+    );
+    const highlightOptions = computed<readonly VueColorOption[]>(() =>
+      getFloatingToolbarHighlightColorOptions(props.messages).map((option) => [option.id, option.value, option.label] as const),
+    );
+    const moreActions = computed<readonly FloatingToolbarMoreActionId[]>(() => getFloatingToolbarMoreActions(props.messages).map((action) => action.id));
     const applyLink = () => {
       if (!safeHref.value) {
         return;
@@ -790,7 +670,7 @@ const VueFloatingToolbar = defineComponent({
                 "data-testid": `markweave-floating-toolbar-turn-${id}`,
                 onMousedown: preventVuePointerFocusLoss,
                 onClick: () => {
-                  setBlockType(props.editor, id);
+                  setFloatingToolbarTurnInto(props.editor, id);
                   openMenu.value = null;
                 },
               },
@@ -871,7 +751,7 @@ const VueFloatingToolbar = defineComponent({
                   tooltipButtonId.value = null;
                 },
                 onClick: () => {
-                  runToolbarMoreAction(props.editor, id);
+                  runFloatingToolbarMoreAction(props.editor, id);
                   openMenu.value = null;
                 },
               },
@@ -2558,7 +2438,7 @@ export function useMarkweaveEditorController(options: MarkweaveVue2EditorControl
       onVideoUpload: (request) => uploadHandler?.(request) ?? getDirectUploadResult(request) ?? Promise.reject(new Error("File upload requires an upload handler.")),
     }),
     content: options.content ?? options.defaultContent ?? "",
-    contentType: activeFormat,
+    contentType: getMarkweaveContentType(activeFormat),
     editable: effectiveEditable.value,
     autofocus: options.autofocus,
     editorProps: {
@@ -2572,7 +2452,7 @@ export function useMarkweaveEditorController(options: MarkweaveVue2EditorControl
       },
       handleClick: (view, _pos, event) => {
         if (!effectiveEditable.value) {
-          return openReadonlyLinkFromEvent(event);
+          return openMarkweaveReadonlyLinkFromEvent(event);
         }
         const nextMathTarget = getMarkweaveMathTargetFromDomEvent(view, event);
         if (!nextMathTarget) {
@@ -2604,7 +2484,7 @@ export function useMarkweaveEditorController(options: MarkweaveVue2EditorControl
         },
         click: (view, event) => {
           if (!effectiveEditable.value) {
-            return openReadonlyLinkFromEvent(event);
+            return openMarkweaveReadonlyLinkFromEvent(event);
           }
           const nextMathTarget = getMarkweaveMathTargetFromDomEvent(view, event);
           if (!nextMathTarget) {
@@ -2647,7 +2527,7 @@ export function useMarkweaveEditorController(options: MarkweaveVue2EditorControl
         syncSlashCommandState(editor);
       }
       if (!applyingControlledContent.value) {
-        options.onUpdate?.(createUpdatePayload(editor));
+        options.onUpdate?.(createMarkweaveEditorUpdatePayload(editor));
       }
     },
   });
@@ -2709,7 +2589,7 @@ export function useMarkweaveEditorController(options: MarkweaveVue2EditorControl
   const tocState = computed(() => createMarkweaveTocState(tocItems.value, normalizedTocActiveId.value));
   const filteredSlashCommands = computed(() => filterSlashCommands(slashState.value.query, slashCommands));
 
-  const runtimeSnapshot = computed<MarkweaveEditorRuntimeSnapshot>(() => ({
+  const runtimeSnapshot = computed<MarkweaveEditorRuntimeSnapshot>(() => createMarkweaveEditorRuntimeSnapshot({
     revision: revision.value,
     mode: editorMode.value,
     editable: effectiveEditable.value,
@@ -2731,7 +2611,7 @@ export function useMarkweaveEditorController(options: MarkweaveVue2EditorControl
         return false;
       }
       const nextFormat = normalizeMarkweaveContentFormat(setContentOptions.format);
-      editor.value.commands.setContent(nextContent, { contentType: nextFormat, emitUpdate: setContentOptions.emitUpdate ?? false });
+      editor.value.commands.setContent(nextContent, { contentType: getMarkweaveContentType(nextFormat), emitUpdate: setContentOptions.emitUpdate ?? false });
       if (setContentOptions.focusFirstTableBodyCell) {
         focusFirstTableBodyCell(editor.value);
       }
@@ -2805,7 +2685,7 @@ export function useMarkweaveEditorController(options: MarkweaveVue2EditorControl
         return;
       }
       applyingControlledContent.value = true;
-      editor.value.commands.setContent(nextContent, { contentType: normalizeMarkweaveContentFormat(options.contentFormat), emitUpdate: false });
+      editor.value.commands.setContent(nextContent, { contentType: getMarkweaveContentType(normalizeMarkweaveContentFormat(options.contentFormat)), emitUpdate: false });
       applyingControlledContent.value = false;
       syncSelectionState(editor.value);
       if (effectiveEditable.value) {

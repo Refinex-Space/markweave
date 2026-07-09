@@ -1,6 +1,6 @@
 ---
 owner: refinex
-updated: 2026-07-08
+updated: 2026-07-09
 status: active
 referenced_by: AGENTS.md#knowledge-map
 ---
@@ -55,6 +55,14 @@ pnpm exec vitest run packages/markweave/test/editor-entrypoint-boundary.test.ts
 ```
 
 Choose the focused file that owns the changed behavior before running the full suite.
+
+For adapter or playground parity work, useful focused checks are:
+
+```sh
+pnpm exec vitest run packages/markweave/test/floating-toolbar-model.test.ts packages/markweave/test/playground-contract.test.ts
+pnpm exec vitest run packages/markweave/test/vue2-adapter-parity.test.ts packages/markweave/test/vue3-adapter-parity.test.ts
+pnpm exec vitest run apps/playground-react/test/playground-mode-toggle.test.ts apps/playground-vue3/test/playground-vue3-mode-toggle.test.ts
+```
 
 ## Full Verification
 

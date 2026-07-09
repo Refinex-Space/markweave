@@ -2,10 +2,17 @@ import type { EditorView } from "@tiptap/pm/view";
 import { EditorContent, useEditor, type Editor } from "@tiptap/react";
 import { useCallback, useEffect, useMemo, useRef, useState, type ComponentProps, type HTMLAttributes, type KeyboardEvent as ReactKeyboardEvent } from "react";
 import { isEditorComposing } from "../editor-core/composition-guard";
+import {
+  createMarkweaveEditorUpdatePayload,
+  getMarkweaveContentType,
+  isEditorContentCurrent,
+  normalizeMarkweaveContentFormat,
+} from "../editor-core/editor-content";
+import { openMarkweaveReadonlyLinkFromEvent } from "../editor-core/readonly-link";
+import { createMarkweaveEditorRuntimeSnapshot } from "../editor-core/runtime-snapshot";
 import { createSelectionSnapshot, type EditorSelectionSnapshot } from "../editor-core/selection-state";
 import { getLocalizedSlashCommandSpecs, getMarkweaveMessages, normalizeMarkweaveLang, type MarkweaveLang } from "../i18n";
 import { getActiveCodeBlockState, markweaveCodeBlockBehavior, type MarkweaveCodeBlockState } from "../plugins/codeblock/codeblock-behavior";
-import { normalizeMarkdownLinkHref } from "../plugins/markdown/markdown-input";
 import { isMermaidInlinePreviewTransaction, setMermaidInlinePreviewEditorMode } from "../plugins/mermaid/mermaid-inline-preview";
 import { getMermaidPreviewState, type MermaidPreviewMode, type MermaidPreviewState } from "../plugins/mermaid/mermaid-renderer";
 import {
@@ -147,70 +154,8 @@ const hiddenMermaidPreviewState = getMermaidPreviewState({
   source: "",
 });
 
-function normalizeMarkweaveContentFormat(format: MarkweaveContentFormat | undefined): MarkweaveContentFormat {
-  return format === "html" || format === "json" || format === "markdown" ? format : "markdown";
-}
-
-function getMarkweaveContentType(format: MarkweaveContentFormat) {
-  return normalizeMarkweaveContentFormat(format);
-}
-
-function getEditorMarkdown(editor: Editor) {
-  return (editor as Editor & { getMarkdown?: () => string }).getMarkdown?.() ?? editor.getText();
-}
-
-function stringifyJsonContent(content: MarkweaveContentValue) {
-  return typeof content === "string" ? content : JSON.stringify(content);
-}
-
-function isEditorContentCurrent(editor: Editor, content: MarkweaveContentValue, format: MarkweaveContentFormat) {
-  if (format === "html") {
-    return typeof content === "string" && editor.getHTML() === content;
-  }
-
-  if (format === "json") {
-    return JSON.stringify(editor.getJSON()) === stringifyJsonContent(content);
-  }
-
-  return typeof content === "string" && getEditorMarkdown(editor).trim() === content.trim();
-}
-
-function createUpdatePayload(editor: Editor): MarkweaveEditorUpdatePayload {
-  return {
-    editor,
-    html: editor.getHTML(),
-    json: editor.getJSON(),
-    markdown: getEditorMarkdown(editor),
-    text: editor.getText(),
-  };
-}
-
 function getTableInteractionState(editor: Editor) {
   return tableInteractionPluginKey.getState(editor.state) ?? initialTableInteractionState;
-}
-
-function openReadonlyLinkFromEvent(event: MouseEvent) {
-  const target = event.target;
-
-  if (!(target instanceof Element)) {
-    return false;
-  }
-
-  const anchor = target.closest<HTMLAnchorElement>("a[href]");
-
-  if (!anchor) {
-    return false;
-  }
-
-  const href = normalizeMarkdownLinkHref(anchor.getAttribute("href") ?? "");
-  event.preventDefault();
-
-  if (!href || typeof window === "undefined" || typeof window.open !== "function") {
-    return true;
-  }
-
-  window.open(href, "_blank", "noopener,noreferrer");
-  return true;
 }
 
 function getNearestScrollableAncestor(element: HTMLElement | null): HTMLElement | null {
@@ -394,7 +339,7 @@ export function useMarkweaveEditorController({
           return false;
         }
 
-        return openReadonlyLinkFromEvent(event);
+        return openMarkweaveReadonlyLinkFromEvent(event);
       },
       handleDOMEvents: {
         compositionstart: () => {
@@ -431,7 +376,7 @@ export function useMarkweaveEditorController({
             return false;
           }
 
-          return openReadonlyLinkFromEvent(event);
+          return openMarkweaveReadonlyLinkFromEvent(event);
         },
       },
     },
@@ -470,7 +415,7 @@ export function useMarkweaveEditorController({
       }
 
       if (!applyingControlledContentRef.current) {
-        callbacksRef.current.onUpdate?.(createUpdatePayload(activeEditor));
+        callbacksRef.current.onUpdate?.(createMarkweaveEditorUpdatePayload(activeEditor));
       }
     },
   });
@@ -592,7 +537,7 @@ export function useMarkweaveEditorController({
   }, [editor, tocItems.length, updateTocActiveFromScroll]);
 
   const runtimeSnapshot = useMemo<MarkweaveEditorRuntimeSnapshot>(
-    () => ({
+    () => createMarkweaveEditorRuntimeSnapshot({
       revision,
       mode: editorMode,
       editable: effectiveEditable,

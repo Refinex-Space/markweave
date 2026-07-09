@@ -174,3 +174,58 @@ export const mergedTablePlaygroundDocument = `
 <h2>Clipboard Targets</h2>
 <p>Rows and columns cover merged header, row-spanned body, and ordinary cells.</p>
 `;
+
+export const playgroundCapabilityContract = [
+  "markdown",
+  "live-view-mode",
+  "floating-toolbar",
+  "slash-command",
+  "table",
+  "media",
+  "codeblock",
+  "mermaid",
+  "math",
+  "toc",
+  "upload-callback",
+  "ai-callback",
+] as const;
+
+export const playgroundDebugTestIds = [
+  "markweave-debug-copy",
+  "markweave-debug-command",
+  "markweave-debug-ai",
+  "markweave-debug-toolbar-ai",
+  "markweave-debug-slash-upload",
+  "markweave-debug-table",
+] as const;
+
+export function getPlaygroundUploadResultName(value: string) {
+  return value.split("/").filter(Boolean).at(-1);
+}
+
+export function createPlaygroundUploadResult(request: {
+  readonly source: {
+    readonly file?: File;
+    readonly value?: string;
+    readonly mimeType?: string;
+  };
+}) {
+  if (request.source.file) {
+    return {
+      src: URL.createObjectURL(request.source.file),
+      name: request.source.file.name,
+      mimeType: request.source.file.type,
+      size: request.source.file.size,
+    };
+  }
+
+  if (request.source.value) {
+    return {
+      src: request.source.value,
+      name: getPlaygroundUploadResultName(request.source.value),
+      mimeType: request.source.mimeType,
+    };
+  }
+
+  throw new Error("Unsupported upload source.");
+}

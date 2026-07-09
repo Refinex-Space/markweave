@@ -1,8 +1,9 @@
 import { createMarkweaveEditorExtensions as createMarkweaveCoreEditorExtensions } from "../editor-core/create-editor-extensions";
-import { getMarkweaveMessages, type MarkweaveLang } from "../i18n";
+import type { MarkweaveLang } from "../i18n";
 import { MarkweaveImage } from "./media/image-node";
 import { MarkweaveVideo } from "./media/video-node";
 import type { MarkweaveSlashCommandUploadHandler } from "../plugins/slash-command/upload";
+import { createMarkweaveAdapterMediaExtensions } from "../plugins/media/media-extension-factory";
 
 export interface CreateMarkweaveReactEditorExtensionsOptions {
   readonly lang?: MarkweaveLang;
@@ -11,28 +12,15 @@ export interface CreateMarkweaveReactEditorExtensionsOptions {
 }
 
 export function createMarkweaveReactEditorExtensions(options: CreateMarkweaveReactEditorExtensionsOptions = {}) {
-  const messages = getMarkweaveMessages(options.lang);
-
   return createMarkweaveCoreEditorExtensions({
     lang: options.lang,
-    mediaExtensions: [
-      MarkweaveImage.configure({
-        inline: false,
-        allowBase64: true,
-        messages,
-        onUpload: options.onImageUpload,
-        HTMLAttributes: {
-          class: "markweave-image",
-        },
-      }),
-      MarkweaveVideo.configure({
-        messages,
-        onUpload: options.onVideoUpload,
-        HTMLAttributes: {
-          class: "markweave-video",
-        },
-      }),
-    ],
+    mediaExtensions: createMarkweaveAdapterMediaExtensions({
+      image: MarkweaveImage,
+      video: MarkweaveVideo,
+      lang: options.lang,
+      onImageUpload: options.onImageUpload,
+      onVideoUpload: options.onVideoUpload,
+    }),
   });
 }
 

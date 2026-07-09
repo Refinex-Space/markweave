@@ -16,6 +16,10 @@ describe("Vue3 adapter parity source contract", () => {
     const source = readProjectFile("src/vue3/MarkweaveEditor.ts");
 
     expectSourceContract(source, [
+      "getFloatingToolbarTurnIntoOptions",
+      "getFloatingToolbarTextColorOptions",
+      "getFloatingToolbarHighlightColorOptions",
+      "runFloatingToolbarMoreAction",
       "markweave-floating-toolbar",
       "markweave-floating-toolbar-content",
       "markweave-floating-toolbar-button-",

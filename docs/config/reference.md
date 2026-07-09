@@ -1,6 +1,6 @@
 ---
 owner: refinex
-updated: 2026-07-08
+updated: 2026-07-09
 status: active
 referenced_by: AGENTS.md#knowledge-map
 ---
@@ -69,6 +69,8 @@ The public package exports are:
 
 The React dev server is bound to `127.0.0.1:5173`.
 
+Local usage details live in `apps/playground-react/README.md`.
+
 `apps/playground-vue3` is private. Its Vite config aliases:
 
 - `markweave` -> `packages/markweave/src/index.ts`
@@ -78,6 +80,8 @@ The React dev server is bound to `127.0.0.1:5173`.
 
 The Vue 3 dev server is bound to `127.0.0.1:5174`.
 
+Local usage details live in `apps/playground-vue3/README.md`.
+
 `apps/playground-vue2` is private. It uses Vue CLI 4 and Webpack 4 with Vue `2.6.12`, and aliases:
 
 - `markweave` -> `packages/markweave/src/index.ts`
@@ -86,6 +90,8 @@ The Vue 3 dev server is bound to `127.0.0.1:5174`.
 - `@markweave/playground-fixtures` -> `apps/playground-fixtures/src/index.ts`
 
 The Vue 2 dev server is bound to `127.0.0.1:5175`.
+
+Local usage details live in `apps/playground-vue2/README.md`.
 
 ## TypeScript
 

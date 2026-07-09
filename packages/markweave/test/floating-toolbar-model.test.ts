@@ -32,7 +32,7 @@ import {
   setFloatingToolbarTextAlign,
   setFloatingToolbarTextColor,
   setFloatingToolbarTurnInto,
-} from "../src/react/ui/floating-toolbar/FloatingToolbar";
+} from "../src/editor-core/floating-toolbar-model";
 
 let activeEditor: Editor | null = null;
 
