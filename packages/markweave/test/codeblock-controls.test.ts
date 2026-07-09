@@ -8,7 +8,7 @@ import { createMarkweaveEditorExtensions } from "../src/editor-core/create-edito
 import { getActiveCodeBlockState, setActiveCodeBlockCollapsed, setActiveCodeBlockMermaidPreviewMode } from "../src/plugins/codeblock/codeblock-behavior";
 import { setMermaidInlinePreviewEditorMode } from "../src/plugins/mermaid/mermaid-inline-preview";
 import type { MermaidPreviewMode } from "../src/plugins/mermaid/mermaid-renderer";
-import { CodeBlockControls, mergeStableMermaidTabPositions } from "../src/react/ui/codeblock/CodeBlockControls";
+import { CodeBlockControls, mergeStableMermaidTabPositions } from "../../markweave-react/src/ui/codeblock/CodeBlockControls";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 

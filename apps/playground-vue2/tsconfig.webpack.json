@@ -8,5 +8,5 @@
     "skipLibCheck": true,
     "target": "ES2019"
   },
-  "include": ["src/**/*", "../../packages/markweave/src/**/*", "../playground-fixtures/src/**/*"]
+  "include": ["src/**/*", "../../packages/markweave/src/**/*", "../../packages/markweave-vue2/src/**/*", "../playground-fixtures/src/**/*"]
 }

@@ -102,7 +102,7 @@
 </template>
 
 <script>
-import { MarkweaveEditor } from "markweave/vue2";
+import { MarkweaveEditor } from "@markweave/vue2";
 import { createPlaygroundUploadResult, initialPlaygroundDocument, mergedTablePlaygroundDocument } from "@markweave/playground-fixtures";
 
 export default {

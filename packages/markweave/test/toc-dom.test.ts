@@ -8,7 +8,7 @@ import {
   useMarkweaveEditorController,
   type MarkweaveEditorController,
   type MarkweaveTocState,
-} from "../src/react";
+} from "@markweave/react";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 

@@ -15,16 +15,18 @@ import {
   type MarkweaveTocItem,
   type MarkweaveTocState,
   type MarkweaveLang,
-} from "../src/react";
+} from "@markweave/react";
 
-const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const readProjectFile = (path: string) => readFileSync(resolve(repoRoot, path), "utf8");
+const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+const workspaceRoot = resolve(packageRoot, "../..");
+const readPackageFile = (path: string) => readFileSync(resolve(packageRoot, path), "utf8");
+const readWorkspaceFile = (path: string) => readFileSync(resolve(workspaceRoot, path), "utf8");
 
 function listProjectFiles(path: string): string[] {
-  const absolutePath = resolve(repoRoot, path);
+  const absolutePath = resolve(packageRoot, path);
   return readdirSync(absolutePath).flatMap((entry) => {
     const relativePath = `${path}/${entry}`;
-    const entryPath = resolve(repoRoot, relativePath);
+    const entryPath = resolve(packageRoot, relativePath);
     const stat = statSync(entryPath);
 
     if (stat.isDirectory()) {
@@ -67,28 +69,35 @@ afterEach(() => {
 });
 
 describe("editor entrypoint boundary", () => {
-  it("exports framework-neutral root APIs plus React, Vue2, and Vue3 subpaths", async () => {
-    const packageJson = JSON.parse(readProjectFile("package.json")) as { exports?: Record<string, { import?: string; types?: string } | string> };
-    const indexSource = readProjectFile("src/index.ts");
-    const reactIndexSource = readProjectFile("src/react/index.ts");
-    const vue2IndexSource = readProjectFile("src/vue2/index.ts");
-    const vue3IndexSource = readProjectFile("src/vue3/index.ts");
+  it("exports framework-neutral root APIs plus legacy adapter shims", async () => {
+    const packageJson = JSON.parse(readPackageFile("package.json")) as { exports?: Record<string, { import?: string; types?: string } | string> };
+    const indexSource = readPackageFile("src/index.ts");
+    const reactShim = readPackageFile("react.js");
+    const vue2Shim = readPackageFile("vue2.js");
+    const vue3Shim = readPackageFile("vue3.js");
+    const reactIndexSource = readWorkspaceFile("packages/markweave-react/src/index.ts");
+    const vue2IndexSource = readWorkspaceFile("packages/markweave-vue2/src/index.ts");
+    const vue3IndexSource = readWorkspaceFile("packages/markweave-vue3/src/index.ts");
 
     expect(packageJson.exports?.["."]).toEqual({
       import: "./dist/index.js",
       types: "./dist/types/index.d.ts",
     });
     expect(packageJson.exports?.["./react"]).toEqual({
-      import: "./dist/react.js",
-      types: "./dist/types/react/index.d.ts",
+      import: "./react.js",
+      types: "./react.d.ts",
     });
     expect(packageJson.exports?.["./vue3"]).toEqual({
-      import: "./dist/vue3.js",
-      types: "./dist/types/vue3/index.d.ts",
+      import: "./vue3.js",
+      types: "./vue3.d.ts",
     });
     expect(packageJson.exports?.["./vue2"]).toEqual({
-      import: "./dist/vue2.js",
-      types: "./dist/types/vue2/index.d.ts",
+      import: "./vue2.js",
+      types: "./vue2.d.ts",
+    });
+    expect(packageJson.exports?.["./internal/*"]).toEqual({
+      import: "./dist/*.js",
+      types: "./dist/types/*.d.ts",
     });
     expect(packageJson.exports?.["./styles.css"]).toBe("./dist/styles.css");
     expect(indexSource).not.toContain("from \"./react");
@@ -100,6 +109,9 @@ describe("editor entrypoint boundary", () => {
     expect(indexSource).toContain("MarkweaveContentFormat");
     expect(indexSource).toContain("MarkweaveTocItem");
     expect(indexSource).toContain("MarkweaveTocState");
+    expect(reactShim).toContain('from "@markweave/react"');
+    expect(vue2Shim).toContain('from "@markweave/vue2"');
+    expect(vue3Shim).toContain('from "@markweave/vue3"');
     expect(reactIndexSource).toContain("MarkweaveEditor");
     expect(reactIndexSource).toContain("useMarkweaveEditorController");
     expect(vue2IndexSource).toContain("MarkweaveEditor");
@@ -115,18 +127,20 @@ describe("editor entrypoint boundary", () => {
   });
 
   it("keeps playground code out of the publishable package", () => {
-    const packageJson = JSON.parse(readProjectFile("package.json")) as { files?: string[] };
+    const packageJson = JSON.parse(readPackageFile("package.json")) as { files?: string[] };
 
-    expect(existsSync(resolve(repoRoot, "src/playground"))).toBe(false);
-    expect(packageJson.files).toEqual(["dist", "react.js", "vue2.js", "vue3.js", "styles.css", "README.md", "LICENSE"]);
-    expect(existsSync(resolve(repoRoot, "src/editor-core/initial-document.ts"))).toBe(false);
+    expect(existsSync(resolve(packageRoot, "src/playground"))).toBe(false);
+    expect(packageJson.files).toEqual(["dist", "react.js", "react.d.ts", "vue2.js", "vue2.d.ts", "vue3.js", "vue3.d.ts", "styles.css", "README.md", "LICENSE"]);
+    expect(existsSync(resolve(packageRoot, "src/editor-core/initial-document.ts"))).toBe(false);
   });
 
-  it("keeps TSX scoped to the React adapter", () => {
+  it("keeps framework source out of the core package", () => {
     const tsxFiles = listProjectFiles("src").filter((path) => path.endsWith(".tsx"));
 
-    expect(tsxFiles.length).toBeGreaterThan(0);
-    expect(tsxFiles.every((path) => path.startsWith("src/react/"))).toBe(true);
+    expect(tsxFiles).toEqual([]);
+    expect(existsSync(resolve(packageRoot, "src/react"))).toBe(false);
+    expect(existsSync(resolve(packageRoot, "src/vue2"))).toBe(false);
+    expect(existsSync(resolve(packageRoot, "src/vue3"))).toBe(false);
   });
 
   it("keeps core, editor-core, and plugin layers framework-neutral", () => {
@@ -150,11 +164,41 @@ describe("editor entrypoint boundary", () => {
       ...listProjectFiles("src/plugins"),
     ].filter((path) => /\.(ts|tsx)$/.test(path));
     const violations = scannedFiles.flatMap((path) => {
-      const source = readProjectFile(path);
+      const source = readPackageFile(path);
       return forbiddenImports.filter((importText) => source.includes(importText)).map((importText) => `${path}: ${importText}`);
     });
 
     expect(violations).toEqual([]);
+  });
+
+  it("keeps adapter package dependencies scoped to their owning frameworks", () => {
+    const reactPackage = JSON.parse(readWorkspaceFile("packages/markweave-react/package.json")) as {
+      dependencies?: Record<string, string>;
+      peerDependencies?: Record<string, string>;
+    };
+    const vue2Package = JSON.parse(readWorkspaceFile("packages/markweave-vue2/package.json")) as {
+      dependencies?: Record<string, string>;
+      peerDependencies?: Record<string, string>;
+    };
+    const vue3Package = JSON.parse(readWorkspaceFile("packages/markweave-vue3/package.json")) as {
+      dependencies?: Record<string, string>;
+      peerDependencies?: Record<string, string>;
+    };
+
+    expect(reactPackage.dependencies).toEqual(expect.objectContaining({ markweave: "workspace:^", "@tiptap/react": "^3.27.1" }));
+    expect(reactPackage.peerDependencies).toEqual({ react: "^18.2.0 || ^19.0.0", "react-dom": "^18.2.0 || ^19.0.0" });
+    expect(reactPackage.dependencies).not.toHaveProperty("@tiptap/vue-2");
+    expect(reactPackage.dependencies).not.toHaveProperty("@tiptap/vue-3");
+
+    expect(vue2Package.dependencies).toEqual(expect.objectContaining({ markweave: "workspace:^", "@tiptap/vue-2": "3.27.1" }));
+    expect(vue2Package.peerDependencies).toEqual({ vue: "^2.6.12" });
+    expect(vue2Package.dependencies).not.toHaveProperty("@tiptap/react");
+    expect(vue2Package.dependencies).not.toHaveProperty("@tiptap/vue-3");
+
+    expect(vue3Package.dependencies).toEqual(expect.objectContaining({ markweave: "workspace:^", "@tiptap/vue-3": "^3.27.1" }));
+    expect(vue3Package.peerDependencies).toEqual({ vue: "^3.3.0" });
+    expect(vue3Package.dependencies).not.toHaveProperty("@tiptap/react");
+    expect(vue3Package.dependencies).not.toHaveProperty("@tiptap/vue-2");
   });
 
   it("renders the complete editor frame through the public component", async () => {

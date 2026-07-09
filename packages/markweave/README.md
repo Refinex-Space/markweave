@@ -4,33 +4,35 @@ Markdown-first WYSIWYG editor built on Tiptap and CodeMirror, providing Typora-l
 
 ## Install
 
-Install `markweave` with the framework adapter peers you use.
+Install one Markweave adapter package in an existing framework app. React or Vue itself remains owned by the host app.
 
 ### React
 
 ```sh
-pnpm add markweave @tiptap/react react react-dom lucide-react
+pnpm add @markweave/react
 ```
 
 ### Vue 3
 
 ```sh
-pnpm add markweave @tiptap/vue-3 vue lucide-vue-next
+pnpm add @markweave/vue3
 ```
 
 ### Vue 2
 
 ```sh
-pnpm add markweave @tiptap/vue-2 vue@2.6.12 vue-template-compiler@2.6.12
+pnpm add @markweave/vue2
 ```
+
+Vue 2 CLI / Webpack 4 projects should keep `vue-template-compiler` on the same Vue 2.6.x version as `vue`. Existing Vue 2 CLI projects usually already have both.
 
 ## Usage
 
 ### React
 
 ```tsx
-import { MarkweaveEditor } from "markweave/react";
-import "markweave/styles.css";
+import { MarkweaveEditor } from "@markweave/react";
+import "@markweave/react/styles.css";
 
 export function Editor() {
   return (
@@ -47,8 +49,8 @@ export function Editor() {
 
 ```vue
 <script setup lang="ts">
-import { MarkweaveEditor } from "markweave/vue3";
-import "markweave/styles.css";
+import { MarkweaveEditor } from "@markweave/vue3";
+import "@markweave/vue3/styles.css";
 
 function handleUpdate({ markdown }: { markdown: string }) {
   console.log(markdown);
@@ -78,8 +80,8 @@ Vue CLI 4 / Webpack 4 projects must install `vue-template-compiler` with the sam
 </template>
 
 <script>
-import { MarkweaveEditor } from "markweave/vue2";
-import "markweave/styles.css";
+import { MarkweaveEditor } from "@markweave/vue2";
+import "@markweave/vue2/styles.css";
 
 export default {
   name: "Editor",
@@ -93,7 +95,7 @@ export default {
 </script>
 ```
 
-You can import `markweave/styles.css` once in the app entry instead of inside each component.
+You can import the adapter `styles.css` once in the app entry instead of inside each component. If you explicitly install the core `markweave` package or use legacy subpath imports, `markweave/styles.css` remains available.
 
 `defaultContent` and controlled `content` are Markdown by default. Use `defaultContentFormat="html"` or `contentFormat="html"` when migrating an existing HTML integration. `onUpdate.markdown` is the recommended storage output; `html`, `json`, and `text` remain available.
 
@@ -121,7 +123,8 @@ Math formulas are editable in Live mode: click inline `$...$` or display `$$...$
 ## Exports
 
 - `markweave`: framework-neutral types and helpers, including content format, mode, lang, TOC, upload, and table payload types.
-- `markweave/react`: React editor component, controller hook, and React extension factory.
-- `markweave/vue2`: Vue 2 editor component, controller helper, and Vue 2 extension factory.
-- `markweave/vue3`: Vue 3 editor component, composable, and Vue 3 extension factory.
-- `markweave/styles.css`: editor runtime stylesheet.
+- `@markweave/react`: React editor component, controller hook, React extension factory, and `@markweave/react/styles.css`.
+- `@markweave/vue2`: Vue 2 editor component, controller helper, Vue 2 extension factory, and `@markweave/vue2/styles.css`.
+- `@markweave/vue3`: Vue 3 editor component, composable, Vue 3 extension factory, and `@markweave/vue3/styles.css`.
+- `markweave/react`, `markweave/vue2`, and `markweave/vue3`: legacy compatibility shims that forward to the adapter packages for one release cycle.
+- `markweave/styles.css`: core editor runtime stylesheet.

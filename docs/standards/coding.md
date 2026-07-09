@@ -10,9 +10,9 @@ referenced_by: AGENTS.md#knowledge-map
 ## General
 
 - Use TypeScript and the framework patterns already present in the owning adapter.
-- Keep framework-neutral public exports centralized through `packages/markweave/src/index.ts`; React, Vue 2, and Vue 3 adapter exports belong in their subpath entrypoints.
+- Keep framework-neutral public exports centralized through `packages/markweave/src/index.ts`; React, Vue 2, and Vue 3 adapter exports belong in `packages/markweave-react`, `packages/markweave-vue2`, and `packages/markweave-vue3`.
 - Keep editor extension composition explicit in `packages/markweave/src/editor-core/create-editor-extensions.ts`.
-- Keep `packages/markweave/src/core`, `packages/markweave/src/editor-core`, and `packages/markweave/src/plugins` framework-neutral. `.tsx` and React-only code are allowed only under `packages/markweave/src/react/**`; Vue 2 adapter code stays under `packages/markweave/src/vue2/**`; Vue 3 adapter code stays under `packages/markweave/src/vue3/**`.
+- Keep `packages/markweave/src/core`, `packages/markweave/src/editor-core`, and `packages/markweave/src/plugins` framework-neutral. `.tsx` and React-only code are allowed only under `packages/markweave-react/src/**`; Vue 2 adapter code stays under `packages/markweave-vue2/src/**`; Vue 3 adapter code stays under `packages/markweave-vue3/src/**`.
 - Avoid broad refactors when a behavior change can be made in the owning plugin or UI module.
 - Add code comments only when they clarify non-obvious behavior. If an author marker is explicitly required, use `refinex`.
 
@@ -32,14 +32,14 @@ Before changing an editor behavior, identify the owning area:
 | Area | Typical owner |
 | --- | --- |
 | Markdown transforms | `packages/markweave/src/plugins/markdown/` |
-| Slash commands | `packages/markweave/src/plugins/slash-command/` plus adapter menu rendering in `src/react`, `src/vue2`, and `src/vue3` |
-| Tables | `packages/markweave/src/plugins/table/` plus adapter table controls in `src/react`, `src/vue2`, and `src/vue3` |
-| Code blocks | `packages/markweave/src/plugins/codeblock/` plus adapter codeblock controls in `src/react`, `src/vue2`, and `src/vue3` |
-| Mermaid preview | `packages/markweave/src/plugins/mermaid/` plus adapter preview controls in `src/react`, `src/vue2`, and `src/vue3` |
-| Floating toolbar | `packages/markweave/src/editor-core/floating-toolbar-model.ts` plus adapter rendering under `src/react`, `src/vue2`, and `src/vue3` |
-| React shell/controller | `packages/markweave/src/react/MarkweaveEditor.tsx` |
-| Vue 2 shell/controller | `packages/markweave/src/vue2/MarkweaveEditor.ts` |
-| Vue 3 shell/controller | `packages/markweave/src/vue3/MarkweaveEditor.ts` |
+| Slash commands | `packages/markweave/src/plugins/slash-command/` plus adapter menu rendering in the adapter packages |
+| Tables | `packages/markweave/src/plugins/table/` plus adapter table controls in the adapter packages |
+| Code blocks | `packages/markweave/src/plugins/codeblock/` plus adapter codeblock controls in the adapter packages |
+| Mermaid preview | `packages/markweave/src/plugins/mermaid/` plus adapter preview controls in the adapter packages |
+| Floating toolbar | `packages/markweave/src/editor-core/floating-toolbar-model.ts` plus adapter rendering under the adapter packages |
+| React shell/controller | `packages/markweave-react/src/MarkweaveEditor.tsx` |
+| Vue 2 shell/controller | `packages/markweave-vue2/src/MarkweaveEditor.ts` |
+| Vue 3 shell/controller | `packages/markweave-vue3/src/MarkweaveEditor.ts` |
 
 Use behavior-contract files as the checklist for related tests.
 

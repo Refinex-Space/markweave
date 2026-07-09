@@ -3,8 +3,8 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
-const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const readProjectFile = (path: string) => readFileSync(resolve(repoRoot, path), "utf8");
+const workspaceRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
+const readWorkspaceFile = (path: string) => readFileSync(resolve(workspaceRoot, path), "utf8");
 
 function expectSourceContract(source: string, selectors: readonly string[]) {
   const missing = selectors.filter((selector) => !source.includes(selector));
@@ -13,7 +13,7 @@ function expectSourceContract(source: string, selectors: readonly string[]) {
 
 describe("Vue3 adapter parity source contract", () => {
   it("keeps floating toolbar DOM hooks aligned with the React adapter", () => {
-    const source = readProjectFile("src/vue3/MarkweaveEditor.ts");
+    const source = readWorkspaceFile("packages/markweave-vue3/src/MarkweaveEditor.ts");
 
     expectSourceContract(source, [
       "getFloatingToolbarTurnIntoOptions",
@@ -44,7 +44,7 @@ describe("Vue3 adapter parity source contract", () => {
   });
 
   it("keeps slash command menu DOM hooks and input panels aligned with the React adapter", () => {
-    const source = readProjectFile("src/vue3/MarkweaveEditor.ts");
+    const source = readWorkspaceFile("packages/markweave-vue3/src/MarkweaveEditor.ts");
 
     expectSourceContract(source, [
       "Text as TextIcon",
@@ -71,7 +71,7 @@ describe("Vue3 adapter parity source contract", () => {
   });
 
   it("keeps table and code block controls on the shared editor DOM contract", () => {
-    const source = readProjectFile("src/vue3/MarkweaveEditor.ts");
+    const source = readWorkspaceFile("packages/markweave-vue3/src/MarkweaveEditor.ts");
 
     expectSourceContract(source, [
       "markweave-table-controls",
@@ -128,7 +128,7 @@ describe("Vue3 adapter parity source contract", () => {
   });
 
   it("keeps Vue3 media NodeViews on the React-compatible media DOM contract", () => {
-    const source = readProjectFile("src/vue3/media-nodeviews.ts");
+    const source = readWorkspaceFile("packages/markweave-vue3/src/media-nodeviews.ts");
 
     expectSourceContract(source, [
       "MarkweaveCoreImage",

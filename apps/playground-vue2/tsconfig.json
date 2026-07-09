@@ -3,7 +3,15 @@
   "compilerOptions": {
     "allowJs": true,
     "checkJs": false,
+    "baseUrl": ".",
+    "paths": {
+      "@markweave/vue2": ["../../packages/markweave-vue2/src/index.ts"],
+      "markweave": ["../../packages/markweave/src/index.ts"],
+      "markweave/internal/*": ["../../packages/markweave/src/*"],
+      "markweave/styles.css": ["../../packages/markweave/src/editor-core/markweave-editor.css"],
+      "@markweave/playground-fixtures": ["../playground-fixtures/src/index.ts"]
+    },
     "types": ["node"]
   },
-  "include": ["src/**/*", "../../packages/markweave/src/**/*", "../playground-fixtures/src/**/*"]
+  "include": ["src/**/*", "../../packages/markweave/src/**/*", "../../packages/markweave-vue2/src/**/*", "../playground-fixtures/src/**/*"]
 }

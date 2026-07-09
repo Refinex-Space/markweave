@@ -7,11 +7,14 @@ referenced_by: AGENTS.md#knowledge-map
 
 # Architecture Overview
 
-Markweave is a Markdown-first WYSIWYG editor package. The workspace has five active projects:
+Markweave is a Markdown-first WYSIWYG editor package family. The workspace has eight active projects:
 
 | Path | Role |
 | --- | --- |
-| `packages/markweave` | Publishable npm package named `markweave`. |
+| `packages/markweave` | Publishable framework-neutral npm package named `markweave`. |
+| `packages/markweave-react` | Publishable React adapter package named `@markweave/react`. |
+| `packages/markweave-vue2` | Publishable Vue 2 adapter package named `@markweave/vue2`. |
+| `packages/markweave-vue3` | Publishable Vue 3 adapter package named `@markweave/vue3`. |
 | `apps/playground-react` | Private Vite/React demo app for local development and verification. |
 | `apps/playground-vue2` | Private Vue CLI 4 / Webpack 4 / Vue 2 demo app for legacy adapter verification. |
 | `apps/playground-vue3` | Private Vite/Vue 3 demo app for local development and adapter verification. |
@@ -19,18 +22,18 @@ Markweave is a Markdown-first WYSIWYG editor package. The workspace has five act
 
 ## Public Surface
 
-The package root exports from `packages/markweave/src/index.ts` are framework-neutral:
+The core package root exports from `packages/markweave/src/index.ts` are framework-neutral:
 
 - `createMarkweaveEditorExtensions`
 - public update payload, editor mode, content format, lang, upload, TOC, and table-copy types
 
-Framework adapters are exposed through subpaths:
+Framework adapters are exposed through adapter packages:
 
-- `markweave/react`: React `MarkweaveEditor`, controller hook, React extension factory, and React adapter props.
-- `markweave/vue2`: Vue 2 `MarkweaveEditor`, controller helper, Vue 2 extension factory, and Vue adapter props.
-- `markweave/vue3`: Vue 3 `MarkweaveEditor`, composable, Vue 3 extension factory, and Vue adapter props.
+- `@markweave/react`: React `MarkweaveEditor`, controller hook, React extension factory, React adapter props, and `@markweave/react/styles.css`.
+- `@markweave/vue2`: Vue 2 `MarkweaveEditor`, controller helper, Vue 2 extension factory, Vue adapter props, and `@markweave/vue2/styles.css`.
+- `@markweave/vue3`: Vue 3 `MarkweaveEditor`, composable, Vue 3 extension factory, Vue adapter props, and `@markweave/vue3/styles.css`.
 
-The package exports `markweave`, `markweave/react`, `markweave/vue2`, `markweave/vue3`, and `markweave/styles.css`; package-boundary changes should keep `packages/markweave/test/editor-entrypoint-boundary.test.ts` current.
+The core package exports `markweave`, `markweave/styles.css`, and the internal `markweave/internal/*` subpath consumed by adapter packages. `markweave/react`, `markweave/vue2`, and `markweave/vue3` remain legacy compatibility shims for one release cycle and forward to the adapter packages. Package-boundary changes should keep `packages/markweave/test/editor-entrypoint-boundary.test.ts` current.
 
 `MarkweaveEditor` is Markdown-first at the content API boundary. `defaultContent` and controlled `content` default to Markdown parsing, `onUpdate.markdown` is the recommended storage output, and legacy HTML/JSON inputs must declare `defaultContentFormat` or `contentFormat` explicitly. `mode="live"` and `mode="view"` are UI-only rendering modes and do not change the serialized document output.
 
@@ -60,9 +63,9 @@ Shared adapter behavior belongs in small framework-neutral helpers before it rea
 - `packages/markweave/src/editor-core/runtime-snapshot.ts` owns the runtime snapshot field contract.
 - `packages/markweave/src/plugins/media/media-extension-factory.ts` owns shared image/video extension configuration while adapters still supply their framework NodeViews.
 
-Framework-specific rendering must stay outside the core boundary. React `.tsx` files and React-only imports belong under `packages/markweave/src/react/**`; Vue 2 render functions belong under `packages/markweave/src/vue2/**`; Vue 3 render functions belong under `packages/markweave/src/vue3/**`. The `src/core`, `src/editor-core`, and `src/plugins` layers must remain framework-neutral TypeScript and must not import React, Vue, Tiptap framework adapters, or framework-specific lucide packages.
+Framework-specific rendering must stay outside the core boundary. React `.tsx` files and React-only imports belong under `packages/markweave-react/src/**`; Vue 2 render functions belong under `packages/markweave-vue2/src/**`; Vue 3 render functions belong under `packages/markweave-vue3/src/**`. The `packages/markweave/src/core`, `src/editor-core`, and `src/plugins` layers must remain framework-neutral TypeScript and must not import React, Vue, Tiptap framework adapters, or framework-specific lucide packages.
 
-User-visible behavior must not fork by adapter. Markdown parsing and serialization, content format normalization, mode/read-only decisions, slash/table/codeblock/Mermaid/TOC state, media attrs/upload mapping, link handling, floating toolbar models, and behavior contracts belong in `src/core`, `src/editor-core`, or `src/plugins`. Adapter directories may wrap that behavior with framework lifecycle, render functions or JSX, NodeView DOM/event binding, and framework-specific icon components.
+User-visible behavior must not fork by adapter. Markdown parsing and serialization, content format normalization, mode/read-only decisions, slash/table/codeblock/Mermaid/TOC state, media attrs/upload mapping, link handling, floating toolbar models, and behavior contracts belong in `packages/markweave/src/core`, `src/editor-core`, or `src/plugins`. Adapter packages may wrap that behavior with framework lifecycle, render functions or JSX, NodeView DOM/event binding, and framework-specific icon components.
 
 When one adapter needs a behavior fix, first look for the smallest framework-neutral helper that React, Vue 2, and Vue 3 can share. Copying logic between adapter files is a temporary containment only when an explicit compatibility limitation prevents sharing; document that limitation and cover the divergence with parity tests.
 
@@ -73,7 +76,7 @@ Behavior contract files list expected editor capabilities and should guide tests
 - `packages/markweave/src/plugins/markdown/behavior-contract.ts`
 - `packages/markweave/src/plugins/slash-command/behavior-contract.ts`
 - `packages/markweave/src/plugins/table/behavior-contract.ts`
-- `packages/markweave/src/react/ui/floating-toolbar/behavior-contract.ts`
+- `packages/markweave-react/src/ui/floating-toolbar/behavior-contract.ts`
 
 ## Playground Contracts
 

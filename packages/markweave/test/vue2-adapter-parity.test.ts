@@ -3,8 +3,8 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
-const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const readProjectFile = (path: string) => readFileSync(resolve(repoRoot, path), "utf8");
+const workspaceRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
+const readWorkspaceFile = (path: string) => readFileSync(resolve(workspaceRoot, path), "utf8");
 
 function expectSourceContract(source: string, selectors: readonly string[]) {
   const missing = selectors.filter((selector) => !source.includes(selector));
@@ -13,7 +13,7 @@ function expectSourceContract(source: string, selectors: readonly string[]) {
 
 describe("Vue2 adapter parity source contract", () => {
   it("keeps Vue2 extension composition on the shared media core", () => {
-    const source = readProjectFile("src/vue2/create-editor-extensions.ts");
+    const source = readWorkspaceFile("packages/markweave-vue2/src/create-editor-extensions.ts");
 
     expectSourceContract(source, [
       "createMarkweaveCoreEditorExtensions",
@@ -26,7 +26,7 @@ describe("Vue2 adapter parity source contract", () => {
   });
 
   it("keeps Vue2 editor shell on the same core runtime hooks as Vue3", () => {
-    const source = readProjectFile("src/vue2/MarkweaveEditor.ts");
+    const source = readWorkspaceFile("packages/markweave-vue2/src/MarkweaveEditor.ts");
 
     expectSourceContract(source, [
       "@tiptap/vue-2",
@@ -75,8 +75,8 @@ describe("Vue2 adapter parity source contract", () => {
   });
 
   it("keeps Vue2 render compatibility for component slots and reserved icon names", () => {
-    const compatSource = readProjectFile("src/vue2/vue2-compat.ts");
-    const iconsSource = readProjectFile("src/vue2/vue2-icons.ts");
+    const compatSource = readWorkspaceFile("packages/markweave-vue2/src/vue2-compat.ts");
+    const iconsSource = readWorkspaceFile("packages/markweave-vue2/src/vue2-icons.ts");
 
     expectSourceContract(compatSource, [
       "isDefaultSlotObject",
@@ -93,7 +93,7 @@ describe("Vue2 adapter parity source contract", () => {
   });
 
   it("keeps Vue2 media NodeViews on the React-compatible media DOM contract", () => {
-    const source = readProjectFile("src/vue2/media-nodeviews.ts");
+    const source = readWorkspaceFile("packages/markweave-vue2/src/media-nodeviews.ts");
 
     expectSourceContract(source, [
       "@tiptap/vue-2",

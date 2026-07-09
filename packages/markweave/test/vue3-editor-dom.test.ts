@@ -2,7 +2,7 @@
 
 import { createApp, defineComponent, h, nextTick, ref, type App } from "vue";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { MarkweaveEditor, type MarkweaveEditorMode, type MarkweaveEditorRuntimeSnapshot, type TableCommandResult } from "../src/vue3";
+import { MarkweaveEditor, type MarkweaveEditorMode, type MarkweaveEditorRuntimeSnapshot, type TableCommandResult } from "@markweave/vue3";
 
 let activeApp: App<Element> | null = null;
 let activeContainer: HTMLDivElement | null = null;

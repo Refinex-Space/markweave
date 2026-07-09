@@ -2,43 +2,41 @@
 
 Markdown-first WYSIWYG editor built on Tiptap and CodeMirror, providing Typora-like editing experience with block-level structure, slash commands, and rich text tooling.
 
-`markweave` is the publishable editor package. The playground is a private workspace app for local demos and development checks, and is not included in the npm package.
+Markweave publishes a framework-neutral core package plus React, Vue 2, and Vue 3 adapter packages. The playground apps are private workspace demos for local development checks and are not included in any npm package.
 
 ## Install
 
-Install the package plus the framework adapter peers you use.
+Install one Markweave adapter package in an existing framework app. React or Vue itself remains owned by the host app.
 
 ### React
 
 ```sh
-pnpm add markweave @tiptap/react react react-dom lucide-react
+pnpm add @markweave/react
 ```
 
 ### Vue 3
 
 ```sh
-pnpm add markweave @tiptap/vue-3 vue lucide-vue-next
+pnpm add @markweave/vue3
 ```
 
 ### Vue 2
 
 ```sh
-pnpm add markweave @tiptap/vue-2 vue@2.6.12 vue-template-compiler@2.6.12
+pnpm add @markweave/vue2
 ```
 
-All frameworks import the shared stylesheet:
+Vue 2 CLI / Webpack 4 projects should keep `vue-template-compiler` on the same Vue 2.6.x version as `vue`. Existing Vue 2 CLI projects usually already have both.
 
-```ts
-import "markweave/styles.css";
-```
+Each adapter package re-exports the shared editor stylesheet from its own `styles.css` subpath. If you explicitly install the core `markweave` package or use the legacy subpath imports, `markweave/styles.css` remains available.
 
 ## Usage
 
 ### React
 
 ```tsx
-import { MarkweaveEditor } from "markweave/react";
-import "markweave/styles.css";
+import { MarkweaveEditor } from "@markweave/react";
+import "@markweave/react/styles.css";
 
 export function Editor() {
   return (
@@ -57,8 +55,8 @@ export function Editor() {
 
 ```vue
 <script setup lang="ts">
-import { MarkweaveEditor } from "markweave/vue3";
-import "markweave/styles.css";
+import { MarkweaveEditor } from "@markweave/vue3";
+import "@markweave/vue3/styles.css";
 
 function handleUpdate({ markdown }: { markdown: string }) {
   console.log(markdown);
@@ -88,8 +86,8 @@ Vue CLI 4 / Webpack 4 projects must install `vue-template-compiler` with the sam
 </template>
 
 <script>
-import { MarkweaveEditor } from "markweave/vue2";
-import "markweave/styles.css";
+import { MarkweaveEditor } from "@markweave/vue2";
+import "@markweave/vue2/styles.css";
 
 export default {
   name: "Editor",
@@ -103,7 +101,7 @@ export default {
 </script>
 ```
 
-You can import `markweave/styles.css` once in the app entry instead of inside each component.
+You can import the adapter `styles.css` once in the app entry instead of inside each component.
 
 `defaultContent` and controlled `content` are parsed as Markdown unless you explicitly pass `defaultContentFormat` or `contentFormat`. Store `onUpdate.markdown` as the canonical product value; `html`, `json`, and `text` remain available for rendering and integration needs.
 
@@ -144,12 +142,16 @@ Legacy HTML input remains supported when declared explicitly:
 
 ## Package Boundary
 
-- `packages/markweave` contains the npm package named `markweave`.
+- `packages/markweave` contains the framework-neutral npm package named `markweave`.
+- `packages/markweave-react` contains `@markweave/react`.
+- `packages/markweave-vue2` contains `@markweave/vue2`.
+- `packages/markweave-vue3` contains `@markweave/vue3`.
 - `markweave` exports framework-neutral types and helpers.
-- `markweave/react` exports the React editor component, hook, and React extension factory.
-- `markweave/vue2` exports the Vue 2 editor component, controller helper, and Vue 2 extension factory.
-- `markweave/vue3` exports the Vue 3 editor component, composable, and Vue 3 extension factory.
-- `markweave/styles.css` remains the shared stylesheet entry.
+- `@markweave/react` exports the React editor component, hook, React extension factory, and `@markweave/react/styles.css`.
+- `@markweave/vue2` exports the Vue 2 editor component, controller helper, Vue 2 extension factory, and `@markweave/vue2/styles.css`.
+- `@markweave/vue3` exports the Vue 3 editor component, composable, Vue 3 extension factory, and `@markweave/vue3/styles.css`.
+- `markweave/react`, `markweave/vue2`, and `markweave/vue3` remain legacy compatibility shims for one release cycle and forward to the adapter packages.
+- `markweave/styles.css` remains the core stylesheet entry for direct core-package consumers and legacy imports.
 - `apps/playground-react`, `apps/playground-vue2`, and `apps/playground-vue3` contain private local demo apps.
 - `apps/playground-fixtures` contains shared private playground Markdown fixtures.
 

@@ -83,19 +83,25 @@ describe("playground integration contract", () => {
 
   it("documents framework-native published integration shapes", () => {
     for (const [name, source] of Object.entries(readmeSources)) {
-      expect(source, `${name} README should document React TSX usage`).toContain('from "markweave/react"');
+      expect(source, `${name} README should document React TSX usage`).toContain('from "@markweave/react"');
       expect(source, `${name} README should document Vue 3 SFC usage`).toContain('<script setup lang="ts">');
-      expect(source, `${name} README should document Vue 2 SFC usage`).toContain("Vue CLI 4 / Webpack 4 projects must install `vue-template-compiler`");
+      expect(source, `${name} README should document Vue 2 SFC usage`).toContain("Vue 2 CLI / Webpack 4 projects should keep `vue-template-compiler`");
       expect(source, `${name} README should document Vue 2 SFC template`).toContain("<template>");
       expect(source, `${name} README should document Vue 2 component registration`).toContain("components: { MarkweaveEditor }");
       expect(source, `${name} README should not use inline Vue 2 root templates`).not.toContain("new Vue({");
-      expect(source, `${name} README should document shared stylesheet import`).toContain('import "markweave/styles.css";');
-      expect(source, `${name} README should allow app-level stylesheet import`).toContain("You can import `markweave/styles.css` once in the app entry");
+      expect(source, `${name} README should document React adapter stylesheet import`).toContain('import "@markweave/react/styles.css";');
+      expect(source, `${name} README should document Vue 3 adapter stylesheet import`).toContain('import "@markweave/vue3/styles.css";');
+      expect(source, `${name} README should document Vue 2 adapter stylesheet import`).toContain('import "@markweave/vue2/styles.css";');
+      expect(source, `${name} README should document shared core stylesheet compatibility`).toContain("markweave/styles.css");
+      expect(source, `${name} README should allow app-level stylesheet import`).toContain("You can import the adapter `styles.css` once in the app entry");
     }
   });
 
   it("documents package dry-run verification before publishing", () => {
     expect(runbookSource).toContain("pnpm --filter markweave pack --dry-run");
+    expect(runbookSource).toContain("pnpm --filter @markweave/react pack --dry-run");
+    expect(runbookSource).toContain("pnpm --filter @markweave/vue2 pack --dry-run");
+    expect(runbookSource).toContain("pnpm --filter @markweave/vue3 pack --dry-run");
     expect(runbookSource).toContain("playground-only files are not included in package `files`");
   });
 });

@@ -8,9 +8,9 @@
     "typecheck": "vue-tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
+    "@markweave/vue3": "workspace:*",
     "@markweave/playground-fixtures": "workspace:*",
     "lucide-vue-next": "^0.547.0",
-    "markweave": "workspace:*",
     "vue": "^3.5.25"
   },
   "devDependencies": {

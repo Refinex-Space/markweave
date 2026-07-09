@@ -11,7 +11,7 @@ import {
   type MarkweaveUploadResult,
   type TableCommandResult,
   type TableEditWithAiRequest,
-} from "markweave/react";
+} from "@markweave/react";
 import { createPlaygroundUploadResult, initialPlaygroundDocument, mergedTablePlaygroundDocument } from "@markweave/playground-fixtures";
 
 export function MarkweaveEditorPlayground() {

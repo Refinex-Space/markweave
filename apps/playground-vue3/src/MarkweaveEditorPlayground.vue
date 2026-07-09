@@ -86,7 +86,7 @@ import {
   type MarkweaveUploadResult,
   type TableCommandResult,
   type TableEditWithAiRequest,
-} from "markweave/vue3";
+} from "@markweave/vue3";
 import { createPlaygroundUploadResult, initialPlaygroundDocument, mergedTablePlaygroundDocument } from "@markweave/playground-fixtures";
 
 const fixtureContent = ref(initialPlaygroundDocument);

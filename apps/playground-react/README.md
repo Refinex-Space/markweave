@@ -1,6 +1,6 @@
 # React Playground
 
-Private Vite/React playground for checking the `markweave/react` adapter against the shared editor behavior.
+Private Vite/React playground for checking the `@markweave/react` adapter against the shared editor behavior.
 
 ## Run
 
@@ -19,4 +19,4 @@ Open `http://127.0.0.1:5173/`.
 
 ## Integration Shape
 
-The playground aliases `markweave`, `markweave/react`, and `markweave/styles.css` to local source files so adapter changes can be inspected without publishing a package. Published consumers should install `markweave` plus the React peers documented in the root README, then import from `markweave/react`.
+The playground aliases `@markweave/react`, `markweave`, `markweave/internal/*`, and `markweave/styles.css` to local source files so adapter changes can be inspected without publishing a package. Published consumers should install `@markweave/react`, import from `@markweave/react`, and import `@markweave/react/styles.css` once in their app entry.

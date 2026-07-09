@@ -11,8 +11,12 @@ export default defineConfig({
         replacement: resolve(__dirname, "../../packages/markweave/src/editor-core/markweave-editor.css"),
       },
       {
-        find: "markweave/react",
-        replacement: resolve(__dirname, "../../packages/markweave/src/react/index.ts"),
+        find: "@markweave/react",
+        replacement: resolve(__dirname, "../../packages/markweave-react/src/index.ts"),
+      },
+      {
+        find: "markweave/internal",
+        replacement: resolve(__dirname, "../../packages/markweave/src"),
       },
       {
         find: "@markweave/playground-fixtures",

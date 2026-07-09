@@ -1,0 +1,13 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "markweave": ["../markweave/src/index.ts"],
+      "markweave/internal/*": ["../markweave/src/*"],
+      "markweave/styles.css": ["../markweave/src/editor-core/markweave-editor.css"]
+    },
+    "types": ["node"]
+  },
+  "include": ["src"]
+}

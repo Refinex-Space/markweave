@@ -4,7 +4,8 @@
     "baseUrl": ".",
     "paths": {
       "markweave": ["../../packages/markweave/src/index.ts"],
-      "markweave/vue3": ["../../packages/markweave/src/vue3/index.ts"],
+      "@markweave/vue3": ["../../packages/markweave-vue3/src/index.ts"],
+      "markweave/internal/*": ["../../packages/markweave/src/*"],
       "@markweave/playground-fixtures": ["../playground-fixtures/src/index.ts"],
       "markweave/styles.css": ["../../packages/markweave/src/editor-core/markweave-editor.css"]
     },
