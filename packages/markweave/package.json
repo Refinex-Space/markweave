@@ -1,6 +1,6 @@
 {
   "name": "markweave",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "type": "module",
   "description": "Markdown-first WYSIWYG editor built on Tiptap and CodeMirror, providing Typora-like editing experience with block-level structure, slash commands, and rich text tooling.",
   "license": "MIT",
