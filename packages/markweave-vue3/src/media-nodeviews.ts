@@ -816,6 +816,7 @@ const MarkweaveVueVideoNodeView = defineComponent({
                   "data-markweave-video-provider": provider.value ?? undefined,
                   "data-markweave-video-src": src.value ?? undefined,
                   allow: markweaveVideoIframeAllow,
+                  loading: "lazy",
                   allowfullscreen: "true",
                 }),
                 canEdit.value
@@ -834,6 +835,7 @@ const MarkweaveVueVideoNodeView = defineComponent({
                     class: "markweave-video",
                     src: src.value,
                     title: title.value ?? undefined,
+                    preload: "metadata",
                     controls: true,
                     "data-markweave-video": "true",
                     "data-markweave-mime-type": mimeType.value ?? undefined,

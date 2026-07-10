@@ -4,7 +4,7 @@ import { act, createElement, type ReactNode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it } from "vitest";
 import { MarkweaveEditor } from "@markweave/react";
-import { initialPlaygroundDocument, mergedTablePlaygroundDocument } from "@markweave/playground-fixtures";
+import { initialPlaygroundDocument, largeDocumentPerformanceFixture, mergedTablePlaygroundDocument } from "@markweave/playground-fixtures";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -76,5 +76,11 @@ describe("playground fixtures", () => {
     expect(mergedTablePlaygroundDocument).toContain('rowspan="2"');
     expect(mergedTablePlaygroundDocument).toContain("Merged Header");
     expect(mergedTablePlaygroundDocument).toContain("Clipboard Targets");
+  });
+
+  it("provides a representative 100k document fixture without remote media", () => {
+    expect(largeDocumentPerformanceFixture.length).toBeGreaterThanOrEqual(100_000);
+    expect(largeDocumentPerformanceFixture).toContain("Performance section 420");
+    expect(largeDocumentPerformanceFixture).not.toContain("https://");
   });
 });

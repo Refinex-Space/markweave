@@ -383,6 +383,7 @@ describe("Markweave Vue3 editor", () => {
     expect(container.querySelector(".markweave-video-embed iframe.markweave-video-iframe")?.getAttribute("src")).toBe(
       "https://www.youtube.com/embed/fPiUC5NxFic?si=GifL60l94AOaMV93",
     );
+    expect(container.querySelector(".markweave-video-embed iframe.markweave-video-iframe")?.getAttribute("loading")).toBe("lazy");
 
     await keyDown(videoNode, "Delete");
     expect(container.querySelector("iframe.markweave-video-iframe")).toBeTruthy();

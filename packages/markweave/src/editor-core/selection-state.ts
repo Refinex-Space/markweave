@@ -140,6 +140,39 @@ export const floatingToolbarMotion = {
   easing: "cubic-bezier(0.2, 0, 0, 1)",
 } as const;
 
+export const markweaveRuntimeProjectionDelayMs = 120;
+
+function hasSameItems(left: readonly string[], right: readonly string[]) {
+  return left.length === right.length && left.every((item, index) => item === right[index]);
+}
+
+/**
+ * Collapsed cursor movement within the same editing surface does not alter any
+ * rendered editor control. Avoiding that update keeps the text input path out
+ * of the framework render loop while range selections remain exact.
+ */
+export function areEditorSelectionSnapshotsEquivalent(
+  previous: EditorSelectionSnapshot | null,
+  next: EditorSelectionSnapshot,
+) {
+  if (!previous || previous.kind !== next.kind || previous.empty !== next.empty) {
+    return false;
+  }
+
+  const sameSurface = previous.currentNode === next.currentNode
+    && previous.inTable === next.inTable
+    && previous.surface === next.surface
+    && previous.floatingToolbarVariant === next.floatingToolbarVariant
+    && hasSameItems(previous.activeMarks, next.activeMarks)
+    && hasSameItems(previous.ancestorNodes, next.ancestorNodes);
+
+  if (!sameSurface) {
+    return false;
+  }
+
+  return next.kind === "collapsed" || (previous.from === next.from && previous.to === next.to);
+}
+
 export function createSelectionSnapshot(editor: Editor): EditorSelectionSnapshot {
   const { selection } = editor.state;
   const activeMarks = trackedMarks.filter((mark) => editor.isActive(mark));

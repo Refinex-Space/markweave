@@ -64,6 +64,7 @@
       <div class="markweave-debug-actions" aria-label="Debug fixtures">
         <button type="button" @click="loadFixture(initialPlaygroundDocument)">Default Fixture</button>
         <button type="button" @click="loadFixture(mergedTablePlaygroundDocument, 'html')">Merged Table Fixture</button>
+        <button type="button" @click="loadFixture(largeDocumentPerformanceFixture)">100k Performance Fixture</button>
       </div>
 
       <div v-if="lastTableCopyPayload" class="markweave-debug-copy" data-testid="markweave-debug-copy">
@@ -103,7 +104,7 @@
 
 <script>
 import { MarkweaveEditor } from "@markweave/vue2";
-import { createPlaygroundUploadResult, initialPlaygroundDocument, mergedTablePlaygroundDocument } from "@markweave/playground-fixtures";
+import { createPlaygroundUploadResult, initialPlaygroundDocument, largeDocumentPerformanceFixture, mergedTablePlaygroundDocument } from "@markweave/playground-fixtures";
 
 export default {
   name: "MarkweaveEditorPlayground",
@@ -113,6 +114,7 @@ export default {
   data() {
     return {
       initialPlaygroundDocument,
+      largeDocumentPerformanceFixture,
       mergedTablePlaygroundDocument,
       fixtureContent: initialPlaygroundDocument,
       fixtureFormat: "markdown",

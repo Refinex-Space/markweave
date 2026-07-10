@@ -69,8 +69,10 @@ import { isEditorComposing } from "markweave/internal/editor-core/composition-gu
 import {
   createMarkweaveEditorUpdatePayload,
   getMarkweaveContentType,
+  isMarkweaveControlledContentEchoCurrent,
   isEditorContentCurrent,
   normalizeMarkweaveContentFormat,
+  type MarkweaveControlledContentEcho,
 } from "markweave/internal/editor-core/editor-content";
 import {
   getCurrentFloatingToolbarBlockType,
@@ -85,7 +87,14 @@ import {
 } from "markweave/internal/editor-core/floating-toolbar-model";
 import { openMarkweaveReadonlyLinkFromEvent } from "markweave/internal/editor-core/readonly-link";
 import { createMarkweaveEditorRuntimeSnapshot } from "markweave/internal/editor-core/runtime-snapshot";
-import { calculateFloatingToolbarPopoverPlacement, createSelectionSnapshot, shouldShowFloatingToolbar, type EditorSelectionSnapshot } from "markweave/internal/editor-core/selection-state";
+import {
+  areEditorSelectionSnapshotsEquivalent,
+  calculateFloatingToolbarPopoverPlacement,
+  createSelectionSnapshot,
+  markweaveRuntimeProjectionDelayMs,
+  shouldShowFloatingToolbar,
+  type EditorSelectionSnapshot,
+} from "markweave/internal/editor-core/selection-state";
 import { normalizeMarkweaveEditorMode, setMarkweaveEditorModeState, type MarkweaveEditorMode } from "markweave/internal/core/editor-mode-state";
 import type {
   FloatingToolbarAssistantRequest,
@@ -2485,7 +2494,27 @@ export function useMarkweaveEditorController(options: MarkweaveVue3EditorControl
   const tableInteractionState = shallowRef<TableInteractionState>(initialTableInteractionState);
   const tocActiveId = ref<string | null>(null);
   const applyingControlledContent = ref(false);
+  const controlledContentEcho = shallowRef<MarkweaveControlledContentEcho | null>(null);
   const activeFormat = normalizeMarkweaveContentFormat(options.content === undefined ? options.defaultContentFormat : options.contentFormat);
+  let projectionTimer: number | null = null;
+
+  function flushRuntimeProjection() {
+    if (projectionTimer !== null) {
+      window.clearTimeout(projectionTimer);
+      projectionTimer = null;
+    }
+    revision.value += 1;
+  }
+
+  function scheduleRuntimeProjection() {
+    if (projectionTimer !== null) {
+      window.clearTimeout(projectionTimer);
+    }
+    projectionTimer = window.setTimeout(() => {
+      projectionTimer = null;
+      revision.value += 1;
+    }, markweaveRuntimeProjectionDelayMs);
+  }
 
   const uploadHandler = options.onSlashCommandUpload;
   const editorRef = useEditor({
@@ -2568,12 +2597,12 @@ export function useMarkweaveEditorController(options: MarkweaveVue3EditorControl
       }
       syncTableInteractionState(editor);
       syncSelectionState(editor);
-      revision.value += 1;
+      flushRuntimeProjection();
     },
     onTransaction: ({ editor, transaction }) => {
       syncTableInteractionState(editor);
       if (transaction.docChanged || isMermaidInlinePreviewTransaction(transaction)) {
-        revision.value += 1;
+        scheduleRuntimeProjection();
       }
       if (transaction.docChanged && mathTarget.value) {
         const nextTarget = getMarkweaveMathTargetAtPos(editor, mathTarget.value.pos);
@@ -2586,7 +2615,14 @@ export function useMarkweaveEditorController(options: MarkweaveVue3EditorControl
         syncSlashCommandState(editor);
       }
       if (!applyingControlledContent.value) {
-        options.onUpdate?.(createMarkweaveEditorUpdatePayload(editor));
+        options.onUpdate?.(createMarkweaveEditorUpdatePayload(editor, {
+          onContentRead: (kind, value) => {
+            const controlledFormat = normalizeMarkweaveContentFormat(options.contentFormat);
+            if (options.content !== undefined && kind === controlledFormat) {
+              controlledContentEcho.value = { content: value, format: kind, doc: editor.state.doc };
+            }
+          },
+        }));
       }
     },
   }) as Ref<VueEditor | null>;
@@ -2620,7 +2656,10 @@ export function useMarkweaveEditorController(options: MarkweaveVue3EditorControl
   }
 
   function syncSelectionState(activeEditor: CoreEditor) {
-    selectionSnapshot.value = createSelectionSnapshot(activeEditor);
+    const nextSnapshot = createSelectionSnapshot(activeEditor);
+    if (!areEditorSelectionSnapshotsEquivalent(selectionSnapshot.value, nextSnapshot)) {
+      selectionSnapshot.value = nextSnapshot;
+    }
     const selectedMathTarget = getMarkweaveMathTargetFromSelection(activeEditor);
     if (selectedMathTarget) {
       setMarkweaveMathEditingDomState(activeEditor, selectedMathTarget, true);
@@ -2680,7 +2719,7 @@ export function useMarkweaveEditorController(options: MarkweaveVue3EditorControl
         syncSlashCommandState(editor.value);
       }
       syncTableInteractionState(editor.value);
-      revision.value += 1;
+      flushRuntimeProjection();
       return true;
     },
   };
@@ -2731,6 +2770,7 @@ export function useMarkweaveEditorController(options: MarkweaveVue3EditorControl
       editor.value.setEditable(effectiveEditable.value);
       setMarkweaveEditorModeState(editor.value, { mode: editorMode.value, editable: effectiveEditable.value });
       setMermaidInlinePreviewEditorMode(editor.value, effectiveEditable.value ? "live" : "view");
+      flushRuntimeProjection();
       if (!effectiveEditable.value) {
         closeSlashMenu();
       }
@@ -2741,18 +2781,27 @@ export function useMarkweaveEditorController(options: MarkweaveVue3EditorControl
   watch(
     () => options.content,
     (nextContent) => {
-      if (!editor.value || nextContent === undefined || isEditorContentCurrent(editor.value, nextContent, normalizeMarkweaveContentFormat(options.contentFormat))) {
+      const normalizedContentFormat = normalizeMarkweaveContentFormat(options.contentFormat);
+      if (!editor.value || nextContent === undefined) {
+        return;
+      }
+      if (isMarkweaveControlledContentEchoCurrent(editor.value, controlledContentEcho.value, nextContent, normalizedContentFormat)) {
+        controlledContentEcho.value = null;
+        return;
+      }
+      controlledContentEcho.value = null;
+      if (isEditorContentCurrent(editor.value, nextContent, normalizedContentFormat)) {
         return;
       }
       applyingControlledContent.value = true;
-      editor.value.commands.setContent(nextContent, { contentType: getMarkweaveContentType(normalizeMarkweaveContentFormat(options.contentFormat)), emitUpdate: false });
+      editor.value.commands.setContent(nextContent, { contentType: getMarkweaveContentType(normalizedContentFormat), emitUpdate: false });
       applyingControlledContent.value = false;
       syncSelectionState(editor.value);
       if (effectiveEditable.value) {
         syncSlashCommandState(editor.value);
       }
       syncTableInteractionState(editor.value);
-      revision.value += 1;
+      flushRuntimeProjection();
     },
   );
 
@@ -2766,6 +2815,11 @@ export function useMarkweaveEditorController(options: MarkweaveVue3EditorControl
   });
 
   let cleanupTocListeners: (() => void) | null = null;
+  onBeforeUnmount(() => {
+    if (projectionTimer !== null) {
+      window.clearTimeout(projectionTimer);
+    }
+  });
   onMounted(() => {
     const updateTocActiveFromScroll = () => {
       if (!editor.value || !tocItems.value.length) {
