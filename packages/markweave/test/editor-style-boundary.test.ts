@@ -151,4 +151,12 @@ describe("editor style boundary", () => {
     expect(editorCss).toContain(".katex .hide-tail");
     expect(editorCss).toContain("width: 100%");
   });
+
+  it("scopes ordinary list markers and compact callout spacing inside the editor", () => {
+    expect(editorCss).toContain(".markweave-editor-surface ul:not(.markweave-task-list)");
+    expect(editorCss).toContain("list-style-type: disc");
+    expect(editorCss).toContain("list-style-type: decimal");
+    expect(editorCss).toContain(".markweave-callout > p");
+    expect(editorCss).toContain("line-height: 1.55");
+  });
 });

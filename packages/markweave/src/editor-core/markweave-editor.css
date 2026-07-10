@@ -849,6 +849,22 @@
   padding-left: 1.55em;
 }
 
+.markweave-editor-surface ul:not(.markweave-task-list) {
+  list-style-type: disc;
+}
+
+.markweave-editor-surface ul:not(.markweave-task-list) ul {
+  list-style-type: circle;
+}
+
+.markweave-editor-surface ul:not(.markweave-task-list) ul ul {
+  list-style-type: square;
+}
+
+.markweave-editor-surface ol {
+  list-style-type: decimal;
+}
+
 .markweave-editor-surface ul.markweave-task-list {
   list-style: none;
   margin: 0.85em 0;
@@ -1152,8 +1168,13 @@
   border-left: 4px solid #7aa2f7;
   border-radius: 5px;
   background: #f5f8ff;
-  padding: 10px 14px;
+  padding: 8px 14px;
   color: #2f343b;
+  line-height: 1.55;
+}
+
+.markweave-callout > p {
+  margin: 0.38em 0;
 }
 
 .markweave-callout > :first-child {

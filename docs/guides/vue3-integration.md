@@ -63,7 +63,7 @@ function saveDraft(markdown: string) {
 </template>
 ```
 
-`default-content` is Markdown by default. Store `payload.markdown` as the canonical product value. `payload.html`, `payload.json`, and `payload.text` are integration outputs, not the recommended storage source.
+`default-content` is Markdown by default. Store `payload.markdown` as the canonical product value. Markweave keeps standard Markdown where possible and emits native HTML fallback only for rich state that Markdown cannot express, including colored text/highlights, block alignment, and merged table cells. `payload.html`, `payload.json`, and `payload.text` remain integration outputs.
 
 ## Content API
 
@@ -252,7 +252,7 @@ Vue 3 receives the complete Markweave UI: floating toolbar, link popover, slash 
 
 ## Production Notes
 
-- Save Markdown from `on-update` payloads; render HTML only as a derived output.
+- Save Markdown from `on-update` payloads; its supported HTML fallback is part of the lossless Markdown format, not a separate document mode.
 - Debounce persistence in the host app. Markweave emits updates as the editor changes.
 - Import `@markweave/vue3/styles.css` once.
 - Keep uploads authenticated and validate file size, MIME type, and returned URLs on your server.

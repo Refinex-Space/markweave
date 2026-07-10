@@ -1,11 +1,13 @@
-import type { Extensions } from "@tiptap/core";
+import type { Extensions, JSONContent, MarkdownRendererHelpers, RenderContext } from "@tiptap/core";
 import CodeBlockLowlight from "@tiptap/extension-code-block-lowlight";
 import Emoji, { emojis } from "@tiptap/extension-emoji";
 import Highlight from "@tiptap/extension-highlight";
+import { Heading } from "@tiptap/extension-heading";
 import HorizontalRule from "@tiptap/extension-horizontal-rule";
 import Link from "@tiptap/extension-link";
 import { Markdown } from "@tiptap/markdown";
 import Mathematics from "@tiptap/extension-mathematics";
+import { Paragraph } from "@tiptap/extension-paragraph";
 import Subscript from "@tiptap/extension-subscript";
 import Superscript from "@tiptap/extension-superscript";
 import { Table } from "@tiptap/extension-table";
@@ -25,6 +27,11 @@ import { MarkweaveCallout } from "../plugins/callout/callout-node";
 import { MarkweaveCodeBlockClickFocus, MarkweaveCodeBlockCollapse, markweaveCodeBlockBehavior } from "../plugins/codeblock/codeblock-behavior";
 import { MarkweaveIndent } from "../plugins/indent/indent-extension";
 import { MarkweaveMarkdownInput } from "../plugins/markdown/markdown-input";
+import {
+  needsMarkweaveTableHtmlFallback,
+  normalizeMarkweaveHtmlColor,
+  renderMarkweaveHtmlFallback,
+} from "../plugins/markdown/lossless-html";
 import { MarkweaveCoreImage, MarkweaveCoreVideo } from "../plugins/media/core-media-nodes";
 import { MarkweaveAttachment } from "../plugins/media/media-nodes";
 import { MarkweaveMermaidInlinePreview } from "../plugins/mermaid/mermaid-inline-preview";
@@ -42,6 +49,54 @@ export interface CreateMarkweaveEditorExtensionsOptions {
 }
 
 const markweaveLowlight = createLowlight(common);
+const renderStandardTableMarkdown = (Table.config as {
+  renderMarkdown?: (node: JSONContent, helpers: MarkdownRendererHelpers, context: RenderContext) => string;
+}).renderMarkdown;
+
+const MarkweaveTextStyle = TextStyle.extend({
+  renderMarkdown(node, helpers) {
+    const color = normalizeMarkweaveHtmlColor(node.attrs?.color);
+    const content = helpers.renderChildren(node.content ?? []);
+    return color ? `<span style="color: ${color}">${content}</span>` : content;
+  },
+});
+
+const MarkweaveHighlight = Highlight.extend({
+  renderMarkdown(node, helpers) {
+    const color = normalizeMarkweaveHtmlColor(node.attrs?.color);
+    const content = helpers.renderChildren(node.content ?? []);
+    return color ? `<mark data-color="${color}">${content}</mark>` : `==${content}==`;
+  },
+});
+
+const MarkweaveParagraph = Paragraph.extend({
+  renderMarkdown(node, helpers) {
+    return node.attrs?.textAlign && node.attrs.textAlign !== "left"
+      ? renderMarkweaveHtmlFallback(node)
+      : helpers.renderChildren(node.content ?? []);
+  },
+});
+
+const MarkweaveHeading = Heading.extend({
+  renderMarkdown(node, helpers) {
+    if (node.attrs?.textAlign && node.attrs.textAlign !== "left") {
+      return renderMarkweaveHtmlFallback(node);
+    }
+
+    const level = Math.min(6, Math.max(1, Number(node.attrs?.level) || 1));
+    return `#`.repeat(level) + ` ${helpers.renderChildren(node.content ?? [])}`;
+  },
+});
+
+const MarkweaveTable = Table.extend({
+  renderMarkdown(node, helpers, context) {
+    if (needsMarkweaveTableHtmlFallback(node)) {
+      return renderMarkweaveHtmlFallback(node);
+    }
+
+    return renderStandardTableMarkdown?.(node, helpers, context) ?? "";
+  },
+});
 
 export function createMarkweaveEditorExtensions(options: CreateMarkweaveEditorExtensionsOptions = {}) {
   return [
@@ -53,17 +108,20 @@ export function createMarkweaveEditorExtensions(options: CreateMarkweaveEditorEx
       },
     }),
     StarterKit.configure({
-      heading: {
-        levels: [1, 2, 3, 4, 5, 6],
-      },
+      heading: false,
+      paragraph: false,
       codeBlock: false,
       horizontalRule: false,
       link: false,
       underline: false,
     }),
+    MarkweaveParagraph,
+    MarkweaveHeading.configure({
+      levels: [1, 2, 3, 4, 5, 6],
+    }),
     MarkweaveCallout,
     MarkweaveIndent,
-    TextStyle,
+    MarkweaveTextStyle,
     Color.configure({
       types: [TextStyle.name],
     }),
@@ -111,7 +169,7 @@ export function createMarkweaveEditorExtensions(options: CreateMarkweaveEditorEx
     MarkweaveCodeBlockClickFocus,
     MarkweaveMermaidInlinePreview,
     Underline,
-    Highlight.configure({
+    MarkweaveHighlight.configure({
       multicolor: true,
       HTMLAttributes: {
         class: "markweave-highlight",
@@ -136,7 +194,7 @@ export function createMarkweaveEditorExtensions(options: CreateMarkweaveEditorEx
         class: "markweave-task-item",
       },
     }),
-    Table.configure({
+    MarkweaveTable.configure({
       resizable: false,
       allowTableNodeSelection: true,
       HTMLAttributes: {

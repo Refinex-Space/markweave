@@ -60,7 +60,7 @@ function saveDraft(markdown: string) {
 }
 ```
 
-`defaultContent` 默认按 Markdown 解析。产品侧建议把 `payload.markdown` 作为主存储格式；`payload.html`、`payload.json`、`payload.text` 适合用于预览、索引或集成。
+`defaultContent` 默认按 Markdown 解析。产品侧建议把 `payload.markdown` 作为主存储格式；Markweave 会优先输出标准 Markdown，仅在文字/高亮颜色、块对齐、合并单元格等标准 Markdown 无法表达的状态下输出原生 HTML fallback。`payload.html`、`payload.json`、`payload.text` 仍适合用于预览、索引或集成。
 
 ## 内容 API
 
@@ -240,7 +240,7 @@ React 适配器提供完整 Markweave UI：浮动工具栏、链接弹层、slas
 
 ## 生产接入建议
 
-- 用 `onUpdate.markdown` 存储正文；HTML 只作为派生输出。
+- 用 `onUpdate.markdown` 存储正文；其中受支持的 HTML fallback 属于无损 Markdown 格式本身，而不是另一种文档模式。
 - 保存逻辑在宿主侧做 debounce。
 - `@markweave/react/styles.css` 只导入一次。
 - 上传接口必须做认证、文件大小、MIME 类型和返回 URL 校验。
