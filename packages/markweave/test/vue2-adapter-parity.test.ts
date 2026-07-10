@@ -106,6 +106,8 @@ describe("Vue2 adapter parity source contract", () => {
       "attrsFromMarkweaveVideoUrl",
       "markweave-image-node",
       "markweave-image-toolbar",
+      "markweave-image-preview",
+      "openMarkweaveImagePreview",
       "markweave-image-tooltip",
       "markweave-image-box",
       "markweave-image-resize-handle",

@@ -3012,6 +3012,139 @@
   margin: 0;
 }
 
+.markweave-image-preview-trigger {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  display: grid;
+  width: 30px;
+  height: 30px;
+  place-items: center;
+  border: 1px solid rgba(215, 221, 229, 0.95);
+  border-radius: 5px;
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 2px 8px rgba(31, 35, 40, 0.14);
+  color: #3f4650;
+  cursor: pointer;
+  opacity: 0;
+  padding: 0;
+  pointer-events: none;
+  transition: opacity 120ms ease, background 120ms ease;
+}
+
+.markweave-image-preview-trigger svg {
+  width: 16px;
+  height: 16px;
+}
+
+.markweave-image-node[data-hovered="true"] .markweave-image-preview-trigger,
+.markweave-editor-surface .markweave-image-node:hover .markweave-image-preview-trigger,
+.markweave-image-preview-trigger:focus-visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.markweave-image-preview-trigger:hover,
+.markweave-image-preview-trigger:focus-visible {
+  background: #f3f5f7;
+  outline: none;
+}
+
+.markweave-image-preview-layer {
+  position: fixed;
+  z-index: 1000;
+  inset: 0;
+  overflow: hidden;
+  background: #ffffff;
+  color: #24292f;
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  user-select: none;
+}
+
+.markweave-image-preview-toolbar {
+  position: absolute;
+  z-index: 2;
+  top: 72px;
+  left: 96px;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  min-height: 28px;
+  border-radius: 4px;
+  background: #f4f4f4;
+  padding: 3px 5px;
+}
+
+.markweave-image-preview-control,
+.markweave-image-preview-close {
+  display: grid;
+  place-items: center;
+  border: 0;
+  background: transparent;
+  color: #3f4650;
+  cursor: pointer;
+  padding: 0;
+}
+
+.markweave-image-preview-control {
+  width: 22px;
+  height: 22px;
+  border-radius: 3px;
+  font-size: 17px;
+}
+
+.markweave-image-preview-control:hover,
+.markweave-image-preview-control:focus-visible,
+.markweave-image-preview-close:hover,
+.markweave-image-preview-close:focus-visible {
+  background: #e6e6e6;
+  outline: none;
+}
+
+.markweave-image-preview-zoom-label {
+  min-width: 38px;
+  color: #2f343b;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1;
+  text-align: center;
+}
+
+.markweave-image-preview-close {
+  position: absolute;
+  z-index: 2;
+  top: 12px;
+  right: 14px;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  font-size: 22px;
+  line-height: 1;
+}
+
+.markweave-image-preview-viewport {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  overflow: hidden;
+  place-items: center;
+  cursor: grab;
+  touch-action: none;
+}
+
+.markweave-image-preview-viewport[data-dragging="true"] {
+  cursor: grabbing;
+}
+
+.markweave-image-preview-content {
+  display: block;
+  max-width: calc(100vw - 96px);
+  max-height: calc(100vh - 96px);
+  object-fit: contain;
+  transform-origin: center center;
+  will-change: transform;
+}
+
 @media (max-width: 720px) {
   .markweave-inner-toc {
     display: none;

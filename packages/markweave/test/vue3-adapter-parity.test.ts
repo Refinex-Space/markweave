@@ -136,6 +136,8 @@ describe("Vue3 adapter parity source contract", () => {
       "attrsFromMarkweaveVideoUrl",
       "markweave-image-node",
       "markweave-image-toolbar",
+      "markweave-image-preview",
+      "openMarkweaveImagePreview",
       "markweave-image-align-left",
       "markweave-image-align-center",
       "markweave-image-align-right",
