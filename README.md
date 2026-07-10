@@ -125,7 +125,7 @@ Legacy HTML input remains supported when declared explicitly:
 
 `mode` defaults to `"live"`. Pass `mode="view"` for a read-only rendered view that reuses the same Markweave output styling. The existing `editable={false}` prop still works as a compatibility lock, so `mode="live" editable={false}` is also read-only.
 
-`innerToc` defaults to `true` and renders the built-in right-side document outline from Markdown headings. Set `innerToc={false}` to hide the default UI while still receiving outline data through `onTocChange` and `onRuntimeStateChange`.
+`innerToc` defaults to `true` and renders the built-in right-side document outline from Markdown headings. `innerTocPlacement` defaults to `"container"`: it keeps the outline vertically centered in the visual viewport and centers the writing column with symmetric TOC gutters. When the actual editor container is narrow, the built-in outline hides automatically so the writing column remains readable. Set `innerTocPlacement="viewport"` only when a fixed viewport-side outline is required; set `innerToc={false}` to hide the default UI while still receiving outline data through `onTocChange` and `onRuntimeStateChange`.
 
 ```tsx
 <MarkweaveEditor

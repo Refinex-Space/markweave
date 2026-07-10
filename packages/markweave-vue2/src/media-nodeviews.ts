@@ -7,6 +7,7 @@ import {
   AlignRight,
   Captions,
   Download,
+  Eye,
   ImageUp,
   Replace,
   Trash2,
@@ -16,6 +17,7 @@ import {
 import { computed, defineComponent, h, onBeforeUnmount, ref, watch, type Component } from "./vue2-compat";
 import { getMarkweaveEditorModeState, isMarkweaveEditorLiveEditable, subscribeToMarkweaveEditorMode } from "markweave/internal/core/editor-mode-state";
 import { getMarkweaveMessages, type MarkweaveMessages } from "markweave/internal/i18n";
+import { openMarkweaveImagePreview } from "markweave/internal/plugins/media/image-preview";
 import {
   attrsFromMarkweaveImageUploadResult,
   attrsFromMarkweaveVideoUploadResult,
@@ -346,6 +348,20 @@ const MarkweaveVueImageNodeView = defineComponent({
     const width = computed(() => numberAttribute(attrs.value.width));
     const caption = computed(() => stringAttribute(attrs.value.caption));
     const showPlaceholder = computed(() => canEdit.value && (!src.value || replacing.value));
+    const openPreview = () => {
+      if (!src.value) return;
+      openMarkweaveImagePreview({
+        src: src.value,
+        alt: stringAttribute(attrs.value.alt) ?? "",
+        messages: {
+          dialogAriaLabel: messages.value.previewDialogAriaLabel,
+          zoomOut: messages.value.previewZoomOut,
+          zoomIn: messages.value.previewZoomIn,
+          reset: messages.value.previewReset,
+          close: messages.value.previewClose,
+        },
+      });
+    };
 
     watch(caption, (nextCaption) => {
       if (!captionOpen.value) {
@@ -488,7 +504,7 @@ const MarkweaveVueImageNodeView = defineComponent({
           "data-testid": "markweave-image-node",
           "data-align": align.value,
           "data-selected": canEdit.value && props.selected ? "true" : "false",
-          "data-hovered": canEdit.value && hovered.value ? "true" : "false",
+          "data-hovered": hovered.value ? "true" : "false",
           "data-empty": "false",
           onMouseenter: () => {
             hovered.value = true;
@@ -534,6 +550,7 @@ const MarkweaveVueImageNodeView = defineComponent({
                   active: captionOpen.value || Boolean(caption.value),
                   onClick: toggleCaption,
                 }),
+                createToolbarButton({ testId: "markweave-image-preview", label: messages.value.preview, icon: Eye, onClick: openPreview }),
                 createToolbarButton({
                   testId: "markweave-image-download",
                   label: messages.value.download,
@@ -575,6 +592,22 @@ const MarkweaveVueImageNodeView = defineComponent({
                     draggable: false,
                   })
                 : h("div", { class: "markweave-image-readonly-empty", "data-testid": "markweave-image-readonly-empty", "aria-hidden": "true" }),
+              !canEdit.value && src.value
+                ? h(
+                    "button",
+                    {
+                      type: "button",
+                      class: "markweave-image-preview-trigger",
+                      "data-testid": "markweave-image-preview",
+                      "data-markweave-image-ui": "true",
+                      "aria-label": messages.value.preview,
+                      title: messages.value.preview,
+                      onMousedown: (event: MouseEvent) => event.preventDefault(),
+                      onClick: openPreview,
+                    },
+                    [h(Eye, { size: 16, strokeWidth: 1.8 }), h("span", { class: "markweave-image-tooltip", role: "tooltip" }, messages.value.preview)],
+                  )
+                : null,
               canEdit.value
                 ? h("button", {
                     type: "button",

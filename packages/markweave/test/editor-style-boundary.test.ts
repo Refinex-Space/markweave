@@ -112,6 +112,14 @@ describe("editor style boundary", () => {
     expect(editorCss).toContain(".markweave-inner-toc-item");
     expect(editorCss).toContain(".markweave-inner-toc:hover .markweave-inner-toc-panel");
     expect(editorCss).toContain("right: 28px");
+    expect(editorCss).toContain('data-markweave-inner-toc-placement="container"');
+    expect(editorCss).toContain("--markweave-inner-toc-gutter: 232px");
+    expect(editorCss).toContain("--markweave-inner-toc-panel-width: 184px");
+    expect(editorCss).toContain("padding-inline: var(--markweave-inner-toc-gutter)");
+    expect(editorCss).toContain("@container (max-width: 900px)");
+    expect(editorCss).toContain("position: fixed;");
+    expect(editorCss).toContain("right: var(--markweave-inner-toc-right, 28px);");
+    expect(editorCss).toContain("font-size: 16px");
     expect(editorCss).toContain("z-index: 58");
     expect(editorCss).toContain("scrollbar-color: #d7d7d7 transparent");
     expect(editorCss).toContain(".markweave-video");
@@ -145,5 +153,20 @@ describe("editor style boundary", () => {
     expect(editorCss).toContain(".katex .katex-mathml");
     expect(editorCss).toContain(".katex .hide-tail");
     expect(editorCss).toContain("width: 100%");
+  });
+
+  it("scopes ordinary list markers and compact callout spacing inside the editor", () => {
+    expect(editorCss).toContain(".markweave-editor-surface ul:not(.markweave-task-list)");
+    expect(editorCss).toContain("list-style-type: disc");
+    expect(editorCss).toContain("list-style-type: decimal");
+    expect(editorCss).toContain(".markweave-callout > p");
+    expect(editorCss).toContain("line-height: 1.55");
+  });
+
+  it("allows italic synthesis only for inline emphasis in fallback fonts", () => {
+    expect(editorCss).toContain(".markweave-editor-surface em,");
+    expect(editorCss).toContain(".markweave-editor-surface i {");
+    expect(editorCss).toContain("font-style: italic");
+    expect(editorCss).toContain("font-synthesis: style");
   });
 });

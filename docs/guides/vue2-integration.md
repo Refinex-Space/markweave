@@ -1,6 +1,6 @@
 ---
 owner: refinex
-updated: 2026-07-09
+updated: 2026-07-10
 status: active
 referenced_by: docs/README.md#knowledge-map
 ---
@@ -106,7 +106,7 @@ export default {
 </script>
 ```
 
-`default-content` is Markdown by default. Store `payload.markdown` as the canonical product value. `payload.html`, `payload.json`, and `payload.text` are integration outputs, not the recommended storage source.
+`default-content` is Markdown by default. Store `payload.markdown` as the canonical product value. Markweave keeps standard Markdown where possible and emits native HTML fallback only for rich state that Markdown cannot express, including colored text/highlights, block alignment, and merged table cells. `payload.html`, `payload.json`, and `payload.text` remain integration outputs.
 
 ## Content API
 
@@ -195,6 +195,7 @@ export default {
 | `editable` | `true` | Compatibility lock. Effective editable state is `mode === "live" && editable !== false`. |
 | `lang` | `"zh"` | UI language. Supported values are `"zh"` and `"en"`. Re-mount the editor when switching language dynamically. |
 | `inner-toc` | `true` | Renders the built-in right-side outline. Set `:inner-toc="false"` to render your own TOC from `on-toc-change` or `runtimeSnapshot.toc`. |
+| `inner-toc-placement` | `"container"` | The default keeps the outline vertically centered in the visual viewport and centers the writing column with symmetric TOC gutters. It hides the built-in outline when the actual editor container is narrow, preserving readable content width. Set `inner-toc-placement="viewport"` only when a fixed viewport-side outline is required. |
 | `auto-focus-first-table-body-cell` | `false` | Useful for playground or table-first documents. |
 
 ## Upload API
@@ -270,7 +271,7 @@ interface MarkweaveUploadResult {
 }
 ```
 
-Images render with align, caption, resize, replace, download, and delete controls in Live mode. Videos accept local upload, direct video URLs, YouTube embed URLs, Bilibili player URLs, and normal YouTube/Bilibili share links. Attachments render from existing attachment HTML fallback; the slash Attachment command is currently disabled in the default UI, but the upload type remains part of the public contract for host extensions.
+Images render with preview, align, caption, resize, replace, download, and delete controls in Live mode. In View mode, hovering an image reveals a top-right preview action that opens the same fullscreen zoom and pan reader. Videos accept local upload, direct video URLs, YouTube embed URLs, Bilibili player URLs, and normal YouTube/Bilibili share links. Attachments render from existing attachment HTML fallback; the slash Attachment command is currently disabled in the default UI, but the upload type remains part of the public contract for host extensions.
 
 ## Tables, AI, And Copy Callbacks
 
@@ -297,9 +298,10 @@ Vue 2 receives the complete Markweave UI: floating toolbar, link popover, slash 
 
 ## Production Notes
 
-- Save Markdown from `on-update` payloads; render HTML only as a derived output.
+- Save Markdown from `on-update` payloads; its supported HTML fallback is part of the lossless Markdown format, not a separate document mode.
 - Debounce persistence in the host app. Markweave emits updates as the editor changes.
 - Import `@markweave/vue2/styles.css` once.
+- Inline emphasis remains visible for CJK fallback fonts even when the host system has no native italic face.
 - Keep `vue` and `vue-template-compiler` versions identical.
 - Keep `transpileDependencies` for modern ESM dependencies when using Vue CLI 4 / Webpack 4.
 - Keep uploads authenticated and validate file size, MIME type, and returned URLs on your server.

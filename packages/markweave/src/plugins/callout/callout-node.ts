@@ -87,6 +87,6 @@ export const MarkweaveCallout = Node.create({
   renderMarkdown: (node, helpers) => {
     const type = normalizeMarkweaveCalloutType(node.attrs?.type);
     const content = helpers.renderChildren(node.content ?? [], "\n\n").trim();
-    return `:::${type}\n\n${content}\n\n:::`;
+    return content ? `:::${type}\n${content}\n:::` : `:::${type}\n:::`;
   },
 });

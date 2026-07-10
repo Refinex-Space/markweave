@@ -9,13 +9,15 @@ export {
   setMarkweaveEditorModeState,
   subscribeToMarkweaveEditorMode,
 } from "./core/editor-mode-state";
-export type { MarkweaveTocItem, MarkweaveTocState } from "./core/toc-state";
+export type { MarkweaveInnerTocPlacement, MarkweaveTocItem, MarkweaveTocState } from "./core/toc-state";
 export {
   createMarkweaveTocState,
   emptyMarkweaveTocState,
   getActiveMarkweaveTocId,
   getMarkweaveTocItems,
   getValidMarkweaveTocActiveId,
+  normalizeMarkweaveInnerTocPlacement,
+  observeMarkweaveInnerTocContainerPosition,
   scrollToMarkweaveTocItem,
 } from "./core/toc-state";
 export type {

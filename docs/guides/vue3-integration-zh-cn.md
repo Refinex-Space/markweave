@@ -1,6 +1,6 @@
 ---
 owner: refinex
-updated: 2026-07-09
+updated: 2026-07-10
 status: active
 referenced_by: docs/README.md#knowledge-map
 ---
@@ -63,7 +63,7 @@ function saveDraft(markdown: string) {
 </template>
 ```
 
-`default-content` 默认按 Markdown 解析。产品侧建议把 `payload.markdown` 作为主存储格式；`payload.html`、`payload.json`、`payload.text` 适合用于预览、索引或集成。
+`default-content` 默认按 Markdown 解析。产品侧建议把 `payload.markdown` 作为主存储格式；Markweave 会优先输出标准 Markdown，仅在文字/高亮颜色、块对齐、合并单元格等标准 Markdown 无法表达的状态下输出原生 HTML fallback。`payload.html`、`payload.json`、`payload.text` 仍适合用于预览、索引或集成。
 
 ## 内容 API
 
@@ -147,6 +147,7 @@ function handleRuntimeStateChange(snapshot) {
 | `editable` | `true` | 兼容锁。最终可编辑状态是 `mode === "live" && editable !== false`。 |
 | `lang` | `"zh"` | UI 语言。支持 `"zh"` 和 `"en"`。运行时切换语言建议重新挂载编辑器。 |
 | `inner-toc` | `true` | 显示内置右侧目录。传 `:inner-toc="false"` 后可通过 `on-toc-change` 或 `runtimeSnapshot.toc` 自行渲染目录。 |
+| `inner-toc-placement` | `"container"` | 默认使目录始终相对视觉窗口垂直居中，并通过对称目录留白保持正文居中；实际编辑器容器较窄时会自动隐藏内置目录，优先保证正文可读性。仅在确实需要固定于视口右侧时传 `inner-toc-placement="viewport"`。 |
 | `auto-focus-first-table-body-cell` | `false` | 适合 playground 或表格优先文档。 |
 
 ## 上传 API
@@ -224,7 +225,7 @@ interface MarkweaveUploadResult {
 }
 ```
 
-图片在 Live 模式下支持对齐、Caption、缩放、替换、下载和删除。视频支持本地上传、直接视频 URL、YouTube embed URL、Bilibili player URL、普通 YouTube/Bilibili 分享链接。附件节点可以渲染已有 attachment HTML fallback；默认 slash Attachment 入口目前是禁用状态，但 `attachment` 仍保留在公开上传协议中，方便宿主后续扩展。
+图片在 Live 模式下支持预览、对齐、Caption、缩放、替换、下载和删除；View 模式下 Hover 图片右上角会出现预览入口，可打开支持缩放与拖拽平移的大图预览。视频支持本地上传、直接视频 URL、YouTube embed URL、Bilibili player URL、普通 YouTube/Bilibili 分享链接。附件节点可以渲染已有 attachment HTML fallback；默认 slash Attachment 入口目前是禁用状态，但 `attachment` 仍保留在公开上传协议中，方便宿主后续扩展。
 
 ## 表格、AI 与复制回调
 
@@ -251,9 +252,10 @@ Vue 3 适配器提供完整 Markweave UI：浮动工具栏、链接弹层、slas
 
 ## 生产接入建议
 
-- 用 `on-update` payload 中的 `markdown` 存储正文；HTML 只作为派生输出。
+- 用 `on-update` payload 中的 `markdown` 存储正文；其中受支持的 HTML fallback 属于无损 Markdown 格式本身，而不是另一种文档模式。
 - 保存逻辑在宿主侧做 debounce。
 - `@markweave/vue3/styles.css` 只导入一次。
+- 即使宿主系统的中文回退字体没有原生斜体字形，行内斜体也会保持可见。
 - 上传接口必须做认证、文件大小、MIME 类型和返回 URL 校验。
 - 不要接受任意 iframe host。Markweave 只处理直接视频和受支持的 YouTube/Bilibili embed 形态。
 - Markweave 面向浏览器运行；Nuxt 等 SSR 框架中应在客户端渲染编辑器。

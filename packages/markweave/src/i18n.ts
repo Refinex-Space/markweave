@@ -62,6 +62,12 @@ export interface MarkweaveMessages {
     readonly alignCenter: string;
     readonly alignRight: string;
     readonly caption: string;
+    readonly preview: string;
+    readonly previewDialogAriaLabel: string;
+    readonly previewZoomOut: string;
+    readonly previewZoomIn: string;
+    readonly previewReset: string;
+    readonly previewClose: string;
     readonly download: string;
     readonly replace: string;
     readonly delete: string;
@@ -655,6 +661,12 @@ const messagesByLang: Record<MarkweaveLang, MarkweaveMessages> = {
       alignCenter: "图片居中对齐",
       alignRight: "图片右对齐",
       caption: "题注",
+      preview: "预览图片",
+      previewDialogAriaLabel: "图片预览",
+      previewZoomOut: "缩小",
+      previewZoomIn: "放大",
+      previewReset: "重置缩放",
+      previewClose: "关闭预览",
       download: "下载图片",
       replace: "替换图片",
       delete: "删除图片",
@@ -843,6 +855,12 @@ const messagesByLang: Record<MarkweaveLang, MarkweaveMessages> = {
       alignCenter: "Image align center",
       alignRight: "Image align right",
       caption: "Caption",
+      preview: "Preview image",
+      previewDialogAriaLabel: "Image preview",
+      previewZoomOut: "Zoom out",
+      previewZoomIn: "Zoom in",
+      previewReset: "Reset zoom",
+      previewClose: "Close preview",
       download: "Download image",
       replace: "Replace image",
       delete: "Delete image",

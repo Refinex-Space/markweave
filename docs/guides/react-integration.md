@@ -1,6 +1,6 @@
 ---
 owner: refinex
-updated: 2026-07-09
+updated: 2026-07-10
 status: active
 referenced_by: docs/README.md#knowledge-map
 ---
@@ -60,7 +60,7 @@ function saveDraft(markdown: string) {
 }
 ```
 
-`defaultContent` is Markdown by default. Store `payload.markdown` as the canonical product value. `payload.html`, `payload.json`, and `payload.text` are integration outputs, not the recommended storage source.
+`defaultContent` is Markdown by default. Store `payload.markdown` as the canonical product value. Markweave keeps standard Markdown where possible and emits native HTML fallback only for rich state that Markdown cannot express, including colored text/highlights, block alignment, and merged table cells. `payload.html`, `payload.json`, and `payload.text` remain integration outputs.
 
 ## Content API
 
@@ -129,6 +129,7 @@ For advanced custom shells, `useMarkweaveEditorController` exposes `actions.setC
 | `editable` | `true` | Compatibility lock. Effective editable state is `mode === "live" && editable !== false`. |
 | `lang` | `"zh"` | UI language. Supported values are `"zh"` and `"en"`. Re-mount the editor when switching language dynamically. |
 | `innerToc` | `true` | Renders the built-in right-side outline. Set `false` to render your own TOC from `onTocChange` or `runtimeSnapshot.toc`. |
+| `innerTocPlacement` | `"container"` | The default keeps the outline vertically centered in the visual viewport and centers the writing column with symmetric TOC gutters. It hides the built-in outline when the actual editor container is narrow, preserving readable content width. Set `"viewport"` only when a fixed viewport-side outline is required. |
 | `autoFocusFirstTableBodyCell` | `false` | Useful for playground or table-first documents. |
 
 ## Upload API
@@ -204,7 +205,7 @@ interface MarkweaveUploadResult {
 }
 ```
 
-Images render with align, caption, resize, replace, download, and delete controls in Live mode. Videos accept local upload, direct video URLs, YouTube embed URLs, Bilibili player URLs, and normal YouTube/Bilibili share links. Attachments render from existing attachment HTML fallback; the slash Attachment command is currently disabled in the default UI, but the upload type remains part of the public contract for host extensions.
+Images render with preview, align, caption, resize, replace, download, and delete controls in Live mode. In View mode, hovering an image reveals a top-right preview action that opens the same fullscreen zoom and pan reader. Videos accept local upload, direct video URLs, YouTube embed URLs, Bilibili player URLs, and normal YouTube/Bilibili share links. Attachments render from existing attachment HTML fallback; the slash Attachment command is currently disabled in the default UI, but the upload type remains part of the public contract for host extensions.
 
 ## Tables, AI, And Copy Callbacks
 
@@ -239,9 +240,10 @@ React receives the complete Markweave UI: floating toolbar, link popover, slash 
 
 ## Production Notes
 
-- Save Markdown from `onUpdate.markdown`; render HTML only as a derived output.
+- Save Markdown from `onUpdate.markdown`; its supported HTML fallback is part of the lossless Markdown format, not a separate document mode.
 - Debounce persistence in the host app. Markweave emits updates as the editor changes.
 - Import `@markweave/react/styles.css` once.
+- Inline emphasis remains visible for CJK fallback fonts even when the host system has no native italic face.
 - Keep uploads authenticated and validate file size, MIME type, and returned URLs on your server.
 - Do not allow arbitrary iframe hosts. Markweave only handles direct video plus supported YouTube/Bilibili embed forms.
 - Markweave is browser-oriented. In SSR frameworks, render the editor on the client side.

@@ -7,6 +7,7 @@ import {
   AlignRight,
   Captions,
   Download,
+  Eye,
   ImageUp,
   Replace,
   Trash2,
@@ -32,6 +33,7 @@ import {
 } from "markweave/internal/plugins/media/core-media-nodes";
 import { getMarkweaveMessages, type MarkweaveMessages } from "markweave/internal/i18n";
 import { isMarkweaveEditorLiveEditable } from "markweave/internal/core/editor-mode-state";
+import { openMarkweaveImagePreview } from "markweave/internal/plugins/media/image-preview";
 import { useMarkweaveEditorModeState } from "../editor-mode-state";
 
 export type MarkweaveImageAlign = MarkweaveCoreImageAlign;
@@ -69,6 +71,20 @@ function MarkweaveImageNodeView(props: NodeViewProps) {
   const [captionOpen, setCaptionOpen] = useState(Boolean(caption));
   const [captionValue, setCaptionValue] = useState(caption ?? "");
   const showPlaceholder = canEditImage && (!src || replacing);
+  const openPreview = () => {
+    if (!src) return;
+    openMarkweaveImagePreview({
+      src,
+      alt: stringAttribute(node.attrs.alt) ?? "",
+      messages: {
+        dialogAriaLabel: imageMessages.previewDialogAriaLabel,
+        zoomOut: imageMessages.previewZoomOut,
+        zoomIn: imageMessages.previewZoomIn,
+        reset: imageMessages.previewReset,
+        close: imageMessages.previewClose,
+      },
+    });
+  };
 
   useEffect(() => {
     if (!captionOpen) {
@@ -221,7 +237,7 @@ function MarkweaveImageNodeView(props: NodeViewProps) {
       data-testid="markweave-image-node"
       data-align={align}
       data-selected={canEditImage && selected ? "true" : "false"}
-      data-hovered={canEditImage && hovered ? "true" : "false"}
+      data-hovered={hovered ? "true" : "false"}
       data-empty={showPlaceholder ? "true" : "false"}
       onPointerEnter={() => setHovered(true)}
       onPointerLeave={() => setHovered(false)}
@@ -261,6 +277,7 @@ function MarkweaveImageNodeView(props: NodeViewProps) {
                   downloadMarkweaveImage(src);
                 }
               }}
+              onPreview={openPreview}
               onReplace={() => {
                 setInputValue("");
                 setError(null);
@@ -274,6 +291,21 @@ function MarkweaveImageNodeView(props: NodeViewProps) {
             ) : (
               <div className="markweave-image-readonly-empty" data-testid="markweave-image-readonly-empty" aria-hidden="true" />
             )}
+            {!canEditImage && src ? (
+              <button
+                type="button"
+                className="markweave-image-preview-trigger"
+                data-testid="markweave-image-preview"
+                data-markweave-image-ui="true"
+                aria-label={imageMessages.preview}
+                title={imageMessages.preview}
+                onMouseDown={(event) => event.preventDefault()}
+                onClick={openPreview}
+              >
+                <Eye size={16} strokeWidth={1.8} />
+                <span className="markweave-image-tooltip" role="tooltip">{imageMessages.preview}</span>
+              </button>
+            ) : null}
             {canEditImage ? <ResizeHandle side="left" messages={messages} onPointerDown={beginResize} /> : null}
             {canEditImage ? <ResizeHandle side="right" messages={messages} onPointerDown={beginResize} /> : null}
           </div>
@@ -396,6 +428,7 @@ function ImageToolbar({
   onCaption,
   onDelete,
   onDownload,
+  onPreview,
   onReplace,
 }: {
   readonly align: MarkweaveImageAlign;
@@ -405,6 +438,7 @@ function ImageToolbar({
   readonly onCaption: () => void;
   readonly onDelete: () => void;
   readonly onDownload: () => void;
+  readonly onPreview: () => void;
   readonly onReplace: () => void;
 }) {
   const imageMessages = messages.image;
@@ -416,6 +450,7 @@ function ImageToolbar({
       <ToolbarButton testId="markweave-image-align-right" label={imageMessages.alignRight} icon={AlignRight} active={align === "right"} onClick={() => onAlign("right")} />
       <span className="markweave-image-toolbar-divider" aria-hidden="true" />
       <ToolbarButton testId="markweave-image-caption" label={imageMessages.caption} icon={Captions} active={captionActive} onClick={onCaption} />
+      <ToolbarButton testId="markweave-image-preview" label={imageMessages.preview} icon={Eye} onClick={onPreview} />
       <ToolbarButton testId="markweave-image-download" label={imageMessages.download} icon={Download} onClick={onDownload} />
       <ToolbarButton testId="markweave-image-replace" label={imageMessages.replace} icon={Replace} onClick={onReplace} />
       <span className="markweave-image-toolbar-divider" aria-hidden="true" />
