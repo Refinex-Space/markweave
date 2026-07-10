@@ -554,13 +554,6 @@ function getAxisMenuItems(menu: TableCommandMenuKind) {
 
 function getSelectionMenuItems(editor: Editor): readonly TableMenuItemSpec[] {
   return [
-    {
-      id: "edit-with-ai",
-      label: "Edit with AI",
-      menu: "row",
-      commandId: null,
-      availability: "external",
-    },
     ...getAvailableCellMenuCommandSpecs(editor).map((command) => ({
       id: command.id,
       label: command.label,
