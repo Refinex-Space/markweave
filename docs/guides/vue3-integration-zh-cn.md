@@ -255,6 +255,7 @@ Vue 3 适配器提供完整 Markweave UI：浮动工具栏、链接弹层、slas
 - 用 `on-update` payload 中的 `markdown` 存储正文；其中受支持的 HTML fallback 属于无损 Markdown 格式本身，而不是另一种文档模式。
 - 保存逻辑在宿主侧做 debounce。
 - `@markweave/vue3/styles.css` 只导入一次。
+- 即使宿主系统的中文回退字体没有原生斜体字形，行内斜体也会保持可见。
 - 上传接口必须做认证、文件大小、MIME 类型和返回 URL 校验。
 - 不要接受任意 iframe host。Markweave 只处理直接视频和受支持的 YouTube/Bilibili embed 形态。
 - Markweave 面向浏览器运行；Nuxt 等 SSR 框架中应在客户端渲染编辑器。

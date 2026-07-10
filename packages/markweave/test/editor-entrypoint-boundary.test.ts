@@ -221,19 +221,19 @@ describe("editor entrypoint boundary", () => {
     const publishedCoreDependency = `^${corePackage.version}`;
 
     expect(reactPackage.dependencies).toEqual(expect.objectContaining({ markweave: "workspace:^", "@tiptap/react": "^3.27.1" }));
-    expect(publishedCoreDependency).toBe("^0.1.3");
+    expect(publishedCoreDependency).toBe("^0.1.4");
     expect(reactPackage.peerDependencies).toEqual({ react: "^18.2.0 || ^19.0.0", "react-dom": "^18.2.0 || ^19.0.0" });
     expect(reactPackage.dependencies).not.toHaveProperty("@tiptap/vue-2");
     expect(reactPackage.dependencies).not.toHaveProperty("@tiptap/vue-3");
 
     expect(vue2Package.dependencies).toEqual(expect.objectContaining({ markweave: "workspace:^", "@tiptap/vue-2": "3.27.1" }));
-    expect(publishedCoreDependency).toBe("^0.1.3");
+    expect(publishedCoreDependency).toBe("^0.1.4");
     expect(vue2Package.peerDependencies).toEqual({ vue: "^2.6.12" });
     expect(vue2Package.dependencies).not.toHaveProperty("@tiptap/react");
     expect(vue2Package.dependencies).not.toHaveProperty("@tiptap/vue-3");
 
     expect(vue3Package.dependencies).toEqual(expect.objectContaining({ markweave: "workspace:^", "@tiptap/vue-3": "^3.27.1" }));
-    expect(publishedCoreDependency).toBe("^0.1.3");
+    expect(publishedCoreDependency).toBe("^0.1.4");
     expect(vue3Package.peerDependencies).toEqual({ vue: "^3.3.0" });
     expect(vue3Package.dependencies).not.toHaveProperty("@tiptap/react");
     expect(vue3Package.dependencies).not.toHaveProperty("@tiptap/vue-2");

@@ -243,6 +243,7 @@ React receives the complete Markweave UI: floating toolbar, link popover, slash 
 - Save Markdown from `onUpdate.markdown`; its supported HTML fallback is part of the lossless Markdown format, not a separate document mode.
 - Debounce persistence in the host app. Markweave emits updates as the editor changes.
 - Import `@markweave/react/styles.css` once.
+- Inline emphasis remains visible for CJK fallback fonts even when the host system has no native italic face.
 - Keep uploads authenticated and validate file size, MIME type, and returned URLs on your server.
 - Do not allow arbitrary iframe hosts. Markweave only handles direct video plus supported YouTube/Bilibili embed forms.
 - Markweave is browser-oriented. In SSR frameworks, render the editor on the client side.

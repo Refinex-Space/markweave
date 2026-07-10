@@ -159,4 +159,11 @@ describe("editor style boundary", () => {
     expect(editorCss).toContain(".markweave-callout > p");
     expect(editorCss).toContain("line-height: 1.55");
   });
+
+  it("allows italic synthesis only for inline emphasis in fallback fonts", () => {
+    expect(editorCss).toContain(".markweave-editor-surface em,");
+    expect(editorCss).toContain(".markweave-editor-surface i {");
+    expect(editorCss).toContain("font-style: italic");
+    expect(editorCss).toContain("font-synthesis: style");
+  });
 });

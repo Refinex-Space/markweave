@@ -301,6 +301,7 @@ Vue 2 适配器提供完整 Markweave UI：浮动工具栏、链接弹层、slas
 - 用 `on-update` payload 中的 `markdown` 存储正文；其中受支持的 HTML fallback 属于无损 Markdown 格式本身，而不是另一种文档模式。
 - 保存逻辑在宿主侧做 debounce。
 - `@markweave/vue2/styles.css` 只导入一次。
+- 即使宿主系统的中文回退字体没有原生斜体字形，行内斜体也会保持可见。
 - 保持 `vue` 和 `vue-template-compiler` 版本完全一致。
 - 使用 Vue CLI 4 / Webpack 4 时，为现代 ESM 依赖保留 `transpileDependencies`。
 - 上传接口必须做认证、文件大小、MIME 类型和返回 URL 校验。

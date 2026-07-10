@@ -38,6 +38,13 @@
   line-height: 1.72;
 }
 
+/* CJK fallback fonts commonly lack a real italic face. */
+.markweave-editor-surface em,
+.markweave-editor-surface i {
+  font-style: italic;
+  font-synthesis: style;
+}
+
 .markweave-editor-frame[data-markweave-inner-toc="true"][data-markweave-inner-toc-placement="container"] .markweave-editor-surface {
   padding-right: 294px;
 }

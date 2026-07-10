@@ -301,6 +301,7 @@ Vue 2 receives the complete Markweave UI: floating toolbar, link popover, slash 
 - Save Markdown from `on-update` payloads; its supported HTML fallback is part of the lossless Markdown format, not a separate document mode.
 - Debounce persistence in the host app. Markweave emits updates as the editor changes.
 - Import `@markweave/vue2/styles.css` once.
+- Inline emphasis remains visible for CJK fallback fonts even when the host system has no native italic face.
 - Keep `vue` and `vue-template-compiler` versions identical.
 - Keep `transpileDependencies` for modern ESM dependencies when using Vue CLI 4 / Webpack 4.
 - Keep uploads authenticated and validate file size, MIME type, and returned URLs on your server.
