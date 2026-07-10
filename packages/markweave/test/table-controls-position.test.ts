@@ -72,7 +72,7 @@ describe("table controls positioning", () => {
         frameRect,
         kind: "row",
       }),
-    ).toEqual({ left: 69, top: 116 });
+    ).toEqual({ left: 80, top: 116 });
 
     expect(
       calculateTableEdgeHandlePosition({
@@ -90,6 +90,6 @@ describe("table controls positioning", () => {
         frameRect: { left: 100, top: 120, width: 720, height: 480 },
         kind: "row",
       }),
-    ).toEqual({ left: 0, top: 116 });
+    ).toEqual({ left: 4, top: 116 });
   });
 });

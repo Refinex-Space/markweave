@@ -12,7 +12,7 @@ import {
   type TableCommandResult,
   type TableEditWithAiRequest,
 } from "@markweave/react";
-import { createPlaygroundUploadResult, initialPlaygroundDocument, mergedTablePlaygroundDocument } from "@markweave/playground-fixtures";
+import { createPlaygroundUploadResult, initialPlaygroundDocument, largeDocumentPerformanceFixture, mergedTablePlaygroundDocument } from "@markweave/playground-fixtures";
 
 export function MarkweaveEditorPlayground() {
   const [fixtureContent, setFixtureContent] = useState(initialPlaygroundDocument);
@@ -90,6 +90,9 @@ export function MarkweaveEditorPlayground() {
           </button>
           <button type="button" onClick={() => loadFixture(mergedTablePlaygroundDocument, "html")}>
             Merged Table Fixture
+          </button>
+          <button type="button" onClick={() => loadFixture(largeDocumentPerformanceFixture)}>
+            100k Performance Fixture
           </button>
         </div>
         {lastTableCopyPayload ? (

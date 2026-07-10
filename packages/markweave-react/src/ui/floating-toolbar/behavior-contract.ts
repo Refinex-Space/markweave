@@ -5,6 +5,7 @@ export const floatingToolbarRules = [
   "do-not-steal-editor-focus",
   "narrow-controls-for-table-selection",
   "stable-position-after-selection-settles",
+  "expand-submenus-toward-available-space",
   "animate-show-hide",
   "show-button-tooltips",
 ] as const;

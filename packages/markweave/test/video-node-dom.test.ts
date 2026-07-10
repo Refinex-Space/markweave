@@ -212,6 +212,7 @@ describe("video node view", () => {
       }),
     );
     expect(document.querySelector("video.markweave-video")?.getAttribute("src")).toBe("blob:markweave-video");
+    expect(document.querySelector("video.markweave-video")?.getAttribute("preload")).toBe("metadata");
   });
 
   it("renders YouTube and Bilibili URLs as embedded players", async () => {
@@ -224,6 +225,7 @@ describe("video node view", () => {
     const youtubeFrame = document.querySelector<HTMLIFrameElement>("iframe.markweave-video-iframe");
     expect(youtubeFrame?.getAttribute("src")).toBe("https://www.youtube.com/embed/dQw4w9WgXcQ");
     expect(youtubeFrame?.getAttribute("allow")).not.toContain("autoplay");
+    expect(youtubeFrame?.getAttribute("loading")).toBe("lazy");
     expect(youtubeFrame?.dataset.markweaveVideoProvider).toBe("youtube");
 
     await act(async () => {

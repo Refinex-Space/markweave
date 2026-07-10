@@ -383,6 +383,7 @@ describe("Markweave Vue3 editor", () => {
     expect(container.querySelector(".markweave-video-embed iframe.markweave-video-iframe")?.getAttribute("src")).toBe(
       "https://www.youtube.com/embed/fPiUC5NxFic?si=GifL60l94AOaMV93",
     );
+    expect(container.querySelector(".markweave-video-embed iframe.markweave-video-iframe")?.getAttribute("loading")).toBe("lazy");
 
     await keyDown(videoNode, "Delete");
     expect(container.querySelector("iframe.markweave-video-iframe")).toBeTruthy();
@@ -453,15 +454,15 @@ describe("Markweave Vue3 editor", () => {
     const menu = getByTestId(container, "markweave-table-menu");
     expect(menu.getAttribute("aria-label")).toBe("行操作");
     expect(menu.getAttribute("data-positioned")).toBe("true");
-    expect(menu.textContent).toContain("使用 AI 编辑");
+    expect(menu.textContent).not.toContain("使用 AI 编辑");
     expect(menu.textContent).toContain("插入上方行");
     expect(menu.textContent).toContain("复制表格");
     expect(menu.textContent).toContain("删除行");
-    expect(getByTestId<HTMLButtonElement>(container, "markweave-table-menu-command-edit-with-ai").getAttribute("data-command-enabled")).toBe("true");
+    expect(container.querySelector('[data-testid="markweave-table-menu-command-edit-with-ai"]')).toBeNull();
     expect(container.querySelector('[data-testid="markweave-floating-toolbar"]')).toBeNull();
   });
 
-  it("keeps the Vue table AI menu item visible but disabled without a handler", async () => {
+  it("keeps the Vue table AI menu item hidden without a handler", async () => {
     installLayoutMocks();
     const container = await mountVue(
       defineComponent({
@@ -478,10 +479,7 @@ describe("Markweave Vue3 editor", () => {
 
     await click(getByTestId(container, "markweave-table-hover-row-handle"));
 
-    const aiButton = getByTestId<HTMLButtonElement>(container, "markweave-table-menu-command-edit-with-ai");
-    expect(aiButton.disabled).toBe(true);
-    expect(aiButton.getAttribute("aria-disabled")).toBe("true");
-    expect(aiButton.getAttribute("data-command-enabled")).toBe("false");
+    expect(container.querySelector('[data-testid="markweave-table-menu-command-edit-with-ai"]')).toBeNull();
   });
 
   it("emits Vue table copy payloads, copy feedback, and command results", async () => {

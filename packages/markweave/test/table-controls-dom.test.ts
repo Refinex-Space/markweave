@@ -183,11 +183,11 @@ describe("table controls DOM i18n", () => {
     const menu = getByTestId("markweave-table-menu");
     expect(menu.getAttribute("aria-label")).toBe("行操作");
     expect(menu.getAttribute("data-positioned")).toBe("true");
-    expect(menu.textContent).toContain("使用 AI 编辑");
+    expect(menu.textContent).not.toContain("使用 AI 编辑");
     expect(menu.textContent).toContain("插入上方行");
     expect(menu.textContent).toContain("复制表格");
     expect(menu.textContent).toContain("删除行");
-    expect(getByTestId<HTMLButtonElement>("markweave-table-menu-command-edit-with-ai").getAttribute("data-command-enabled")).toBe("false");
+    expect(document.querySelector('[data-testid="markweave-table-menu-command-edit-with-ai"]')).toBeNull();
   });
 
   it("renders the row handle menu in English when English messages are provided", async () => {
@@ -201,19 +201,17 @@ describe("table controls DOM i18n", () => {
 
     const menu = getByTestId("markweave-table-menu");
     expect(menu.getAttribute("aria-label")).toBe("Row actions");
-    expect(menu.textContent).toContain("Edit with AI");
+    expect(menu.textContent).not.toContain("Edit with AI");
     expect(menu.textContent).toContain("Insert Row Above");
     expect(menu.textContent).toContain("Copy Table");
     expect(menu.textContent).toContain("Delete Row");
   });
 
-  it("enables the React AI menu item only when a handler is provided", async () => {
+  it("keeps the React AI menu item hidden even when a handler is provided", async () => {
     await renderTableControls(undefined, { onEditWithAi: vi.fn() });
     await click(getByTestId("markweave-table-hover-row-handle"));
 
-    const aiButton = getByTestId<HTMLButtonElement>("markweave-table-menu-command-edit-with-ai");
-    expect(aiButton.disabled).toBe(false);
-    expect(aiButton.getAttribute("data-command-enabled")).toBe("true");
+    expect(document.querySelector('[data-testid="markweave-table-menu-command-edit-with-ai"]')).toBeNull();
   });
 
   it("emits React table copy payloads, copy feedback, and command results", async () => {

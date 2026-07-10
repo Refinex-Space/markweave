@@ -66,11 +66,14 @@ import {
   type Ref,
 } from "vue";
 import { isEditorComposing } from "markweave/internal/editor-core/composition-guard";
+import { createMarkweaveFrameScheduler } from "markweave/internal/editor-core/frame-scheduler";
 import {
   createMarkweaveEditorUpdatePayload,
   getMarkweaveContentType,
+  isMarkweaveControlledContentEchoCurrent,
   isEditorContentCurrent,
   normalizeMarkweaveContentFormat,
+  type MarkweaveControlledContentEcho,
 } from "markweave/internal/editor-core/editor-content";
 import {
   getCurrentFloatingToolbarBlockType,
@@ -85,7 +88,14 @@ import {
 } from "markweave/internal/editor-core/floating-toolbar-model";
 import { openMarkweaveReadonlyLinkFromEvent } from "markweave/internal/editor-core/readonly-link";
 import { createMarkweaveEditorRuntimeSnapshot } from "markweave/internal/editor-core/runtime-snapshot";
-import { createSelectionSnapshot, shouldShowFloatingToolbar, type EditorSelectionSnapshot } from "markweave/internal/editor-core/selection-state";
+import {
+  areEditorSelectionSnapshotsEquivalent,
+  calculateFloatingToolbarPopoverPlacement,
+  createSelectionSnapshot,
+  markweaveRuntimeProjectionDelayMs,
+  shouldShowFloatingToolbar,
+  type EditorSelectionSnapshot,
+} from "markweave/internal/editor-core/selection-state";
 import { normalizeMarkweaveEditorMode, setMarkweaveEditorModeState, type MarkweaveEditorMode } from "markweave/internal/core/editor-mode-state";
 import type {
   FloatingToolbarAssistantRequest,
@@ -497,7 +507,10 @@ const VueFloatingToolbar = defineComponent({
     const linkValue = ref("");
     const tooltipButtonId = ref<string | null>(null);
     const tooltipAnchorX = ref<number | null>(null);
+    const popoverPlacement = ref<"top" | "bottom">("bottom");
+    const toolbarRootRef = ref<HTMLElement | null>(null);
     const toolbarContentRef = ref<HTMLElement | null>(null);
+    const popoverRef = ref<HTMLElement | null>(null);
     const safeHref = computed(() => normalizeMarkdownLinkHref(linkValue.value.trim()));
     const toolbarMessages = computed(() => props.messages.floatingToolbar);
     const blockOptions = computed<readonly VueBlockOption[]>(() =>
@@ -532,6 +545,47 @@ const VueFloatingToolbar = defineComponent({
         linkValue.value = (props.editor.getAttributes("link").href as string | undefined) ?? "";
       }
     };
+
+    const updatePopoverPlacement = () => {
+      const toolbarElement = toolbarRootRef.value;
+      const popoverElement = popoverRef.value;
+      const frameElement = props.editor.view.dom.closest<HTMLElement>(".markweave-editor-frame");
+
+      if (!openMenu.value || !toolbarElement || !popoverElement) {
+        return;
+      }
+
+      const position = calculateFloatingToolbarPopoverPlacement({
+        toolbarRect: toolbarElement.getBoundingClientRect(),
+        popoverSize: popoverElement.getBoundingClientRect(),
+        viewport: { width: window.innerWidth, height: window.innerHeight },
+        frameRect: frameElement?.getBoundingClientRect() ?? null,
+        gap: openMenu.value === "more" ? 8 : 6,
+      });
+
+      popoverPlacement.value = position.placement;
+    };
+
+    const popoverPlacementScheduler = createMarkweaveFrameScheduler(updatePopoverPlacement);
+
+    watch(openMenu, (menu) => {
+      if (!menu) {
+        return;
+      }
+
+      void nextTick(popoverPlacementScheduler.schedule);
+    });
+
+    onMounted(() => {
+      window.addEventListener("resize", popoverPlacementScheduler.schedule);
+      window.addEventListener("scroll", popoverPlacementScheduler.schedule, true);
+    });
+
+    onBeforeUnmount(() => {
+      popoverPlacementScheduler.cancel();
+      window.removeEventListener("resize", popoverPlacementScheduler.schedule);
+      window.removeEventListener("scroll", popoverPlacementScheduler.schedule, true);
+    });
 
     const getMainToolbarButtonActive = (id: string) => {
       if (id === "block-type" || id === "color" || id === "more") {
@@ -662,7 +716,7 @@ const VueFloatingToolbar = defineComponent({
 
     const renderPopover = () => {
       if (openMenu.value === "block-type") {
-        return h("div", { class: "markweave-floating-toolbar-popover markweave-floating-toolbar-turn-menu", "data-testid": "markweave-floating-toolbar-turn-menu" }, [
+        return h("div", { ref: popoverRef, class: "markweave-floating-toolbar-popover markweave-floating-toolbar-turn-menu", "data-testid": "markweave-floating-toolbar-turn-menu" }, [
           h("div", { class: "markweave-floating-toolbar-menu-title" }, toolbarMessages.value.turnIntoTitle),
           ...blockOptions.value.map(([id, label, icon]) =>
             h(
@@ -688,6 +742,7 @@ const VueFloatingToolbar = defineComponent({
           "form",
           {
             class: "markweave-floating-toolbar-popover markweave-floating-toolbar-link-popover",
+            ref: popoverRef,
             "data-testid": "markweave-floating-toolbar-link-popover",
             onSubmit: (event: Event) => {
               event.preventDefault();
@@ -730,14 +785,14 @@ const VueFloatingToolbar = defineComponent({
       }
 
       if (openMenu.value === "color") {
-        return h("div", { class: "markweave-floating-toolbar-popover markweave-floating-toolbar-color-popover", "data-testid": "markweave-floating-toolbar-color-menu" }, [
+        return h("div", { ref: popoverRef, class: "markweave-floating-toolbar-popover markweave-floating-toolbar-color-popover", "data-testid": "markweave-floating-toolbar-color-menu" }, [
           colorSection(toolbarMessages.value.textColorTitle, "text", textColorOptions.value),
           colorSection(toolbarMessages.value.highlightColorTitle, "highlight", highlightOptions.value),
         ]);
       }
 
       if (openMenu.value === "more") {
-        return h("div", { class: "markweave-floating-toolbar-popover markweave-floating-toolbar-more-menu", "data-testid": "markweave-floating-toolbar-more-menu" }, moreActions.value.map((id) =>
+        return h("div", { ref: popoverRef, class: "markweave-floating-toolbar-popover markweave-floating-toolbar-more-menu", "data-testid": "markweave-floating-toolbar-more-menu" }, moreActions.value.map((id) =>
           h("span", { key: id, class: "markweave-floating-toolbar-more-item" }, [
             h(
               "button",
@@ -780,7 +835,7 @@ const VueFloatingToolbar = defineComponent({
         } as Record<string, unknown>,
         {
           default: () =>
-            h("div", { class: "markweave-floating-toolbar markweave-floating-toolbar--default markweave-floating-toolbar--motion-entered", "data-testid": "markweave-floating-toolbar" }, [
+            h("div", { ref: toolbarRootRef, class: "markweave-floating-toolbar markweave-floating-toolbar--default markweave-floating-toolbar--motion-entered", "data-popover-placement": openMenu.value ? popoverPlacement.value : undefined, "data-testid": "markweave-floating-toolbar" }, [
               h("div", { ref: toolbarContentRef, class: "markweave-floating-toolbar-content", "data-menu": openMenu.value ?? "none" }, [
                 toolbarButton("block-type", toolbarMessages.value.buttons["block-type"], TypeIcon, () => toggleMenu("block-type"), openMenu.value === "block-type"),
                 divider(),
@@ -2443,7 +2498,27 @@ export function useMarkweaveEditorController(options: MarkweaveVue3EditorControl
   const tableInteractionState = shallowRef<TableInteractionState>(initialTableInteractionState);
   const tocActiveId = ref<string | null>(null);
   const applyingControlledContent = ref(false);
+  const controlledContentEcho = shallowRef<MarkweaveControlledContentEcho | null>(null);
   const activeFormat = normalizeMarkweaveContentFormat(options.content === undefined ? options.defaultContentFormat : options.contentFormat);
+  let projectionTimer: number | null = null;
+
+  function flushRuntimeProjection() {
+    if (projectionTimer !== null) {
+      window.clearTimeout(projectionTimer);
+      projectionTimer = null;
+    }
+    revision.value += 1;
+  }
+
+  function scheduleRuntimeProjection() {
+    if (projectionTimer !== null) {
+      window.clearTimeout(projectionTimer);
+    }
+    projectionTimer = window.setTimeout(() => {
+      projectionTimer = null;
+      revision.value += 1;
+    }, markweaveRuntimeProjectionDelayMs);
+  }
 
   const uploadHandler = options.onSlashCommandUpload;
   const editorRef = useEditor({
@@ -2526,12 +2601,12 @@ export function useMarkweaveEditorController(options: MarkweaveVue3EditorControl
       }
       syncTableInteractionState(editor);
       syncSelectionState(editor);
-      revision.value += 1;
+      flushRuntimeProjection();
     },
     onTransaction: ({ editor, transaction }) => {
       syncTableInteractionState(editor);
       if (transaction.docChanged || isMermaidInlinePreviewTransaction(transaction)) {
-        revision.value += 1;
+        scheduleRuntimeProjection();
       }
       if (transaction.docChanged && mathTarget.value) {
         const nextTarget = getMarkweaveMathTargetAtPos(editor, mathTarget.value.pos);
@@ -2544,7 +2619,14 @@ export function useMarkweaveEditorController(options: MarkweaveVue3EditorControl
         syncSlashCommandState(editor);
       }
       if (!applyingControlledContent.value) {
-        options.onUpdate?.(createMarkweaveEditorUpdatePayload(editor));
+        options.onUpdate?.(createMarkweaveEditorUpdatePayload(editor, {
+          onContentRead: (kind, value) => {
+            const controlledFormat = normalizeMarkweaveContentFormat(options.contentFormat);
+            if (options.content !== undefined && kind === controlledFormat) {
+              controlledContentEcho.value = { content: value, format: kind, doc: editor.state.doc };
+            }
+          },
+        }));
       }
     },
   }) as Ref<VueEditor | null>;
@@ -2578,7 +2660,10 @@ export function useMarkweaveEditorController(options: MarkweaveVue3EditorControl
   }
 
   function syncSelectionState(activeEditor: CoreEditor) {
-    selectionSnapshot.value = createSelectionSnapshot(activeEditor);
+    const nextSnapshot = createSelectionSnapshot(activeEditor);
+    if (!areEditorSelectionSnapshotsEquivalent(selectionSnapshot.value, nextSnapshot)) {
+      selectionSnapshot.value = nextSnapshot;
+    }
     const selectedMathTarget = getMarkweaveMathTargetFromSelection(activeEditor);
     if (selectedMathTarget) {
       setMarkweaveMathEditingDomState(activeEditor, selectedMathTarget, true);
@@ -2638,7 +2723,7 @@ export function useMarkweaveEditorController(options: MarkweaveVue3EditorControl
         syncSlashCommandState(editor.value);
       }
       syncTableInteractionState(editor.value);
-      revision.value += 1;
+      flushRuntimeProjection();
       return true;
     },
   };
@@ -2689,6 +2774,7 @@ export function useMarkweaveEditorController(options: MarkweaveVue3EditorControl
       editor.value.setEditable(effectiveEditable.value);
       setMarkweaveEditorModeState(editor.value, { mode: editorMode.value, editable: effectiveEditable.value });
       setMermaidInlinePreviewEditorMode(editor.value, effectiveEditable.value ? "live" : "view");
+      flushRuntimeProjection();
       if (!effectiveEditable.value) {
         closeSlashMenu();
       }
@@ -2699,18 +2785,27 @@ export function useMarkweaveEditorController(options: MarkweaveVue3EditorControl
   watch(
     () => options.content,
     (nextContent) => {
-      if (!editor.value || nextContent === undefined || isEditorContentCurrent(editor.value, nextContent, normalizeMarkweaveContentFormat(options.contentFormat))) {
+      const normalizedContentFormat = normalizeMarkweaveContentFormat(options.contentFormat);
+      if (!editor.value || nextContent === undefined) {
+        return;
+      }
+      if (isMarkweaveControlledContentEchoCurrent(editor.value, controlledContentEcho.value, nextContent, normalizedContentFormat)) {
+        controlledContentEcho.value = null;
+        return;
+      }
+      controlledContentEcho.value = null;
+      if (isEditorContentCurrent(editor.value, nextContent, normalizedContentFormat)) {
         return;
       }
       applyingControlledContent.value = true;
-      editor.value.commands.setContent(nextContent, { contentType: getMarkweaveContentType(normalizeMarkweaveContentFormat(options.contentFormat)), emitUpdate: false });
+      editor.value.commands.setContent(nextContent, { contentType: getMarkweaveContentType(normalizedContentFormat), emitUpdate: false });
       applyingControlledContent.value = false;
       syncSelectionState(editor.value);
       if (effectiveEditable.value) {
         syncSlashCommandState(editor.value);
       }
       syncTableInteractionState(editor.value);
-      revision.value += 1;
+      flushRuntimeProjection();
     },
   );
 
@@ -2724,6 +2819,11 @@ export function useMarkweaveEditorController(options: MarkweaveVue3EditorControl
   });
 
   let cleanupTocListeners: (() => void) | null = null;
+  onBeforeUnmount(() => {
+    if (projectionTimer !== null) {
+      window.clearTimeout(projectionTimer);
+    }
+  });
   onMounted(() => {
     const updateTocActiveFromScroll = () => {
       if (!editor.value || !tocItems.value.length) {

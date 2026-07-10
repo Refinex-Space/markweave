@@ -133,13 +133,6 @@ function executableMenuItem(menu: TableCommandMenuKind, commandId: TableCommandI
 }
 
 export const tableMenuSpecs: readonly TableMenuItemSpec[] = [
-  {
-    id: "edit-with-ai",
-    label: "Edit with AI",
-    menu: "row",
-    commandId: null,
-    availability: "external",
-  },
   executableMenuItem("row", "add-row-before"),
   executableMenuItem("row", "add-row-after"),
   executableMenuItem("row", "move-row-up"),
@@ -148,13 +141,6 @@ export const tableMenuSpecs: readonly TableMenuItemSpec[] = [
   executableMenuItem("row", "copy-table"),
   executableMenuItem("row", "delete-row"),
   executableMenuItem("row", "delete-table"),
-  {
-    id: "edit-with-ai",
-    label: "Edit with AI",
-    menu: "column",
-    commandId: null,
-    availability: "external",
-  },
   executableMenuItem("column", "add-column-before"),
   executableMenuItem("column", "add-column-after"),
   executableMenuItem("column", "move-column-left"),

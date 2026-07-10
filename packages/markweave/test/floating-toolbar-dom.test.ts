@@ -278,6 +278,16 @@ describe("floating toolbar selection geometry", () => {
 });
 
 describe("floating toolbar link popover", () => {
+  it("records a downward popover placement when the toolbar has more space below", async () => {
+    await renderFloatingToolbar("<p>OpenAI plain</p>", "OpenAI");
+
+    await click(getByTestId("markweave-floating-toolbar-button-color"));
+
+    const toolbar = getByTestId("markweave-floating-toolbar");
+    expect(toolbar.getAttribute("data-popover-placement")).toBe("bottom");
+    expect(toolbar.style.getPropertyValue("--markweave-floating-toolbar-popover-max-height")).toBe("");
+  });
+
   it("applies a pasted link from the toolbar popover", async () => {
     const editor = await renderFloatingToolbar("<p>OpenAI plain</p>", "OpenAI");
 

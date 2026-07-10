@@ -1,5 +1,6 @@
 import type { Editor } from "@tiptap/react";
 import { BubbleMenu } from "@tiptap/react/menus";
+import { createMarkweaveFrameScheduler } from "markweave/internal/editor-core/frame-scheduler";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type RefObject } from "react";
 import {
   AlignCenter,
@@ -35,6 +36,7 @@ import {
 import {
   advanceFloatingToolbarMotionState,
   calculateFloatingToolbarFrameShift,
+  calculateFloatingToolbarPopoverPlacement,
   calculateFloatingToolbarTopBoundary,
   createSelectionSnapshot,
   getFloatingToolbarFloatingOptions,
@@ -367,9 +369,11 @@ export function FloatingToolbar({ editor, messages = defaultMarkweaveMessages, s
   const [linkSelectionRange, setLinkSelectionRange] = useState<{ readonly from: number; readonly to: number } | null>(null);
   const [frameShiftPx, setFrameShiftPx] = useState(0);
   const [topBoundaryPaddingPx, setTopBoundaryPaddingPx] = useState(stableToolbarState.boundaryPadding);
+  const [popoverPlacement, setPopoverPlacement] = useState<"top" | "bottom">("bottom");
   const frameShiftRef = useRef(0);
   const toolbarRootRef = useRef<HTMLDivElement | null>(null);
   const toolbarContentRef = useRef<HTMLDivElement | null>(null);
+  const popoverRef = useRef<HTMLElement | null>(null);
   const linkInputRef = useRef<HTMLInputElement | null>(null);
   const visibleButtons = getFloatingToolbarButtonModels(editor, toolbarState.variant, messages);
   const tooltipModel = getFloatingToolbarTooltipModel(visibleButtons.find((button) => button.id === tooltipButtonId) ?? null);
@@ -433,6 +437,32 @@ export function FloatingToolbar({ editor, messages = defaultMarkweaveMessages, s
     applyFrameGeometryClamp();
   }, [applyFrameGeometryClamp]);
   const getReferencedVirtualElement = useCallback(() => getFloatingToolbarSelectionVirtualElement(editor), [editor]);
+  const setPopoverRef = useCallback((element: HTMLElement | null) => {
+    popoverRef.current = element;
+  }, []);
+  const updatePopoverPlacement = useCallback(() => {
+    const toolbarElement = toolbarRootRef.current;
+    const popoverElement = popoverRef.current;
+    const frameElement = editor.view.dom.closest<HTMLElement>(".markweave-editor-frame");
+
+    if (!openMenu || !toolbarElement || !popoverElement) {
+      return;
+    }
+
+    const toolbarRect = toolbarElement.getBoundingClientRect();
+    const popoverRect = popoverElement.getBoundingClientRect();
+    const frameRect = frameElement?.getBoundingClientRect() ?? null;
+    const position = calculateFloatingToolbarPopoverPlacement({
+      toolbarRect,
+      popoverSize: popoverRect,
+      viewport: { width: window.innerWidth, height: window.innerHeight },
+      frameRect,
+      gap: openMenu === "more" ? 8 : 6,
+      boundaryPadding: toolbarState.boundaryPadding,
+    });
+
+    setPopoverPlacement((current) => (current === position.placement ? current : position.placement));
+  }, [editor.view.dom, openMenu, toolbarState.boundaryPadding]);
   const floatingOptions = useMemo(
     () => ({
       ...getFloatingToolbarFloatingOptions(toolbarState, { topBoundaryPadding: topBoundaryPaddingPx }),
@@ -486,15 +516,15 @@ export function FloatingToolbar({ editor, messages = defaultMarkweaveMessages, s
       return undefined;
     }
 
-    let animationFrame = 0;
-    animationFrame = window.requestAnimationFrame(applyFrameGeometryClamp);
-    window.addEventListener("resize", applyFrameGeometryClamp);
-    window.addEventListener("scroll", applyFrameGeometryClamp, true);
+    const scheduler = createMarkweaveFrameScheduler(applyFrameGeometryClamp);
+    scheduler.schedule();
+    window.addEventListener("resize", scheduler.schedule);
+    window.addEventListener("scroll", scheduler.schedule, true);
 
     return () => {
-      window.cancelAnimationFrame(animationFrame);
-      window.removeEventListener("resize", applyFrameGeometryClamp);
-      window.removeEventListener("scroll", applyFrameGeometryClamp, true);
+      scheduler.cancel();
+      window.removeEventListener("resize", scheduler.schedule);
+      window.removeEventListener("scroll", scheduler.schedule, true);
     };
   }, [
     applyFrameGeometryClamp,
@@ -506,6 +536,23 @@ export function FloatingToolbar({ editor, messages = defaultMarkweaveMessages, s
     toolbarState.visibility,
     visibleButtons.length,
   ]);
+
+  useLayoutEffect(() => {
+    if (!openMenu) {
+      return undefined;
+    }
+
+    const scheduler = createMarkweaveFrameScheduler(updatePopoverPlacement);
+    scheduler.schedule();
+    window.addEventListener("resize", scheduler.schedule);
+    window.addEventListener("scroll", scheduler.schedule, true);
+
+    return () => {
+      scheduler.cancel();
+      window.removeEventListener("resize", scheduler.schedule);
+      window.removeEventListener("scroll", scheduler.schedule, true);
+    };
+  }, [openMenu, updatePopoverPlacement]);
 
   useEffect(() => {
     if (openMenu === "more" && moreActions.some((action) => action.id === tooltipButtonId)) {
@@ -643,6 +690,7 @@ export function FloatingToolbar({ editor, messages = defaultMarkweaveMessages, s
       data-motion={toolbarState.motionPhase}
       data-position-strategy={floatingOptions.strategy}
       data-boundary-padding={toolbarState.boundaryPadding}
+      data-popover-placement={openMenu ? popoverPlacement : undefined}
       data-testid="markweave-floating-toolbar"
       style={getToolbarStyle(toolbarState, frameShiftPx)}
       updateDelay={0}
@@ -665,7 +713,7 @@ export function FloatingToolbar({ editor, messages = defaultMarkweaveMessages, s
             onRun={runButton}
           />
         ))}
-        {openMenu === "block-type" ? <TurnIntoMenu editor={editor} messages={messages} onClose={() => setOpenMenu(null)} /> : null}
+        {openMenu === "block-type" ? <TurnIntoMenu editor={editor} messages={messages} onPopoverRef={setPopoverRef} onClose={() => setOpenMenu(null)} /> : null}
         {openMenu === "link" ? (
           <LinkPopover
             inputRef={linkInputRef}
@@ -678,11 +726,12 @@ export function FloatingToolbar({ editor, messages = defaultMarkweaveMessages, s
             onApply={submitLinkInput}
             onOpen={() => openFloatingToolbarLinkHref(linkInputValue)}
             onRemove={removeLinkInput}
+            onPopoverRef={setPopoverRef}
           />
         ) : null}
-        {openMenu === "color" ? <ColorMenu editor={editor} messages={messages} onClose={() => setOpenMenu(null)} /> : null}
+        {openMenu === "color" ? <ColorMenu editor={editor} messages={messages} onPopoverRef={setPopoverRef} onClose={() => setOpenMenu(null)} /> : null}
         {openMenu === "more" ? (
-          <MoreMenu editor={editor} messages={messages} activeTooltipId={tooltipButtonId} onTooltipChange={setTooltipButtonId} onClose={() => setOpenMenu(null)} />
+          <MoreMenu editor={editor} messages={messages} activeTooltipId={tooltipButtonId} onPopoverRef={setPopoverRef} onTooltipChange={setTooltipButtonId} onClose={() => setOpenMenu(null)} />
         ) : null}
         {tooltipModel && openMenu === null ? (
           <div
@@ -712,6 +761,7 @@ function LinkPopover({
   onApply,
   onOpen,
   onRemove,
+  onPopoverRef,
 }: {
   readonly inputRef: RefObject<HTMLInputElement | null>;
   readonly messages: MarkweaveMessages;
@@ -723,11 +773,13 @@ function LinkPopover({
   readonly onApply: () => void;
   readonly onOpen: () => void;
   readonly onRemove: () => void;
+  readonly onPopoverRef: (element: HTMLElement | null) => void;
 }) {
   const toolbarMessages = getFloatingToolbarMessageSet(messages);
 
   return (
     <form
+      ref={onPopoverRef}
       className="markweave-floating-toolbar-popover markweave-floating-toolbar-link-popover"
       data-testid="markweave-floating-toolbar-link-popover"
       onSubmit={(event) => {
@@ -875,12 +927,12 @@ function FloatingToolbarButtonIcon({ button, expanded }: { readonly button: Floa
   return <Icon name="more" />;
 }
 
-function TurnIntoMenu({ editor, messages, onClose }: { readonly editor: Editor; readonly messages: MarkweaveMessages; readonly onClose: () => void }) {
+function TurnIntoMenu({ editor, messages, onPopoverRef, onClose }: { readonly editor: Editor; readonly messages: MarkweaveMessages; readonly onPopoverRef: (element: HTMLElement | null) => void; readonly onClose: () => void }) {
   const toolbarMessages = getFloatingToolbarMessageSet(messages);
   const options = getFloatingToolbarTurnIntoOptions(messages);
 
   return (
-    <div className="markweave-floating-toolbar-popover markweave-floating-toolbar-turn-menu" data-testid="markweave-floating-toolbar-turn-menu">
+    <div ref={onPopoverRef} className="markweave-floating-toolbar-popover markweave-floating-toolbar-turn-menu" data-testid="markweave-floating-toolbar-turn-menu">
       <div className="markweave-floating-toolbar-menu-title">{toolbarMessages.turnIntoTitle}</div>
       {options.map((option) => (
         <button
@@ -916,13 +968,13 @@ function TurnIntoIcon({ option }: { readonly option: FloatingToolbarTurnIntoOpti
   return <span>{option.glyph}</span>;
 }
 
-function ColorMenu({ editor, messages, onClose }: { readonly editor: Editor; readonly messages: MarkweaveMessages; readonly onClose: () => void }) {
+function ColorMenu({ editor, messages, onPopoverRef, onClose }: { readonly editor: Editor; readonly messages: MarkweaveMessages; readonly onPopoverRef: (element: HTMLElement | null) => void; readonly onClose: () => void }) {
   const toolbarMessages = getFloatingToolbarMessageSet(messages);
   const activeTextColor = editor.getAttributes("textStyle").color as string | undefined;
   const activeHighlightColor = editor.getAttributes("highlight").color as string | undefined;
 
   return (
-    <div className="markweave-floating-toolbar-popover markweave-floating-toolbar-color-popover" data-testid="markweave-floating-toolbar-color-menu">
+    <div ref={onPopoverRef} className="markweave-floating-toolbar-popover markweave-floating-toolbar-color-popover" data-testid="markweave-floating-toolbar-color-menu">
       <ColorSection
         title={toolbarMessages.textColorTitle}
         mode="text"
@@ -992,19 +1044,21 @@ function MoreMenu({
   editor,
   messages,
   activeTooltipId,
+  onPopoverRef,
   onTooltipChange,
   onClose,
 }: {
   readonly editor: Editor;
   readonly messages: MarkweaveMessages;
   readonly activeTooltipId: FloatingToolbarButtonId | FloatingToolbarMoreActionId | null;
+  readonly onPopoverRef: (element: HTMLElement | null) => void;
   readonly onTooltipChange: (buttonId: FloatingToolbarButtonId | FloatingToolbarMoreActionId | null) => void;
   readonly onClose: () => void;
 }) {
   const actions = getFloatingToolbarMoreActions(messages);
 
   return (
-    <div className="markweave-floating-toolbar-popover markweave-floating-toolbar-more-menu" data-testid="markweave-floating-toolbar-more-menu">
+    <div ref={onPopoverRef} className="markweave-floating-toolbar-popover markweave-floating-toolbar-more-menu" data-testid="markweave-floating-toolbar-more-menu">
       {actions.map((action, index) => (
         <MoreMenuButton
           key={action.id}

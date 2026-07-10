@@ -150,6 +150,36 @@ export const initialPlaygroundDocument = [
   "",
 ].join("\n");
 
+const largeDocumentParagraph = "Markweave performance fixture keeps realistic prose, punctuation, inline `code`, **emphasis**, and stable block boundaries so typing, serialization, outline projection, and overlay state can be exercised together without loading remote media.";
+
+export const largeDocumentPerformanceFixture = Array.from({ length: 180 }, (_, index) => {
+  const section = index + 1;
+  const blocks = [
+    `## Performance section ${section}`,
+    "",
+    largeDocumentParagraph,
+    "",
+    largeDocumentParagraph,
+    "",
+    `- [${section % 2 ? " " : "x"}] Validate input transaction ${section}.`,
+  ];
+
+  if (section % 20 === 0) {
+    blocks.push(
+      "",
+      "| Metric | Expected |",
+      "| --- | --- |",
+      `| Section ${section} | Smooth input and stable overlays |`,
+    );
+  }
+
+  if (section % 35 === 0) {
+    blocks.push("", "```ts", `export const performanceSection${section} = ${section};`, "```");
+  }
+
+  return blocks.join("\n");
+}).join("\n\n");
+
 export const mergedTablePlaygroundDocument = `
 <h1>Table Merge Fixture</h1>
 <p>Table sample with merged headers, row-spanned body cells, and clipboard targets.</p>

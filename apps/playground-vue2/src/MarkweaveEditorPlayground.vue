@@ -44,11 +44,10 @@
     </div>
 
     <MarkweaveEditor
-      :key="fixtureRevision"
       aria-label="Markweave Vue2 editor playground"
       auto-focus-first-table-body-cell
-      :default-content="fixtureContent"
-      :default-content-format="fixtureFormat"
+      :content="fixtureContent"
+      :content-format="fixtureFormat"
       :mode="editorMode"
       :on-edit-with-ai="handleEditWithAi"
       :on-extract-to-note="handleFloatingToolbarAssistantRequest"
@@ -64,6 +63,7 @@
       <div class="markweave-debug-actions" aria-label="Debug fixtures">
         <button type="button" @click="loadFixture(initialPlaygroundDocument)">Default Fixture</button>
         <button type="button" @click="loadFixture(mergedTablePlaygroundDocument, 'html')">Merged Table Fixture</button>
+        <button type="button" @click="loadFixture(largeDocumentPerformanceFixture)">100k Performance Fixture</button>
       </div>
 
       <div v-if="lastTableCopyPayload" class="markweave-debug-copy" data-testid="markweave-debug-copy">
@@ -103,7 +103,7 @@
 
 <script>
 import { MarkweaveEditor } from "@markweave/vue2";
-import { createPlaygroundUploadResult, initialPlaygroundDocument, mergedTablePlaygroundDocument } from "@markweave/playground-fixtures";
+import { createPlaygroundUploadResult, initialPlaygroundDocument, largeDocumentPerformanceFixture, mergedTablePlaygroundDocument } from "@markweave/playground-fixtures";
 
 export default {
   name: "MarkweaveEditorPlayground",
@@ -113,10 +113,10 @@ export default {
   data() {
     return {
       initialPlaygroundDocument,
+      largeDocumentPerformanceFixture,
       mergedTablePlaygroundDocument,
       fixtureContent: initialPlaygroundDocument,
       fixtureFormat: "markdown",
-      fixtureRevision: 0,
       editorMode: "live",
       runtimeSnapshot: null,
       lastTableCopyPayload: null,
@@ -146,7 +146,6 @@ export default {
     loadFixture(content, format = "markdown") {
       this.fixtureContent = content;
       this.fixtureFormat = format;
-      this.fixtureRevision += 1;
       this.resetDebugState();
     },
     toggleMode() {

@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { createMarkweaveEditorExtensions } from "../src/editor-core/create-editor-extensions";
 import {
   calculateFloatingToolbarFrameShift,
+  calculateFloatingToolbarPopoverPlacement,
   createSelectionSnapshot,
   getFloatingToolbarFloatingOptions,
   getFloatingToolbarState,
@@ -433,6 +434,35 @@ describe("floating toolbar button model", () => {
         boundaryPadding: 8,
       }),
     ).toBe(0);
+  });
+
+  it("opens toolbar popovers toward the side with enough visible space", () => {
+    expect(
+      calculateFloatingToolbarPopoverPlacement({
+        toolbarRect: { left: 300, top: 56, width: 320, height: 44 },
+        popoverSize: { width: 196, height: 180 },
+        viewport: { width: 1024, height: 720 },
+        frameRect: { left: 100, top: 0, width: 824, height: 720 },
+      }),
+    ).toEqual({ placement: "bottom" });
+
+    expect(
+      calculateFloatingToolbarPopoverPlacement({
+        toolbarRect: { left: 300, top: 642, width: 320, height: 44 },
+        popoverSize: { width: 196, height: 180 },
+        viewport: { width: 1024, height: 720 },
+        frameRect: { left: 100, top: 0, width: 824, height: 720 },
+      }),
+    ).toEqual({ placement: "top" });
+
+    expect(
+      calculateFloatingToolbarPopoverPlacement({
+        toolbarRect: { left: 300, top: 108, width: 320, height: 44 },
+        popoverSize: { width: 196, height: 180 },
+        viewport: { width: 1024, height: 220 },
+        frameRect: { left: 100, top: 0, width: 824, height: 220 },
+      }),
+    ).toEqual({ placement: "top" });
   });
 
   it("uses absolute positioning inside the editor frame", () => {

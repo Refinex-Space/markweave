@@ -5,12 +5,19 @@ import { isEditorComposing } from "markweave/internal/editor-core/composition-gu
 import {
   createMarkweaveEditorUpdatePayload,
   getMarkweaveContentType,
+  isMarkweaveControlledContentEchoCurrent,
   isEditorContentCurrent,
   normalizeMarkweaveContentFormat,
+  type MarkweaveControlledContentEcho,
 } from "markweave/internal/editor-core/editor-content";
 import { openMarkweaveReadonlyLinkFromEvent } from "markweave/internal/editor-core/readonly-link";
 import { createMarkweaveEditorRuntimeSnapshot } from "markweave/internal/editor-core/runtime-snapshot";
-import { createSelectionSnapshot, type EditorSelectionSnapshot } from "markweave/internal/editor-core/selection-state";
+import {
+  areEditorSelectionSnapshotsEquivalent,
+  createSelectionSnapshot,
+  markweaveRuntimeProjectionDelayMs,
+  type EditorSelectionSnapshot,
+} from "markweave/internal/editor-core/selection-state";
 import { getLocalizedSlashCommandSpecs, getMarkweaveMessages, normalizeMarkweaveLang, type MarkweaveLang } from "markweave/internal/i18n";
 import { getActiveCodeBlockState, markweaveCodeBlockBehavior, type MarkweaveCodeBlockState } from "markweave/internal/plugins/codeblock/codeblock-behavior";
 import { isMermaidInlinePreviewTransaction, setMermaidInlinePreviewEditorMode } from "markweave/internal/plugins/mermaid/mermaid-inline-preview";
@@ -280,10 +287,38 @@ export function useMarkweaveEditorController({
   const [tocActiveId, setTocActiveId] = useState<string | null>(null);
   const [revision, setRevision] = useState(0);
   const applyingControlledContentRef = useRef(false);
+  const controlledContentRef = useRef({ content, format: activeContentFormat });
+  const controlledContentEchoRef = useRef<MarkweaveControlledContentEcho | null>(null);
+  const projectionTimerRef = useRef<number | null>(null);
   const callbacksRef = useRef({ onUpdate });
   const filteredSlashCommands = useMemo(() => filterSlashCommands(slashState.query, slashCommands), [slashCommands, slashState.query]);
 
   callbacksRef.current = { onUpdate };
+  controlledContentRef.current = { content, format: activeContentFormat };
+
+  const flushRuntimeProjection = useCallback(() => {
+    if (projectionTimerRef.current !== null) {
+      window.clearTimeout(projectionTimerRef.current);
+      projectionTimerRef.current = null;
+    }
+    setRevision((current) => current + 1);
+  }, []);
+
+  const scheduleRuntimeProjection = useCallback(() => {
+    if (projectionTimerRef.current !== null) {
+      window.clearTimeout(projectionTimerRef.current);
+    }
+    projectionTimerRef.current = window.setTimeout(() => {
+      projectionTimerRef.current = null;
+      setRevision((current) => current + 1);
+    }, markweaveRuntimeProjectionDelayMs);
+  }, []);
+
+  useEffect(() => () => {
+    if (projectionTimerRef.current !== null) {
+      window.clearTimeout(projectionTimerRef.current);
+    }
+  }, []);
 
   const closeSlashMenu = useCallback(() => {
     setSlashMenuPosition(null);
@@ -311,7 +346,8 @@ export function useMarkweaveEditorController({
   const syncSlashCommandState = useCallback((activeEditor: Editor) => syncSlashCommandStateFromView(activeEditor.view), [syncSlashCommandStateFromView]);
 
   const syncSelectionState = useCallback((editor: Editor) => {
-    setSelectionSnapshot(createSelectionSnapshot(editor));
+    const nextSnapshot = createSelectionSnapshot(editor);
+    setSelectionSnapshot((current) => (areEditorSelectionSnapshotsEquivalent(current, nextSnapshot) ? current : nextSnapshot));
     const selectedMathTarget = getMarkweaveMathTargetFromSelection(editor);
     if (selectedMathTarget) {
       setMarkweaveMathEditingDomState(editor, selectedMathTarget, true);
@@ -400,12 +436,12 @@ export function useMarkweaveEditorController({
 
       syncTableInteractionState(activeEditor);
       syncSelectionState(activeEditor);
-      setRevision((current) => current + 1);
+      flushRuntimeProjection();
     },
     onTransaction: ({ editor: activeEditor, transaction }) => {
       syncTableInteractionState(activeEditor);
       if (transaction.docChanged || isMermaidInlinePreviewTransaction(transaction)) {
-        setRevision((current) => current + 1);
+        scheduleRuntimeProjection();
       }
       if (transaction.docChanged) {
         setMathTarget((current) => {
@@ -425,7 +461,14 @@ export function useMarkweaveEditorController({
       }
 
       if (!applyingControlledContentRef.current) {
-        callbacksRef.current.onUpdate?.(createMarkweaveEditorUpdatePayload(activeEditor));
+        callbacksRef.current.onUpdate?.(createMarkweaveEditorUpdatePayload(activeEditor, {
+          onContentRead: (kind, value) => {
+            const controlled = controlledContentRef.current;
+            if (controlled.content !== undefined && kind === controlled.format) {
+              controlledContentEchoRef.current = { content: value, format: kind, doc: activeEditor.state.doc };
+            }
+          },
+        }));
       }
     },
   });
@@ -438,27 +481,39 @@ export function useMarkweaveEditorController({
     editor.setEditable(effectiveEditable);
     setMarkweaveEditorModeState(editor, { mode: editorMode, editable: effectiveEditable });
     setMermaidInlinePreviewEditorMode(editor, effectiveEditable ? "live" : "view");
+    flushRuntimeProjection();
 
     if (!effectiveEditable) {
       closeSlashMenu();
     }
-  }, [closeSlashMenu, editor, editorMode, effectiveEditable]);
+  }, [closeSlashMenu, editor, editorMode, effectiveEditable, flushRuntimeProjection]);
 
   useEffect(() => {
-    if (!editor || content === undefined || isEditorContentCurrent(editor, content, normalizeMarkweaveContentFormat(contentFormat))) {
+    const normalizedContentFormat = normalizeMarkweaveContentFormat(contentFormat);
+    if (!editor || content === undefined) {
+      return;
+    }
+
+    if (isMarkweaveControlledContentEchoCurrent(editor, controlledContentEchoRef.current, content, normalizedContentFormat)) {
+      controlledContentEchoRef.current = null;
+      return;
+    }
+
+    controlledContentEchoRef.current = null;
+    if (isEditorContentCurrent(editor, content, normalizedContentFormat)) {
       return;
     }
 
     applyingControlledContentRef.current = true;
-    editor.commands.setContent(content, { contentType: getMarkweaveContentType(normalizeMarkweaveContentFormat(contentFormat)), emitUpdate: false });
+    editor.commands.setContent(content, { contentType: getMarkweaveContentType(normalizedContentFormat), emitUpdate: false });
     applyingControlledContentRef.current = false;
     syncSelectionState(editor);
     if (effectiveEditable) {
       syncSlashCommandState(editor);
     }
     syncTableInteractionState(editor);
-    setRevision((current) => current + 1);
-  }, [content, contentFormat, effectiveEditable, editor, syncSelectionState, syncSlashCommandState, syncTableInteractionState]);
+    flushRuntimeProjection();
+  }, [content, contentFormat, effectiveEditable, editor, flushRuntimeProjection, syncSelectionState, syncSlashCommandState, syncTableInteractionState]);
 
   useEffect(() => {
     if (!slashMenuPosition) {
@@ -678,11 +733,11 @@ export function useMarkweaveEditorController({
           syncSlashCommandState(editor);
         }
         syncTableInteractionState(editor);
-        setRevision((current) => current + 1);
+        flushRuntimeProjection();
         return true;
       },
     }),
-    [closeSlashMenu, effectiveEditable, editor, syncSelectionState, syncSlashCommandState, syncTableInteractionState],
+    [closeSlashMenu, effectiveEditable, editor, flushRuntimeProjection, syncSelectionState, syncSlashCommandState, syncTableInteractionState],
   );
 
   const frameProps = useMemo<MarkweaveEditorFrameProps>(
