@@ -113,7 +113,10 @@ describe("editor style boundary", () => {
     expect(editorCss).toContain(".markweave-inner-toc:hover .markweave-inner-toc-panel");
     expect(editorCss).toContain("right: 28px");
     expect(editorCss).toContain('data-markweave-inner-toc-placement="container"');
-    expect(editorCss).toContain("padding-right: 294px");
+    expect(editorCss).toContain("--markweave-inner-toc-gutter: 232px");
+    expect(editorCss).toContain("--markweave-inner-toc-panel-width: 184px");
+    expect(editorCss).toContain("padding-inline: var(--markweave-inner-toc-gutter)");
+    expect(editorCss).toContain("@container (max-width: 900px)");
     expect(editorCss).toContain("position: fixed;");
     expect(editorCss).toContain("right: var(--markweave-inner-toc-right, 28px);");
     expect(editorCss).toContain("font-size: 16px");

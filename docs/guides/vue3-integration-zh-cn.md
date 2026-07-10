@@ -147,7 +147,7 @@ function handleRuntimeStateChange(snapshot) {
 | `editable` | `true` | 兼容锁。最终可编辑状态是 `mode === "live" && editable !== false`。 |
 | `lang` | `"zh"` | UI 语言。支持 `"zh"` 和 `"en"`。运行时切换语言建议重新挂载编辑器。 |
 | `inner-toc` | `true` | 显示内置右侧目录。传 `:inner-toc="false"` 后可通过 `on-toc-change` 或 `runtimeSnapshot.toc` 自行渲染目录。 |
-| `inner-toc-placement` | `"container"` | 默认使目录始终相对视觉窗口垂直居中，同时按编辑器右边界对齐并预留展开面板空间，避免遮挡正文。仅在确实需要固定于视口右侧时传 `inner-toc-placement="viewport"`。 |
+| `inner-toc-placement` | `"container"` | 默认使目录始终相对视觉窗口垂直居中，并通过对称目录留白保持正文居中；实际编辑器容器较窄时会自动隐藏内置目录，优先保证正文可读性。仅在确实需要固定于视口右侧时传 `inner-toc-placement="viewport"`。 |
 | `auto-focus-first-table-body-cell` | `false` | 适合 playground 或表格优先文档。 |
 
 ## 上传 API

@@ -45,8 +45,14 @@
   font-synthesis: style;
 }
 
+.markweave-editor-frame[data-markweave-inner-toc="true"][data-markweave-inner-toc-placement="container"] {
+  --markweave-inner-toc-gutter: 232px;
+  --markweave-inner-toc-panel-width: 184px;
+  container-type: inline-size;
+}
+
 .markweave-editor-frame[data-markweave-inner-toc="true"][data-markweave-inner-toc-placement="container"] .markweave-editor-surface {
-  padding-right: 294px;
+  padding-inline: var(--markweave-inner-toc-gutter);
 }
 
 .markweave-editor-frame[data-markweave-mode="view"] .markweave-editor-surface {
@@ -121,7 +127,7 @@
   position: absolute;
   top: 50%;
   right: 18px;
-  width: 232px;
+  width: var(--markweave-inner-toc-panel-width, 232px);
   max-height: min(52vh, 420px);
   overflow: hidden;
   border: 1px solid #d8dde5;
@@ -197,6 +203,16 @@
 
 .markweave-inner-toc-item[data-active="true"] {
   color: #4168c9;
+}
+
+@container (max-width: 900px) {
+  .markweave-editor-frame[data-markweave-inner-toc="true"][data-markweave-inner-toc-placement="container"] .markweave-editor-surface {
+    padding-inline: 16px;
+  }
+
+  .markweave-editor-frame[data-markweave-inner-toc-placement="container"] .markweave-inner-toc {
+    display: none;
+  }
 }
 
 .markweave-editor-surface > *:first-child {
