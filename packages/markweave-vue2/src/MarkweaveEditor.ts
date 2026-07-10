@@ -85,7 +85,7 @@ import {
 } from "markweave/internal/editor-core/floating-toolbar-model";
 import { openMarkweaveReadonlyLinkFromEvent } from "markweave/internal/editor-core/readonly-link";
 import { createMarkweaveEditorRuntimeSnapshot } from "markweave/internal/editor-core/runtime-snapshot";
-import { createSelectionSnapshot, shouldShowFloatingToolbar, type EditorSelectionSnapshot } from "markweave/internal/editor-core/selection-state";
+import { calculateFloatingToolbarPopoverPlacement, createSelectionSnapshot, shouldShowFloatingToolbar, type EditorSelectionSnapshot } from "markweave/internal/editor-core/selection-state";
 import { normalizeMarkweaveEditorMode, setMarkweaveEditorModeState, type MarkweaveEditorMode } from "markweave/internal/core/editor-mode-state";
 import type {
   FloatingToolbarAssistantRequest,
@@ -499,7 +499,10 @@ const VueFloatingToolbar = defineComponent({
     const linkValue = ref("");
     const tooltipButtonId = ref<string | null>(null);
     const tooltipAnchorX = ref<number | null>(null);
+    const popoverPlacement = ref<"top" | "bottom">("bottom");
+    const toolbarRootRef = ref<HTMLElement | null>(null);
     const toolbarContentRef = ref<HTMLElement | null>(null);
+    const popoverRef = ref<HTMLElement | null>(null);
     const safeHref = computed(() => normalizeMarkdownLinkHref(linkValue.value.trim()));
     const toolbarMessages = computed(() => props.messages.floatingToolbar);
     const blockOptions = computed<readonly VueBlockOption[]>(() =>
@@ -534,6 +537,44 @@ const VueFloatingToolbar = defineComponent({
         linkValue.value = (props.editor.getAttributes("link").href as string | undefined) ?? "";
       }
     };
+
+    const updatePopoverPlacement = () => {
+      const toolbarElement = toolbarRootRef.value;
+      const popoverElement = popoverRef.value;
+      const frameElement = props.editor.view.dom.closest(".markweave-editor-frame") as HTMLElement | null;
+
+      if (!openMenu.value || !toolbarElement || !popoverElement) {
+        return;
+      }
+
+      const position = calculateFloatingToolbarPopoverPlacement({
+        toolbarRect: toolbarElement.getBoundingClientRect(),
+        popoverSize: popoverElement.getBoundingClientRect(),
+        viewport: { width: window.innerWidth, height: window.innerHeight },
+        frameRect: frameElement?.getBoundingClientRect() ?? null,
+        gap: openMenu.value === "more" ? 8 : 6,
+      });
+
+      popoverPlacement.value = position.placement;
+    };
+
+    watch(openMenu, (menu) => {
+      if (!menu) {
+        return;
+      }
+
+      void nextTick(updatePopoverPlacement);
+    });
+
+    onMounted(() => {
+      window.addEventListener("resize", updatePopoverPlacement);
+      window.addEventListener("scroll", updatePopoverPlacement, true);
+    });
+
+    onBeforeUnmount(() => {
+      window.removeEventListener("resize", updatePopoverPlacement);
+      window.removeEventListener("scroll", updatePopoverPlacement, true);
+    });
 
     const getMainToolbarButtonActive = (id: string) => {
       if (id === "block-type" || id === "color" || id === "more") {
@@ -664,7 +705,7 @@ const VueFloatingToolbar = defineComponent({
 
     const renderPopover = () => {
       if (openMenu.value === "block-type") {
-        return h("div", { class: "markweave-floating-toolbar-popover markweave-floating-toolbar-turn-menu", "data-testid": "markweave-floating-toolbar-turn-menu" }, [
+        return h("div", { ref: popoverRef, class: "markweave-floating-toolbar-popover markweave-floating-toolbar-turn-menu", "data-testid": "markweave-floating-toolbar-turn-menu" }, [
           h("div", { class: "markweave-floating-toolbar-menu-title" }, toolbarMessages.value.turnIntoTitle),
           ...blockOptions.value.map(([id, label, icon]) =>
             h(
@@ -690,6 +731,7 @@ const VueFloatingToolbar = defineComponent({
           "form",
           {
             class: "markweave-floating-toolbar-popover markweave-floating-toolbar-link-popover",
+            ref: popoverRef,
             "data-testid": "markweave-floating-toolbar-link-popover",
             onSubmit: (event: Event) => {
               event.preventDefault();
@@ -732,14 +774,14 @@ const VueFloatingToolbar = defineComponent({
       }
 
       if (openMenu.value === "color") {
-        return h("div", { class: "markweave-floating-toolbar-popover markweave-floating-toolbar-color-popover", "data-testid": "markweave-floating-toolbar-color-menu" }, [
+        return h("div", { ref: popoverRef, class: "markweave-floating-toolbar-popover markweave-floating-toolbar-color-popover", "data-testid": "markweave-floating-toolbar-color-menu" }, [
           colorSection(toolbarMessages.value.textColorTitle, "text", textColorOptions.value),
           colorSection(toolbarMessages.value.highlightColorTitle, "highlight", highlightOptions.value),
         ]);
       }
 
       if (openMenu.value === "more") {
-        return h("div", { class: "markweave-floating-toolbar-popover markweave-floating-toolbar-more-menu", "data-testid": "markweave-floating-toolbar-more-menu" }, moreActions.value.map((id) =>
+        return h("div", { ref: popoverRef, class: "markweave-floating-toolbar-popover markweave-floating-toolbar-more-menu", "data-testid": "markweave-floating-toolbar-more-menu" }, moreActions.value.map((id) =>
           h("span", { key: id, class: "markweave-floating-toolbar-more-item" }, [
             h(
               "button",
@@ -782,7 +824,7 @@ const VueFloatingToolbar = defineComponent({
         } as Record<string, unknown>,
         {
           default: () =>
-            h("div", { class: "markweave-floating-toolbar markweave-floating-toolbar--default markweave-floating-toolbar--motion-entered", "data-testid": "markweave-floating-toolbar" }, [
+            h("div", { ref: toolbarRootRef, class: "markweave-floating-toolbar markweave-floating-toolbar--default markweave-floating-toolbar--motion-entered", "data-popover-placement": openMenu.value ? popoverPlacement.value : undefined, "data-testid": "markweave-floating-toolbar" }, [
               h("div", { ref: toolbarContentRef, class: "markweave-floating-toolbar-content", "data-menu": openMenu.value ?? "none" }, [
                 toolbarButton("block-type", toolbarMessages.value.buttons["block-type"], TypeIcon, () => toggleMenu("block-type"), openMenu.value === "block-type"),
                 divider(),

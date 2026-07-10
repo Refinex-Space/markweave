@@ -1889,8 +1889,10 @@
 }
 
 .markweave-floating-toolbar-popover {
+  --markweave-floating-toolbar-popover-offset: 6px;
   position: absolute;
-  top: calc(100% + 6px);
+  top: calc(100% + var(--markweave-floating-toolbar-popover-offset));
+  bottom: auto;
   z-index: 42;
   border: 1px solid rgba(229, 231, 235, 0.92);
   border-radius: 12px;
@@ -1900,6 +1902,11 @@
     0 1px 3px rgba(31, 35, 40, 0.07);
   color: #3f434a;
   font-family: ui-sans-serif, system-ui, sans-serif;
+}
+
+.markweave-floating-toolbar[data-popover-placement="top"] .markweave-floating-toolbar-popover {
+  top: auto;
+  bottom: calc(100% + var(--markweave-floating-toolbar-popover-offset));
 }
 
 .markweave-floating-toolbar-link-popover {
@@ -2082,9 +2089,8 @@
 }
 
 .markweave-floating-toolbar-more-menu {
-  top: auto;
+  --markweave-floating-toolbar-popover-offset: 8px;
   right: 0;
-  bottom: calc(100% + 8px);
   display: inline-flex;
   align-items: center;
   gap: 1px;

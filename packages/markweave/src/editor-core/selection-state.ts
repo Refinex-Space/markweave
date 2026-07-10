@@ -69,6 +69,19 @@ export interface FloatingToolbarFrameClampInput {
   readonly boundaryPadding?: number;
 }
 
+export interface FloatingToolbarPopoverPlacementInput {
+  readonly toolbarRect: FloatingToolbarRect;
+  readonly popoverSize: FloatingToolbarSize;
+  readonly viewport: FloatingToolbarViewport;
+  readonly frameRect?: FloatingToolbarRect | null;
+  readonly gap?: number;
+  readonly boundaryPadding?: number;
+}
+
+export interface FloatingToolbarPopoverPlacement {
+  readonly placement: FloatingToolbarPlacement;
+}
+
 export interface FloatingToolbarPosition {
   readonly left: number;
   readonly top: number;
@@ -350,6 +363,24 @@ export function calculateFloatingToolbarFrameShift(input: FloatingToolbarFrameCl
   }
 
   return 0;
+}
+
+export function calculateFloatingToolbarPopoverPlacement(input: FloatingToolbarPopoverPlacementInput): FloatingToolbarPopoverPlacement {
+  const gap = input.gap ?? 8;
+  const boundaryPadding = input.boundaryPadding ?? floatingToolbarTiming.boundaryPadding;
+  const viewportTop = boundaryPadding;
+  const viewportBottom = Math.max(viewportTop, input.viewport.height - boundaryPadding);
+  const boundaryTop = input.frameRect ? Math.max(viewportTop, input.frameRect.top + boundaryPadding) : viewportTop;
+  const boundaryBottom = input.frameRect ? Math.min(viewportBottom, input.frameRect.top + input.frameRect.height - boundaryPadding) : viewportBottom;
+  const availableTop = Math.max(0, Math.floor(input.toolbarRect.top - gap - boundaryTop));
+  const availableBottom = Math.max(0, Math.floor(boundaryBottom - input.toolbarRect.top - input.toolbarRect.height - gap));
+  const topFits = input.popoverSize.height <= availableTop;
+  const bottomFits = input.popoverSize.height <= availableBottom;
+  const placement = topFits && !bottomFits ? "top" : bottomFits && !topFits ? "bottom" : availableTop > availableBottom ? "top" : "bottom";
+
+  return {
+    placement,
+  };
 }
 
 function findCurrentNodeName(editor: Editor) {
