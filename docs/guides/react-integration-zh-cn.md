@@ -60,7 +60,7 @@ function saveDraft(markdown: string) {
 }
 ```
 
-`defaultContent` 默认按 Markdown 解析。产品侧建议把 `payload.markdown` 作为主存储格式；Markweave 会优先输出标准 Markdown，仅在文字/高亮颜色、块对齐、合并单元格等标准 Markdown 无法表达的状态下输出原生 HTML fallback。`payload.html`、`payload.json`、`payload.text` 仍适合用于预览、索引或集成。
+`defaultContent` 默认按 Markdown 解析。产品侧建议把 `payload.markdown` 作为主存储格式；Markweave 会优先输出标准 Markdown，仅在文字/高亮颜色、块对齐、合并单元格等标准 Markdown 无法表达的状态下输出原生 HTML fallback。`payload.html`、`payload.json`、`payload.text` 仍适合用于预览、索引或集成。更新载荷按字段惰性序列化并缓存，因此只读取 `markdown` 不会额外生成 HTML、JSON 或纯文本；受控模式直接回传该字段时也会避免重复内容比较。
 
 ## 内容 API
 

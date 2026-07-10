@@ -1,5 +1,6 @@
 import type { Editor } from "@tiptap/react";
 import { BubbleMenu } from "@tiptap/react/menus";
+import { createMarkweaveFrameScheduler } from "markweave/internal/editor-core/frame-scheduler";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type RefObject } from "react";
 import {
   AlignCenter,
@@ -515,15 +516,15 @@ export function FloatingToolbar({ editor, messages = defaultMarkweaveMessages, s
       return undefined;
     }
 
-    let animationFrame = 0;
-    animationFrame = window.requestAnimationFrame(applyFrameGeometryClamp);
-    window.addEventListener("resize", applyFrameGeometryClamp);
-    window.addEventListener("scroll", applyFrameGeometryClamp, true);
+    const scheduler = createMarkweaveFrameScheduler(applyFrameGeometryClamp);
+    scheduler.schedule();
+    window.addEventListener("resize", scheduler.schedule);
+    window.addEventListener("scroll", scheduler.schedule, true);
 
     return () => {
-      window.cancelAnimationFrame(animationFrame);
-      window.removeEventListener("resize", applyFrameGeometryClamp);
-      window.removeEventListener("scroll", applyFrameGeometryClamp, true);
+      scheduler.cancel();
+      window.removeEventListener("resize", scheduler.schedule);
+      window.removeEventListener("scroll", scheduler.schedule, true);
     };
   }, [
     applyFrameGeometryClamp,
@@ -541,14 +542,15 @@ export function FloatingToolbar({ editor, messages = defaultMarkweaveMessages, s
       return undefined;
     }
 
-    const animationFrame = window.requestAnimationFrame(updatePopoverPlacement);
-    window.addEventListener("resize", updatePopoverPlacement);
-    window.addEventListener("scroll", updatePopoverPlacement, true);
+    const scheduler = createMarkweaveFrameScheduler(updatePopoverPlacement);
+    scheduler.schedule();
+    window.addEventListener("resize", scheduler.schedule);
+    window.addEventListener("scroll", scheduler.schedule, true);
 
     return () => {
-      window.cancelAnimationFrame(animationFrame);
-      window.removeEventListener("resize", updatePopoverPlacement);
-      window.removeEventListener("scroll", updatePopoverPlacement, true);
+      scheduler.cancel();
+      window.removeEventListener("resize", scheduler.schedule);
+      window.removeEventListener("scroll", scheduler.schedule, true);
     };
   }, [openMenu, updatePopoverPlacement]);
 

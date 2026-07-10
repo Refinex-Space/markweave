@@ -80,7 +80,7 @@ describe("playground fixtures", () => {
 
   it("provides a representative 100k document fixture without remote media", () => {
     expect(largeDocumentPerformanceFixture.length).toBeGreaterThanOrEqual(100_000);
-    expect(largeDocumentPerformanceFixture).toContain("Performance section 420");
+    expect(largeDocumentPerformanceFixture).toContain("Performance section 180");
     expect(largeDocumentPerformanceFixture).not.toContain("https://");
   });
 });

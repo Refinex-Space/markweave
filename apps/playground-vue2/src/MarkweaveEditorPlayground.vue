@@ -44,11 +44,10 @@
     </div>
 
     <MarkweaveEditor
-      :key="fixtureRevision"
       aria-label="Markweave Vue2 editor playground"
       auto-focus-first-table-body-cell
-      :default-content="fixtureContent"
-      :default-content-format="fixtureFormat"
+      :content="fixtureContent"
+      :content-format="fixtureFormat"
       :mode="editorMode"
       :on-edit-with-ai="handleEditWithAi"
       :on-extract-to-note="handleFloatingToolbarAssistantRequest"
@@ -118,7 +117,6 @@ export default {
       mergedTablePlaygroundDocument,
       fixtureContent: initialPlaygroundDocument,
       fixtureFormat: "markdown",
-      fixtureRevision: 0,
       editorMode: "live",
       runtimeSnapshot: null,
       lastTableCopyPayload: null,
@@ -148,7 +146,6 @@ export default {
     loadFixture(content, format = "markdown") {
       this.fixtureContent = content;
       this.fixtureFormat = format;
-      this.fixtureRevision += 1;
       this.resetDebugState();
     },
     toggleMode() {

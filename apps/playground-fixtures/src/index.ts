@@ -152,7 +152,7 @@ export const initialPlaygroundDocument = [
 
 const largeDocumentParagraph = "Markweave performance fixture keeps realistic prose, punctuation, inline `code`, **emphasis**, and stable block boundaries so typing, serialization, outline projection, and overlay state can be exercised together without loading remote media.";
 
-export const largeDocumentPerformanceFixture = Array.from({ length: 420 }, (_, index) => {
+export const largeDocumentPerformanceFixture = Array.from({ length: 180 }, (_, index) => {
   const section = index + 1;
   const blocks = [
     `## Performance section ${section}`,

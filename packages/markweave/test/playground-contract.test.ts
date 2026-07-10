@@ -24,7 +24,7 @@ const rootPackageJson = JSON.parse(readFileSync(resolve(workspaceRoot, "package.
 
 const requiredEditorProps = [
   ["autoFocusFirstTableBodyCell", "auto-focus-first-table-body-cell"],
-  ["defaultContentFormat", "default-content-format"],
+  ["defaultContentFormat", "default-content-format", "contentFormat", "content-format"],
   ["onEditWithAi", "on-edit-with-ai"],
   ["onExtractToNote", "on-extract-to-note"],
   ["onRewriteSelection", "on-rewrite-selection"],
@@ -55,6 +55,7 @@ describe("playground integration contract", () => {
   it("uses the same fixtures and upload mock in React, Vue 2, and Vue 3 playgrounds", () => {
     for (const source of Object.values(playgroundSources)) {
       expect(source).toContain("initialPlaygroundDocument");
+      expect(source).toContain("largeDocumentPerformanceFixture");
       expect(source).toContain("mergedTablePlaygroundDocument");
       expect(source).toContain("createPlaygroundUploadResult");
       expect(source).toContain("markweave-playground-mode-toggle");

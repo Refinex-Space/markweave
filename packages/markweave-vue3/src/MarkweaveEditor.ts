@@ -66,6 +66,7 @@ import {
   type Ref,
 } from "vue";
 import { isEditorComposing } from "markweave/internal/editor-core/composition-guard";
+import { createMarkweaveFrameScheduler } from "markweave/internal/editor-core/frame-scheduler";
 import {
   createMarkweaveEditorUpdatePayload,
   getMarkweaveContentType,
@@ -565,22 +566,25 @@ const VueFloatingToolbar = defineComponent({
       popoverPlacement.value = position.placement;
     };
 
+    const popoverPlacementScheduler = createMarkweaveFrameScheduler(updatePopoverPlacement);
+
     watch(openMenu, (menu) => {
       if (!menu) {
         return;
       }
 
-      void nextTick(updatePopoverPlacement);
+      void nextTick(popoverPlacementScheduler.schedule);
     });
 
     onMounted(() => {
-      window.addEventListener("resize", updatePopoverPlacement);
-      window.addEventListener("scroll", updatePopoverPlacement, true);
+      window.addEventListener("resize", popoverPlacementScheduler.schedule);
+      window.addEventListener("scroll", popoverPlacementScheduler.schedule, true);
     });
 
     onBeforeUnmount(() => {
-      window.removeEventListener("resize", updatePopoverPlacement);
-      window.removeEventListener("scroll", updatePopoverPlacement, true);
+      popoverPlacementScheduler.cancel();
+      window.removeEventListener("resize", popoverPlacementScheduler.schedule);
+      window.removeEventListener("scroll", popoverPlacementScheduler.schedule, true);
     });
 
     const getMainToolbarButtonActive = (id: string) => {
