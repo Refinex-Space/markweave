@@ -221,8 +221,11 @@ describe("Markweave Vue3 editor", () => {
 
     expect(container.querySelector("h1")?.textContent).toBe("Title");
     expect(container.querySelector("strong")?.textContent).toBe("bold");
-    expect(container.querySelector('[data-testid="markweave-inner-toc"]')).toBeTruthy();
+    const toc = container.querySelector<HTMLElement>('[data-testid="markweave-inner-toc"]');
+    expect(toc).toBeTruthy();
     expect(container.querySelector(".markweave-inner-toc-item")?.textContent).toBe("Section");
+    expect(container.querySelector('[data-testid="markweave-editor-frame"]')?.getAttribute("data-markweave-inner-toc-placement")).toBe("container");
+    expect(toc?.style.getPropertyValue("--markweave-inner-toc-right")).not.toBe("");
     expect(snapshots.at(-1)?.mode).toBe("live");
   });
 

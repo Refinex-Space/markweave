@@ -51,6 +51,7 @@ describe("Markweave inner TOC DOM", () => {
     expect(toc).toBeTruthy();
     expect(toc?.getAttribute("aria-label")).toBe("文档目录");
     expect(container.querySelector('[data-testid="markweave-editor-frame"]')?.getAttribute("data-markweave-inner-toc")).toBe("true");
+    expect(container.querySelector('[data-testid="markweave-editor-frame"]')?.getAttribute("data-markweave-inner-toc-placement")).toBe("container");
     expect(container.querySelector(".markweave-inner-toc-title")).toBeNull();
     expect(items.map((item) => item.textContent)).toEqual(["二级标题"]);
     expect(items[0]?.getAttribute("aria-label")).toBe("跳转到标题: 二级标题");
@@ -115,5 +116,31 @@ describe("Markweave inner TOC DOM", () => {
 
     expect(toc?.getAttribute("aria-label")).toBe("Document outline");
     expect(item?.getAttribute("aria-label")).toBe("Jump to heading: Section");
+  });
+
+  it("keeps the legacy viewport placement available explicitly", async () => {
+    const container = await renderReact(
+      createElement(MarkweaveEditor, {
+        defaultContent: "# Title\n\n## Section",
+        innerTocPlacement: "viewport",
+      }),
+    );
+
+    expect(container.querySelector('[data-testid="markweave-editor-frame"]')?.getAttribute("data-markweave-inner-toc-placement")).toBe("viewport");
+  });
+
+  it("keeps the container outline vertically fixed while aligning it to the editor edge", async () => {
+    const container = await renderReact(createElement(MarkweaveEditor, { defaultContent: "# Title\n\n## Section" }));
+    const frame = container.querySelector<HTMLElement>('[data-testid="markweave-editor-frame"]');
+    const toc = container.querySelector<HTMLElement>('[data-testid="markweave-inner-toc"]');
+    if (!frame || !toc) {
+      throw new Error("Expected Markweave editor frame and inner TOC.");
+    }
+
+    vi.spyOn(frame, "getBoundingClientRect").mockReturnValue({ right: window.innerWidth - 100 } as DOMRect);
+    window.dispatchEvent(new Event("resize"));
+    await flushReact();
+
+    expect(toc.style.getPropertyValue("--markweave-inner-toc-right")).toBe("128px");
   });
 });

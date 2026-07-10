@@ -66,6 +66,9 @@ describe("Vue2 adapter parity source contract", () => {
       "markweave-math-block-source",
       "markweave-math-block-preview",
       "markweave-inner-toc",
+      "innerTocPlacement",
+      "data-markweave-inner-toc-placement",
+      "observeMarkweaveInnerTocContainerPosition",
       "data-markweave-mode",
       "data-testid\": \"markweave-editor-frame\"",
     ]);

@@ -18,3 +18,5 @@ export function Editor() {
 ```
 
 React and React DOM remain peer dependencies and should come from the host app.
+
+The built-in outline uses `innerTocPlacement="container"` by default, keeping it vertically centered in the visual viewport while aligning its expanded panel to the editor without covering document content.

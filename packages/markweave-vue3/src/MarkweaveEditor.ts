@@ -103,7 +103,10 @@ import {
   getActiveMarkweaveTocId,
   getMarkweaveTocItems,
   getValidMarkweaveTocActiveId,
+  normalizeMarkweaveInnerTocPlacement,
+  observeMarkweaveInnerTocContainerPosition,
   scrollToMarkweaveTocItem,
+  type MarkweaveInnerTocPlacement,
   type MarkweaveTocState,
 } from "markweave/internal/core/toc-state";
 import { getLocalizedSlashCommandSpecs, getMarkweaveMessages, normalizeMarkweaveLang, type MarkweaveLang, type MarkweaveMessages } from "markweave/internal/i18n";
@@ -246,6 +249,7 @@ export interface MarkweaveVue3EditorControllerOptions {
   readonly editable?: boolean;
   readonly mode?: MarkweaveEditorMode;
   readonly innerToc?: boolean;
+  readonly innerTocPlacement?: MarkweaveInnerTocPlacement;
   readonly autofocus?: boolean;
   readonly lang?: MarkweaveLang;
   readonly ariaLabel?: string;
@@ -2379,11 +2383,25 @@ const VueInnerToc = defineComponent({
     state: { type: Object as PropType<MarkweaveTocState>, required: true },
     messages: { type: Object as PropType<MarkweaveMessages>, required: true },
     editable: { type: Boolean, required: true },
+    placement: { type: String as PropType<MarkweaveInnerTocPlacement>, required: true },
   },
   setup(props) {
+    const tocElement = ref<HTMLElement | null>(null);
+    let stopPositioning: (() => void) | undefined;
+    const syncPositioning = () => {
+      stopPositioning?.();
+      stopPositioning = props.placement === "container" && tocElement.value
+        ? observeMarkweaveInnerTocContainerPosition(tocElement.value)
+        : undefined;
+    };
+
+    onMounted(syncPositioning);
+    onBeforeUnmount(() => stopPositioning?.());
+    watch(() => props.placement, syncPositioning);
+
     return () =>
       props.state.items.length
-        ? h("nav", { class: "markweave-inner-toc", "data-testid": "markweave-inner-toc", "aria-label": props.messages.toc.ariaLabel }, [
+        ? h("nav", { ref: tocElement, class: "markweave-inner-toc", "data-testid": "markweave-inner-toc", "aria-label": props.messages.toc.ariaLabel }, [
             h("div", { class: "markweave-inner-toc-rail", "aria-hidden": "true" }, props.state.items.map((item) => h("span", { key: item.id, "data-level": item.level, "data-active": item.active ? "true" : "false" }))),
             h("div", { class: "markweave-inner-toc-panel" }, [
               h("div", { class: "markweave-inner-toc-list" }, props.state.items.map((item) =>
@@ -2780,6 +2798,7 @@ export const MarkweaveEditor = defineComponent({
     editable: { type: Boolean, default: true },
     mode: { type: String as PropType<MarkweaveEditorMode>, default: "live" },
     innerToc: { type: Boolean, default: true },
+    innerTocPlacement: { type: String as PropType<MarkweaveInnerTocPlacement>, default: "container" },
     autofocus: { type: Boolean, default: false },
     lang: { type: String as PropType<MarkweaveLang>, default: undefined },
     ariaLabel: { type: String, default: undefined },
@@ -2814,6 +2833,7 @@ export const MarkweaveEditor = defineComponent({
           "data-testid": "markweave-editor-frame",
           "data-markweave-mode": controller.runtimeSnapshot.value.mode,
           "data-markweave-inner-toc": props.innerToc ? "true" : "false",
+          "data-markweave-inner-toc-placement": normalizeMarkweaveInnerTocPlacement(props.innerTocPlacement),
           "data-mermaid-mode": controller.runtimeSnapshot.value.mermaid.mode,
           "data-table-focus-mode": render.tableFocusState.value.mode,
           onKeydownCapture: render.handleEditorKeyDown,
@@ -2853,7 +2873,7 @@ export const MarkweaveEditor = defineComponent({
             readOnly: !render.effectiveEditable.value,
           }),
           props.innerToc && render.tocState.value.items.length
-            ? h(VueInnerToc, { editor, state: render.tocState.value, messages: render.messages, editable: render.effectiveEditable.value })
+            ? h(VueInnerToc, { editor, state: render.tocState.value, messages: render.messages, editable: render.effectiveEditable.value, placement: normalizeMarkweaveInnerTocPlacement(props.innerTocPlacement) })
             : null,
           render.effectiveEditable.value && render.mathTarget.value
             ? h(VueMathEditorPopover, { editor, messages: render.messages, target: render.mathTarget.value, onClose: () => (render.mathTarget.value = null) })

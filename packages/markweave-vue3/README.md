@@ -20,3 +20,5 @@ import "@markweave/vue3/styles.css";
 ```
 
 Vue remains a peer dependency and should come from the host app.
+
+The built-in outline uses `inner-toc-placement="container"` by default, keeping it vertically centered in the visual viewport while aligning its expanded panel to the editor without covering document content.

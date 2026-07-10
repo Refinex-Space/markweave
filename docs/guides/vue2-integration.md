@@ -1,6 +1,6 @@
 ---
 owner: refinex
-updated: 2026-07-09
+updated: 2026-07-10
 status: active
 referenced_by: docs/README.md#knowledge-map
 ---
@@ -195,6 +195,7 @@ export default {
 | `editable` | `true` | Compatibility lock. Effective editable state is `mode === "live" && editable !== false`. |
 | `lang` | `"zh"` | UI language. Supported values are `"zh"` and `"en"`. Re-mount the editor when switching language dynamically. |
 | `inner-toc` | `true` | Renders the built-in right-side outline. Set `:inner-toc="false"` to render your own TOC from `on-toc-change` or `runtimeSnapshot.toc`. |
+| `inner-toc-placement` | `"container"` | The default keeps the outline vertically centered in the visual viewport while aligning it to the editor edge and reserving its panel gutter, so it cannot cover document content. Set `inner-toc-placement="viewport"` only when a fixed viewport-side outline is required. |
 | `auto-focus-first-table-body-cell` | `false` | Useful for playground or table-first documents. |
 
 ## Upload API

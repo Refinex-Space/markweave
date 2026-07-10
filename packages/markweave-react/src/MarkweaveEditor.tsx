@@ -69,6 +69,8 @@ import {
   getActiveMarkweaveTocId,
   getMarkweaveTocItems,
   getValidMarkweaveTocActiveId,
+  normalizeMarkweaveInnerTocPlacement,
+  type MarkweaveInnerTocPlacement,
   type MarkweaveTocState,
 } from "markweave/internal/core/toc-state";
 import { createMarkweaveReactEditorExtensions } from "./create-editor-extensions";
@@ -93,6 +95,7 @@ export interface MarkweaveEditorFrameProps extends HTMLAttributes<HTMLElement> {
   readonly "data-testid": string;
   readonly "data-markweave-mode": MarkweaveEditorMode;
   readonly "data-markweave-inner-toc": "true" | "false";
+  readonly "data-markweave-inner-toc-placement": MarkweaveInnerTocPlacement;
   readonly "data-mermaid-mode": MermaidPreviewMode;
   readonly "data-table-focus-mode": TableFocusState["mode"];
 }
@@ -113,6 +116,7 @@ export interface MarkweaveEditorControllerOptions {
   readonly editable?: boolean;
   readonly mode?: MarkweaveEditorMode;
   readonly innerToc?: boolean;
+  readonly innerTocPlacement?: MarkweaveInnerTocPlacement;
   readonly autofocus?: boolean;
   readonly lang?: MarkweaveLang;
   readonly ariaLabel?: string;
@@ -207,6 +211,7 @@ export function useMarkweaveEditorController({
   defaultContentFormat,
   editable = true,
   innerToc = true,
+  innerTocPlacement,
   lang,
   mode = "live",
   onEditWithAi,
@@ -220,6 +225,7 @@ export function useMarkweaveEditorController({
   onUpdate,
 }: MarkweaveEditorControllerOptions = {}): MarkweaveEditorController {
   const editorMode = normalizeMarkweaveEditorMode(mode);
+  const resolvedInnerTocPlacement = normalizeMarkweaveInnerTocPlacement(innerTocPlacement);
   const effectiveEditable = editorMode === "live" && editable !== false;
   const activeContentFormat = normalizeMarkweaveContentFormat(content === undefined ? defaultContentFormat : contentFormat);
   const runtimeModeRef = useRef({ editorMode, effectiveEditable });
@@ -686,11 +692,12 @@ export function useMarkweaveEditorController({
       "data-testid": "markweave-editor-frame",
       "data-markweave-mode": editorMode,
       "data-markweave-inner-toc": innerToc ? "true" : "false",
+      "data-markweave-inner-toc-placement": resolvedInnerTocPlacement,
       "data-mermaid-mode": mermaidPreviewState.mode,
       "data-table-focus-mode": tableFocusState.mode,
       onKeyDownCapture: handleEditorKeyDown,
     }),
-    [ariaLabel, editorMode, handleEditorKeyDown, innerToc, mermaidPreviewState.mode, messages.common.editorAriaLabel, tableFocusState.mode],
+    [ariaLabel, editorMode, handleEditorKeyDown, innerToc, mermaidPreviewState.mode, messages.common.editorAriaLabel, resolvedInnerTocPlacement, tableFocusState.mode],
   );
 
   const overlayProps = useMemo<MarkweaveEditorOverlayProps>(
@@ -748,6 +755,7 @@ export function useMarkweaveEditorController({
             editor,
             editable: effectiveEditable,
             messages,
+            placement: resolvedInnerTocPlacement,
             state: tocState,
           }
         : null,

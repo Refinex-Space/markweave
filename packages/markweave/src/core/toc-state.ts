@@ -3,6 +3,7 @@ import { TextSelection } from "@tiptap/pm/state";
 import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
 
 export type MarkweaveTocHeadingLevel = 1 | 2 | 3 | 4 | 5 | 6;
+export type MarkweaveInnerTocPlacement = "container" | "viewport";
 
 export interface MarkweaveTocItem {
   readonly id: string;
@@ -22,6 +23,33 @@ export const emptyMarkweaveTocState: MarkweaveTocState = {
   items: [],
   activeId: null,
 };
+
+export function normalizeMarkweaveInnerTocPlacement(value: unknown): MarkweaveInnerTocPlacement {
+  return value === "viewport" ? "viewport" : "container";
+}
+
+export function observeMarkweaveInnerTocContainerPosition(tocElement: HTMLElement) {
+  const frameElement = tocElement.closest(".markweave-editor-frame");
+  if (!frameElement || typeof window === "undefined") {
+    return () => undefined;
+  }
+
+  const syncPosition = () => {
+    const frameBounds = frameElement.getBoundingClientRect();
+    const rightOffset = Math.max(28, window.innerWidth - frameBounds.right + 28);
+    tocElement.style.setProperty("--markweave-inner-toc-right", `${rightOffset}px`);
+  };
+
+  syncPosition();
+  const resizeObserver = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(syncPosition);
+  resizeObserver?.observe(frameElement);
+  window.addEventListener("resize", syncPosition);
+
+  return () => {
+    resizeObserver?.disconnect();
+    window.removeEventListener("resize", syncPosition);
+  };
+}
 
 const headingSelector = "h1,h2,h3,h4,h5,h6";
 const activeHeadingOffset = 96;

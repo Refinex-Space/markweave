@@ -112,6 +112,11 @@ describe("editor style boundary", () => {
     expect(editorCss).toContain(".markweave-inner-toc-item");
     expect(editorCss).toContain(".markweave-inner-toc:hover .markweave-inner-toc-panel");
     expect(editorCss).toContain("right: 28px");
+    expect(editorCss).toContain('data-markweave-inner-toc-placement="container"');
+    expect(editorCss).toContain("padding-right: 294px");
+    expect(editorCss).toContain("position: fixed;");
+    expect(editorCss).toContain("right: var(--markweave-inner-toc-right, 28px);");
+    expect(editorCss).toContain("font-size: 16px");
     expect(editorCss).toContain("z-index: 58");
     expect(editorCss).toContain("scrollbar-color: #d7d7d7 transparent");
     expect(editorCss).toContain(".markweave-video");

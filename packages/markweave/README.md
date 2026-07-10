@@ -109,7 +109,7 @@ You can import the adapter `styles.css` once in the app entry instead of inside 
 
 Math formulas are editable in Live mode: click inline `$...$` or display `$$...$$` formulas to open the in-place LaTeX editor. View mode keeps formulas read-only while preserving the rendered layout.
 
-`innerToc` defaults to `true` and shows a built-in right-side outline derived from document headings. Set `innerToc={false}` when rendering your own outline from `onTocChange` or `runtimeSnapshot.toc`.
+`innerToc` defaults to `true` and shows a built-in right-side outline derived from document headings. `innerTocPlacement` defaults to `"container"`, which keeps the outline vertically centered in the visual viewport, aligns it to the editor edge, and reserves its panel gutter so it cannot cover document content. Set `innerTocPlacement="viewport"` only when a fixed viewport-side outline is required; set `innerToc={false}` when rendering your own outline from `onTocChange` or `runtimeSnapshot.toc`.
 
 ## Framework Parity
 
