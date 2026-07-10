@@ -196,7 +196,7 @@ export function calculateTableEdgeHandlePosition(input: {
     input.handleSize ?? (input.kind === "row" ? { width: 22, height: 44 } : { width: 44, height: 22 });
   const rawLeft =
     input.kind === "row"
-      ? input.targetRect.left - input.frameRect.left - handleSize.width / 2 - offset
+      ? input.targetRect.left - input.frameRect.left - offset
       : input.targetRect.left - input.frameRect.left + input.targetRect.width / 2 - handleSize.width / 2;
   const rawTop =
     input.kind === "row"
