@@ -159,9 +159,17 @@ export function openMarkweaveLinkCardComposer(options: MarkweaveLinkCardComposer
   document.body.append(popup);
 
   let aborted = false;
+  const isCardAnchor = anchor !== options.anchor;
+  let close: () => void = () => undefined;
   const reposition = () => {
     const anchorRect = anchor.getBoundingClientRect();
     const frameRect = frame.getBoundingClientRect();
+    const boundaryTop = Math.max(0, frameRect.top);
+    const boundaryBottom = Math.min(window.innerHeight, frameRect.bottom);
+    if (isCardAnchor && (anchorRect.bottom <= boundaryTop || anchorRect.top >= boundaryBottom)) {
+      close();
+      return;
+    }
     const popupRect = popup.getBoundingClientRect();
     const viewport = { width: window.innerWidth, height: window.innerHeight };
     const placement = calculateFloatingToolbarPopoverPlacement({
@@ -181,7 +189,7 @@ export function openMarkweaveLinkCardComposer(options: MarkweaveLinkCardComposer
     popup.style.top = `${Math.round(Math.max(padding, Math.min(viewport.height - popupRect.height - padding, top)))}px`;
   };
   const scheduler = createMarkweaveFrameScheduler(reposition);
-  const close = () => {
+  close = () => {
     if (aborted) return;
     aborted = true;
     scheduler.cancel();
