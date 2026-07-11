@@ -123,7 +123,25 @@ Legacy HTML input remains supported when declared explicitly:
 <MarkweaveEditor defaultContent="<h1>Hello Markweave</h1>" defaultContentFormat="html" />
 ```
 
-`mode` defaults to `"live"`. Pass `mode="view"` for a read-only rendered view that reuses the same Markweave output styling. The existing `editable={false}` prop still works as a compatibility lock, so `mode="live" editable={false}` is also read-only.
+`mode` defaults to `"live"`. Pass `mode="view"` for a read-only rendered view that reuses the same Markweave output styling. The existing `editable={false}` prop still works as a compatibility lock, so `mode="live" editable={false}` is also read-only. `theme` defaults to `"light"`; pass `theme="dark"` to switch the editor frame and every built-in interaction surface to the graphite dark theme. Theme changes are safe at runtime and do not recreate editor content.
+
+## External Link Cards
+
+A paragraph containing exactly one HTTP(S) link can be embedded as a link card in Live mode. Mixed text links, inline links, and `markweave:` document links remain ordinary links. Markweave never fetches a URL itself: pass an optional `linkCardResolver` when the host has a controlled metadata service.
+
+```tsx
+<MarkweaveEditor
+  linkCardResolver={async ({ href, title, signal }) => {
+    const response = await fetch(`/api/link-preview?url=${encodeURIComponent(href)}`, { signal });
+    if (!response.ok) return null;
+    return response.json(); // { title, description, siteName, imageUrl, faviconUrl }
+  }}
+/>
+```
+
+The resolver receives a validated HTTP(S) URL, the link title, and an `AbortSignal`; it runs only after a user explicitly embeds or edits a card. Implement URL allowlists, DNS/IP checks, redirect limits, timeouts, response-size limits, and image URL filtering in the server-side service. Link-card Markdown stores a safe HTML fallback so its metadata survives Markdown round trips.
+
+The composer keeps actions compact: copy address, embed, copy Markdown, and remove link are icon-only controls with accessible labels and hover/focus tooltips.
 
 `innerToc` defaults to `true` and renders the built-in right-side document outline from Markdown headings. `innerTocPlacement` defaults to `"container"`: it keeps the outline vertically centered in the visual viewport and centers the writing column with symmetric TOC gutters. When the actual editor container is narrow, the built-in outline hides automatically so the writing column remains readable. Set `innerTocPlacement="viewport"` only when a fixed viewport-side outline is required; set `innerToc={false}` to hide the default UI while still receiving outline data through `onTocChange` and `onRuntimeStateChange`.
 

@@ -20,7 +20,7 @@ import {
 } from "markweave/internal/editor-core/selection-state";
 import { getLocalizedSlashCommandSpecs, getMarkweaveMessages, normalizeMarkweaveLang, type MarkweaveLang } from "markweave/internal/i18n";
 import { getActiveCodeBlockState, markweaveCodeBlockBehavior, type MarkweaveCodeBlockState } from "markweave/internal/plugins/codeblock/codeblock-behavior";
-import { isMermaidInlinePreviewTransaction, setMermaidInlinePreviewEditorMode } from "markweave/internal/plugins/mermaid/mermaid-inline-preview";
+import { isMermaidInlinePreviewTransaction, setMarkweaveMermaidTheme, setMermaidInlinePreviewEditorMode } from "markweave/internal/plugins/mermaid/mermaid-inline-preview";
 import { getMermaidPreviewState, type MermaidPreviewMode, type MermaidPreviewState } from "markweave/internal/plugins/mermaid/mermaid-renderer";
 import {
   getMarkweaveMathTargetAtPos,
@@ -60,6 +60,7 @@ import { TableControls } from "./ui/table/TableControls";
 import { TableSelectionOverlay } from "./ui/table/TableSelectionOverlay";
 import { MarkweaveInnerToc } from "./ui/toc/MarkweaveInnerToc";
 import { normalizeMarkweaveEditorMode, setMarkweaveEditorModeState, type MarkweaveEditorMode } from "markweave/internal/core/editor-mode-state";
+import { normalizeMarkweaveTheme, type MarkweaveTheme } from "markweave/internal/core/theme";
 import type {
   FloatingToolbarAssistantRequest,
   MarkweaveContentFormat,
@@ -81,6 +82,7 @@ import {
   type MarkweaveTocState,
 } from "markweave/internal/core/toc-state";
 import { createMarkweaveReactEditorExtensions } from "./create-editor-extensions";
+import type { MarkweaveLinkCardResolver } from "markweave/internal/plugins/link-card/link-card";
 
 export interface MarkweaveEditorControllerActions {
   readonly closeSlashMenu: () => void;
@@ -101,6 +103,7 @@ export interface MarkweaveEditorOverlayProps {
 export interface MarkweaveEditorFrameProps extends HTMLAttributes<HTMLElement> {
   readonly "data-testid": string;
   readonly "data-markweave-mode": MarkweaveEditorMode;
+  readonly "data-markweave-theme": MarkweaveTheme;
   readonly "data-markweave-inner-toc": "true" | "false";
   readonly "data-markweave-inner-toc-placement": MarkweaveInnerTocPlacement;
   readonly "data-mermaid-mode": MermaidPreviewMode;
@@ -122,6 +125,7 @@ export interface MarkweaveEditorControllerOptions {
   readonly contentFormat?: MarkweaveContentFormat;
   readonly editable?: boolean;
   readonly mode?: MarkweaveEditorMode;
+  readonly theme?: MarkweaveTheme;
   readonly innerToc?: boolean;
   readonly innerTocPlacement?: MarkweaveInnerTocPlacement;
   readonly autofocus?: boolean;
@@ -137,6 +141,7 @@ export interface MarkweaveEditorControllerOptions {
   readonly onTableCommandResult?: (result: TableCommandResult) => void;
   readonly onRuntimeStateChange?: (snapshot: MarkweaveEditorRuntimeSnapshot) => void;
   readonly onTocChange?: (state: MarkweaveTocState) => void;
+  readonly linkCardResolver?: MarkweaveLinkCardResolver;
 }
 
 export interface MarkweaveEditorProps extends MarkweaveEditorControllerOptions {
@@ -221,6 +226,7 @@ export function useMarkweaveEditorController({
   innerTocPlacement,
   lang,
   mode = "live",
+  theme,
   onEditWithAi,
   onExtractToNote,
   onRewriteSelection,
@@ -230,8 +236,10 @@ export function useMarkweaveEditorController({
   onTableCopyPayload,
   onTocChange,
   onUpdate,
+  linkCardResolver,
 }: MarkweaveEditorControllerOptions = {}): MarkweaveEditorController {
   const editorMode = normalizeMarkweaveEditorMode(mode);
+  const resolvedTheme = normalizeMarkweaveTheme(theme);
   const resolvedInnerTocPlacement = normalizeMarkweaveInnerTocPlacement(innerTocPlacement);
   const effectiveEditable = editorMode === "live" && editable !== false;
   const activeContentFormat = normalizeMarkweaveContentFormat(content === undefined ? defaultContentFormat : contentFormat);
@@ -246,6 +254,8 @@ export function useMarkweaveEditorController({
   const slashCommands = useMemo(() => getLocalizedSlashCommandSpecs(resolvedLang), [resolvedLang]);
   const uploadHandlerRef = useRef(onSlashCommandUpload);
   uploadHandlerRef.current = onSlashCommandUpload;
+  const linkCardResolverRef = useRef(linkCardResolver);
+  linkCardResolverRef.current = linkCardResolver;
   const extensions = useMemo(
     () =>
       createMarkweaveReactEditorExtensions({
@@ -274,6 +284,7 @@ export function useMarkweaveEditorController({
 
           return directResult;
         },
+        linkCardResolver: (request) => linkCardResolverRef.current?.(request) ?? Promise.resolve(null),
       }),
     [resolvedLang],
   );
@@ -487,6 +498,12 @@ export function useMarkweaveEditorController({
       closeSlashMenu();
     }
   }, [closeSlashMenu, editor, editorMode, effectiveEditable, flushRuntimeProjection]);
+
+  useEffect(() => {
+    if (editor) {
+      setMarkweaveMermaidTheme(editor, resolvedTheme);
+    }
+  }, [editor, resolvedTheme]);
 
   useEffect(() => {
     const normalizedContentFormat = normalizeMarkweaveContentFormat(contentFormat);
@@ -746,13 +763,14 @@ export function useMarkweaveEditorController({
       "aria-label": ariaLabel ?? messages.common.editorAriaLabel,
       "data-testid": "markweave-editor-frame",
       "data-markweave-mode": editorMode,
+      "data-markweave-theme": resolvedTheme,
       "data-markweave-inner-toc": innerToc ? "true" : "false",
       "data-markweave-inner-toc-placement": resolvedInnerTocPlacement,
       "data-mermaid-mode": mermaidPreviewState.mode,
       "data-table-focus-mode": tableFocusState.mode,
       onKeyDownCapture: handleEditorKeyDown,
     }),
-    [ariaLabel, editorMode, handleEditorKeyDown, innerToc, mermaidPreviewState.mode, messages.common.editorAriaLabel, resolvedInnerTocPlacement, tableFocusState.mode],
+    [ariaLabel, editorMode, handleEditorKeyDown, innerToc, mermaidPreviewState.mode, messages.common.editorAriaLabel, resolvedInnerTocPlacement, resolvedTheme, tableFocusState.mode],
   );
 
   const overlayProps = useMemo<MarkweaveEditorOverlayProps>(

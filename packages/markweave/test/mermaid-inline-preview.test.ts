@@ -4,6 +4,7 @@ import { Editor } from "@tiptap/core";
 import { afterEach, describe, expect, it } from "vitest";
 import { createMarkweaveEditorExtensions } from "../src/editor-core/create-editor-extensions";
 import { getActiveCodeBlockState, setActiveCodeBlockMermaidPreviewMode } from "../src/plugins/codeblock/codeblock-behavior";
+import { setMarkweaveMermaidTheme } from "../src/plugins/mermaid/mermaid-inline-preview";
 
 let activeEditor: Editor | null = null;
 
@@ -156,6 +157,21 @@ describe("mermaid inline preview", () => {
     expect(inlinePreview?.dataset.state).toBe("empty");
     expect(inlinePreview?.dataset.codeBlockPos).toBe("0");
     expect(inlinePreview?.dataset.sourceLength).toBe(String("graph TD\n  A --> B".length));
+  });
+
+  it("recreates Mermaid previews for a theme change without mutating document source", () => {
+    const editor = createEditor(`<pre><code class="language-mermaid">graph TD
+  A --> B</code></pre>`);
+
+    expect(editor.commands.setTextSelection(textPosition(editor, "A --> B"))).toBe(true);
+    expect(setActiveCodeBlockMermaidPreviewMode(editor, "preview")).toBe(true);
+    const markdownBefore = editor.getText();
+
+    expect(editor.view.dom.querySelector<HTMLElement>('[data-testid="markweave-mermaid-inline-preview"]')?.dataset.theme).toBe("light");
+    expect(setMarkweaveMermaidTheme(editor, "dark")).toBe(true);
+    expect(editor.view.dom.querySelector<HTMLElement>('[data-testid="markweave-mermaid-inline-preview"]')?.dataset.theme).toBe("dark");
+    expect(editor.getText()).toBe(markdownBefore);
+    expect(setMarkweaveMermaidTheme(editor, "dark")).toBe(false);
   });
 
   it("restores the Mermaid code block selection when the preview widget is clicked", () => {

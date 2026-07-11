@@ -1,6 +1,6 @@
 ---
 owner: refinex
-updated: 2026-07-10
+updated: 2026-07-11
 status: active
 referenced_by: docs/README.md#knowledge-map
 ---
@@ -168,6 +168,7 @@ For advanced custom shells, `useMarkweaveEditorController` exposes `actions.setC
   <MarkweaveEditor
     default-content="# Spec\n\n## Goals"
     mode="live"
+    theme="dark"
     lang="zh"
     inner-toc
     :on-toc-change="handleTocChange"
@@ -192,6 +193,7 @@ export default {
 | Template prop | Default | Notes |
 | --- | --- | --- |
 | `mode` | `"live"` | `"live"` is editable; `"view"` is read-only and keeps reader actions such as safe links, code copy, Mermaid preview/fullscreen/download, media playback, and TOC navigation. |
+| `theme` | `"light"` | `"light"` or `"dark"`. The theme is scoped to this editor frame and can change at runtime without recreating document content. |
 | `editable` | `true` | Compatibility lock. Effective editable state is `mode === "live" && editable !== false`. |
 | `lang` | `"zh"` | UI language. Supported values are `"zh"` and `"en"`. Re-mount the editor when switching language dynamically. |
 | `inner-toc` | `true` | Renders the built-in right-side outline. Set `:inner-toc="false"` to render your own TOC from `on-toc-change` or `runtimeSnapshot.toc`. |
@@ -291,6 +293,12 @@ Images render with preview, align, caption, resize, replace, download, and delet
 - `on-rewrite-selection` and `on-extract-to-note` receive selected text and HTML from the floating toolbar.
 - `on-table-copy-payload` mirrors table copy actions for row, column, or table payloads.
 - `on-table-command-result` reports table command outcomes and before/after snapshots.
+
+## External Link Cards
+
+Only a paragraph containing exactly one HTTP(S) link can become a card; inline, mixed-text, and `markweave:` links remain normal links. Use `:link-card-resolver="resolveLinkCard"` to enrich a card only after an explicit user embed or edit.
+
+The resolver receives `{ href, title, signal }`; it is not called during load, scrolling, or ordinary link clicks. Keep metadata fetching in a backend that enforces URL/DNS allowlists, redirect and timeout limits, response-size limits, and image URL validation. Markweave does not fetch external URLs itself.
 
 ## Feature Coverage
 

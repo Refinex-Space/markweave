@@ -1,4 +1,4 @@
-import type { Extensions, JSONContent, MarkdownRendererHelpers, RenderContext } from "@tiptap/core";
+import type { AnyExtension, Extensions, JSONContent, MarkdownRendererHelpers, RenderContext } from "@tiptap/core";
 import CodeBlockLowlight from "@tiptap/extension-code-block-lowlight";
 import Emoji, { emojis } from "@tiptap/extension-emoji";
 import Highlight from "@tiptap/extension-highlight";
@@ -26,6 +26,7 @@ import { MarkweaveMarkBoundary } from "./mark-boundary";
 import { MarkweaveCallout } from "../plugins/callout/callout-node";
 import { MarkweaveCodeBlockClickFocus, MarkweaveCodeBlockCollapse, markweaveCodeBlockBehavior } from "../plugins/codeblock/codeblock-behavior";
 import { MarkweaveIndent } from "../plugins/indent/indent-extension";
+import { MarkweaveLinkCard } from "../plugins/link-card/link-card-node";
 import { MarkweaveMarkdownInput } from "../plugins/markdown/markdown-input";
 import {
   needsMarkweaveTableHtmlFallback,
@@ -46,6 +47,7 @@ import type { MarkweaveLang } from "../i18n";
 export interface CreateMarkweaveEditorExtensionsOptions {
   readonly lang?: MarkweaveLang;
   readonly mediaExtensions?: Extensions;
+  readonly linkCardExtension?: AnyExtension;
 }
 
 const markweaveLowlight = createLowlight(common);
@@ -176,6 +178,7 @@ export function createMarkweaveEditorExtensions(options: CreateMarkweaveEditorEx
       },
     }),
     MarkweaveMarkBoundary,
+    options.linkCardExtension ?? MarkweaveLinkCard,
     ...(options.mediaExtensions ?? [MarkweaveCoreImage, MarkweaveCoreVideo]),
     MarkweaveAttachment,
     HorizontalRule.configure({

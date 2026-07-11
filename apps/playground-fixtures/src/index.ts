@@ -35,6 +35,8 @@ export const initialPlaygroundDocument = [
   "",
   "Links should render safely: [open product docs](https://example.com/docs). In View mode, clicking safe links should use the reader behavior; unsafe protocols should remain blocked by the editor boundary.",
   "",
+  "[Lucide Icons](https://lucide.dev/)",
+  "",
   "## 4. Blockquote, Lists, And Tasks",
   "",
   "> Markweave is designed for authors who want Markdown semantics, but also need a stable visual editor for repeated daily writing.",
@@ -149,6 +151,28 @@ export const initialPlaygroundDocument = [
   "Finish by switching between Live and View. Content should remain stable while editing-only overlays disappear and read-only utilities remain available.",
   "",
 ].join("\n");
+
+export async function resolvePlaygroundLinkCard(request: { readonly href: string; readonly title: string; readonly signal: AbortSignal }) {
+  if (request.signal.aborted) return null;
+
+  const url = new URL(request.href);
+  if (url.hostname === "lucide.dev") {
+    return {
+      title: "Lucide Icons",
+      description: "Beautiful & consistent icon toolkit made by the community.",
+      siteName: "lucide.dev",
+      imageUrl: "https://lucide.dev/og.png",
+      faviconUrl: "https://lucide.dev/favicon.ico",
+    };
+  }
+
+  return {
+    title: request.title || url.hostname,
+    description: `Preview supplied by the Markweave playground for ${url.hostname}.`,
+    siteName: url.hostname,
+    faviconUrl: `${url.origin}/favicon.ico`,
+  };
+}
 
 const largeDocumentParagraph = "Markweave performance fixture keeps realistic prose, punctuation, inline `code`, **emphasis**, and stable block boundaries so typing, serialization, outline projection, and overlay state can be exercised together without loading remote media.";
 

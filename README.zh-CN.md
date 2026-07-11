@@ -128,7 +128,25 @@ export default {
 <MarkweaveEditor defaultContent="<h1>Hello Markweave</h1>" defaultContentFormat="html" />
 ```
 
-`mode` 默认是 `"live"`。传 `mode="view"` 后进入只读渲染模式，并复用同一套 Markweave 输出样式。旧的 `editable={false}` 仍作为兼容锁，因此 `mode="live" editable={false}` 也是只读。
+`mode` 默认是 `"live"`。传 `mode="view"` 后进入只读渲染模式，并复用同一套 Markweave 输出样式。旧的 `editable={false}` 仍作为兼容锁，因此 `mode="live" editable={false}` 也是只读。`theme` 默认是 `"light"`；传 `theme="dark"` 可将编辑器根节点及全部内置交互界面切换为深石墨暗色主题。主题可在运行时切换，不会重建编辑器内容。
+
+## 外部超链接卡片
+
+Live 模式中，段落内容恰好为一个 HTTP(S) 链接时可以转换为链接卡片。混合文本链接、行内链接与 `markweave:` 文档链接仍保持普通链接。Markweave 不会自行请求外链；宿主如需解析标题、描述和预览图，应传入受控后端实现的 `linkCardResolver`。
+
+```tsx
+<MarkweaveEditor
+  linkCardResolver={async ({ href, title, signal }) => {
+    const response = await fetch(`/api/link-preview?url=${encodeURIComponent(href)}`, { signal });
+    if (!response.ok) return null;
+    return response.json(); // { title, description, siteName, imageUrl, faviconUrl }
+  }}
+/>
+```
+
+resolver 会收到已校验的 HTTP(S) URL、链接标题和 `AbortSignal`，并且只会在用户主动嵌入或修改卡片时执行。生产服务必须自行完成 URL 白名单、DNS/IP 校验、重定向次数、超时、响应体大小与图片 URL 过滤。链接卡片会在 Markdown 中保存安全 HTML fallback，以保留其元数据快照。
+
+浮层操作保持紧凑：复制地址、嵌入、复制 Markdown 和移除链接均为纯图标控件，提供可访问标签以及 hover/focus Tooltip。
 
 `innerToc` 默认是 `true`，会根据 Markdown 标题渲染内置右侧目录。`innerTocPlacement` 默认是 `"container"`：目录会相对视觉窗口垂直居中，正文以对称的目录留白保持居中；实际编辑器容器较窄时会自动隐藏内置目录，优先保证正文可读性。仅在确实需要固定到浏览器视口右侧时使用 `innerTocPlacement="viewport"`；传 `innerToc={false}` 或 `:inner-toc="false"` 可以隐藏内置 UI，同时继续通过 `onTocChange` 和 `onRuntimeStateChange` 获取目录数据。
 

@@ -139,6 +139,7 @@ describe("editor entrypoint boundary", () => {
     expect(indexSource).toContain("createMarkweaveEditorExtensions");
     expect(indexSource).toContain("MarkweaveLang");
     expect(indexSource).toContain("MarkweaveEditorMode");
+    expect(indexSource).toContain("MarkweaveTheme");
     expect(indexSource).toContain("MarkweaveContentFormat");
     expect(indexSource).toContain("MarkweaveTocItem");
     expect(indexSource).toContain("MarkweaveTocState");
@@ -221,19 +222,19 @@ describe("editor entrypoint boundary", () => {
     const publishedCoreDependency = `^${corePackage.version}`;
 
     expect(reactPackage.dependencies).toEqual(expect.objectContaining({ markweave: "workspace:^", "@tiptap/react": "^3.27.1" }));
-    expect(publishedCoreDependency).toBe("^0.1.6");
+    expect(publishedCoreDependency).toBe(`^${corePackage.version}`);
     expect(reactPackage.peerDependencies).toEqual({ react: "^18.2.0 || ^19.0.0", "react-dom": "^18.2.0 || ^19.0.0" });
     expect(reactPackage.dependencies).not.toHaveProperty("@tiptap/vue-2");
     expect(reactPackage.dependencies).not.toHaveProperty("@tiptap/vue-3");
 
     expect(vue2Package.dependencies).toEqual(expect.objectContaining({ markweave: "workspace:^", "@tiptap/vue-2": "3.27.1" }));
-    expect(publishedCoreDependency).toBe("^0.1.6");
+    expect(publishedCoreDependency).toBe(`^${corePackage.version}`);
     expect(vue2Package.peerDependencies).toEqual({ vue: "^2.6.12" });
     expect(vue2Package.dependencies).not.toHaveProperty("@tiptap/react");
     expect(vue2Package.dependencies).not.toHaveProperty("@tiptap/vue-3");
 
     expect(vue3Package.dependencies).toEqual(expect.objectContaining({ markweave: "workspace:^", "@tiptap/vue-3": "^3.27.1" }));
-    expect(publishedCoreDependency).toBe("^0.1.6");
+    expect(publishedCoreDependency).toBe(`^${corePackage.version}`);
     expect(vue3Package.peerDependencies).toEqual({ vue: "^3.3.0" });
     expect(vue3Package.dependencies).not.toHaveProperty("@tiptap/react");
     expect(vue3Package.dependencies).not.toHaveProperty("@tiptap/vue-2");
@@ -252,6 +253,7 @@ describe("editor entrypoint boundary", () => {
     expect(container.querySelector('[data-testid="markweave-editor-frame"]')).toBeTruthy();
     expect(container.querySelector('[data-testid="markweave-editor-frame"]')?.getAttribute("aria-label")).toBe("Markweave 编辑器");
     expect(container.querySelector('[data-testid="markweave-editor-frame"]')?.getAttribute("data-markweave-mode")).toBe("live");
+    expect(container.querySelector('[data-testid="markweave-editor-frame"]')?.getAttribute("data-markweave-theme")).toBe("light");
     expect(container.querySelector('[data-testid="markweave-editor-frame"]')?.getAttribute("data-markweave-inner-toc")).toBe("true");
     expect(container.querySelector('[data-testid="markweave-editor-frame"]')?.getAttribute("data-markweave-inner-toc-placement")).toBe("container");
     expect(container.querySelector('[data-testid="markweave-editor-surface"]')?.innerHTML).toContain("hello editor");
@@ -271,12 +273,13 @@ describe("editor entrypoint boundary", () => {
   it("switches between Live and View modes without recreating the editor", async () => {
     let controller: MarkweaveEditorController | null = null;
 
-    function Harness({ editable, mode }: { readonly editable?: boolean; readonly mode: MarkweaveEditorMode }) {
+    function Harness({ editable, mode, theme = "light" }: { readonly editable?: boolean; readonly mode: MarkweaveEditorMode; readonly theme?: "light" | "dark" }) {
       controller = useMarkweaveEditorController({
         defaultContent: '<p><a href="https://example.com">link</a></p>',
         defaultContentFormat: "html",
         editable,
         mode,
+        theme,
       });
 
       return controller.editor ? createElement("section", controller.frameProps, createElement("div", { "data-testid": "html" }, controller.editor.getHTML())) : null;
@@ -320,6 +323,16 @@ describe("editor entrypoint boundary", () => {
 
     expect(getController().editor).toBe(firstEditor);
     expect(getController().editor?.isEditable).toBe(true);
+
+    const htmlBeforeThemeChange = getController().editor?.getHTML();
+    await act(async () => {
+      activeRoot?.render(createElement(Harness, { mode: "live", theme: "dark" }));
+    });
+    await flushReact();
+
+    expect(getController().editor).toBe(firstEditor);
+    expect(getController().editor?.getHTML()).toBe(htmlBeforeThemeChange);
+    expect(container.querySelector('[data-testid="markweave-editor-frame"]')?.getAttribute("data-markweave-theme")).toBe("dark");
 
     await act(async () => {
       activeRoot?.render(createElement(Harness, { editable: false, mode: "live" }));

@@ -13,6 +13,8 @@ describe("markweave i18n model", () => {
   it("builds localized slash commands for Chinese and English", () => {
     expect(getMarkweaveMessages("zh").floatingToolbar.linkPlaceholder).toBe("粘贴链接...");
     expect(getMarkweaveMessages("en").floatingToolbar.linkPlaceholder).toBe("Paste a link...");
+    expect(getMarkweaveMessages("zh").linkCard.embedLink).toBe("嵌入链接");
+    expect(getMarkweaveMessages("en").linkCard.embedLink).toBe("Embed link");
     expect(getMarkweaveMessages("zh").table.commands["add-row-before"]).toBe("插入上方行");
     expect(getMarkweaveMessages("en").table.commands["add-row-before"]).toBe("Insert Row Above");
     expect(getMarkweaveMessages("zh").toc.ariaLabel).toBe("文档目录");

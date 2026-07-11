@@ -1,6 +1,6 @@
 ---
 owner: refinex
-updated: 2026-07-10
+updated: 2026-07-11
 status: active
 referenced_by: docs/README.md#knowledge-map
 ---
@@ -168,6 +168,7 @@ export default {
   <MarkweaveEditor
     default-content="# Spec\n\n## Goals"
     mode="live"
+    theme="dark"
     lang="zh"
     inner-toc
     :on-toc-change="handleTocChange"
@@ -192,6 +193,7 @@ export default {
 | 模板属性 | 默认值 | 说明 |
 | --- | --- | --- |
 | `mode` | `"live"` | `"live"` 可编辑；`"view"` 只读，但保留安全链接打开、代码复制、Mermaid 预览/放大/下载、媒体播放和 TOC 跳转等阅读能力。 |
+| `theme` | `"light"` | `"light"` 或 `"dark"`。主题仅作用于当前编辑器根节点，可在运行时切换，不会重建文档内容。 |
 | `editable` | `true` | 兼容锁。最终可编辑状态是 `mode === "live" && editable !== false`。 |
 | `lang` | `"zh"` | UI 语言。支持 `"zh"` 和 `"en"`。运行时切换语言建议重新挂载编辑器。 |
 | `inner-toc` | `true` | 显示内置右侧目录。传 `:inner-toc="false"` 后可通过 `on-toc-change` 或 `runtimeSnapshot.toc` 自行渲染目录。 |
@@ -291,6 +293,12 @@ interface MarkweaveUploadResult {
 - `on-rewrite-selection` 和 `on-extract-to-note` 接收浮动工具栏中的选中文本和 HTML。
 - `on-table-copy-payload` 接收复制行、列或整表时的文本与 HTML。
 - `on-table-command-result` 接收表格命令执行结果和 before/after 快照。
+
+## 外部超链接卡片
+
+只有段落内容恰好为一个 HTTP(S) 链接时才可转为卡片；行内链接、混合文本链接与 `markweave:` 链接保持普通链接。传入 `:link-card-resolver="resolveLinkCard"` 后，只有用户主动嵌入或修改卡片才会请求元数据。
+
+resolver 接收 `{ href, title, signal }`，不会在加载、滚动或普通链接点击时运行。元数据抓取必须由宿主后端执行 URL/DNS 白名单、重定向与超时、响应体大小和图片 URL 校验；Markweave 不会自行请求外链。
 
 ## 能力覆盖
 

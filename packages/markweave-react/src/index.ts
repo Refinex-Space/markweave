@@ -19,6 +19,7 @@ export type {
   TableCommandResult,
   TableEditWithAiRequest,
   MarkweaveEditorMode,
+  MarkweaveTheme,
   MarkweaveInnerTocPlacement,
   MarkweaveTocItem,
   MarkweaveTocState,
@@ -27,4 +28,7 @@ export type {
   MarkweaveUploadResult,
   MarkweaveSlashCommandUploadHandler,
   MarkweaveMenuCopyPayload,
+  MarkweaveLinkCardMetadata,
+  MarkweaveLinkCardResolveRequest,
+  MarkweaveLinkCardResolver,
 } from "markweave";

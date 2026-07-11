@@ -36,6 +36,8 @@ describe("Vue3 adapter parity source contract", () => {
       "markweave-floating-toolbar-tooltip--more",
       "markweave-floating-toolbar-tooltip-left",
       "data-tooltip-active",
+      "data-markweave-theme",
+      "setMarkweaveMermaidTheme",
       "data-button-id",
       "setAnchoredTooltip",
       "onMouseenter",
@@ -162,6 +164,8 @@ describe("Vue3 adapter parity source contract", () => {
       "iframe[data-markweave-video-embed], video[data-markweave-video]",
       "data-markweave-image-ui",
       "data-markweave-video-ui",
+      "markweave-link-card",
+      "MarkweaveVueLinkCard",
     ]);
     expect(source).not.toContain("markweave-video-delete");
     expect(source).not.toContain("markweave-media-placeholder");

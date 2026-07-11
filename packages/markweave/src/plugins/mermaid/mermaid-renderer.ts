@@ -1,3 +1,5 @@
+import type { MarkweaveTheme } from "../../core/theme";
+
 export type MermaidPreviewMode = "code" | "preview";
 
 export interface MermaidPreviewState {
@@ -47,7 +49,7 @@ export type MermaidPreviewPresentation =
     };
 
 export interface MermaidRenderer {
-  render(id: string, source: string): Promise<{ svg: string }>;
+  render(id: string, source: string, theme: MarkweaveTheme): Promise<{ svg: string }>;
 }
 
 export const markweaveMermaidBehavior = {
@@ -66,7 +68,17 @@ export const markweaveMermaidBehavior = {
   },
 } as const;
 
-let mermaidInitialized = false;
+const darkThemeVariables = {
+  background: "transparent",
+  fontFamily: "Inter, ui-sans-serif, system-ui, sans-serif",
+  primaryColor: "#282d35",
+  primaryTextColor: "#e7e9ed",
+  primaryBorderColor: "#5a6472",
+  lineColor: "#aab5c5",
+  tertiaryColor: "#20242b",
+} as const;
+
+let mermaidRenderQueue = Promise.resolve();
 
 function getErrorMessage(error: unknown) {
   return error instanceof Error ? error.message : String(error);
@@ -132,18 +144,22 @@ async function loadMermaidRenderer(): Promise<MermaidRenderer> {
   const mermaidModule = await import("mermaid");
   const mermaid = mermaidModule.default;
 
-  if (!mermaidInitialized) {
-    mermaid.initialize({
-      startOnLoad: false,
-      securityLevel: markweaveMermaidBehavior.securityLevel,
-      theme: markweaveMermaidBehavior.theme,
-      themeVariables: markweaveMermaidBehavior.themeVariables,
-    });
-    mermaidInitialized = true;
-  }
-
   return {
-    render: (id, source) => mermaid.render(id, source),
+    render: (id, source, theme) => {
+      const render = mermaidRenderQueue.then(async () => {
+        const themeVariables = theme === "dark" ? darkThemeVariables : markweaveMermaidBehavior.themeVariables;
+
+        mermaid.initialize({
+          startOnLoad: false,
+          securityLevel: markweaveMermaidBehavior.securityLevel,
+          theme: markweaveMermaidBehavior.theme,
+          themeVariables,
+        });
+        return mermaid.render(id, source);
+      });
+      mermaidRenderQueue = render.then(() => undefined, () => undefined);
+      return render;
+    },
   };
 }
 
@@ -152,6 +168,7 @@ export async function renderMermaidDiagram(
   options: {
     readonly id?: string;
     readonly renderer?: MermaidRenderer;
+    readonly theme?: MarkweaveTheme;
   } = {},
 ): Promise<MermaidRenderResult> {
   const trimmedSource = source.trim();
@@ -162,7 +179,7 @@ export async function renderMermaidDiagram(
 
   try {
     const renderer = options.renderer ?? (await loadMermaidRenderer());
-    const { svg } = await renderer.render(options.id ?? `markweave-mermaid-${Date.now()}`, trimmedSource);
+    const { svg } = await renderer.render(options.id ?? `markweave-mermaid-${Date.now()}`, trimmedSource, options.theme ?? "light");
     return { status: "rendered", svg, error: null };
   } catch (error) {
     return { status: "error", svg: "", error: getErrorMessage(error) };

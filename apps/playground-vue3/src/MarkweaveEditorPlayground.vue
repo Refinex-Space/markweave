@@ -1,5 +1,5 @@
 <template>
-  <main class="markweave-playground">
+  <main class="markweave-playground" :data-theme="theme">
     <div class="markweave-playground-toolbar" aria-label="Playground controls">
       <button
         type="button"
@@ -12,6 +12,17 @@
       >
         <component :is="modeIcon" :size="18" :stroke-width="1.8" aria-hidden="true" />
       </button>
+      <button
+        type="button"
+        class="markweave-playground-theme-toggle"
+        data-testid="markweave-playground-theme-toggle"
+        :data-theme="theme"
+        :aria-label="themeToggleLabel"
+        :title="themeToggleLabel"
+        @click="toggleTheme"
+      >
+        <component :is="themeIcon" :size="18" :stroke-width="1.8" aria-hidden="true" />
+      </button>
     </div>
 
     <MarkweaveEditor
@@ -21,6 +32,8 @@
       :default-content="fixtureContent"
       :default-content-format="fixtureFormat"
       :mode="editorMode"
+      :theme="theme"
+      :link-card-resolver="resolvePlaygroundLinkCard"
       :on-edit-with-ai="handleEditWithAi"
       :on-extract-to-note="handleFloatingToolbarAssistantRequest"
       :on-rewrite-selection="handleFloatingToolbarAssistantRequest"
@@ -75,12 +88,13 @@
 
 <script setup lang="ts">
 import { computed, ref } from "vue";
-import { Eye, PencilLine } from "lucide-vue-next";
+import { Eye, Moon, PencilLine, Sun } from "lucide-vue-next";
 import {
   MarkweaveEditor,
   type FloatingToolbarAssistantRequest,
   type MarkweaveContentFormat,
   type MarkweaveEditorMode,
+  type MarkweaveTheme,
   type MarkweaveEditorRuntimeSnapshot,
   type MarkweaveMenuCopyPayload,
   type MarkweaveUploadRequest,
@@ -88,12 +102,13 @@ import {
   type TableCommandResult,
   type TableEditWithAiRequest,
 } from "@markweave/vue3";
-import { createPlaygroundUploadResult, initialPlaygroundDocument, largeDocumentPerformanceFixture, mergedTablePlaygroundDocument } from "@markweave/playground-fixtures";
+import { createPlaygroundUploadResult, initialPlaygroundDocument, largeDocumentPerformanceFixture, mergedTablePlaygroundDocument, resolvePlaygroundLinkCard } from "@markweave/playground-fixtures";
 
 const fixtureContent = ref(initialPlaygroundDocument);
 const fixtureFormat = ref<MarkweaveContentFormat>("markdown");
 const fixtureRevision = ref(0);
 const editorMode = ref<MarkweaveEditorMode>("live");
+const theme = ref<MarkweaveTheme>("light");
 const runtimeSnapshot = ref<MarkweaveEditorRuntimeSnapshot | null>(null);
 const lastTableCopyPayload = ref<MarkweaveMenuCopyPayload | null>(null);
 const lastTableCommandResult = ref<TableCommandResult | null>(null);
@@ -103,7 +118,9 @@ const lastSlashUploadRequest = ref<MarkweaveUploadRequest | null>(null);
 
 const isLiveMode = computed(() => editorMode.value === "live");
 const modeIcon = computed(() => (isLiveMode.value ? Eye : PencilLine));
+const themeIcon = computed(() => (theme.value === "light" ? Moon : Sun));
 const modeToggleLabel = computed(() => (isLiveMode.value ? "切换到 View 模式" : "切换到 Live 模式"));
+const themeToggleLabel = computed(() => (theme.value === "light" ? "切换到暗色主题" : "切换到亮色主题"));
 
 function resetDebugState() {
   runtimeSnapshot.value = null;
@@ -123,6 +140,10 @@ function loadFixture(content: string, format: MarkweaveContentFormat = "markdown
 
 function toggleMode() {
   editorMode.value = isLiveMode.value ? "view" : "live";
+}
+
+function toggleTheme() {
+  theme.value = theme.value === "light" ? "dark" : "light";
 }
 
 function handleEditWithAi(request: TableEditWithAiRequest) {

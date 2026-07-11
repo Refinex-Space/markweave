@@ -10,10 +10,10 @@ import {
 
 describe("mermaid renderer baseline", () => {
   it("renders non-empty source through the configured renderer", async () => {
-    const calls: Array<{ id: string; source: string }> = [];
+    const calls: Array<{ id: string; source: string; theme: string }> = [];
     const renderer: MermaidRenderer = {
-      render: async (id, source) => {
-        calls.push({ id, source });
+      render: async (id, source, theme) => {
+        calls.push({ id, source, theme });
         return { svg: `<svg data-id="${id}">${source}</svg>` };
       },
     };
@@ -23,7 +23,18 @@ describe("mermaid renderer baseline", () => {
       svg: '<svg data-id="diagram-1">graph TD\nA --> B</svg>',
       error: null,
     });
-    expect(calls).toEqual([{ id: "diagram-1", source: "graph TD\nA --> B" }]);
+    expect(calls).toEqual([{ id: "diagram-1", source: "graph TD\nA --> B", theme: "light" }]);
+  });
+
+  it("passes the selected dark theme through to a renderer", async () => {
+    const renderer: MermaidRenderer = {
+      render: async (_id, _source, theme) => ({ svg: `<svg data-theme="${theme}" />` }),
+    };
+
+    await expect(renderMermaidDiagram("graph TD\nA --> B", { renderer, theme: "dark" })).resolves.toMatchObject({
+      status: "rendered",
+      svg: '<svg data-theme="dark" />',
+    });
   });
 
   it("keeps empty source recoverable without invoking Mermaid", async () => {

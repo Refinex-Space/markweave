@@ -2,6 +2,7 @@ import { Extension, type Editor } from "@tiptap/core";
 import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
 import { Plugin, PluginKey, TextSelection, type EditorState, type Transaction } from "@tiptap/pm/state";
 import { Decoration, DecorationSet } from "@tiptap/pm/view";
+import { normalizeMarkweaveTheme, type MarkweaveTheme } from "../../core/theme";
 import {
   getMermaidPreviewPresentation,
   normalizeMermaidPreviewMode,
@@ -14,6 +15,7 @@ type MermaidInlinePreviewEditorMode = "live" | "view";
 
 interface MermaidInlinePreviewPluginState {
   readonly editorMode: MermaidInlinePreviewEditorMode;
+  readonly theme: MarkweaveTheme;
   readonly readonlyModesByPos: ReadonlyMap<number, MermaidPreviewMode>;
 }
 
@@ -23,6 +25,10 @@ type MermaidInlinePreviewPluginMeta =
       readonly mode: MermaidInlinePreviewEditorMode;
     }
   | {
+      readonly type: "set-theme";
+      readonly theme: MarkweaveTheme;
+    }
+  | {
       readonly type: "set-readonly-mode";
       readonly mode: MermaidPreviewMode;
       readonly pos: number;
@@ -30,6 +36,7 @@ type MermaidInlinePreviewPluginMeta =
 
 const initialMermaidInlinePreviewPluginState: MermaidInlinePreviewPluginState = {
   editorMode: "live",
+  theme: "light",
   readonlyModesByPos: new Map(),
 };
 
@@ -111,7 +118,16 @@ function applyMermaidInlinePreviewMeta(
   if (meta.type === "set-editor-mode") {
     return {
       editorMode: meta.mode,
+      theme: previousState.theme,
       readonlyModesByPos: new Map(),
+    };
+  }
+
+  if (meta.type === "set-theme") {
+    return {
+      editorMode: previousState.editorMode,
+      theme: meta.theme,
+      readonlyModesByPos: mappedReadonlyModesByPos,
     };
   }
 
@@ -125,6 +141,7 @@ function applyMermaidInlinePreviewMeta(
 
   return {
     editorMode: previousState.editorMode,
+    theme: previousState.theme,
     readonlyModesByPos,
   };
 }
@@ -145,6 +162,23 @@ export function setMermaidInlinePreviewEditorMode(editor: Editor, mode: MermaidI
     editor.state.tr.setMeta(mermaidInlinePreviewPluginKey, {
       type: "set-editor-mode",
       mode: normalizedMode,
+    } satisfies MermaidInlinePreviewPluginMeta),
+  );
+  return true;
+}
+
+export function setMarkweaveMermaidTheme(editor: Editor, theme: unknown) {
+  const nextTheme = normalizeMarkweaveTheme(theme);
+  const pluginState = getMermaidInlinePreviewPluginState(editor.state);
+
+  if (pluginState.theme === nextTheme) {
+    return false;
+  }
+
+  editor.view.dispatch(
+    editor.state.tr.setMeta(mermaidInlinePreviewPluginKey, {
+      type: "set-theme",
+      theme: nextTheme,
     } satisfies MermaidInlinePreviewPluginMeta),
   );
   return true;
@@ -251,16 +285,17 @@ function applyPreviewResult(element: HTMLElement, source: string, result: Mermai
   element.textContent = presentation.visibility === "empty" ? presentation.label : "Mermaid preview";
 }
 
-function createInlinePreviewElement(source: string, pos: number) {
+function createInlinePreviewElement(source: string, pos: number, theme: MarkweaveTheme) {
   const element = document.createElement("div");
   const previewKey = `markweave-mermaid-inline-${hashPreviewKey(source, pos)}`;
 
   element.setAttribute("aria-label", "Mermaid preview");
   applyPreviewResult(element, source, initialPreviewResult);
   element.dataset.codeBlockPos = String(pos);
+  element.dataset.theme = theme;
 
-  void renderMermaidDiagram(source, { id: previewKey }).then((result) => {
-    if (element.isConnected) {
+  void renderMermaidDiagram(source, { id: `${previewKey}-${theme}`, theme }).then((result) => {
+    if (element.isConnected && element.dataset.theme === theme) {
       applyPreviewResult(element, source, result);
     }
   });
@@ -270,6 +305,7 @@ function createInlinePreviewElement(source: string, pos: number) {
 
 export function createMermaidInlinePreviewDecorations(state: Parameters<NonNullable<Plugin["props"]["decorations"]>>[0]) {
   const decorations: Decoration[] = [];
+  const theme = getMermaidInlinePreviewPluginState(state).theme;
 
   state.doc.descendants((node, pos) => {
     if (!isMermaidCodeBlock(node)) {
@@ -293,8 +329,8 @@ export function createMermaidInlinePreviewDecorations(state: Parameters<NonNulla
     const previewPos = pos + node.nodeSize;
 
     decorations.push(
-      Decoration.widget(previewPos, () => createInlinePreviewElement(source, pos), {
-        key: `markweave-mermaid-preview-${previewPos}-${hashPreviewKey(source, pos)}`,
+      Decoration.widget(previewPos, () => createInlinePreviewElement(source, pos, theme), {
+        key: `markweave-mermaid-preview-${previewPos}-${hashPreviewKey(source, pos)}-${theme}`,
         side: 1,
       }),
     );

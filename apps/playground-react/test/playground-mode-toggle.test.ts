@@ -5,7 +5,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 const markweaveMocks = vi.hoisted(() => ({
-  MarkweaveEditor: vi.fn((props: { readonly mode?: string }) => createElement("div", { "data-testid": "mock-markweave-editor", "data-mode": props.mode })),
+  MarkweaveEditor: vi.fn((props: { readonly mode?: string; readonly theme?: string }) => createElement("div", { "data-testid": "mock-markweave-editor", "data-mode": props.mode, "data-theme": props.theme })),
 }));
 
 vi.mock("@markweave/react", () => ({
@@ -63,5 +63,21 @@ describe("playground mode toggle", () => {
     expect(button?.dataset.mode).toBe("view");
     expect(button?.getAttribute("aria-label")).toBe("切换到 Live 模式");
     expect(container.querySelector('[data-testid="mock-markweave-editor"]')?.getAttribute("data-mode")).toBe("view");
+  });
+
+  it("defaults to light and toggles the MarkweaveEditor theme prop", async () => {
+    const container = await renderReact(createElement(MarkweaveEditorPlayground));
+    const button = container.querySelector<HTMLButtonElement>('[data-testid="markweave-playground-theme-toggle"]');
+
+    expect(button?.dataset.theme).toBe("light");
+    expect(container.querySelector('[data-testid="mock-markweave-editor"]')?.getAttribute("data-theme")).toBe("light");
+
+    await act(async () => {
+      button?.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+    });
+    await flushReact();
+
+    expect(button?.dataset.theme).toBe("dark");
+    expect(container.querySelector('[data-testid="mock-markweave-editor"]')?.getAttribute("data-theme")).toBe("dark");
   });
 });

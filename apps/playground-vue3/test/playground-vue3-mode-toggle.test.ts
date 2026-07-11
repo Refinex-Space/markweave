@@ -40,4 +40,19 @@ describe("Vue3 playground mode toggle", () => {
     expect(button?.getAttribute("aria-label")).toBe("切换到 Live 模式");
     expect(container.querySelector('[data-testid="markweave-editor-frame"]')?.getAttribute("data-markweave-mode")).toBe("view");
   });
+
+  it("defaults to light and toggles the editor theme", async () => {
+    const container = mountVue(MarkweaveEditorPlayground);
+    await nextTick();
+    const button = container.querySelector<HTMLButtonElement>('[data-testid="markweave-playground-theme-toggle"]');
+
+    expect(button?.dataset.theme).toBe("light");
+    expect(container.querySelector('[data-testid="markweave-editor-frame"]')?.getAttribute("data-markweave-theme")).toBe("light");
+
+    button?.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+    await nextTick();
+
+    expect(button?.dataset.theme).toBe("dark");
+    expect(container.querySelector('[data-testid="markweave-editor-frame"]')?.getAttribute("data-markweave-theme")).toBe("dark");
+  });
 });

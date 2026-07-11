@@ -1,10 +1,11 @@
 import { useState } from "react";
-import { Eye, PencilLine } from "lucide-react";
+import { Eye, Moon, PencilLine, Sun } from "lucide-react";
 import {
   MarkweaveEditor,
   type MarkweaveContentFormat,
   type FloatingToolbarAssistantRequest,
   type MarkweaveEditorMode,
+  type MarkweaveTheme,
   type MarkweaveEditorRuntimeSnapshot,
   type MarkweaveMenuCopyPayload,
   type MarkweaveUploadRequest,
@@ -12,13 +13,14 @@ import {
   type TableCommandResult,
   type TableEditWithAiRequest,
 } from "@markweave/react";
-import { createPlaygroundUploadResult, initialPlaygroundDocument, largeDocumentPerformanceFixture, mergedTablePlaygroundDocument } from "@markweave/playground-fixtures";
+import { createPlaygroundUploadResult, initialPlaygroundDocument, largeDocumentPerformanceFixture, mergedTablePlaygroundDocument, resolvePlaygroundLinkCard } from "@markweave/playground-fixtures";
 
 export function MarkweaveEditorPlayground() {
   const [fixtureContent, setFixtureContent] = useState(initialPlaygroundDocument);
   const [fixtureFormat, setFixtureFormat] = useState<MarkweaveContentFormat>("markdown");
   const [fixtureRevision, setFixtureRevision] = useState(0);
   const [editorMode, setEditorMode] = useState<MarkweaveEditorMode>("live");
+  const [theme, setTheme] = useState<MarkweaveTheme>("light");
   const [runtimeSnapshot, setRuntimeSnapshot] = useState<MarkweaveEditorRuntimeSnapshot | null>(null);
   const [lastTableCopyPayload, setLastTableCopyPayload] = useState<MarkweaveMenuCopyPayload | null>(null);
   const [lastTableCommandResult, setLastTableCommandResult] = useState<TableCommandResult | null>(null);
@@ -51,9 +53,12 @@ export function MarkweaveEditorPlayground() {
   const ModeIcon = isLiveMode ? Eye : PencilLine;
   const nextMode: MarkweaveEditorMode = isLiveMode ? "view" : "live";
   const modeToggleLabel = isLiveMode ? "切换到 View 模式" : "切换到 Live 模式";
+  const nextTheme: MarkweaveTheme = theme === "light" ? "dark" : "light";
+  const themeToggleLabel = theme === "light" ? "切换到暗色主题" : "切换到亮色主题";
+  const ThemeIcon = theme === "light" ? Moon : Sun;
 
   return (
-    <main className="markweave-playground">
+    <main className="markweave-playground" data-theme={theme}>
       <div className="markweave-playground-toolbar" aria-label="Playground controls">
         <button
           type="button"
@@ -66,6 +71,17 @@ export function MarkweaveEditorPlayground() {
         >
           <ModeIcon size={18} strokeWidth={1.8} aria-hidden="true" />
         </button>
+        <button
+          type="button"
+          className="markweave-playground-theme-toggle"
+          data-testid="markweave-playground-theme-toggle"
+          data-theme={theme}
+          aria-label={themeToggleLabel}
+          title={themeToggleLabel}
+          onClick={() => setTheme(nextTheme)}
+        >
+          <ThemeIcon size={18} strokeWidth={1.8} aria-hidden="true" />
+        </button>
       </div>
       <MarkweaveEditor
         key={fixtureRevision}
@@ -74,6 +90,8 @@ export function MarkweaveEditorPlayground() {
         defaultContent={fixtureContent}
         defaultContentFormat={fixtureFormat}
         mode={editorMode}
+        theme={theme}
+        linkCardResolver={resolvePlaygroundLinkCard}
         onEditWithAi={setLastTableEditWithAiRequest}
         onExtractToNote={setLastFloatingToolbarAssistantRequest}
         onRewriteSelection={setLastFloatingToolbarAssistantRequest}

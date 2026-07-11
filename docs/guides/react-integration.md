@@ -1,6 +1,6 @@
 ---
 owner: refinex
-updated: 2026-07-10
+updated: 2026-07-11
 status: active
 referenced_by: docs/README.md#knowledge-map
 ---
@@ -112,6 +112,7 @@ For advanced custom shells, `useMarkweaveEditorController` exposes `actions.setC
 <MarkweaveEditor
   defaultContent="# Spec\n\n## Goals"
   mode="live"
+  theme="dark"
   lang="zh"
   innerToc
   onTocChange={({ items, activeId }) => {
@@ -126,6 +127,7 @@ For advanced custom shells, `useMarkweaveEditorController` exposes `actions.setC
 | Option | Default | Notes |
 | --- | --- | --- |
 | `mode` | `"live"` | `"live"` is editable; `"view"` is read-only and keeps reader actions such as safe links, code copy, Mermaid preview/fullscreen/download, media playback, and TOC navigation. |
+| `theme` | `"light"` | `"light"` or `"dark"`. The theme is scoped to this editor frame and can change at runtime without recreating document content. |
 | `editable` | `true` | Compatibility lock. Effective editable state is `mode === "live" && editable !== false`. |
 | `lang` | `"zh"` | UI language. Supported values are `"zh"` and `"en"`. Re-mount the editor when switching language dynamically. |
 | `innerToc` | `true` | Renders the built-in right-side outline. Set `false` to render your own TOC from `onTocChange` or `runtimeSnapshot.toc`. |
@@ -233,6 +235,19 @@ Images render with preview, align, caption, resize, replace, download, and delet
 - `onRewriteSelection` and `onExtractToNote` receive selected text and HTML from the floating toolbar.
 - `onTableCopyPayload` mirrors table copy actions for row, column, or table payloads.
 - `onTableCommandResult` reports table command outcomes and before/after snapshots.
+
+## External Link Cards
+
+Only a paragraph containing exactly one HTTP(S) link can become a card; inline, mixed-text, and `markweave:` links remain normal links. Provide `linkCardResolver` to enrich a card after the user explicitly embeds or edits it:
+
+```tsx
+<MarkweaveEditor linkCardResolver={async ({ href, title, signal }) => {
+  const response = await fetch(`/api/link-preview?url=${encodeURIComponent(href)}`, { signal });
+  return response.ok ? response.json() : null;
+}} />
+```
+
+The resolver is never called during load, scrolling, or an ordinary link click. It receives an already validated HTTP(S) URL and must be backed by a server-side fetcher that enforces URL/DNS allowlists, redirect and timeout limits, response-size limits, and image URL validation. Markweave does not fetch external URLs itself.
 
 ## Feature Coverage
 

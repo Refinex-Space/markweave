@@ -22,6 +22,8 @@ describe("Vue2 adapter parity source contract", () => {
       "video: MarkweaveVueVideo",
       "onImageUpload",
       "onVideoUpload",
+      "linkCardResolver",
+      "MarkweaveVueLinkCard",
     ]);
   });
 
@@ -70,6 +72,8 @@ describe("Vue2 adapter parity source contract", () => {
       "data-markweave-inner-toc-placement",
       "observeMarkweaveInnerTocContainerPosition",
       "data-markweave-mode",
+      "data-markweave-theme",
+      "setMarkweaveMermaidTheme",
       "data-testid\": \"markweave-editor-frame\"",
     ]);
     expect(source).not.toContain("@tiptap/vue-3");
@@ -123,6 +127,8 @@ describe("Vue2 adapter parity source contract", () => {
       "iframe[data-markweave-video-embed], video[data-markweave-video]",
       "data-markweave-image-ui",
       "data-markweave-video-ui",
+      "markweave-link-card",
+      "MarkweaveVueLinkCard",
     ]);
     expect(source).not.toContain("@tiptap/vue-3");
     expect(source).not.toContain("lucide-vue-next");
