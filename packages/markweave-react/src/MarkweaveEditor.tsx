@@ -82,6 +82,7 @@ import {
   type MarkweaveTocState,
 } from "markweave/internal/core/toc-state";
 import { createMarkweaveReactEditorExtensions } from "./create-editor-extensions";
+import type { MarkweaveLinkCardResolver } from "markweave/internal/plugins/link-card/link-card";
 
 export interface MarkweaveEditorControllerActions {
   readonly closeSlashMenu: () => void;
@@ -140,6 +141,7 @@ export interface MarkweaveEditorControllerOptions {
   readonly onTableCommandResult?: (result: TableCommandResult) => void;
   readonly onRuntimeStateChange?: (snapshot: MarkweaveEditorRuntimeSnapshot) => void;
   readonly onTocChange?: (state: MarkweaveTocState) => void;
+  readonly linkCardResolver?: MarkweaveLinkCardResolver;
 }
 
 export interface MarkweaveEditorProps extends MarkweaveEditorControllerOptions {
@@ -234,6 +236,7 @@ export function useMarkweaveEditorController({
   onTableCopyPayload,
   onTocChange,
   onUpdate,
+  linkCardResolver,
 }: MarkweaveEditorControllerOptions = {}): MarkweaveEditorController {
   const editorMode = normalizeMarkweaveEditorMode(mode);
   const resolvedTheme = normalizeMarkweaveTheme(theme);
@@ -251,6 +254,8 @@ export function useMarkweaveEditorController({
   const slashCommands = useMemo(() => getLocalizedSlashCommandSpecs(resolvedLang), [resolvedLang]);
   const uploadHandlerRef = useRef(onSlashCommandUpload);
   uploadHandlerRef.current = onSlashCommandUpload;
+  const linkCardResolverRef = useRef(linkCardResolver);
+  linkCardResolverRef.current = linkCardResolver;
   const extensions = useMemo(
     () =>
       createMarkweaveReactEditorExtensions({
@@ -279,6 +284,7 @@ export function useMarkweaveEditorController({
 
           return directResult;
         },
+        linkCardResolver: (request) => linkCardResolverRef.current?.(request) ?? Promise.resolve(null),
       }),
     [resolvedLang],
   );

@@ -13,7 +13,7 @@ import {
   type TableCommandResult,
   type TableEditWithAiRequest,
 } from "@markweave/react";
-import { createPlaygroundUploadResult, initialPlaygroundDocument, largeDocumentPerformanceFixture, mergedTablePlaygroundDocument } from "@markweave/playground-fixtures";
+import { createPlaygroundUploadResult, initialPlaygroundDocument, largeDocumentPerformanceFixture, mergedTablePlaygroundDocument, resolvePlaygroundLinkCard } from "@markweave/playground-fixtures";
 
 export function MarkweaveEditorPlayground() {
   const [fixtureContent, setFixtureContent] = useState(initialPlaygroundDocument);
@@ -91,6 +91,7 @@ export function MarkweaveEditorPlayground() {
         defaultContentFormat={fixtureFormat}
         mode={editorMode}
         theme={theme}
+        linkCardResolver={resolvePlaygroundLinkCard}
         onEditWithAi={setLastTableEditWithAiRequest}
         onExtractToNote={setLastFloatingToolbarAssistantRequest}
         onRewriteSelection={setLastFloatingToolbarAssistantRequest}

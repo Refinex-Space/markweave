@@ -246,6 +246,7 @@ import {
   type TableSelectionOverlayRect,
 } from "markweave/internal/plugins/table/table-ui-model";
 import { createMarkweaveVue3EditorExtensions } from "./create-editor-extensions";
+import type { MarkweaveLinkCardResolver } from "markweave/internal/plugins/link-card/link-card";
 
 export interface MarkweaveVue3EditorControllerActions {
   readonly closeSlashMenu: () => void;
@@ -276,6 +277,7 @@ export interface MarkweaveVue3EditorControllerOptions {
   readonly onTableCommandResult?: (result: TableCommandResult) => void;
   readonly onRuntimeStateChange?: (snapshot: MarkweaveEditorRuntimeSnapshot) => void;
   readonly onTocChange?: (state: MarkweaveTocState) => void;
+  readonly linkCardResolver?: MarkweaveLinkCardResolver;
 }
 
 export interface MarkweaveVue3EditorController {
@@ -2528,6 +2530,7 @@ export function useMarkweaveEditorController(options: MarkweaveVue3EditorControl
   const editorRef = useEditor({
     extensions: createMarkweaveVue3EditorExtensions({
       lang: resolvedLang,
+      linkCardResolver: options.linkCardResolver,
       onImageUpload: (request) => uploadHandler?.(request) ?? getDirectUploadResult(request) ?? Promise.reject(new Error("File upload requires an upload handler.")),
       onVideoUpload: (request) => uploadHandler?.(request) ?? getDirectUploadResult(request) ?? Promise.reject(new Error("File upload requires an upload handler.")),
     }),
@@ -2919,6 +2922,7 @@ export const MarkweaveEditor = defineComponent({
     lang: { type: String as PropType<MarkweaveLang>, default: undefined },
     ariaLabel: { type: String, default: undefined },
     autoFocusFirstTableBodyCell: { type: Boolean, default: false },
+    linkCardResolver: { type: Function as PropType<MarkweaveLinkCardResolver>, default: undefined },
     className: { type: String, default: undefined },
     onUpdate: { type: Function as PropType<(payload: MarkweaveEditorUpdatePayload) => void>, default: undefined },
     onEditWithAi: { type: Function as PropType<(request: TableEditWithAiRequest) => void>, default: undefined },

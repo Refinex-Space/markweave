@@ -902,6 +902,415 @@
   text-decoration: none;
 }
 
+.markweave-link-card {
+  position: relative;
+  display: block;
+  width: 100%;
+  min-height: 128px;
+  margin: 1.05em 0;
+  border: 1px solid #dfe3ea;
+  border-radius: 10px;
+  background: #ffffff;
+  color: #2f343b;
+  overflow: visible;
+}
+
+.markweave-link-card-main {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(120px, 36%);
+  width: 100%;
+  min-height: 126px;
+  color: inherit;
+  text-decoration: none;
+  overflow: hidden;
+  border-radius: inherit;
+}
+
+.markweave-link-card-copy {
+  display: grid;
+  align-content: center;
+  gap: 7px;
+  min-width: 0;
+  padding: 18px 20px;
+}
+
+.markweave-link-card-copy strong,
+.markweave-link-card-copy span,
+.markweave-link-card-copy small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.markweave-link-card-copy strong {
+  color: #252a31;
+  font-size: 16px;
+  line-height: 1.3;
+}
+
+.markweave-link-card-copy span {
+  color: #606772;
+  font: 14px/1.45 ui-sans-serif, system-ui, sans-serif;
+}
+
+.markweave-link-card-copy small {
+  color: #6d5dfc;
+  font: 13px/1.3 ui-sans-serif, system-ui, sans-serif;
+}
+
+.markweave-link-card-media {
+  display: grid;
+  place-items: center;
+  min-height: 126px;
+  background: #f4f6f8;
+  overflow: hidden;
+}
+
+.markweave-link-card-media img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  min-height: 126px;
+  object-fit: cover;
+}
+
+.markweave-link-card-media img.markweave-link-card-favicon {
+  width: 38px;
+  min-height: 0;
+  height: 38px;
+  object-fit: contain;
+}
+
+.markweave-link-card-media b {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  border-radius: 12px;
+  background: #e5e9ef;
+  color: #596270;
+  font: 600 18px/1 ui-sans-serif, system-ui, sans-serif;
+}
+
+.markweave-link-card-tools {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: inline-flex;
+  gap: 2px;
+  border: 1px solid #dfe3ea;
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 6px 16px rgba(31, 35, 40, 0.12);
+  padding: 3px;
+}
+
+.markweave-link-card-tools button {
+  position: relative;
+  display: grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: #606772;
+  cursor: pointer;
+}
+
+.markweave-link-card-tools button:hover {
+  background: #f0f2f4;
+  color: #252a31;
+}
+
+.markweave-link-card-tools button span {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 6px);
+  display: none;
+  width: max-content;
+  border-radius: 6px;
+  background: #2f343b;
+  color: #ffffff;
+  font: 12px/1 ui-sans-serif, system-ui, sans-serif;
+  padding: 6px 8px;
+}
+
+.markweave-link-card-tools button:hover span,
+.markweave-link-card-tools button:focus-visible span {
+  display: block;
+}
+
+.markweave-link-card-editor {
+  position: absolute;
+  z-index: 48;
+  right: 8px;
+  bottom: calc(100% + 8px);
+  display: grid;
+  grid-template-columns: minmax(150px, 1fr) minmax(180px, 1.35fr) auto;
+  gap: 8px;
+  width: min(560px, calc(100vw - 32px));
+  border: 1px solid #dfe3ea;
+  border-radius: 10px;
+  background: #ffffff;
+  box-shadow: 0 12px 28px rgba(31, 35, 40, 0.16);
+  padding: 10px;
+}
+
+.markweave-link-card-editor label {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  color: #6a717b;
+  font: 12px/1.2 ui-sans-serif, system-ui, sans-serif;
+}
+
+.markweave-link-card-editor input {
+  min-width: 0;
+  height: 32px;
+  border: 1px solid #dfe3ea;
+  border-radius: 7px;
+  outline: none;
+  background: #ffffff;
+  color: #2f343b;
+  font: 13px/1.2 ui-sans-serif, system-ui, sans-serif;
+  padding: 0 9px;
+}
+
+.markweave-link-card-editor button {
+  align-self: end;
+  display: grid;
+  width: 32px;
+  height: 32px;
+  place-items: center;
+  border: 0;
+  border-radius: 7px;
+  background: #eef0f3;
+  color: #3f4650;
+  cursor: pointer;
+}
+
+.markweave-link-card-composer {
+  position: fixed;
+  z-index: 70;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 6px;
+  width: min(400px, calc(100vw - 24px));
+  border: 1px solid #dfe3ea;
+  border-radius: 10px;
+  background: #f4f5f7;
+  box-shadow: 0 12px 28px rgba(31, 35, 40, 0.16);
+  color: #2f343b;
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  padding: 8px;
+}
+
+.markweave-link-card-composer-field {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  color: #6a717b;
+}
+
+.markweave-link-card-composer-field:has(.markweave-link-card-composer-icon) {
+  grid-template-columns: minmax(0, 1fr) 32px;
+}
+
+.markweave-link-card-composer-field > span {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.markweave-link-card-composer-field input {
+  min-width: 0;
+  height: 40px;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  outline: none;
+  background: #ffffff;
+  color: #2f343b;
+  font: 15px/1.2 ui-sans-serif, system-ui, sans-serif;
+  padding: 0 11px;
+}
+
+.markweave-link-card-composer-field input:focus {
+  border-color: #4168c9;
+  box-shadow: 0 0 0 3px rgba(65, 104, 201, 0.2);
+}
+
+.markweave-link-card-composer-action {
+  position: relative;
+  display: grid;
+  width: 32px;
+  height: 32px;
+  place-items: center;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: #3f4650;
+  cursor: pointer;
+  padding: 0;
+}
+
+.markweave-link-card-composer-action:hover {
+  background: #e3e7ec;
+}
+
+.markweave-link-card-composer-action.is-primary {
+  background: #e2e5e9;
+  color: #2f343b;
+}
+
+.markweave-link-card-composer-action.is-danger:hover {
+  background: #fff1f1;
+  color: #b91c1c;
+}
+
+.markweave-link-card-composer-icon {
+  align-self: center;
+  width: 32px;
+  padding: 0;
+}
+
+.markweave-link-card-composer-actions {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: flex-end;
+  gap: 3px;
+  padding-top: 0;
+}
+
+.markweave-link-card-composer-action::after {
+  position: absolute;
+  z-index: 1;
+  right: 0;
+  bottom: calc(100% + 7px);
+  display: none;
+  width: max-content;
+  max-width: 180px;
+  border-radius: 6px;
+  background: #2f343b;
+  color: #ffffff;
+  content: attr(data-tooltip);
+  font: 12px/1 ui-sans-serif, system-ui, sans-serif;
+  padding: 6px 8px;
+  pointer-events: none;
+}
+
+.markweave-link-card-composer-action:hover::after,
+.markweave-link-card-composer-action:focus-visible::after {
+  display: block;
+}
+
+.markweave-link-card-tools button[data-testid="markweave-link-card-delete"]:hover {
+  background: #fff1f1;
+  color: #b91c1c;
+}
+
+.markweave-link-card-composer[data-markweave-theme="dark"] {
+  border-color: #3d444f;
+  background: #292d34;
+  color: #e8e9ed;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.42);
+}
+
+.markweave-link-card-composer[data-markweave-theme="dark"] .markweave-link-card-composer-field {
+  color: #b6bcc7;
+}
+
+.markweave-link-card-composer[data-markweave-theme="dark"] input {
+  border-color: #3d444f;
+  background: #20232a;
+  color: #e8e9ed;
+}
+
+.markweave-link-card-composer[data-markweave-theme="dark"] input:focus {
+  border-color: #91adff;
+  box-shadow: 0 0 0 3px rgba(145, 173, 255, 0.28);
+}
+
+.markweave-link-card-composer[data-markweave-theme="dark"] .markweave-link-card-composer-action {
+  background: transparent;
+  color: #b6bcc7;
+}
+
+.markweave-link-card-composer[data-markweave-theme="dark"] .markweave-link-card-composer-action:hover {
+  background: #343943;
+  color: #e8e9ed;
+}
+
+.markweave-link-card-composer[data-markweave-theme="dark"] .markweave-link-card-composer-action.is-primary {
+  background: #3b424e;
+  color: #e8e9ed;
+}
+
+.markweave-link-card-composer[data-markweave-theme="dark"] .markweave-link-card-composer-action.is-danger:hover {
+  background: rgba(183, 68, 68, 0.2);
+  color: #ffaaa5;
+}
+
+.markweave-editor-frame[data-markweave-theme="dark"] .markweave-link-card-tools button[data-testid="markweave-link-card-delete"]:hover {
+  background: var(--markweave-danger-surface);
+  color: var(--markweave-danger);
+}
+
+.markweave-editor-frame[data-markweave-theme="dark"] .markweave-link-card,
+.markweave-editor-frame[data-markweave-theme="dark"] .markweave-link-card-editor,
+.markweave-editor-frame[data-markweave-theme="dark"] .markweave-link-card-tools {
+  border-color: var(--markweave-border);
+  background: var(--markweave-surface);
+  color: var(--markweave-text);
+}
+
+.markweave-editor-frame[data-markweave-theme="dark"] .markweave-link-card-copy strong,
+.markweave-editor-frame[data-markweave-theme="dark"] .markweave-link-card-tools button:hover {
+  color: var(--markweave-text);
+}
+
+.markweave-editor-frame[data-markweave-theme="dark"] .markweave-link-card-copy span,
+.markweave-editor-frame[data-markweave-theme="dark"] .markweave-link-card-tools button {
+  color: var(--markweave-text-muted);
+}
+
+.markweave-editor-frame[data-markweave-theme="dark"] .markweave-link-card-media {
+  background: var(--markweave-surface-muted);
+}
+
+.markweave-editor-frame[data-markweave-theme="dark"] .markweave-link-card-media b,
+.markweave-editor-frame[data-markweave-theme="dark"] .markweave-link-card-tools button:hover,
+.markweave-editor-frame[data-markweave-theme="dark"] .markweave-link-card-editor button {
+  background: var(--markweave-surface-raised);
+}
+
+.markweave-editor-frame[data-markweave-theme="dark"] .markweave-link-card-editor input {
+  border-color: var(--markweave-border);
+  background: var(--markweave-surface-muted);
+  color: var(--markweave-text);
+}
+
+@media (max-width: 560px) {
+  .markweave-link-card-main {
+    grid-template-columns: 1fr;
+  }
+
+  .markweave-link-card-media {
+    display: none;
+  }
+
+  .markweave-link-card-editor {
+    grid-template-columns: 1fr;
+  }
+
+  .markweave-link-card-composer {
+    grid-template-columns: 1fr;
+  }
+}
+
 .markweave-editor-surface .markweave-attachment::before {
   content: "↗";
   color: #6b7280;

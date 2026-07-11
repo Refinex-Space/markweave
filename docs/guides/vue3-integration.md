@@ -248,6 +248,16 @@ Images render with preview, align, caption, resize, replace, download, and delet
 - `on-table-copy-payload` mirrors table copy actions for row, column, or table payloads.
 - `on-table-command-result` reports table command outcomes and before/after snapshots.
 
+## External Link Cards
+
+Only a paragraph containing exactly one HTTP(S) link can become a card; inline, mixed-text, and `markweave:` links remain normal links. Use `link-card-resolver` to enrich a card after an explicit user embed or edit:
+
+```vue
+<MarkweaveEditor :link-card-resolver="resolveLinkCard" />
+```
+
+The resolver receives `{ href, title, signal }` and is never invoked on document load, scrolling, or an ordinary link click. Keep fetching in a controlled backend that applies URL/DNS allowlists, redirect, timeout, response-size, and image URL checks; Markweave never fetches external URLs itself.
+
 ## Feature Coverage
 
 Vue 3 receives the complete Markweave UI: floating toolbar, link popover, slash command menu, table handles and selection overlay, code block language/copy controls, Mermaid Code/Preview/fullscreen/download, image/video NodeViews, math editing, Live/View mode, built-in TOC, and Chinese/English UI.

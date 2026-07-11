@@ -22,6 +22,8 @@ describe("Vue2 adapter parity source contract", () => {
       "video: MarkweaveVueVideo",
       "onImageUpload",
       "onVideoUpload",
+      "linkCardResolver",
+      "MarkweaveVueLinkCard",
     ]);
   });
 
@@ -125,6 +127,8 @@ describe("Vue2 adapter parity source contract", () => {
       "iframe[data-markweave-video-embed], video[data-markweave-video]",
       "data-markweave-image-ui",
       "data-markweave-video-ui",
+      "markweave-link-card",
+      "MarkweaveVueLinkCard",
     ]);
     expect(source).not.toContain("@tiptap/vue-3");
     expect(source).not.toContain("lucide-vue-next");

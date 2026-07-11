@@ -26,4 +26,7 @@ export type {
   MarkweaveUploadResult,
   MarkweaveSlashCommandUploadHandler,
   MarkweaveMenuCopyPayload,
+  MarkweaveLinkCardMetadata,
+  MarkweaveLinkCardResolveRequest,
+  MarkweaveLinkCardResolver,
 } from "markweave";

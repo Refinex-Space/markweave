@@ -294,6 +294,12 @@ Images render with preview, align, caption, resize, replace, download, and delet
 - `on-table-copy-payload` mirrors table copy actions for row, column, or table payloads.
 - `on-table-command-result` reports table command outcomes and before/after snapshots.
 
+## External Link Cards
+
+Only a paragraph containing exactly one HTTP(S) link can become a card; inline, mixed-text, and `markweave:` links remain normal links. Use `:link-card-resolver="resolveLinkCard"` to enrich a card only after an explicit user embed or edit.
+
+The resolver receives `{ href, title, signal }`; it is not called during load, scrolling, or ordinary link clicks. Keep metadata fetching in a backend that enforces URL/DNS allowlists, redirect and timeout limits, response-size limits, and image URL validation. Markweave does not fetch external URLs itself.
+
 ## Feature Coverage
 
 Vue 2 receives the complete Markweave UI: floating toolbar, link popover, slash command menu, table handles and selection overlay, code block language/copy controls, Mermaid Code/Preview/fullscreen/download, image/video NodeViews, math editing, Live/View mode, built-in TOC, and Chinese/English UI.

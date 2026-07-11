@@ -33,6 +33,7 @@
       :default-content-format="fixtureFormat"
       :mode="editorMode"
       :theme="theme"
+      :link-card-resolver="resolvePlaygroundLinkCard"
       :on-edit-with-ai="handleEditWithAi"
       :on-extract-to-note="handleFloatingToolbarAssistantRequest"
       :on-rewrite-selection="handleFloatingToolbarAssistantRequest"
@@ -101,7 +102,7 @@ import {
   type TableCommandResult,
   type TableEditWithAiRequest,
 } from "@markweave/vue3";
-import { createPlaygroundUploadResult, initialPlaygroundDocument, largeDocumentPerformanceFixture, mergedTablePlaygroundDocument } from "@markweave/playground-fixtures";
+import { createPlaygroundUploadResult, initialPlaygroundDocument, largeDocumentPerformanceFixture, mergedTablePlaygroundDocument, resolvePlaygroundLinkCard } from "@markweave/playground-fixtures";
 
 const fixtureContent = ref(initialPlaygroundDocument);
 const fixtureFormat = ref<MarkweaveContentFormat>("markdown");

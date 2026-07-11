@@ -36,3 +36,15 @@ export type {
 } from "./core/public-types";
 export type { MarkweaveUploadRequest, MarkweaveUploadResult, MarkweaveSlashCommandUploadHandler } from "./plugins/slash-command/upload";
 export type { MarkweaveMenuCopyPayload } from "./plugins/table/table-clipboard";
+export type { MarkweaveLinkCardAttrs, MarkweaveLinkCardMetadata, MarkweaveLinkCardResolveRequest, MarkweaveLinkCardResolver } from "./plugins/link-card/link-card";
+export {
+  getMarkweaveLinkCardMarkdown,
+  getMarkweaveLinkCardTargetAtPos,
+  normalizeMarkweaveLinkCardAttrs,
+  normalizeMarkweaveLinkCardHref,
+  normalizeMarkweaveLinkCardMediaUrl,
+  removeMarkweaveLinkFromTarget,
+  replaceMarkweaveLinkCardWithLink,
+  replaceMarkweaveLinkWithCard,
+  updateMarkweaveLinkCard,
+} from "./plugins/link-card/link-card";

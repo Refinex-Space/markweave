@@ -236,6 +236,19 @@ interface MarkweaveUploadResult {
 - `onTableCopyPayload` 接收复制行、列或整表时的文本与 HTML。
 - `onTableCommandResult` 接收表格命令执行结果和 before/after 快照。
 
+## 外部超链接卡片
+
+只有段落内容恰好为一个 HTTP(S) 链接时才可转为卡片；行内链接、混合文本链接与 `markweave:` 链接保持普通链接。通过 `linkCardResolver` 在用户主动嵌入或修改卡片后补充元数据：
+
+```tsx
+<MarkweaveEditor linkCardResolver={async ({ href, title, signal }) => {
+  const response = await fetch(`/api/link-preview?url=${encodeURIComponent(href)}`, { signal });
+  return response.ok ? response.json() : null;
+}} />
+```
+
+resolver 不会在文档加载、滚动或普通链接点击时调用。它收到的是已校验 HTTP(S) URL；生产环境必须由后端抓取服务实现 URL/DNS 白名单、重定向与超时限制、响应体大小限制和图片 URL 校验。Markweave 核心不会自行访问外链。
+
 ## 能力覆盖
 
 React 适配器提供完整 Markweave UI：浮动工具栏、链接弹层、slash 菜单、表格句柄和选区 overlay、代码块语言/复制控制、Mermaid Code/Preview/放大/下载、图片/视频 NodeView、数学公式编辑、Live/View 模式、内置 TOC、中英文 UI。

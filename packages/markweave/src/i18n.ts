@@ -34,6 +34,22 @@ export interface MarkweaveMessages {
     readonly openLink: string;
     readonly removeLink: string;
   };
+  readonly linkCard: {
+    readonly titleLabel: string;
+    readonly titlePlaceholder: string;
+    readonly addressLabel: string;
+    readonly addressPlaceholder: string;
+    readonly copyAddress: string;
+    readonly embedLink: string;
+    readonly copyAsMarkdown: string;
+    readonly removeLink: string;
+    readonly convertToLink: string;
+    readonly edit: string;
+    readonly delete: string;
+    readonly open: string;
+    readonly resolverUnavailable: string;
+    readonly toolsAriaLabel: string;
+  };
   readonly slash: {
     readonly ariaLabel: string;
     readonly filterPlaceholder: string;
@@ -623,6 +639,22 @@ const messagesByLang: Record<MarkweaveLang, MarkweaveMessages> = {
       openLink: "打开链接",
       removeLink: "移除链接",
     },
+    linkCard: {
+      titleLabel: "链接标题",
+      titlePlaceholder: "输入链接标题",
+      addressLabel: "链接地址",
+      addressPlaceholder: "粘贴链接地址...",
+      copyAddress: "复制链接地址",
+      embedLink: "嵌入链接",
+      copyAsMarkdown: "复制 Markdown",
+      removeLink: "移除链接",
+      convertToLink: "转换为普通链接",
+      edit: "编辑链接卡片",
+      delete: "删除链接卡片",
+      open: "打开链接",
+      resolverUnavailable: "链接元数据暂不可用，已保留基础卡片。",
+      toolsAriaLabel: "链接卡片工具",
+    },
     slash: {
       ariaLabel: "Slash 命令",
       filterPlaceholder: "筛选...",
@@ -816,6 +848,22 @@ const messagesByLang: Record<MarkweaveLang, MarkweaveMessages> = {
       applyLink: "Apply link",
       openLink: "Open link",
       removeLink: "Remove link",
+    },
+    linkCard: {
+      titleLabel: "Link title",
+      titlePlaceholder: "Enter a link title",
+      addressLabel: "Link address",
+      addressPlaceholder: "Paste a link address...",
+      copyAddress: "Copy link address",
+      embedLink: "Embed link",
+      copyAsMarkdown: "Copy as Markdown",
+      removeLink: "Remove link",
+      convertToLink: "Convert to regular link",
+      edit: "Edit link card",
+      delete: "Delete link card",
+      open: "Open link",
+      resolverUnavailable: "Link metadata is unavailable; the basic card was kept.",
+      toolsAriaLabel: "Link card tools",
     },
     slash: {
       ariaLabel: "Slash commands",

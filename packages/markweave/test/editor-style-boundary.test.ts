@@ -58,6 +58,8 @@ const editorRuntimeSelectors = [
   ".markweave-math-block-source",
   ".markweave-math-block-preview",
   ".markweave-link",
+  ".markweave-link-card",
+  ".markweave-link-card-composer",
   ".markweave-highlight",
   ".markweave-callout",
   ".markweave-video",

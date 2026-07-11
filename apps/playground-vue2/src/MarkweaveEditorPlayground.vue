@@ -96,6 +96,7 @@
       :content-format="fixtureFormat"
       :mode="editorMode"
       :theme="theme"
+      :link-card-resolver="resolvePlaygroundLinkCard"
       :on-edit-with-ai="handleEditWithAi"
       :on-extract-to-note="handleFloatingToolbarAssistantRequest"
       :on-rewrite-selection="handleFloatingToolbarAssistantRequest"
@@ -150,7 +151,7 @@
 
 <script>
 import { MarkweaveEditor } from "@markweave/vue2";
-import { createPlaygroundUploadResult, initialPlaygroundDocument, largeDocumentPerformanceFixture, mergedTablePlaygroundDocument } from "@markweave/playground-fixtures";
+import { createPlaygroundUploadResult, initialPlaygroundDocument, largeDocumentPerformanceFixture, mergedTablePlaygroundDocument, resolvePlaygroundLinkCard } from "@markweave/playground-fixtures";
 
 export default {
   name: "MarkweaveEditorPlayground",
@@ -162,6 +163,7 @@ export default {
       initialPlaygroundDocument,
       largeDocumentPerformanceFixture,
       mergedTablePlaygroundDocument,
+      resolvePlaygroundLinkCard,
       fixtureContent: initialPlaygroundDocument,
       fixtureFormat: "markdown",
       editorMode: "live",

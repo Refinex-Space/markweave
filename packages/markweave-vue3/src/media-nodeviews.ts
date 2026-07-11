@@ -10,6 +10,8 @@ import {
   Eye,
   ImageUp,
   Replace,
+  Link2,
+  PencilLine,
   Trash2,
   Upload,
   Video as VideoIcon,
@@ -17,6 +19,9 @@ import {
 import { computed, defineComponent, h, onBeforeUnmount, ref, watch, type Component } from "vue";
 import { getMarkweaveEditorModeState, isMarkweaveEditorLiveEditable, subscribeToMarkweaveEditorMode } from "markweave/internal/core/editor-mode-state";
 import { getMarkweaveMessages, type MarkweaveMessages } from "markweave/internal/i18n";
+import { MarkweaveLinkCard, type MarkweaveLinkCardExtensionOptions } from "markweave/internal/plugins/link-card/link-card-node";
+import { openMarkweaveLinkCardComposer } from "markweave/internal/plugins/link-card/link-card-composer";
+import { normalizeMarkweaveLinkCardAttrs, normalizeMarkweaveLinkCardHref, replaceMarkweaveLinkCardWithLink, type MarkweaveLinkCardResolver } from "markweave/internal/plugins/link-card/link-card";
 import { openMarkweaveImagePreview } from "markweave/internal/plugins/media/image-preview";
 import {
   attrsFromMarkweaveImageUploadResult,
@@ -55,6 +60,11 @@ export interface MarkweaveVueImageOptions extends ImageOptions {
 export interface MarkweaveVueVideoOptions extends MarkweaveCoreVideoOptions {
   readonly messages?: MarkweaveMessages;
   readonly onUpload?: MarkweaveSlashCommandUploadHandler;
+}
+
+export interface MarkweaveVueLinkCardOptions extends MarkweaveLinkCardExtensionOptions {
+  readonly messages?: MarkweaveMessages;
+  readonly resolver?: MarkweaveLinkCardResolver;
 }
 
 const normalizeImageAlign = normalizeMarkweaveCoreImageAlign;
@@ -103,6 +113,10 @@ function isImageUiEventTarget(target: EventTarget | null) {
 
 function isVideoUiEventTarget(target: EventTarget | null) {
   return target instanceof Element && Boolean(target.closest('[data-markweave-video-ui="true"], iframe[data-markweave-video-embed], video[data-markweave-video]'));
+}
+
+function isLinkCardUiEventTarget(target: EventTarget | null) {
+  return target instanceof Element && Boolean(target.closest('[data-markweave-link-card-ui="true"]'));
 }
 
 function icon(iconComponent: Component, label: string) {
@@ -895,4 +909,65 @@ export const MarkweaveVueVideo = MarkweaveCoreVideo.extend<MarkweaveVueVideoOpti
       stopEvent: ({ event }) => isVideoUiEventTarget(event.target),
     });
   },
+});
+
+const MarkweaveVueLinkCardNodeView = defineComponent({
+  name: "MarkweaveVueLinkCardNodeView",
+  props: { editor: { type: Object, required: true }, extension: { type: Object, required: true }, node: { type: Object, required: true }, getPos: { type: Function, required: true }, deleteNode: { type: Function, required: true }, updateAttributes: { type: Function, required: true }, selected: { type: Boolean, required: true } },
+  setup(props) {
+    const options = (props as unknown as { extension: { options: MarkweaveVueLinkCardOptions } }).extension?.options;
+    const messages = options?.messages ?? getMarkweaveMessages("zh");
+    const modeState = useVueEditorModeState(props.editor as Editor);
+    const hovered = ref(false);
+    const editing = ref(false);
+    const imageFailed = ref(false);
+    const attrs = computed(() => normalizeMarkweaveLinkCardAttrs((props.node as NodeViewProps["node"]).attrs ?? {}));
+    const title = ref(attrs.value?.title ?? "");
+    const href = ref(attrs.value?.href ?? "");
+    watch(attrs, (value) => {
+      title.value = value?.title ?? "";
+      href.value = value?.href ?? "";
+      imageFailed.value = false;
+    });
+    const editable = computed(() => isMarkweaveEditorLiveEditable(modeState.value));
+    const host = computed(() => {
+      try { return new URL(attrs.value?.href ?? "").host; } catch { return attrs.value?.href ?? ""; }
+    });
+    const prevent = (event: MouseEvent) => event.preventDefault();
+    const open = (event: MouseEvent) => {
+      if (isLinkCardUiEventTarget(event.target)) return;
+      event.preventDefault();
+      if (attrs.value?.href) window.open(attrs.value.href, "_blank", "noopener,noreferrer");
+    };
+    const copyText = (value: string) => void navigator.clipboard?.writeText?.(value);
+    const convert = () => {
+      const pos = (props.getPos as () => number)();
+      replaceMarkweaveLinkCardWithLink(props.editor as Editor, pos);
+    };
+    const submit = async (event: Event) => {
+      event.preventDefault();
+      const next = normalizeMarkweaveLinkCardAttrs({ ...attrs.value, title: title.value, href: href.value });
+      if (!next) return;
+      (props.updateAttributes as (attrs: object) => void)(next);
+      editing.value = false;
+      const metadata = await options?.resolver?.({ href: next.href, title: next.title, signal: new AbortController().signal }).catch(() => null);
+      if (metadata) (props.updateAttributes as (attrs: object) => void)(normalizeMarkweaveLinkCardAttrs({ ...next, ...metadata }) ?? next);
+    };
+    const cardButton = (label: string, iconComponent: Component, testId: string, action: (event: MouseEvent) => void) => h("button", { type: "button", title: label, "aria-label": label, "data-testid": testId, onMousedown: prevent, onClick: action }, [icon(iconComponent, label), h("span", { role: "tooltip" }, label)]);
+    return () => {
+      const value = attrs.value;
+      if (!value) return null;
+      const media = !imageFailed.value && value.imageUrl ? h("img", { src: value.imageUrl, alt: "", loading: "lazy", referrerpolicy: "no-referrer", onError: () => { imageFailed.value = true; } }) : !imageFailed.value && value.faviconUrl ? h("img", { class: "markweave-link-card-favicon", src: value.faviconUrl, alt: "", loading: "lazy", referrerpolicy: "no-referrer", onError: () => { imageFailed.value = true; } }) : h("b", null, host.value.slice(0, 1).toUpperCase());
+      return h(NodeViewWrapper, { as: "article", class: "markweave-link-card", "data-testid": "markweave-link-card", "data-markweave-link-card": "true", "data-hovered": hovered.value ? "true" : "false", "data-selected": props.selected ? "true" : "false", onMouseenter: () => { hovered.value = true; }, onMouseleave: () => { hovered.value = false; }, onMousedown: (event: MouseEvent) => { if (!isLinkCardUiEventTarget(event.target)) event.preventDefault(); }, onClick: open }, () => [
+        h("a", { class: "markweave-link-card-main", href: value.href, "aria-label": messages.linkCard.open }, [h("span", { class: "markweave-link-card-copy" }, [h("strong", null, value.title), value.description ? h("span", null, value.description) : null, h("small", null, value.siteName ?? host.value)]), h("span", { class: "markweave-link-card-media", "aria-hidden": "true" }, [media])]),
+        editable.value && hovered.value ? h("div", { class: "markweave-link-card-tools", "data-markweave-link-card-ui": "true", "aria-label": messages.linkCard.toolsAriaLabel }, [cardButton(messages.linkCard.convertToLink, Link2, "markweave-link-card-convert", convert), cardButton(messages.linkCard.copyAddress, Download, "markweave-link-card-copy", () => copyText(value.href)), cardButton(messages.linkCard.edit, PencilLine, "markweave-link-card-edit", (event) => openMarkweaveLinkCardComposer({ anchor: event.currentTarget as HTMLElement, editor: props.editor as Editor, messages, resolver: options?.resolver, card: { pos: (props.getPos as () => number)(), attrs: value } })), cardButton(messages.linkCard.delete, Trash2, "markweave-link-card-delete", () => (props.deleteNode as () => void)())]) : null,
+        editable.value && editing.value ? h("form", { class: "markweave-link-card-editor", "data-markweave-link-card-ui": "true", "data-testid": "markweave-link-card-editor", onSubmit: submit }, [h("label", null, [h("span", null, messages.linkCard.titleLabel), h("input", { value: title.value, placeholder: messages.linkCard.titlePlaceholder, "aria-label": messages.linkCard.titleLabel, onInput: (event: Event) => { title.value = (event.target as HTMLInputElement).value; } })]), h("label", null, [h("span", null, messages.linkCard.addressLabel), h("input", { value: href.value, placeholder: messages.linkCard.addressPlaceholder, "aria-label": messages.linkCard.addressLabel, onInput: (event: Event) => { href.value = (event.target as HTMLInputElement).value; } })]), h("button", { type: "submit", disabled: !normalizeMarkweaveLinkCardHref(href.value), "aria-label": messages.linkCard.edit }, [icon(Link2, messages.linkCard.edit)])]) : null,
+      ]);
+    };
+  },
+});
+
+export const MarkweaveVueLinkCard = MarkweaveLinkCard.extend<MarkweaveVueLinkCardOptions>({
+  addOptions() { return { ...(this.parent?.() as object), messages: getMarkweaveMessages("zh"), resolver: undefined }; },
+  addNodeView() { return typeof document === "undefined" ? null : VueNodeViewRenderer(MarkweaveVueLinkCardNodeView as unknown as Component<NodeViewProps>, { stopEvent: ({ event }) => isLinkCardUiEventTarget(event.target) }); },
 });

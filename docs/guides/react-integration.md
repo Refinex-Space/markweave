@@ -236,6 +236,19 @@ Images render with preview, align, caption, resize, replace, download, and delet
 - `onTableCopyPayload` mirrors table copy actions for row, column, or table payloads.
 - `onTableCommandResult` reports table command outcomes and before/after snapshots.
 
+## External Link Cards
+
+Only a paragraph containing exactly one HTTP(S) link can become a card; inline, mixed-text, and `markweave:` links remain normal links. Provide `linkCardResolver` to enrich a card after the user explicitly embeds or edits it:
+
+```tsx
+<MarkweaveEditor linkCardResolver={async ({ href, title, signal }) => {
+  const response = await fetch(`/api/link-preview?url=${encodeURIComponent(href)}`, { signal });
+  return response.ok ? response.json() : null;
+}} />
+```
+
+The resolver is never called during load, scrolling, or an ordinary link click. It receives an already validated HTTP(S) URL and must be backed by a server-side fetcher that enforces URL/DNS allowlists, redirect and timeout limits, response-size limits, and image URL validation. Markweave does not fetch external URLs itself.
+
 ## Feature Coverage
 
 React receives the complete Markweave UI: floating toolbar, link popover, slash command menu, table handles and selection overlay, code block language/copy controls, Mermaid Code/Preview/fullscreen/download, image/video NodeViews, math editing, Live/View mode, built-in TOC, and Chinese/English UI.
