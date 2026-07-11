@@ -3,9 +3,27 @@
 }
 
 .markweave-editor-frame {
+  --markweave-canvas: transparent;
+  --markweave-surface: #ffffff;
+  --markweave-surface-raised: #fafbfc;
+  --markweave-surface-muted: #f3f5f7;
+  --markweave-text: #1f2328;
+  --markweave-text-muted: #62666d;
+  --markweave-text-subtle: #9aa0a9;
+  --markweave-border: #d9dee7;
+  --markweave-border-strong: #c9d1df;
+  --markweave-focus: #4168c9;
+  --markweave-focus-ring: rgba(65, 104, 201, 0.28);
+  --markweave-selection: #e8f1ff;
+  --markweave-code: #30343a;
+  --markweave-code-surface: #f3f4f6;
+  --markweave-danger-surface: #fff1f1;
+  --markweave-danger: #b91c1c;
+  --markweave-shadow: rgba(31, 35, 40, 0.14);
   position: relative;
   min-height: 76vh;
-  color: #1f2328;
+  background: var(--markweave-canvas);
+  color: var(--markweave-text);
   font-family: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
   font-size: 16px;
   font-synthesis: none;
@@ -14,6 +32,27 @@
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+.markweave-editor-frame[data-markweave-theme="dark"] {
+  --markweave-canvas: #181a1f;
+  --markweave-surface: #22252b;
+  --markweave-surface-raised: #292d34;
+  --markweave-surface-muted: #20232a;
+  --markweave-text: #e8e9ed;
+  --markweave-text-muted: #b6bcc7;
+  --markweave-text-subtle: #8892a1;
+  --markweave-border: #3d444f;
+  --markweave-border-strong: #596474;
+  --markweave-focus: #91adff;
+  --markweave-focus-ring: rgba(145, 173, 255, 0.38);
+  --markweave-selection: rgba(104, 142, 234, 0.32);
+  --markweave-code: #e6e9ef;
+  --markweave-code-surface: #1e2127;
+  --markweave-danger-surface: rgba(183, 68, 68, 0.2);
+  --markweave-danger: #ffaaa5;
+  --markweave-shadow: rgba(0, 0, 0, 0.42);
+  color-scheme: dark;
 }
 
 .markweave-editor-frame,
@@ -368,6 +407,15 @@
   transition:
     opacity 120ms ease,
     transform 120ms ease;
+}
+
+.markweave-image-toolbar::after {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  left: 0;
+  height: 8px;
+  content: "";
 }
 
 .markweave-image-node[data-hovered="true"] .markweave-image-toolbar,
@@ -3207,4 +3255,306 @@
     display: inline-block;
     margin-right: 8px;
   }
+}
+
+/* Theme tokens intentionally stay scoped to the editor frame so hosts can render light and dark editors together. */
+.markweave-editor-frame[data-markweave-theme="dark"] .markweave-editor-surface,
+.markweave-editor-frame[data-markweave-theme="dark"] .markweave-editor-surface :is(p, li, h1, h2, h3, h4, h5, h6, blockquote, figcaption),
+.markweave-editor-frame[data-markweave-theme="dark"] .markweave-inner-toc,
+.markweave-editor-frame[data-markweave-theme="dark"] .markweave-inner-toc-item,
+.markweave-editor-frame[data-markweave-theme="dark"] .markweave-table-menu,
+.markweave-editor-frame[data-markweave-theme="dark"] .markweave-codeblock-controls,
+.markweave-editor-frame[data-markweave-theme="dark"] .markweave-math-editor-popover,
+.markweave-editor-frame[data-markweave-theme="dark"] .markweave-slash-menu,
+.markweave-editor-frame[data-markweave-theme="dark"] .markweave-floating-toolbar,
+.markweave-editor-frame[data-markweave-theme="dark"] .markweave-floating-toolbar-popover {
+  color: var(--markweave-text);
+}
+
+.markweave-editor-frame[data-markweave-theme="dark"] .markweave-editor-surface,
+.markweave-editor-frame[data-markweave-theme="dark"] .markweave-inner-toc-panel,
+.markweave-editor-frame[data-markweave-theme="dark"] .markweave-floating-toolbar,
+.markweave-editor-frame[data-markweave-theme="dark"] .markweave-floating-toolbar-popover,
+.markweave-editor-frame[data-markweave-theme="dark"] .markweave-slash-menu,
+.markweave-editor-frame[data-markweave-theme="dark"] .markweave-table-menu,
+.markweave-editor-frame[data-markweave-theme="dark"] .markweave-codeblock-controls,
+.markweave-editor-frame[data-markweave-theme="dark"] .markweave-codeblock-language-menu,
+.markweave-editor-frame[data-markweave-theme="dark"] .markweave-math-editor-popover,
+.markweave-editor-frame[data-markweave-theme="dark"] .markweave-image-toolbar,
+.markweave-editor-frame[data-markweave-theme="dark"] .markweave-image-upload-placeholder,
+.markweave-editor-frame[data-markweave-theme="dark"] .markweave-video-upload-placeholder,
+.markweave-editor-frame[data-markweave-theme="dark"] .markweave-image-readonly-empty,
+.markweave-editor-frame[data-markweave-theme="dark"] .markweave-video-readonly-empty {
+  background: var(--markweave-surface);
+  border-color: var(--markweave-border);
+  box-shadow: 0 10px 28px var(--markweave-shadow);
+}
+
+.markweave-editor-frame[data-markweave-theme="dark"] .markweave-editor-surface {
+  background: var(--markweave-canvas);
+  box-shadow: none;
+}
+
+.markweave-editor-frame[data-markweave-theme="dark"] :is(.markweave-floating-toolbar-content > button, .markweave-floating-toolbar-more-item > button, .markweave-slash-command, .markweave-table-menu button, .markweave-codeblock-icon-button, .markweave-codeblock-language-button, .markweave-mermaid-tabs button, .markweave-math-block-toolbar button, .markweave-image-toolbar button, .markweave-image-upload-row button, .markweave-video-upload-row button) {
+  color: var(--markweave-text-muted);
+}
+
+.markweave-editor-frame[data-markweave-theme="dark"] :is(.markweave-floating-toolbar-content > button:hover, .markweave-floating-toolbar-content > button[data-active="true"], .markweave-floating-toolbar-more-item > button:hover, .markweave-floating-toolbar-more-item > button[data-active="true"], .markweave-slash-command:hover, .markweave-slash-command[data-active="true"], .markweave-table-menu button:hover, .markweave-codeblock-icon-button:hover, .markweave-codeblock-language-button:hover, .markweave-mermaid-tabs button[data-active="true"], .markweave-image-toolbar button:hover, .markweave-image-toolbar button[data-active="true"]) {
+  background: var(--markweave-surface-raised);
+  color: var(--markweave-text);
+}
+
+.markweave-editor-frame[data-markweave-theme="dark"] :is(input, textarea, .markweave-math-inline-preview, .markweave-math-block-preview, .markweave-slash-upload-field, .markweave-codeblock-language-search) {
+  background: var(--markweave-surface-muted);
+  border-color: var(--markweave-border);
+  color: var(--markweave-text);
+}
+
+.markweave-editor-frame[data-markweave-theme="dark"] :is(input, textarea)::placeholder {
+  color: var(--markweave-text-subtle);
+}
+
+.markweave-editor-frame[data-markweave-theme="dark"] :is(input, textarea):focus,
+.markweave-editor-frame[data-markweave-theme="dark"] button:focus-visible {
+  border-color: var(--markweave-focus);
+  outline-color: var(--markweave-focus);
+  box-shadow: 0 0 0 3px var(--markweave-focus-ring);
+}
+
+.markweave-editor-frame[data-markweave-theme="dark"] :is(.markweave-math-inline-source input, .markweave-math-block-source textarea):focus {
+  border-color: transparent;
+  outline: none;
+  box-shadow: none;
+}
+
+.markweave-editor-frame[data-markweave-theme="dark"] .markweave-editor-surface :is(th, td) {
+  border-color: var(--markweave-border);
+  color: var(--markweave-text);
+}
+
+.markweave-editor-frame[data-markweave-theme="dark"] .markweave-editor-surface th {
+  background: var(--markweave-surface-raised);
+}
+
+.markweave-editor-frame[data-markweave-theme="dark"] .markweave-editor-surface blockquote {
+  border-left-color: var(--markweave-border-strong);
+  background: var(--markweave-surface-muted);
+}
+
+.markweave-editor-frame[data-markweave-theme="dark"] .markweave-inner-toc-item:hover,
+.markweave-editor-frame[data-markweave-theme="dark"] .markweave-inner-toc-item:focus-visible {
+  background: var(--markweave-surface-raised);
+  color: var(--markweave-text);
+}
+
+.markweave-editor-frame[data-markweave-theme="dark"] .markweave-table-controls button {
+  border-color: var(--markweave-border);
+  background: var(--markweave-surface);
+  color: var(--markweave-text-muted);
+}
+
+.markweave-editor-frame[data-markweave-theme="dark"] .markweave-table-controls button:hover,
+.markweave-editor-frame[data-markweave-theme="dark"] .markweave-table-controls button[aria-expanded="true"],
+.markweave-editor-frame[data-markweave-theme="dark"] .markweave-table-controls button:disabled:hover {
+  border-color: var(--markweave-border-strong);
+  background: var(--markweave-surface-raised);
+  color: var(--markweave-text);
+}
+
+.markweave-editor-frame[data-markweave-theme="dark"] .markweave-table-menu button {
+  background: transparent;
+  color: var(--markweave-text-muted);
+}
+
+.markweave-editor-frame[data-markweave-theme="dark"] .markweave-table-menu button[data-starts-group="true"] {
+  border-top-color: var(--markweave-border);
+}
+
+.markweave-editor-frame[data-markweave-theme="dark"] .markweave-table-menu button:hover:not(:disabled) {
+  background: var(--markweave-surface-raised);
+  color: var(--markweave-text);
+}
+
+.markweave-editor-frame[data-markweave-theme="dark"] .markweave-editor-surface :is(.selectedCell, .markweave-active-cell, .markweave-selection-cell),
+.markweave-editor-frame[data-markweave-theme="dark"] .markweave-table-selection-overlay {
+  background: var(--markweave-selection);
+}
+
+.markweave-editor-frame[data-markweave-theme="dark"] .markweave-editor-surface :is(code, pre, pre.markweave-code-block) {
+  background: var(--markweave-code-surface);
+  color: var(--markweave-code);
+  border-color: var(--markweave-border);
+}
+
+.markweave-editor-frame[data-markweave-theme="dark"] :is(.markweave-link, .markweave-inner-toc-item[data-active="true"]) {
+  color: var(--markweave-focus);
+}
+
+.markweave-editor-frame[data-markweave-theme="dark"] .markweave-highlight {
+  background: rgba(221, 180, 76, 0.28);
+  color: inherit;
+}
+
+.markweave-editor-frame[data-markweave-theme="dark"] .markweave-callout {
+  border-left-color: #7ea6ff;
+  background: rgba(87, 135, 232, 0.14);
+}
+
+.markweave-editor-frame[data-markweave-theme="dark"] .markweave-callout[data-markweave-callout-type="tip"] {
+  border-left-color: #bd95ff;
+  background: rgba(164, 113, 236, 0.14);
+}
+
+.markweave-editor-frame[data-markweave-theme="dark"] .markweave-callout[data-markweave-callout-type="warning"] {
+  border-left-color: #e7b657;
+  background: rgba(202, 143, 29, 0.19);
+}
+
+.markweave-editor-frame[data-markweave-theme="dark"] .markweave-callout[data-markweave-callout-type="error"],
+.markweave-editor-frame[data-markweave-theme="dark"] .markweave-image-upload-error,
+.markweave-editor-frame[data-markweave-theme="dark"] .markweave-video-upload-error,
+.markweave-editor-frame[data-markweave-theme="dark"] .markweave-slash-upload-error {
+  background: var(--markweave-danger-surface);
+  color: var(--markweave-danger);
+}
+
+.markweave-editor-frame[data-markweave-theme="dark"] .markweave-callout[data-markweave-callout-type="error"] {
+  border-left-color: #ff9299;
+}
+
+.markweave-editor-frame[data-markweave-theme="dark"] .markweave-callout[data-markweave-callout-type="success"] {
+  border-left-color: #72d6a3;
+  background: rgba(62, 157, 108, 0.18);
+}
+
+.markweave-editor-frame[data-markweave-theme="dark"] .markweave-video-selection-layer,
+.markweave-editor-frame[data-markweave-theme="dark"] .markweave-image-node[data-selected="true"] .markweave-image-box {
+  outline-color: var(--markweave-focus);
+}
+
+.markweave-editor-frame[data-markweave-theme="dark"] :is(.markweave-slash-command-list, .markweave-slash-subpanel, .markweave-codeblock-language-list) {
+  scrollbar-color: var(--markweave-border-strong) transparent;
+}
+
+.markweave-editor-frame[data-markweave-theme="dark"] :is(.markweave-floating-toolbar-menu-title, .markweave-slash-group-title) {
+  color: var(--markweave-text);
+}
+
+.markweave-editor-frame[data-markweave-theme="dark"] :is(.markweave-floating-toolbar-turn-menu button, .markweave-slash-group > button) {
+  color: var(--markweave-text-muted);
+}
+
+.markweave-editor-frame[data-markweave-theme="dark"] :is(.markweave-floating-toolbar-turn-menu button[data-active="true"], .markweave-floating-toolbar-turn-menu button:hover, .markweave-slash-group > button[data-active="true"], .markweave-slash-group > button:hover) {
+  background: var(--markweave-surface-raised);
+  color: var(--markweave-text);
+}
+
+.markweave-editor-frame[data-markweave-theme="dark"] :is(.markweave-floating-toolbar-menu-icon, .markweave-slash-group > button svg, .markweave-slash-group > button small, .markweave-slash-menu__empty) {
+  color: var(--markweave-text-muted);
+}
+
+.markweave-editor-frame[data-markweave-theme="dark"] .markweave-slash-group + .markweave-slash-group {
+  border-top-color: var(--markweave-border);
+}
+
+.markweave-editor-frame[data-markweave-theme="dark"] .markweave-codeblock-language-button[aria-expanded="true"],
+.markweave-editor-frame[data-markweave-theme="dark"] .markweave-codeblock-language-button:hover,
+.markweave-editor-frame[data-markweave-theme="dark"] .markweave-codeblock-icon-button:hover,
+.markweave-editor-frame[data-markweave-theme="dark"] .markweave-codeblock-icon-button:focus-visible,
+.markweave-editor-frame[data-markweave-theme="dark"] .markweave-mermaid-tabs button:hover,
+.markweave-editor-frame[data-markweave-theme="dark"] .markweave-mermaid-tabs button[data-active="true"] {
+  background: var(--markweave-surface-raised);
+  color: var(--markweave-text);
+}
+
+.markweave-editor-frame[data-markweave-theme="dark"] .markweave-codeblock-language-menu,
+.markweave-editor-frame[data-markweave-theme="dark"] .markweave-codeblock-tooltip {
+  border-color: var(--markweave-border);
+  background: var(--markweave-surface);
+  color: var(--markweave-text);
+  box-shadow: 0 10px 28px var(--markweave-shadow);
+}
+
+.markweave-editor-frame[data-markweave-theme="dark"] .markweave-codeblock-language-search input {
+  border-color: var(--markweave-focus);
+  background: var(--markweave-surface-muted);
+  color: var(--markweave-text);
+}
+
+.markweave-editor-frame[data-markweave-theme="dark"] .markweave-codeblock-language-search svg {
+  color: var(--markweave-text-subtle);
+}
+
+.markweave-editor-frame[data-markweave-theme="dark"] .markweave-codeblock-language-list button {
+  color: var(--markweave-text-muted);
+}
+
+.markweave-editor-frame[data-markweave-theme="dark"] .markweave-codeblock-language-list button:hover,
+.markweave-editor-frame[data-markweave-theme="dark"] .markweave-codeblock-language-list button[data-active="true"] {
+  background: var(--markweave-surface-raised);
+  color: var(--markweave-text);
+}
+
+.markweave-editor-frame[data-markweave-theme="dark"] .markweave-editor-surface :is(.hljs-comment, .hljs-quote) {
+  color: #929cab;
+}
+
+.markweave-editor-frame[data-markweave-theme="dark"] .markweave-editor-surface :is(.hljs-keyword, .hljs-selector-tag, .hljs-subst) {
+  color: #ff8190;
+}
+
+.markweave-editor-frame[data-markweave-theme="dark"] .markweave-editor-surface :is(.hljs-title, .hljs-class .hljs-title, .hljs-title.class_) {
+  color: #a98bff;
+}
+
+.markweave-editor-frame[data-markweave-theme="dark"] .markweave-editor-surface :is(.hljs-type, .hljs-built_in, .hljs-literal, .hljs-symbol, .hljs-attr, .hljs-variable, .hljs-params) {
+  color: #cbd3df;
+}
+
+.markweave-editor-frame[data-markweave-theme="dark"] .markweave-editor-surface :is(.hljs-string, .hljs-number, .hljs-regexp) {
+  color: #72c8a2;
+}
+
+.markweave-editor-frame[data-markweave-theme="dark"] .markweave-mermaid-preview {
+  border-color: var(--markweave-border);
+  background: var(--markweave-code-surface);
+  color: var(--markweave-text);
+}
+
+.markweave-editor-frame[data-markweave-theme="dark"] .markweave-mermaid-preview svg {
+  background: var(--markweave-code-surface);
+}
+
+.markweave-editor-frame[data-markweave-theme="dark"] .markweave-mermaid-preview svg :is(.node rect, .node polygon, .node circle, .node ellipse, .cluster rect, .edgeLabel rect) {
+  fill: #282d35 !important;
+  stroke: #6c7788 !important;
+}
+
+.markweave-editor-frame[data-markweave-theme="dark"] .markweave-mermaid-preview svg :is(text, .label, .nodeLabel, .edgeLabel) {
+  color: #e8e9ed !important;
+  fill: #e8e9ed !important;
+}
+
+.markweave-editor-frame[data-markweave-theme="dark"] .markweave-mermaid-preview svg :is(.edgePath .path, .flowchart-link, marker path) {
+  stroke: #aab5c5 !important;
+  fill: #aab5c5 !important;
+}
+
+.markweave-editor-frame[data-markweave-theme="dark"] :is(.tiptap-mathematics-render[data-type="block-math"], .markweave-math-block-preview) {
+  background: var(--markweave-code-surface);
+  color: var(--markweave-text);
+}
+
+.markweave-editor-frame[data-markweave-theme="dark"] .tiptap-mathematics-render[data-type="block-math"]::before {
+  background: var(--markweave-surface-raised);
+  color: var(--markweave-text-muted);
+}
+
+.markweave-editor-frame[data-markweave-theme="dark"] .tiptap-mathematics-render[data-type="block-math"]::after {
+  color: var(--markweave-text-muted);
+}
+
+.markweave-editor-frame[data-markweave-theme="dark"] .markweave-editor-surface[contenteditable="true"] .tiptap-mathematics-render[data-type="block-math"]:hover,
+.markweave-editor-frame[data-markweave-theme="dark"] .tiptap-mathematics-render[data-type="block-math"].ProseMirror-selectednode {
+  background: var(--markweave-surface-raised);
 }

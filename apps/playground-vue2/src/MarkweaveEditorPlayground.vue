@@ -1,5 +1,5 @@
 <template>
-  <main class="markweave-playground">
+  <main class="markweave-playground" :data-theme="theme">
     <div class="markweave-playground-toolbar" aria-label="Playground controls">
       <button
         type="button"
@@ -41,6 +41,52 @@
           <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" />
         </svg>
       </button>
+      <button
+        type="button"
+        class="markweave-playground-theme-toggle"
+        data-testid="markweave-playground-theme-toggle"
+        :data-theme="theme"
+        :aria-label="themeToggleLabel"
+        :title="themeToggleLabel"
+        @click="toggleTheme"
+      >
+        <svg
+          v-if="theme === 'light'"
+          viewBox="0 0 24 24"
+          width="18"
+          height="18"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.8"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+        >
+          <path d="M20.985 12.486a9 9 0 1 1-9.473-9.472c.405-.022.617.46.402.803a6 6 0 0 0 8.268 8.268c.344-.215.825-.004.803.401" />
+        </svg>
+        <svg
+          v-else
+          viewBox="0 0 24 24"
+          width="18"
+          height="18"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.8"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+        >
+          <circle cx="12" cy="12" r="4" />
+          <path d="M12 2v2" />
+          <path d="M12 20v2" />
+          <path d="m4.93 4.93 1.41 1.41" />
+          <path d="m17.66 17.66 1.41 1.41" />
+          <path d="M2 12h2" />
+          <path d="M20 12h2" />
+          <path d="m6.34 17.66-1.41 1.41" />
+          <path d="m19.07 4.93-1.41 1.41" />
+        </svg>
+      </button>
     </div>
 
     <MarkweaveEditor
@@ -49,6 +95,7 @@
       :content="fixtureContent"
       :content-format="fixtureFormat"
       :mode="editorMode"
+      :theme="theme"
       :on-edit-with-ai="handleEditWithAi"
       :on-extract-to-note="handleFloatingToolbarAssistantRequest"
       :on-rewrite-selection="handleFloatingToolbarAssistantRequest"
@@ -118,6 +165,7 @@ export default {
       fixtureContent: initialPlaygroundDocument,
       fixtureFormat: "markdown",
       editorMode: "live",
+      theme: "light",
       runtimeSnapshot: null,
       lastTableCopyPayload: null,
       lastTableCommandResult: null,
@@ -132,6 +180,9 @@ export default {
     },
     modeToggleLabel() {
       return this.isLiveMode ? "切换到 View 模式" : "切换到 Live 模式";
+    },
+    themeToggleLabel() {
+      return this.theme === "light" ? "切换到暗色主题" : "切换到亮色主题";
     },
   },
   methods: {
@@ -150,6 +201,9 @@ export default {
     },
     toggleMode() {
       this.editorMode = this.isLiveMode ? "view" : "live";
+    },
+    toggleTheme() {
+      this.theme = this.theme === "light" ? "dark" : "light";
     },
     handleEditWithAi(request) {
       this.lastTableEditWithAiRequest = request;

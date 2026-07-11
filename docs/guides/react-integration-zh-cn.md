@@ -1,6 +1,6 @@
 ---
 owner: refinex
-updated: 2026-07-10
+updated: 2026-07-11
 status: active
 referenced_by: docs/README.md#knowledge-map
 ---
@@ -112,6 +112,7 @@ export function ControlledEditor({ value }: { value: string }) {
 <MarkweaveEditor
   defaultContent="# Spec\n\n## Goals"
   mode="live"
+  theme="dark"
   lang="zh"
   innerToc
   onTocChange={({ items, activeId }) => {
@@ -126,6 +127,7 @@ export function ControlledEditor({ value }: { value: string }) {
 | 配置 | 默认值 | 说明 |
 | --- | --- | --- |
 | `mode` | `"live"` | `"live"` 可编辑；`"view"` 只读，但保留安全链接打开、代码复制、Mermaid 预览/放大/下载、媒体播放和 TOC 跳转等阅读能力。 |
+| `theme` | `"light"` | `"light"` 或 `"dark"`。主题仅作用于当前编辑器根节点，可在运行时切换，不会重建文档内容。 |
 | `editable` | `true` | 兼容锁。最终可编辑状态是 `mode === "live" && editable !== false`。 |
 | `lang` | `"zh"` | UI 语言。支持 `"zh"` 和 `"en"`。运行时切换语言建议重新挂载编辑器。 |
 | `innerToc` | `true` | 显示内置右侧目录。传 `false` 后可通过 `onTocChange` 或 `runtimeSnapshot.toc` 自行渲染目录。 |

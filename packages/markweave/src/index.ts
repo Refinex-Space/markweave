@@ -9,6 +9,8 @@ export {
   setMarkweaveEditorModeState,
   subscribeToMarkweaveEditorMode,
 } from "./core/editor-mode-state";
+export type { MarkweaveTheme } from "./core/theme";
+export { normalizeMarkweaveTheme } from "./core/theme";
 export type { MarkweaveInnerTocPlacement, MarkweaveTocItem, MarkweaveTocState } from "./core/toc-state";
 export {
   createMarkweaveTocState,

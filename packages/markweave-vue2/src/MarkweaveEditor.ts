@@ -97,6 +97,7 @@ import {
   type EditorSelectionSnapshot,
 } from "markweave/internal/editor-core/selection-state";
 import { normalizeMarkweaveEditorMode, setMarkweaveEditorModeState, type MarkweaveEditorMode } from "markweave/internal/core/editor-mode-state";
+import { normalizeMarkweaveTheme, type MarkweaveTheme } from "markweave/internal/core/theme";
 import type {
   FloatingToolbarAssistantRequest,
   MarkweaveContentFormat,
@@ -183,6 +184,7 @@ import {
 } from "markweave/internal/plugins/math/math-ui-model";
 import {
   isMermaidInlinePreviewTransaction,
+  setMarkweaveMermaidTheme,
   setMermaidInlinePreviewEditorMode,
   setReadonlyMermaidPreviewMode,
 } from "markweave/internal/plugins/mermaid/mermaid-inline-preview";
@@ -258,6 +260,7 @@ export interface MarkweaveVue2EditorControllerOptions {
   readonly contentFormat?: MarkweaveContentFormat;
   readonly editable?: boolean;
   readonly mode?: MarkweaveEditorMode;
+  readonly theme?: MarkweaveTheme;
   readonly innerToc?: boolean;
   readonly innerTocPlacement?: MarkweaveInnerTocPlacement;
   readonly autofocus?: boolean;
@@ -2489,6 +2492,7 @@ export function useMarkweaveEditorController(options: MarkweaveVue2EditorControl
   const messages = getMarkweaveMessages(resolvedLang);
   const slashCommands = getLocalizedSlashCommandSpecs(resolvedLang);
   const editorMode = ref(normalizeMarkweaveEditorMode(options.mode));
+  const resolvedTheme = computed(() => normalizeMarkweaveTheme(options.theme));
   const effectiveEditable = computed(() => editorMode.value === "live" && options.editable !== false);
   const revision = ref(0);
   const selectionSnapshot = shallowRef<EditorSelectionSnapshot | null>(null);
@@ -2599,6 +2603,7 @@ export function useMarkweaveEditorController(options: MarkweaveVue2EditorControl
     onSelectionUpdate: ({ editor }) => syncSelectionState(editor),
     onCreate: ({ editor }) => {
       setMarkweaveEditorModeState(editor, { mode: editorMode.value, editable: effectiveEditable.value });
+      setMarkweaveMermaidTheme(editor, resolvedTheme.value);
       setMermaidInlinePreviewEditorMode(editor, effectiveEditable.value ? "live" : "view");
       if (options.autoFocusFirstTableBodyCell && effectiveEditable.value) {
         focusFirstTableBodyCell(editor);
@@ -2787,6 +2792,16 @@ export function useMarkweaveEditorController(options: MarkweaveVue2EditorControl
   );
 
   watch(
+    () => options.theme,
+    () => {
+      if (editor.value) {
+        setMarkweaveMermaidTheme(editor.value, resolvedTheme.value);
+      }
+    },
+    { immediate: true },
+  );
+
+  watch(
     () => options.content,
     (nextContent) => {
       const normalizedContentFormat = normalizeMarkweaveContentFormat(options.contentFormat);
@@ -2904,6 +2919,7 @@ export const MarkweaveEditor = defineComponent({
     contentFormat: { type: String as PropType<MarkweaveContentFormat>, default: undefined },
     editable: { type: Boolean, default: true },
     mode: { type: String as PropType<MarkweaveEditorMode>, default: "live" },
+    theme: { type: String as PropType<MarkweaveTheme>, default: "light" },
     innerToc: { type: Boolean, default: true },
     innerTocPlacement: { type: String as PropType<MarkweaveInnerTocPlacement>, default: "container" },
     autofocus: { type: Boolean, default: false },
@@ -2939,6 +2955,7 @@ export const MarkweaveEditor = defineComponent({
           "aria-label": props.ariaLabel ?? render.messages.common.editorAriaLabel,
           "data-testid": "markweave-editor-frame",
           "data-markweave-mode": controller.runtimeSnapshot.value.mode,
+          "data-markweave-theme": normalizeMarkweaveTheme(props.theme),
           "data-markweave-inner-toc": props.innerToc ? "true" : "false",
           "data-markweave-inner-toc-placement": normalizeMarkweaveInnerTocPlacement(props.innerTocPlacement),
           "data-mermaid-mode": controller.runtimeSnapshot.value.mermaid.mode,

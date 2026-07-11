@@ -1,6 +1,6 @@
 ---
 owner: refinex
-updated: 2026-07-10
+updated: 2026-07-11
 status: active
 referenced_by: docs/README.md#knowledge-map
 ---
@@ -112,6 +112,7 @@ For advanced custom shells, `useMarkweaveEditorController` exposes `actions.setC
 <MarkweaveEditor
   defaultContent="# Spec\n\n## Goals"
   mode="live"
+  theme="dark"
   lang="zh"
   innerToc
   onTocChange={({ items, activeId }) => {
@@ -126,6 +127,7 @@ For advanced custom shells, `useMarkweaveEditorController` exposes `actions.setC
 | Option | Default | Notes |
 | --- | --- | --- |
 | `mode` | `"live"` | `"live"` is editable; `"view"` is read-only and keeps reader actions such as safe links, code copy, Mermaid preview/fullscreen/download, media playback, and TOC navigation. |
+| `theme` | `"light"` | `"light"` or `"dark"`. The theme is scoped to this editor frame and can change at runtime without recreating document content. |
 | `editable` | `true` | Compatibility lock. Effective editable state is `mode === "live" && editable !== false`. |
 | `lang` | `"zh"` | UI language. Supported values are `"zh"` and `"en"`. Re-mount the editor when switching language dynamically. |
 | `innerToc` | `true` | Renders the built-in right-side outline. Set `false` to render your own TOC from `onTocChange` or `runtimeSnapshot.toc`. |

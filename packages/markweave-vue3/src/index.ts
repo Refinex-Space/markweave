@@ -17,6 +17,7 @@ export type {
   TableCommandResult,
   TableEditWithAiRequest,
   MarkweaveEditorMode,
+  MarkweaveTheme,
   MarkweaveInnerTocPlacement,
   MarkweaveTocItem,
   MarkweaveTocState,

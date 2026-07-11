@@ -70,6 +70,8 @@ describe("Vue2 adapter parity source contract", () => {
       "data-markweave-inner-toc-placement",
       "observeMarkweaveInnerTocContainerPosition",
       "data-markweave-mode",
+      "data-markweave-theme",
+      "setMarkweaveMermaidTheme",
       "data-testid\": \"markweave-editor-frame\"",
     ]);
     expect(source).not.toContain("@tiptap/vue-3");

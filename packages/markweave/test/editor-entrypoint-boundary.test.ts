@@ -139,6 +139,7 @@ describe("editor entrypoint boundary", () => {
     expect(indexSource).toContain("createMarkweaveEditorExtensions");
     expect(indexSource).toContain("MarkweaveLang");
     expect(indexSource).toContain("MarkweaveEditorMode");
+    expect(indexSource).toContain("MarkweaveTheme");
     expect(indexSource).toContain("MarkweaveContentFormat");
     expect(indexSource).toContain("MarkweaveTocItem");
     expect(indexSource).toContain("MarkweaveTocState");
@@ -252,6 +253,7 @@ describe("editor entrypoint boundary", () => {
     expect(container.querySelector('[data-testid="markweave-editor-frame"]')).toBeTruthy();
     expect(container.querySelector('[data-testid="markweave-editor-frame"]')?.getAttribute("aria-label")).toBe("Markweave 编辑器");
     expect(container.querySelector('[data-testid="markweave-editor-frame"]')?.getAttribute("data-markweave-mode")).toBe("live");
+    expect(container.querySelector('[data-testid="markweave-editor-frame"]')?.getAttribute("data-markweave-theme")).toBe("light");
     expect(container.querySelector('[data-testid="markweave-editor-frame"]')?.getAttribute("data-markweave-inner-toc")).toBe("true");
     expect(container.querySelector('[data-testid="markweave-editor-frame"]')?.getAttribute("data-markweave-inner-toc-placement")).toBe("container");
     expect(container.querySelector('[data-testid="markweave-editor-surface"]')?.innerHTML).toContain("hello editor");
@@ -271,12 +273,13 @@ describe("editor entrypoint boundary", () => {
   it("switches between Live and View modes without recreating the editor", async () => {
     let controller: MarkweaveEditorController | null = null;
 
-    function Harness({ editable, mode }: { readonly editable?: boolean; readonly mode: MarkweaveEditorMode }) {
+    function Harness({ editable, mode, theme = "light" }: { readonly editable?: boolean; readonly mode: MarkweaveEditorMode; readonly theme?: "light" | "dark" }) {
       controller = useMarkweaveEditorController({
         defaultContent: '<p><a href="https://example.com">link</a></p>',
         defaultContentFormat: "html",
         editable,
         mode,
+        theme,
       });
 
       return controller.editor ? createElement("section", controller.frameProps, createElement("div", { "data-testid": "html" }, controller.editor.getHTML())) : null;
@@ -320,6 +323,16 @@ describe("editor entrypoint boundary", () => {
 
     expect(getController().editor).toBe(firstEditor);
     expect(getController().editor?.isEditable).toBe(true);
+
+    const htmlBeforeThemeChange = getController().editor?.getHTML();
+    await act(async () => {
+      activeRoot?.render(createElement(Harness, { mode: "live", theme: "dark" }));
+    });
+    await flushReact();
+
+    expect(getController().editor).toBe(firstEditor);
+    expect(getController().editor?.getHTML()).toBe(htmlBeforeThemeChange);
+    expect(container.querySelector('[data-testid="markweave-editor-frame"]')?.getAttribute("data-markweave-theme")).toBe("dark");
 
     await act(async () => {
       activeRoot?.render(createElement(Harness, { editable: false, mode: "live" }));

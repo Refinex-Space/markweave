@@ -1,6 +1,6 @@
 ---
 owner: refinex
-updated: 2026-07-10
+updated: 2026-07-11
 status: active
 referenced_by: docs/README.md#knowledge-map
 ---
@@ -133,6 +133,7 @@ function handleRuntimeStateChange(snapshot) {
   <MarkweaveEditor
     default-content="# Spec\n\n## Goals"
     mode="live"
+    theme="dark"
     lang="zh"
     inner-toc
     :on-toc-change="handleTocChange"
@@ -144,6 +145,7 @@ function handleRuntimeStateChange(snapshot) {
 | Template prop | Default | Notes |
 | --- | --- | --- |
 | `mode` | `"live"` | `"live"` is editable; `"view"` is read-only and keeps reader actions such as safe links, code copy, Mermaid preview/fullscreen/download, media playback, and TOC navigation. |
+| `theme` | `"light"` | `"light"` or `"dark"`. The theme is scoped to this editor frame and can change at runtime without recreating document content. |
 | `editable` | `true` | Compatibility lock. Effective editable state is `mode === "live" && editable !== false`. |
 | `lang` | `"zh"` | UI language. Supported values are `"zh"` and `"en"`. Re-mount the editor when switching language dynamically. |
 | `inner-toc` | `true` | Renders the built-in right-side outline. Set `:inner-toc="false"` to render your own TOC from `on-toc-change` or `runtimeSnapshot.toc`. |

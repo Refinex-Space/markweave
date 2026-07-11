@@ -32,6 +32,7 @@ body {
   right: 24px;
   z-index: 10;
   display: flex;
+  gap: 8px;
   justify-content: flex-end;
 }
 
@@ -47,12 +48,46 @@ body {
   cursor: pointer;
 }
 
+.markweave-playground-theme-toggle {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border: 1px solid #d9dee6;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.96);
+  color: #4f5661;
+  cursor: pointer;
+  font: 600 13px/1 ui-sans-serif, system-ui, sans-serif;
+}
+
+.markweave-playground-theme-toggle:hover {
+  background: #f5f6f8;
+  color: #1f2328;
+}
+
+.markweave-playground[data-theme="dark"] {
+  background: #181a1f;
+}
+
+.markweave-playground[data-theme="dark"] :is(.markweave-playground-mode-toggle, .markweave-playground-theme-toggle) {
+  border-color: #4a5360;
+  background: #292d34;
+  color: #dce1e8;
+}
+
+.markweave-playground[data-theme="dark"] :is(.markweave-playground-mode-toggle:hover, .markweave-playground-theme-toggle:hover) {
+  background: #363c46;
+  color: #ffffff;
+}
+
 .markweave-playground-mode-toggle:hover {
   background: #f5f6f8;
   color: #1f2328;
 }
 
-.markweave-playground-mode-toggle:focus-visible {
+.markweave-playground-mode-toggle:focus-visible,
+.markweave-playground-theme-toggle:focus-visible {
   outline: 2px solid #3f4650;
   outline-offset: 2px;
 }
