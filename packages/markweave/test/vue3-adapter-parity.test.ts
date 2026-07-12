@@ -37,6 +37,7 @@ describe("Vue3 adapter parity source contract", () => {
       "markweave-floating-toolbar-tooltip-left",
       "data-tooltip-active",
       "data-markweave-theme",
+      "canvasColor",
       "setMarkweaveMermaidTheme",
       "data-button-id",
       "setAnchoredTooltip",

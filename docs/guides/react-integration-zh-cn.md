@@ -128,6 +128,7 @@ export function ControlledEditor({ value }: { value: string }) {
 | --- | --- | --- |
 | `mode` | `"live"` | `"live"` 可编辑；`"view"` 只读，但保留安全链接打开、代码复制、Mermaid 预览/放大/下载、媒体播放和 TOC 跳转等阅读能力。 |
 | `theme` | `"light"` | `"light"` 或 `"dark"`。主题仅作用于当前编辑器根节点，可在运行时切换，不会重建文档内容。 |
+| `canvasColor` | 主题默认值 | 仅覆盖编辑器画布的可选 CSS 颜色/变量。亮色默认透明，暗色默认 `#181A1F`；例如可传 `"#000"` 或 `"var(--app-canvas)"`，运行时切换不会重建编辑器。 |
 | `editable` | `true` | 兼容锁。最终可编辑状态是 `mode === "live" && editable !== false`。 |
 | `lang` | `"zh"` | UI 语言。支持 `"zh"` 和 `"en"`。运行时切换语言建议重新挂载编辑器。 |
 | `innerToc` | `true` | 显示内置右侧目录。传 `false` 后可通过 `onTocChange` 或 `runtimeSnapshot.toc` 自行渲染目录。 |

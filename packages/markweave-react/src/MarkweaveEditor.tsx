@@ -1,6 +1,6 @@
 import type { EditorView } from "@tiptap/pm/view";
 import { EditorContent, useEditor, type Editor } from "@tiptap/react";
-import { useCallback, useEffect, useMemo, useRef, useState, type ComponentProps, type HTMLAttributes, type KeyboardEvent as ReactKeyboardEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ComponentProps, type CSSProperties, type HTMLAttributes, type KeyboardEvent as ReactKeyboardEvent } from "react";
 import { isEditorComposing } from "markweave/internal/editor-core/composition-guard";
 import {
   createMarkweaveEditorUpdatePayload,
@@ -60,7 +60,7 @@ import { TableControls } from "./ui/table/TableControls";
 import { TableSelectionOverlay } from "./ui/table/TableSelectionOverlay";
 import { MarkweaveInnerToc } from "./ui/toc/MarkweaveInnerToc";
 import { normalizeMarkweaveEditorMode, setMarkweaveEditorModeState, type MarkweaveEditorMode } from "markweave/internal/core/editor-mode-state";
-import { normalizeMarkweaveTheme, type MarkweaveTheme } from "markweave/internal/core/theme";
+import { normalizeMarkweaveCanvasColor, normalizeMarkweaveTheme, type MarkweaveTheme } from "markweave/internal/core/theme";
 import type {
   FloatingToolbarAssistantRequest,
   MarkweaveContentFormat,
@@ -126,6 +126,8 @@ export interface MarkweaveEditorControllerOptions {
   readonly editable?: boolean;
   readonly mode?: MarkweaveEditorMode;
   readonly theme?: MarkweaveTheme;
+  /** Overrides the editor canvas only; omit to retain the light/dark theme default. */
+  readonly canvasColor?: string;
   readonly innerToc?: boolean;
   readonly innerTocPlacement?: MarkweaveInnerTocPlacement;
   readonly autofocus?: boolean;
@@ -227,6 +229,7 @@ export function useMarkweaveEditorController({
   lang,
   mode = "live",
   theme,
+  canvasColor,
   onEditWithAi,
   onExtractToNote,
   onRewriteSelection,
@@ -240,6 +243,7 @@ export function useMarkweaveEditorController({
 }: MarkweaveEditorControllerOptions = {}): MarkweaveEditorController {
   const editorMode = normalizeMarkweaveEditorMode(mode);
   const resolvedTheme = normalizeMarkweaveTheme(theme);
+  const resolvedCanvasColor = normalizeMarkweaveCanvasColor(canvasColor);
   const resolvedInnerTocPlacement = normalizeMarkweaveInnerTocPlacement(innerTocPlacement);
   const effectiveEditable = editorMode === "live" && editable !== false;
   const activeContentFormat = normalizeMarkweaveContentFormat(content === undefined ? defaultContentFormat : contentFormat);
@@ -764,13 +768,14 @@ export function useMarkweaveEditorController({
       "data-testid": "markweave-editor-frame",
       "data-markweave-mode": editorMode,
       "data-markweave-theme": resolvedTheme,
+      style: resolvedCanvasColor ? ({ "--markweave-canvas": resolvedCanvasColor } as CSSProperties) : undefined,
       "data-markweave-inner-toc": innerToc ? "true" : "false",
       "data-markweave-inner-toc-placement": resolvedInnerTocPlacement,
       "data-mermaid-mode": mermaidPreviewState.mode,
       "data-table-focus-mode": tableFocusState.mode,
       onKeyDownCapture: handleEditorKeyDown,
     }),
-    [ariaLabel, editorMode, handleEditorKeyDown, innerToc, mermaidPreviewState.mode, messages.common.editorAriaLabel, resolvedInnerTocPlacement, resolvedTheme, tableFocusState.mode],
+    [ariaLabel, editorMode, handleEditorKeyDown, innerToc, mermaidPreviewState.mode, messages.common.editorAriaLabel, resolvedCanvasColor, resolvedInnerTocPlacement, resolvedTheme, tableFocusState.mode],
   );
 
   const overlayProps = useMemo<MarkweaveEditorOverlayProps>(

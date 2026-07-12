@@ -73,6 +73,7 @@ describe("Vue2 adapter parity source contract", () => {
       "observeMarkweaveInnerTocContainerPosition",
       "data-markweave-mode",
       "data-markweave-theme",
+      "canvasColor",
       "setMarkweaveMermaidTheme",
       "data-testid\": \"markweave-editor-frame\"",
     ]);
