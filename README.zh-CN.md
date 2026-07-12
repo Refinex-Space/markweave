@@ -128,7 +128,7 @@ export default {
 <MarkweaveEditor defaultContent="<h1>Hello Markweave</h1>" defaultContentFormat="html" />
 ```
 
-`mode` 默认是 `"live"`。传 `mode="view"` 后进入只读渲染模式，并复用同一套 Markweave 输出样式。旧的 `editable={false}` 仍作为兼容锁，因此 `mode="live" editable={false}` 也是只读。`theme` 默认是 `"light"`；传 `theme="dark"` 可将编辑器根节点及全部内置交互界面切换为深石墨暗色主题。主题可在运行时切换，不会重建编辑器内容。`canvasColor` 为可选项，只覆盖编辑器画布背景，其他主题 token 保持不变；不传时使用主题默认值（亮色透明、暗色 `#181A1F`），可传 `"#000"` 或 `"var(--app-canvas)"` 等宿主颜色，并支持运行时切换且不重建编辑器。
+`mode` 默认是 `"live"`。传 `mode="view"` 后进入只读渲染模式，并复用同一套 Markweave 输出样式。旧的 `editable={false}` 仍作为兼容锁，因此 `mode="live" editable={false}` 也是只读。`theme` 默认是 `"light"`；传 `theme="dark"` 可将编辑器根节点及全部内置交互界面切换为深石墨暗色主题。主题可在运行时切换，不会重建编辑器内容。Live 模式下普通链接的单击会留在编辑器内，使用 Ctrl/Cmd 点击才会安全打开。`canvasColor` 为可选项，只覆盖编辑器画布背景，其他主题 token 保持不变；不传时使用主题默认值（亮色透明、暗色 `#181A1F`），可传 `"#000"` 或 `"var(--app-canvas)"` 等宿主颜色，并支持运行时切换且不重建编辑器。
 
 ## 外部超链接卡片
 

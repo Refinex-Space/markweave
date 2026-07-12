@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { Editor } from "@tiptap/core";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { createMarkweaveEditorExtensions } from "../src/editor-core/create-editor-extensions";
 import { calculateFloatingToolbarPopoverPlacement } from "../src/editor-core/selection-state";
 import { setMarkweaveEditorModeState } from "../src/core/editor-mode-state";
@@ -125,6 +125,30 @@ describe("link card model", () => {
     expect(actionButtons.filter((button) => button.querySelector("rect[x=\"8\"][y=\"8\"][width=\"14\"][height=\"14\"]"))).toHaveLength(2);
     composer?.querySelector<HTMLButtonElement>('button[type="submit"]')?.click();
     expect(editor.state.doc.firstChild?.type.name).toBe("markweaveLinkCard");
+  });
+
+  it("keeps ordinary links in the editor until Ctrl or Cmd click opens them", () => {
+    const editor = createEditor('<p>Read <a href="https://example.com">Example</a></p>');
+    const anchor = editor.view.dom.querySelector<HTMLAnchorElement>("a[href]");
+    expect(anchor).not.toBeNull();
+
+    const plainClick = new MouseEvent("click", { bubbles: true, cancelable: true });
+    Object.defineProperty(plainClick, "target", { value: anchor });
+    let handled = false;
+    editor.view.someProp("handleClick", (handler) => {
+      handled = handler(editor.view, firstTextPos(editor), plainClick) === true;
+      return handled;
+    });
+    expect(handled).toBe(false);
+    expect(plainClick.defaultPrevented).toBe(true);
+    expect(document.querySelector(".markweave-link-card-composer")).toBeNull();
+
+    const openWindow = vi.spyOn(window, "open").mockImplementation(() => null);
+    const modifierClick = new MouseEvent("click", { bubbles: true, cancelable: true, metaKey: true });
+    Object.defineProperty(modifierClick, "target", { value: anchor });
+    editor.view.someProp("handleClick", (handler) => handler(editor.view, firstTextPos(editor), modifierClick) === true);
+    expect(modifierClick.defaultPrevented).toBe(true);
+    expect(openWindow).toHaveBeenCalledWith("https://example.com", "_blank", "noopener,noreferrer");
   });
 
   it("does not replace the normal View-mode link behavior with the composer", () => {

@@ -148,6 +148,8 @@ describe("editor style boundary", () => {
     expect(editorCss).toContain(".markweave-video");
     expect(editorCss).toContain(".markweave-attachment");
     expect(editorCss).toContain(".markweave-separator");
+    expect(editorCss).toContain("--markweave-link-card-height: 156px");
+    expect(editorCss).toContain("object-fit: cover");
     expect(editorCss).toContain('[data-markweave-indent-level="1"]');
     expect(editorCss).toContain(".markweave-codeblock-language-menu");
     expect(editorCss).toContain(".markweave-codeblock-language-label");
