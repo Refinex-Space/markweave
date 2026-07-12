@@ -97,7 +97,7 @@ import {
   type EditorSelectionSnapshot,
 } from "markweave/internal/editor-core/selection-state";
 import { normalizeMarkweaveEditorMode, setMarkweaveEditorModeState, type MarkweaveEditorMode } from "markweave/internal/core/editor-mode-state";
-import { normalizeMarkweaveTheme, type MarkweaveTheme } from "markweave/internal/core/theme";
+import { normalizeMarkweaveCanvasColor, normalizeMarkweaveTheme, type MarkweaveTheme } from "markweave/internal/core/theme";
 import type {
   FloatingToolbarAssistantRequest,
   MarkweaveContentFormat,
@@ -262,6 +262,7 @@ export interface MarkweaveVue2EditorControllerOptions {
   readonly editable?: boolean;
   readonly mode?: MarkweaveEditorMode;
   readonly theme?: MarkweaveTheme;
+  readonly canvasColor?: string;
   readonly innerToc?: boolean;
   readonly innerTocPlacement?: MarkweaveInnerTocPlacement;
   readonly autofocus?: boolean;
@@ -2923,6 +2924,7 @@ export const MarkweaveEditor = defineComponent({
     editable: { type: Boolean, default: true },
     mode: { type: String as PropType<MarkweaveEditorMode>, default: "live" },
     theme: { type: String as PropType<MarkweaveTheme>, default: "light" },
+    canvasColor: { type: String, default: undefined },
     innerToc: { type: Boolean, default: true },
     innerTocPlacement: { type: String as PropType<MarkweaveInnerTocPlacement>, default: "container" },
     autofocus: { type: Boolean, default: false },
@@ -2951,6 +2953,7 @@ export const MarkweaveEditor = defineComponent({
 
       const render = (controller as MarkweaveVue2EditorController & { readonly __render: VueControllerRenderState }).__render;
       const frameClassName = ["markweave-editor-frame", props.className].filter(Boolean).join(" ");
+      const canvasColor = normalizeMarkweaveCanvasColor(props.canvasColor);
 
       return h(
         "section",
@@ -2960,6 +2963,7 @@ export const MarkweaveEditor = defineComponent({
           "data-testid": "markweave-editor-frame",
           "data-markweave-mode": controller.runtimeSnapshot.value.mode,
           "data-markweave-theme": normalizeMarkweaveTheme(props.theme),
+          style: canvasColor ? { "--markweave-canvas": canvasColor } : undefined,
           "data-markweave-inner-toc": props.innerToc ? "true" : "false",
           "data-markweave-inner-toc-placement": normalizeMarkweaveInnerTocPlacement(props.innerTocPlacement),
           "data-mermaid-mode": controller.runtimeSnapshot.value.mermaid.mode,

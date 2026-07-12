@@ -128,6 +128,7 @@ For advanced custom shells, `useMarkweaveEditorController` exposes `actions.setC
 | --- | --- | --- |
 | `mode` | `"live"` | `"live"` is editable; `"view"` is read-only and keeps reader actions such as safe links, code copy, Mermaid preview/fullscreen/download, media playback, and TOC navigation. |
 | `theme` | `"light"` | `"light"` or `"dark"`. The theme is scoped to this editor frame and can change at runtime without recreating document content. |
+| `canvasColor` | theme default | Optional CSS color/value for the editor canvas only. The defaults are `transparent` in light mode and `#181A1F` in dark mode. For example, pass `"#000"` or `"var(--app-canvas)"`. Runtime changes do not recreate the editor. |
 | `editable` | `true` | Compatibility lock. Effective editable state is `mode === "live" && editable !== false`. |
 | `lang` | `"zh"` | UI language. Supported values are `"zh"` and `"en"`. Re-mount the editor when switching language dynamically. |
 | `innerToc` | `true` | Renders the built-in right-side outline. Set `false` to render your own TOC from `onTocChange` or `runtimeSnapshot.toc`. |

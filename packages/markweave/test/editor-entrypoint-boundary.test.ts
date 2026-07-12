@@ -273,8 +273,9 @@ describe("editor entrypoint boundary", () => {
   it("switches between Live and View modes without recreating the editor", async () => {
     let controller: MarkweaveEditorController | null = null;
 
-    function Harness({ editable, mode, theme = "light" }: { readonly editable?: boolean; readonly mode: MarkweaveEditorMode; readonly theme?: "light" | "dark" }) {
+    function Harness({ canvasColor, editable, mode, theme = "light" }: { readonly canvasColor?: string; readonly editable?: boolean; readonly mode: MarkweaveEditorMode; readonly theme?: "light" | "dark" }) {
       controller = useMarkweaveEditorController({
+        canvasColor,
         defaultContent: '<p><a href="https://example.com">link</a></p>',
         defaultContentFormat: "html",
         editable,
@@ -333,6 +334,14 @@ describe("editor entrypoint boundary", () => {
     expect(getController().editor).toBe(firstEditor);
     expect(getController().editor?.getHTML()).toBe(htmlBeforeThemeChange);
     expect(container.querySelector('[data-testid="markweave-editor-frame"]')?.getAttribute("data-markweave-theme")).toBe("dark");
+
+    await act(async () => {
+      activeRoot?.render(createElement(Harness, { canvasColor: "#000000", mode: "live", theme: "dark" }));
+    });
+    await flushReact();
+
+    expect(getController().editor).toBe(firstEditor);
+    expect(container.querySelector<HTMLElement>('[data-testid="markweave-editor-frame"]')?.style.getPropertyValue("--markweave-canvas")).toBe("#000000");
 
     await act(async () => {
       activeRoot?.render(createElement(Harness, { editable: false, mode: "live" }));
