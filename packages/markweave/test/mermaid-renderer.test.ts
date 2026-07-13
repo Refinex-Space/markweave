@@ -67,7 +67,7 @@ describe("mermaid renderer baseline", () => {
 
   it("uses strict Mermaid security for the local preview baseline", () => {
     expect(markweaveMermaidBehavior.securityLevel).toBe("strict");
-    expect(markweaveMermaidBehavior.defaultMode).toBe("code");
+    expect(markweaveMermaidBehavior.defaultMode).toBe("preview");
     expect(markweaveMermaidBehavior.theme).toBe("base");
     expect(markweaveMermaidBehavior.themeVariables).toMatchObject({
       background: "transparent",
@@ -81,7 +81,8 @@ describe("mermaid renderer baseline", () => {
   });
 
   it("models Code and Preview mode without losing source text", () => {
-    expect(normalizeMermaidPreviewMode("invalid")).toBe("code");
+    expect(normalizeMermaidPreviewMode("invalid")).toBe("preview");
+    expect(normalizeMermaidPreviewMode("code")).toBe("code");
 
     expect(getMermaidPreviewState({ active: true, mode: "preview", source: "graph TD\nA --> B" })).toEqual({
       active: true,
@@ -99,7 +100,7 @@ describe("mermaid renderer baseline", () => {
 
     expect(getMermaidPreviewState({ active: false, mode: "preview", source: "graph TD\nA --> B" })).toEqual({
       active: false,
-      mode: "code",
+      mode: "preview",
       source: "",
       shouldRenderPreview: false,
       sourceRecoverable: false,

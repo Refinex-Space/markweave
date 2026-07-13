@@ -118,7 +118,7 @@ describe("mermaid inline preview", () => {
     expect(editor.view.dom.querySelector('[data-testid="markweave-mermaid-inline-preview"]')).toBeNull();
   });
 
-  it("does not force shifted existing Mermaid code blocks into Preview when text is inserted before them", () => {
+  it("keeps default Mermaid blocks in Preview when text is inserted before them", () => {
     const editor = createEditor(`
 <p>intro</p>
 <pre><code class="language-mermaid">graph TD
@@ -131,16 +131,16 @@ describe("mermaid inline preview", () => {
     expect(codeBlockSnapshots(editor)).toEqual([
       {
         language: "mermaid",
-        mermaidPreviewMode: "code",
+        mermaidPreviewMode: "preview",
         text: "graph TD\n  A --> B",
       },
     ]);
-    expect(editor.view.dom.querySelector('[data-testid="markweave-mermaid-inline-preview"]')).toBeNull();
+    expect(editor.view.dom.querySelector('[data-testid="markweave-mermaid-inline-preview"]')).not.toBeNull();
   });
 
   it("renders the Mermaid preview widget after the active Mermaid code block", () => {
     const editor = createEditor(`
-<pre><code class="language-mermaid">graph TD
+<pre><code class="language-mermaid" data-mermaid-preview-mode="code">graph TD
   A --> B</code></pre>
 `);
 
@@ -164,7 +164,6 @@ describe("mermaid inline preview", () => {
   A --> B</code></pre>`);
 
     expect(editor.commands.setTextSelection(textPosition(editor, "A --> B"))).toBe(true);
-    expect(setActiveCodeBlockMermaidPreviewMode(editor, "preview")).toBe(true);
     const markdownBefore = editor.getText();
 
     expect(editor.view.dom.querySelector<HTMLElement>('[data-testid="markweave-mermaid-inline-preview"]')?.dataset.theme).toBe("light");
@@ -182,7 +181,6 @@ describe("mermaid inline preview", () => {
 `);
 
     expect(editor.commands.setTextSelection(textPosition(editor, "A --> B"))).toBe(true);
-    expect(setActiveCodeBlockMermaidPreviewMode(editor, "preview")).toBe(true);
     expect(editor.commands.setTextSelection(textPosition(editor, "after"))).toBe(true);
     expect(getActiveCodeBlockState(editor).active).toBe(false);
 
@@ -213,7 +211,7 @@ describe("mermaid inline preview", () => {
   it("keeps non-Mermaid code blocks and Code mode free of inline previews", () => {
     const editor = createEditor(`
 <pre><code class="language-ts">const value = 1</code></pre>
-<pre><code class="language-mermaid">graph TD
+<pre><code class="language-mermaid" data-mermaid-preview-mode="code">graph TD
   A --> B</code></pre>
 `);
 
@@ -224,5 +222,15 @@ describe("mermaid inline preview", () => {
     expect(editor.commands.setTextSelection(textPosition(editor, "A --> B"))).toBe(true);
     expect(setActiveCodeBlockMermaidPreviewMode(editor, "code")).toBe(true);
     expect(editor.view.dom.querySelector('[data-testid="markweave-mermaid-inline-preview"]')).toBeNull();
+  });
+
+  it("serializes Code as an explicit override and omits the default Preview state", () => {
+    const editor = createEditor(`<pre><code class="language-mermaid">graph TD
+  A --> B</code></pre>`);
+
+    expect(editor.getHTML()).not.toContain("data-mermaid-preview-mode");
+    expect(editor.commands.setTextSelection(textPosition(editor, "A --> B"))).toBe(true);
+    expect(setActiveCodeBlockMermaidPreviewMode(editor, "code")).toBe(true);
+    expect(editor.getHTML()).toContain('data-mermaid-preview-mode="code"');
   });
 });

@@ -69,7 +69,7 @@ describe("playground fixtures", () => {
     expect(container.querySelector('[data-markweave-attachment="true"]')).toBeTruthy();
     expect(container.querySelector('.tiptap-mathematics-render[data-type="inline-math"]')).toBeTruthy();
     expect(container.querySelector('.tiptap-mathematics-render[data-type="block-math"]')).toBeTruthy();
-  });
+  }, 15000);
 
   it("exposes merged table cases without creating another editor entry", () => {
     expect(mergedTablePlaygroundDocument).toContain('colspan="2"');

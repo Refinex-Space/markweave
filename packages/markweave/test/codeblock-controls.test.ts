@@ -260,15 +260,15 @@ describe("code block controls", () => {
     expect(editor.state.selection.from).toBe(outsidePosition);
     expect(queryByTestId("markweave-codeblock-controls")).toBeNull();
     expect(getByTestId("markweave-mermaid-tabs").dataset.positioned).toBe("true");
-    expect(getByTestId("markweave-mermaid-tabs").style.top).toBe("60px");
+    expect(getByTestId("markweave-mermaid-tabs").style.top).toBe("100px");
     expect(getByTestId("markweave-mermaid-tabs").style.left).toBe("34px");
-    expect(getByTestId("markweave-mermaid-mode-code").dataset.active).toBe("true");
+    expect(getByTestId("markweave-mermaid-mode-preview").dataset.active).toBe("true");
 
-    click(getByTestId("markweave-mermaid-mode-preview"));
+    click(getByTestId("markweave-mermaid-mode-code"));
 
     expect(getActiveCodeBlockState(editor).active).toBe(false);
     expect(editor.state.selection.from).toBe(outsidePosition);
-    expect(editor.getHTML()).toContain('data-mermaid-preview-mode="preview"');
+    expect(editor.getHTML()).toContain('data-mermaid-preview-mode="code"');
   });
 
   it("shows code block controls on hover without requiring editor focus inside the block", async () => {
@@ -370,12 +370,12 @@ describe("code block controls", () => {
     expect(getByTestId("markweave-mermaid-tabs")).not.toBeNull();
     expect(getByTestId("markweave-codeblock-controls")).not.toBeNull();
 
-    click(getByTestId("markweave-mermaid-mode-preview"));
-    rerender("preview");
+    click(getByTestId("markweave-mermaid-mode-code"));
+    rerender("code");
 
     expect(getActiveCodeBlockState(editor).active).toBe(false);
     expect(editor.state.selection.from).toBe(outsidePosition);
-    expect(editor.getHTML()).toContain('data-mermaid-preview-mode="preview"');
+    expect(editor.getHTML()).toContain('data-mermaid-preview-mode="code"');
   });
 
   it("opens the Markweave-style language menu, filters languages, and restores editor focus after selection", () => {
@@ -590,7 +590,8 @@ describe("code block controls", () => {
       text: "flowchart TB\n  A --> B",
     });
     expect(editor.getHTML()).not.toContain("<svg");
-    expect(editor.getHTML()).toBe(initialHtml.replace(' data-mermaid-preview-mode="preview"', ""));
+    expect(editor.getHTML()).toContain('data-mermaid-preview-mode="code"');
+    expect(editor.getText()).toContain("flowchart TB\n  A --> B");
   });
 
   it("defaults read-only Mermaid blocks to preview while preserving source inspection", async () => {

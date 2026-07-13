@@ -5,6 +5,7 @@ import { Decoration, DecorationSet } from "@tiptap/pm/view";
 import { normalizeMarkweaveTheme, type MarkweaveTheme } from "../../core/theme";
 import {
   getMermaidPreviewPresentation,
+  markweaveMermaidBehavior,
   normalizeMermaidPreviewMode,
   renderMermaidDiagram,
   type MermaidPreviewMode,
@@ -55,6 +56,13 @@ function isMermaidCodeBlock(node: ProseMirrorNode) {
 
 function getNodePreviewMode(node: ProseMirrorNode): MermaidPreviewMode {
   return normalizeMermaidPreviewMode(node.attrs[mermaidPreviewModeAttribute]);
+}
+
+function parseMermaidPreviewMode(element: HTMLElement) {
+  const mode =
+    element.getAttribute("data-mermaid-preview-mode") ??
+    element.querySelector<HTMLElement>("[data-mermaid-preview-mode]")?.getAttribute("data-mermaid-preview-mode");
+  return normalizeMermaidPreviewMode(mode);
 }
 
 function getMermaidInlinePreviewPluginState(state: EditorState) {
@@ -208,43 +216,6 @@ export function setReadonlyMermaidPreviewMode(editor: Editor, pos: number, mode:
   return true;
 }
 
-function getOldPositionForNewPosition(transactions: readonly Transaction[], pos: number) {
-  let mappedPos = pos;
-
-  for (let index = transactions.length - 1; index >= 0; index -= 1) {
-    const result = transactions[index].mapping.invert().mapResult(mappedPos, 1);
-    mappedPos = result.pos;
-  }
-
-  return mappedPos;
-}
-
-function wasAlreadyMermaidCodeBlock(oldState: EditorState, transactions: readonly Transaction[], pos: number) {
-  const oldPos = getOldPositionForNewPosition(transactions, pos);
-  const oldNode = oldPos === null ? null : oldState.doc.nodeAt(oldPos);
-  return Boolean(oldNode && isMermaidCodeBlock(oldNode));
-}
-
-export function setNewMermaidCodeBlocksToPreview(oldState: EditorState, newState: EditorState, transactions: readonly Transaction[] = []) {
-  let tr = newState.tr;
-  let changed = false;
-
-  newState.doc.descendants((node, pos) => {
-    if (!isMermaidCodeBlock(node) || getNodePreviewMode(node) === "preview" || wasAlreadyMermaidCodeBlock(oldState, transactions, pos)) {
-      return true;
-    }
-
-    tr = tr.setNodeMarkup(pos, undefined, {
-      ...node.attrs,
-      [mermaidPreviewModeAttribute]: "preview",
-    });
-    changed = true;
-    return false;
-  });
-
-  return changed ? tr : null;
-}
-
 function hashPreviewKey(source: string, pos: number) {
   let hash = pos;
 
@@ -351,11 +322,11 @@ export const MarkweaveMermaidInlinePreview = Extension.create({
         types: ["codeBlock"],
         attributes: {
           [mermaidPreviewModeAttribute]: {
-            default: "code",
-            parseHTML: (element) => normalizeMermaidPreviewMode(element.getAttribute("data-mermaid-preview-mode")),
+            default: markweaveMermaidBehavior.defaultMode,
+            parseHTML: parseMermaidPreviewMode,
             renderHTML: (attributes) => {
               const mode = normalizeMermaidPreviewMode(attributes[mermaidPreviewModeAttribute]);
-              return mode === "preview" ? { "data-mermaid-preview-mode": mode } : {};
+              return mode === markweaveMermaidBehavior.defaultMode ? {} : { "data-mermaid-preview-mode": mode };
             },
           },
         },
@@ -372,13 +343,6 @@ export const MarkweaveMermaidInlinePreview = Extension.create({
           apply(transaction, previousState) {
             return applyMermaidInlinePreviewMeta(previousState, transaction);
           },
-        },
-        appendTransaction: (transactions, oldState, newState) => {
-          if (!transactions.some((transaction) => transaction.docChanged)) {
-            return null;
-          }
-
-          return setNewMermaidCodeBlocksToPreview(oldState, newState, transactions);
         },
         props: {
           decorations: createMermaidInlinePreviewDecorations,

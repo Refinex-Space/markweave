@@ -53,7 +53,7 @@ export interface MermaidRenderer {
 }
 
 export const markweaveMermaidBehavior = {
-  defaultMode: "code",
+  defaultMode: "preview",
   previewMode: "preview",
   securityLevel: "strict",
   theme: "base",
@@ -85,7 +85,7 @@ function getErrorMessage(error: unknown) {
 }
 
 export function normalizeMermaidPreviewMode(mode: unknown): MermaidPreviewMode {
-  return mode === markweaveMermaidBehavior.previewMode ? markweaveMermaidBehavior.previewMode : markweaveMermaidBehavior.defaultMode;
+  return mode === "code" ? "code" : markweaveMermaidBehavior.defaultMode;
 }
 
 export function getMermaidPreviewState(options: {

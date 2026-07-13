@@ -157,7 +157,7 @@ The composer keeps actions compact: copy address, embed, copy Markdown, and remo
 
 ## Code Block Languages
 
-Markweave 0.2.1 uses one searchable code-block language catalog across React, Vue 2, and Vue 3. Markdown fence identifiers are preserved, and every selectable identifier is registered with either a dedicated Highlight.js grammar or a documented compatible grammar.
+Markweave 0.2.2 uses one searchable code-block language catalog across React, Vue 2, and Vue 3. Markdown fence identifiers are preserved, and every selectable identifier is registered with either a dedicated Highlight.js grammar or a documented compatible grammar.
 
 - Web and templates: HTML, XML, Angular HTML, Vue HTML, CSS, SCSS, Less, Stylus, PostCSS, JavaScript, JSX, TypeScript, TSX, Django, ERB, Handlebars, PHP Template, and Twig.
 - Data and configuration: JSON, JSON5, JSONC, JSONL, Jsonnet, Hjson, YAML, INI, TOML, Properties, Protocol Buffers, GraphQL, and HTTP.
@@ -165,7 +165,7 @@ Markweave 0.2.1 uses one searchable code-block language catalog across React, Vu
 - Functional and scripting languages: Bash, Shell, PowerShell, NuShell, Clojure, Elixir, Erlang, Groovy, Haskell, Lisp, OCaml, and Scheme.
 - Tooling and infrastructure: Apache, CMake, Dockerfile, Gradle, Makefile, Nginx, Nix, SQL, PL/SQL, PostgreSQL, Diff, LaTeX, Markdown, and shell sessions.
 
-Plain text remains available without token coloring. Mermaid code blocks use plain code coloring plus Markweave's Code/Preview controls. Compatibility identifiers keep their stored fence value while using the closest registered grammar: `js`/`jsx` use JavaScript, `ts`/`tsx` use TypeScript, `angular-html`/`html`/`html-derivative`/`vue-html` use XML, `hjson`/`json5`/`jsonc`/`jsonl`/`jsonnet` use JSON, `nushell`/`shellscript`/`shellsession` use Bash, `toml` uses INI, `postcss` uses CSS, `plsql` uses SQL, and `vyper` uses Python.
+Plain text remains available without token coloring. Mermaid code blocks default to Preview and retain Markweave's Code/Preview controls; Mermaid inserted through the slash command opens in Code mode so its starter source can be edited immediately. Compatibility identifiers keep their stored fence value while using the closest registered grammar: `js`/`jsx` use JavaScript, `ts`/`tsx` use TypeScript, `angular-html`/`html`/`html-derivative`/`vue-html` use XML, `hjson`/`json5`/`jsonc`/`jsonl`/`jsonnet` use JSON, `nushell`/`shellscript`/`shellsession` use Bash, `toml` uses INI, `postcss` uses CSS, `plsql` uses SQL, and `vyper` uses Python.
 
 ## Framework Parity
 

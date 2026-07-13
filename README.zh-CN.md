@@ -152,7 +152,7 @@ resolver 会收到已校验的 HTTP(S) URL、链接标题和 `AbortSignal`，并
 
 ## 代码块语言
 
-Markweave 0.2.1 在 React、Vue 2 和 Vue 3 中共用同一套可搜索代码块语言目录。Markdown 围栏语言标识会原样保留，每个可选标识都对应独立的 Highlight.js 语法或明确的兼容语法。
+Markweave 0.2.2 在 React、Vue 2 和 Vue 3 中共用同一套可搜索代码块语言目录。Markdown 围栏语言标识会原样保留，每个可选标识都对应独立的 Highlight.js 语法或明确的兼容语法。
 
 - Web 与模板：HTML、XML、Angular HTML、Vue HTML、CSS、SCSS、Less、Stylus、PostCSS、JavaScript、JSX、TypeScript、TSX、Django、ERB、Handlebars、PHP Template、Twig。
 - 数据与配置：JSON、JSON5、JSONC、JSONL、Jsonnet、Hjson、YAML、INI、TOML、Properties、Protocol Buffers、GraphQL、HTTP。
@@ -160,7 +160,7 @@ Markweave 0.2.1 在 React、Vue 2 和 Vue 3 中共用同一套可搜索代码块
 - 函数式与脚本语言：Bash、Shell、PowerShell、NuShell、Clojure、Elixir、Erlang、Groovy、Haskell、Lisp、OCaml、Scheme。
 - 工具与基础设施：Apache、CMake、Dockerfile、Gradle、Makefile、Nginx、Nix、SQL、PL/SQL、PostgreSQL、Diff、LaTeX、Markdown、Shell Session。
 
-纯文本不做语法着色。Mermaid 代码块使用纯代码显示，并继续提供 Markweave 的 Code/Preview 控件。兼容标识不会改写已存储的围栏值：`js`/`jsx` 使用 JavaScript，`ts`/`tsx` 使用 TypeScript，`angular-html`/`html`/`html-derivative`/`vue-html` 使用 XML，`hjson`/`json5`/`jsonc`/`jsonl`/`jsonnet` 使用 JSON，`nushell`/`shellscript`/`shellsession` 使用 Bash，`toml` 使用 INI，`postcss` 使用 CSS，`plsql` 使用 SQL，`vyper` 使用 Python。
+纯文本不做语法着色。Mermaid 代码块默认使用 Preview，并继续提供 Code/Preview 控件；通过 slash 命令插入 Mermaid 时默认进入 Code，便于立即编辑初始源码。兼容标识不会改写已存储的围栏值：`js`/`jsx` 使用 JavaScript，`ts`/`tsx` 使用 TypeScript，`angular-html`/`html`/`html-derivative`/`vue-html` 使用 XML，`hjson`/`json5`/`jsonc`/`jsonl`/`jsonnet` 使用 JSON，`nushell`/`shellscript`/`shellsession` 使用 Bash，`toml` 使用 INI，`postcss` 使用 CSS，`plsql` 使用 SQL，`vyper` 使用 Python。
 
 ## 框架能力矩阵
 

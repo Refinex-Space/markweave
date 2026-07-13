@@ -148,11 +148,14 @@ describe("editor style boundary", () => {
     expect(editorCss).toContain(".markweave-video");
     expect(editorCss).toContain(".markweave-attachment");
     expect(editorCss).toContain(".markweave-separator");
-    expect(editorCss).toContain("--markweave-link-card-height: 156px");
+    expect(editorCss).toContain("--markweave-link-card-height: 118px");
+    expect(editorCss).toContain("--markweave-link-card-height: 102px");
     expect(editorCss).toContain("object-fit: cover");
     expect(editorCss).toContain('[data-markweave-indent-level="1"]');
     expect(editorCss).toContain(".markweave-codeblock-language-menu");
     expect(editorCss).toContain(".markweave-codeblock-language-label");
+    expect(editorCss).toContain(".markweave-codeblock-controls");
+    expect(editorCss).toContain("background: #ffffff");
     expect(editorCss).toContain("width: 228px");
     expect(editorCss).toContain("max-height: 220px");
     expect(editorCss).toContain("height: 30px");
@@ -182,11 +185,42 @@ describe("editor style boundary", () => {
     expect(editorCss).toContain("width: 100%");
   });
 
+  it("keeps XML, Bash, and Shell syntax tokens visibly themed", () => {
+    const requiredSyntaxSelectors = [
+      ".hljs-name",
+      ".hljs-tag",
+      ".hljs-meta",
+      ".hljs-built_in",
+      ".hljs-keyword",
+      ".hljs-string",
+      ".hljs-variable",
+      ".hljs-attribute",
+      ".hljs-operator",
+      ".hljs-property",
+      ".hljs-selector-class",
+      ".hljs-section",
+      ".hljs-addition",
+      ".hljs-deletion",
+    ];
+
+    for (const selector of requiredSyntaxSelectors) {
+      expect(editorCss).toContain(selector);
+    }
+
+    expect(editorCss).toContain("--markweave-syntax-tag: #237a45");
+    expect(editorCss).toContain("--markweave-syntax-constant: #2468a8");
+    expect(editorCss).toContain("--markweave-syntax-tag: #7ee787");
+    expect(editorCss).toContain("--markweave-syntax-constant: #79b8ff");
+    expect(editorCss).toContain("color: var(--markweave-syntax-tag)");
+    expect(editorCss).toContain("color: var(--markweave-syntax-constant)");
+    expect(editorCss).toMatch(/\.hljs-tag\.hljs-name\s*\{\s*color: var\(--markweave-syntax-tag\);\s*\}/);
+  });
+
   it("scopes ordinary list markers and compact callout spacing inside the editor", () => {
     expect(editorCss).toContain(".markweave-editor-surface ul:not(.markweave-task-list)");
     expect(editorCss).toContain("list-style-type: disc");
     expect(editorCss).toContain("list-style-type: decimal");
-    expect(editorCss).toContain(".markweave-callout > p");
+    expect(editorCss).toContain(".markweave-callout>p");
     expect(editorCss).toContain("line-height: 1.55");
   });
 

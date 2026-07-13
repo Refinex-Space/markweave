@@ -406,7 +406,7 @@ export function executeSlashCommand(editor: Editor, state: SlashCommandState, co
     case "mermaid":
       return chain
         .setCodeBlock({ language: "mermaid" })
-        .updateAttributes("codeBlock", { mermaidPreviewMode: "preview" })
+        .updateAttributes("codeBlock", { mermaidPreviewMode: "code" })
         .insertContent("graph TD\n  A[Start] --> B[End]")
         .run();
     default:
