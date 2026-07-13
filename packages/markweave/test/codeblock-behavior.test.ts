@@ -18,6 +18,7 @@ import {
   setActiveCodeBlockCollapsed,
   toggleActiveCodeBlockCollapsed,
 } from "../src/plugins/codeblock/codeblock-behavior";
+import { createMarkweaveLowlight } from "../src/plugins/codeblock/codeblock-lowlight";
 
 let activeEditor: Editor | null = null;
 const addedMockMethods: Array<{ prototype: object; key: string }> = [];
@@ -161,17 +162,29 @@ describe("code block behavior", () => {
         "rust",
         "go",
         "json",
+        "xml",
+        "properties",
+        "dockerfile",
+        "graphql",
+        "kotlin",
+        "scala",
         "yaml",
       ]),
     );
     expect(defaultMarkweaveCodeBlockLanguages).toContain("shellscript");
     expect(defaultMarkweaveCodeBlockLanguages).toContain("mermaid");
     expect(defaultMarkweaveCodeBlockLanguages).toContain("java");
-    expect(markweaveCodeBlockLanguages).toEqual(expect.arrayContaining(["text", "js", "ts"]));
+    expect(markweaveCodeBlockLanguages).toEqual(expect.arrayContaining(["text", "js", "jsx", "ts"]));
     expect(normalizeCodeBlockLanguage("typescript")).toBe("typescript");
     expect(normalizeCodeBlockLanguage("java")).toBe("java");
     expect(normalizeCodeBlockLanguage("ts")).toBe("ts");
     expect(normalizeCodeBlockLanguage("unsupported-language")).toBe(markweaveCodeBlockBehavior.defaultLanguage);
+  });
+
+  it("registers a Lowlight grammar or compatibility alias for every selectable language", () => {
+    const lowlight = createMarkweaveLowlight();
+
+    expect(markweaveCodeBlockLanguages.filter((language) => !lowlight.registered(language))).toEqual([]);
   });
 
   it("renders lowlight syntax tokens while preserving the code block language", () => {
@@ -183,6 +196,27 @@ describe("code block behavior", () => {
     expect(codeBlockSnapshot(editor)).toEqual({ language: "java", text: "public class HarnessAgent {}" });
     expect(code?.querySelector(".hljs-keyword")?.textContent).toBe("public");
     expect(code?.querySelector(".hljs-title")?.textContent).toBe("HarnessAgent");
+  });
+
+  it("renders XML syntax tokens", () => {
+    const editor = createEditor(
+      '<pre><code class="language-xml">&lt;root enabled="true"&gt;&lt;child&gt;value&lt;/child&gt;&lt;/root&gt;</code></pre>',
+    );
+    const code = editor.view.dom.querySelector("pre.markweave-code-block code");
+
+    expect(codeBlockSnapshot(editor)).toEqual({ language: "xml", text: '<root enabled="true"><child>value</child></root>' });
+    expect(code?.querySelector(".hljs-name")?.textContent).toBe("root");
+    expect(code?.querySelector(".hljs-attr")?.textContent).toBe("enabled");
+  });
+
+  it("renders Properties syntax tokens", () => {
+    const editor = createEditor(`<pre><code class="language-properties">server.port=8080
+feature.enabled=true</code></pre>`);
+    const code = editor.view.dom.querySelector("pre.markweave-code-block code");
+
+    expect(codeBlockSnapshot(editor)).toEqual({ language: "properties", text: "server.port=8080\nfeature.enabled=true" });
+    expect(code?.querySelector(".hljs-attr")?.textContent).toBe("server.port");
+    expect(code?.querySelector(".hljs-string")?.textContent).toBe("8080");
   });
 
   it("disables browser spellcheck inside rendered code blocks", () => {

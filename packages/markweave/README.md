@@ -111,6 +111,12 @@ Math formulas are editable in Live mode: click inline `$...$` or display `$$...$
 
 `innerToc` defaults to `true` and shows a built-in right-side outline derived from document headings. `innerTocPlacement` defaults to `"container"`, which keeps the outline vertically centered in the visual viewport and centers the writing column with symmetric TOC gutters. The built-in outline hides automatically when the actual editor container is narrow, preserving readable document width. Set `innerTocPlacement="viewport"` only when a fixed viewport-side outline is required; set `innerToc={false}` when rendering your own outline from `onTocChange` or `runtimeSnapshot.toc`.
 
+## Code Block Languages
+
+Markweave 0.2.1 shares one searchable language catalog across all adapters. It includes XML, Properties, INI, TOML, JSON variants, YAML, Dockerfile, Nginx, HTTP, GraphQL, Protocol Buffers, JavaScript/JSX, TypeScript/TSX, Java, Kotlin, Scala, C/C++/C#, Go, Rust, Python, Ruby, PHP, Swift, Dart, shell languages, SQL variants, and additional template, functional, scientific, and infrastructure languages.
+
+Every selectable language identifier is registered with either a dedicated Highlight.js grammar or a compatible grammar. Stored Markdown fence identifiers are preserved. Compatibility groups cover JavaScript (`js`, `jsx`), TypeScript (`ts`, `tsx`), XML-derived HTML identifiers, JSON variants, shell variants, TOML/INI, PostCSS/CSS, PL/SQL/SQL, and Vyper/Python. Plain text has no token coloring, while Mermaid continues to use Markweave's Code/Preview controls.
+
 ## Framework Parity
 
 | Capability | React | Vue 3 | Vue 2 |

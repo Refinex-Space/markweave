@@ -390,13 +390,13 @@ describe("code block controls", () => {
     expect(getByTestId("markweave-codeblock-language-menu").dataset.positioned).toBe("true");
     expect(inputFocus).toHaveBeenCalledWith({ preventScroll: true });
 
-    inputValue(getByTestId<HTMLInputElement>("markweave-codeblock-language-search"), "json");
-    expect(getByTestId("markweave-codeblock-language-option-json")).not.toBeNull();
+    inputValue(getByTestId<HTMLInputElement>("markweave-codeblock-language-search"), "properties");
+    expect(getByTestId("markweave-codeblock-language-option-properties")).not.toBeNull();
     expect(queryByTestId("markweave-codeblock-language-option-java")).toBeNull();
 
-    click(getByTestId("markweave-codeblock-language-option-json"));
+    click(getByTestId("markweave-codeblock-language-option-properties"));
 
-    expect(getActiveCodeBlockState(editor).language).toBe("json");
+    expect(getActiveCodeBlockState(editor).language).toBe("properties");
     expect(queryByTestId("markweave-codeblock-language-menu")).toBeNull();
     expect(editor.view.hasFocus()).toBe(true);
   });

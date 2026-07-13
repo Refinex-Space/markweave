@@ -20,12 +20,12 @@ import TaskItem from "@tiptap/extension-task-item";
 import TaskList from "@tiptap/extension-task-list";
 import Underline from "@tiptap/extension-underline";
 import StarterKit from "@tiptap/starter-kit";
-import { common, createLowlight } from "lowlight";
 import { MarkweaveCompositionGuard } from "./composition-guard";
 import { MarkweaveLinkClick } from "./link-click";
 import { MarkweaveMarkBoundary } from "./mark-boundary";
 import { MarkweaveCallout } from "../plugins/callout/callout-node";
 import { MarkweaveCodeBlockClickFocus, MarkweaveCodeBlockCollapse, markweaveCodeBlockBehavior } from "../plugins/codeblock/codeblock-behavior";
+import { createMarkweaveLowlight } from "../plugins/codeblock/codeblock-lowlight";
 import { MarkweaveIndent } from "../plugins/indent/indent-extension";
 import { MarkweaveLinkCard } from "../plugins/link-card/link-card-node";
 import { MarkweaveMarkdownInput } from "../plugins/markdown/markdown-input";
@@ -51,7 +51,7 @@ export interface CreateMarkweaveEditorExtensionsOptions {
   readonly linkCardExtension?: AnyExtension;
 }
 
-const markweaveLowlight = createLowlight(common);
+const markweaveLowlight = createMarkweaveLowlight();
 const renderStandardTableMarkdown = (Table.config as {
   renderMarkdown?: (node: JSONContent, helpers: MarkdownRendererHelpers, context: RenderContext) => string;
 }).renderMarkdown;

@@ -150,6 +150,18 @@ resolver 会收到已校验的 HTTP(S) URL、链接标题和 `AbortSignal`，并
 
 `innerToc` 默认是 `true`，会根据 Markdown 标题渲染内置右侧目录。`innerTocPlacement` 默认是 `"container"`：目录会相对视觉窗口垂直居中，正文以对称的目录留白保持居中；实际编辑器容器较窄时会自动隐藏内置目录，优先保证正文可读性。仅在确实需要固定到浏览器视口右侧时使用 `innerTocPlacement="viewport"`；传 `innerToc={false}` 或 `:inner-toc="false"` 可以隐藏内置 UI，同时继续通过 `onTocChange` 和 `onRuntimeStateChange` 获取目录数据。
 
+## 代码块语言
+
+Markweave 0.2.1 在 React、Vue 2 和 Vue 3 中共用同一套可搜索代码块语言目录。Markdown 围栏语言标识会原样保留，每个可选标识都对应独立的 Highlight.js 语法或明确的兼容语法。
+
+- Web 与模板：HTML、XML、Angular HTML、Vue HTML、CSS、SCSS、Less、Stylus、PostCSS、JavaScript、JSX、TypeScript、TSX、Django、ERB、Handlebars、PHP Template、Twig。
+- 数据与配置：JSON、JSON5、JSONC、JSONL、Jsonnet、Hjson、YAML、INI、TOML、Properties、Protocol Buffers、GraphQL、HTTP。
+- 系统与应用语言：C、C++、C#、Java、Kotlin、Scala、Go、Rust、Python、Ruby、PHP、Swift、Objective-C、Dart、F#、Fortran、Lua、Perl、R、MATLAB、GLSL、WebAssembly、Arduino、Vyper。
+- 函数式与脚本语言：Bash、Shell、PowerShell、NuShell、Clojure、Elixir、Erlang、Groovy、Haskell、Lisp、OCaml、Scheme。
+- 工具与基础设施：Apache、CMake、Dockerfile、Gradle、Makefile、Nginx、Nix、SQL、PL/SQL、PostgreSQL、Diff、LaTeX、Markdown、Shell Session。
+
+纯文本不做语法着色。Mermaid 代码块使用纯代码显示，并继续提供 Markweave 的 Code/Preview 控件。兼容标识不会改写已存储的围栏值：`js`/`jsx` 使用 JavaScript，`ts`/`tsx` 使用 TypeScript，`angular-html`/`html`/`html-derivative`/`vue-html` 使用 XML，`hjson`/`json5`/`jsonc`/`jsonl`/`jsonnet` 使用 JSON，`nushell`/`shellscript`/`shellsession` 使用 Bash，`toml` 使用 INI，`postcss` 使用 CSS，`plsql` 使用 SQL，`vyper` 使用 Python。
+
 ## 框架能力矩阵
 
 | 能力 | React | Vue 3 | Vue 2 |
