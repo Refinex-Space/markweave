@@ -37,6 +37,7 @@ import {
 import { MarkweaveCoreImage, MarkweaveCoreVideo } from "../plugins/media/core-media-nodes";
 import { MarkweaveAttachment } from "../plugins/media/media-nodes";
 import { MarkweaveMermaidInlinePreview } from "../plugins/mermaid/mermaid-inline-preview";
+import { MarkweaveSearch } from "../plugins/search/search-controller";
 import { MarkweaveTableClipboard } from "../plugins/table/table-clipboard";
 import { MarkweaveTableArrowNavigation } from "../plugins/table/table-arrow-navigation";
 import { MarkweaveTableInteractionLayer } from "../plugins/table/table-interaction-layer";
@@ -180,6 +181,7 @@ export function createMarkweaveEditorExtensions(options: CreateMarkweaveEditorEx
       },
     }),
     MarkweaveMarkBoundary,
+    MarkweaveSearch,
     options.linkCardExtension ?? MarkweaveLinkCard,
     ...(options.mediaExtensions ?? [MarkweaveCoreImage, MarkweaveCoreVideo]),
     MarkweaveAttachment,

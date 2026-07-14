@@ -12,6 +12,7 @@ import {
   type MarkweaveContentFormat,
   type MarkweaveEditorController,
   type MarkweaveEditorMode,
+  type MarkweaveSearchController,
   type MarkweaveTocItem,
   type MarkweaveTocState,
   type MarkweaveLang,
@@ -143,11 +144,14 @@ describe("editor entrypoint boundary", () => {
     expect(indexSource).toContain("MarkweaveContentFormat");
     expect(indexSource).toContain("MarkweaveTocItem");
     expect(indexSource).toContain("MarkweaveTocState");
+    expect(indexSource).toContain("createMarkweaveSearchController");
+    expect(indexSource).toContain("MarkweaveSearchController");
     expect(reactShim).toContain('from "@markweave/react"');
     expect(vue2Shim).toContain('from "@markweave/vue2"');
     expect(vue3Shim).toContain('from "@markweave/vue3"');
     expect(reactIndexSource).toContain("MarkweaveEditor");
     expect(reactIndexSource).toContain("useMarkweaveEditorController");
+    expect(reactIndexSource).toContain("MarkweaveSearchController");
     expect(vue2IndexSource).toContain("MarkweaveEditor");
     expect(vue2IndexSource).toContain("useMarkweaveEditorController");
     expect(vue3IndexSource).toContain("MarkweaveEditor");
@@ -156,8 +160,10 @@ describe("editor entrypoint boundary", () => {
     const defaultFormat: MarkweaveContentFormat = "markdown";
     const tocState: MarkweaveTocState = { activeId: null, items: [] };
     const tocItem: MarkweaveTocItem | undefined = tocState.items[0];
+    const searchController: MarkweaveSearchController | null = null;
     expect(defaultFormat).toBe("markdown");
     expect(tocItem).toBeUndefined();
+    expect(searchController).toBeNull();
   });
 
   it("keeps playground code out of the publishable package", () => {
