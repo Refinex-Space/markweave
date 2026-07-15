@@ -1,6 +1,6 @@
 ---
 owner: refinex
-updated: 2026-07-14
+updated: 2026-07-15
 status: active
 referenced_by: AGENTS.md#knowledge-map
 ---
@@ -50,7 +50,7 @@ The built-in document outline is enabled by default with `innerToc={true}`. It d
 - previews and controls: Mermaid inline preview, floating toolbar, slash menu, table controls, table selection overlay, code block controls
 - link editing: the floating toolbar opens an inline link popover for selected text, with apply, open, and remove actions
 - math editing: inline and block math render through the shared mathematics extension, while Live mode adapters expose the shared in-place LaTeX editor and View mode remains read-only
-- image editing: the image node renders an inline upload placeholder for empty images, then exposes align, caption, download, replace, delete, and width-resize controls through framework-specific NodeViews
+- image editing: the shared core clipboard extension inserts remote HTTP(S) images directly and routes pasted local image files through the host upload handler; the image node renders an inline upload placeholder for empty or failed local images, then exposes align, caption, download, replace, delete, and width-resize controls through framework-specific NodeViews
 - video insertion: the video node renders an inline upload placeholder for empty videos, supports local-file host uploads and direct video URLs, and automatically embeds YouTube and Bilibili links or whitelisted platform embed sources through framework-specific NodeViews
 - editor modes: `mode="live"` keeps the full editable surface, while `mode="view"` is a UI-only read mode that reuses the same document rendering and keeps serialization output unchanged
 - inner TOC: framework adapters render the right-side hover outline by default and keep the TOC state available even when the built-in UI is disabled

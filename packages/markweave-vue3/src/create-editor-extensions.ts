@@ -15,6 +15,7 @@ export interface CreateMarkweaveVue3EditorExtensionsOptions {
 export function createMarkweaveVue3EditorExtensions(options: CreateMarkweaveVue3EditorExtensionsOptions = {}) {
   return createMarkweaveCoreEditorExtensions({
     lang: options.lang,
+    onImageUpload: options.onImageUpload,
     linkCardExtension: MarkweaveVueLinkCard.configure({ lang: options.lang, messages: getMarkweaveMessages(options.lang), resolver: options.linkCardResolver }),
     mediaExtensions: createMarkweaveAdapterMediaExtensions({
       image: MarkweaveVueImage,

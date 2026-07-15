@@ -1,6 +1,6 @@
 ---
 owner: refinex
-updated: 2026-07-09
+updated: 2026-07-15
 status: active
 referenced_by: AGENTS.md#knowledge-map
 ---
@@ -104,7 +104,7 @@ Before publishing, verify:
 - `packages/markweave-react/dist/index.js`, `packages/markweave-vue2/dist/index.js`, and `packages/markweave-vue3/dist/index.js` are produced by `pnpm build`
 - `pnpm --filter markweave pack --dry-run` includes only core package files such as `dist`, legacy adapter shims, `styles.css`, `README.md`, `LICENSE`, and package metadata
 - `pnpm --filter @markweave/react pack --dry-run`, `pnpm --filter @markweave/vue2 pack --dry-run`, and `pnpm --filter @markweave/vue3 pack --dry-run` include only adapter package files
-- packed adapter package metadata rewrites the local `markweave: workspace:^` dependency to the publishable `markweave: ^0.1.0` dependency
+- packed adapter package metadata rewrites the local `markweave: workspace:^` dependency to the current publishable core version range
 - playground-only files are not included in package `files`
 - README usage examples match the exported API
 

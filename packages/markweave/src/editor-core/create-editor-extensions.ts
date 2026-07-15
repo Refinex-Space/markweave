@@ -35,6 +35,7 @@ import {
   renderMarkweaveHtmlFallback,
 } from "../plugins/markdown/lossless-html";
 import { MarkweaveCoreImage, MarkweaveCoreVideo } from "../plugins/media/core-media-nodes";
+import { MarkweaveImageClipboard } from "../plugins/media/image-clipboard";
 import { MarkweaveAttachment } from "../plugins/media/media-nodes";
 import { MarkweaveMermaidInlinePreview } from "../plugins/mermaid/mermaid-inline-preview";
 import { MarkweaveSearch } from "../plugins/search/search-controller";
@@ -45,11 +46,13 @@ import { MarkweaveTableKeyboard } from "../plugins/table/table-keyboard";
 import { MarkweaveMarkdownTableInput } from "../plugins/table/table-markdown-input";
 
 import type { MarkweaveLang } from "../i18n";
+import type { MarkweaveSlashCommandUploadHandler } from "../plugins/slash-command/upload";
 
 export interface CreateMarkweaveEditorExtensionsOptions {
   readonly lang?: MarkweaveLang;
   readonly mediaExtensions?: Extensions;
   readonly linkCardExtension?: AnyExtension;
+  readonly onImageUpload?: MarkweaveSlashCommandUploadHandler;
 }
 
 const markweaveLowlight = createMarkweaveLowlight();
@@ -184,6 +187,9 @@ export function createMarkweaveEditorExtensions(options: CreateMarkweaveEditorEx
     MarkweaveSearch,
     options.linkCardExtension ?? MarkweaveLinkCard,
     ...(options.mediaExtensions ?? [MarkweaveCoreImage, MarkweaveCoreVideo]),
+    MarkweaveImageClipboard.configure({
+      onUpload: options.onImageUpload,
+    }),
     MarkweaveAttachment,
     HorizontalRule.configure({
       HTMLAttributes: {

@@ -113,6 +113,8 @@ Math formulas are editable in Live mode: click inline `$...$` or display `$$...$
 
 Markweave 0.2.3 exports `createMarkweaveSearchController` and the shared `MarkweaveSearch` extension. The default extension bundle already registers it. Controllers support Unicode-aware literal and regex queries, case and whole-word options, cyclic navigation, ProseMirror result decorations, subscriptions, and editable-only replacement.
 
+Markweave 0.2.4 adds framework-neutral image clipboard handling. Local image files use the host upload callback, while HTTP(S) images from image-only HTML or standalone URLs with common image extensions are inserted directly without remote MIME detection.
+
 ## Code Block Languages
 
 Markweave 0.2.2 shares one searchable language catalog across all adapters. It includes XML, Properties, INI, TOML, JSON variants, YAML, Dockerfile, Nginx, HTTP, GraphQL, Protocol Buffers, JavaScript/JSX, TypeScript/TSX, Java, Kotlin, Scala, C/C++/C#, Go, Rust, Python, Ruby, PHP, Swift, Dart, shell languages, SQL variants, and additional template, functional, scientific, and infrastructure languages.
@@ -127,7 +129,7 @@ Every selectable language identifier is registered with either a dedicated Highl
 | Live/View mode | Yes | Yes | Yes |
 | Floating toolbar | Yes | Yes | Yes |
 | Slash command menu | Yes | Yes | Yes |
-| Tables and clipboard callbacks | Yes | Yes | Yes |
+| Tables and image clipboard paste | Yes | Yes | Yes |
 | Image/video/attachment rendering | Yes | Yes | Yes |
 | Code blocks and Mermaid | Yes | Yes | Yes |
 | Math editing/rendering | Yes | Yes | Yes |

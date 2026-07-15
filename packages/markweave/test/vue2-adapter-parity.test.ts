@@ -22,6 +22,7 @@ describe("Vue2 adapter parity source contract", () => {
       "video: MarkweaveVueVideo",
       "onImageUpload",
       "onVideoUpload",
+      "onImageUpload: options.onImageUpload",
       "linkCardResolver",
       "MarkweaveVueLinkCard",
     ]);

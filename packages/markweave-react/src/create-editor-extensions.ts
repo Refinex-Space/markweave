@@ -17,6 +17,7 @@ export interface CreateMarkweaveReactEditorExtensionsOptions {
 export function createMarkweaveReactEditorExtensions(options: CreateMarkweaveReactEditorExtensionsOptions = {}) {
   return createMarkweaveCoreEditorExtensions({
     lang: options.lang,
+    onImageUpload: options.onImageUpload,
     linkCardExtension: MarkweaveReactLinkCard.configure({
       lang: options.lang,
       messages: getMarkweaveMessages(options.lang),
