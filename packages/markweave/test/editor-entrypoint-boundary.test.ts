@@ -12,6 +12,7 @@ import {
   type MarkweaveContentFormat,
   type MarkweaveEditorController,
   type MarkweaveEditorMode,
+  type MarkweaveSearchController,
   type MarkweaveTocItem,
   type MarkweaveTocState,
   type MarkweaveLang,
@@ -87,8 +88,10 @@ describe("editor entrypoint boundary", () => {
         keywords?: string[];
         publishConfig?: { access?: string; registry?: string };
         repository?: { directory?: string; type?: string; url?: string };
+        version?: string;
       };
 
+      expect(packageJson.version).toBe("0.2.4");
       expect(packageJson.homepage).toBe(homepageUrl);
       expect(packageJson.bugs).toEqual({ url: bugsUrl });
       expect(packageJson.repository).toEqual({
@@ -143,11 +146,14 @@ describe("editor entrypoint boundary", () => {
     expect(indexSource).toContain("MarkweaveContentFormat");
     expect(indexSource).toContain("MarkweaveTocItem");
     expect(indexSource).toContain("MarkweaveTocState");
+    expect(indexSource).toContain("createMarkweaveSearchController");
+    expect(indexSource).toContain("MarkweaveSearchController");
     expect(reactShim).toContain('from "@markweave/react"');
     expect(vue2Shim).toContain('from "@markweave/vue2"');
     expect(vue3Shim).toContain('from "@markweave/vue3"');
     expect(reactIndexSource).toContain("MarkweaveEditor");
     expect(reactIndexSource).toContain("useMarkweaveEditorController");
+    expect(reactIndexSource).toContain("MarkweaveSearchController");
     expect(vue2IndexSource).toContain("MarkweaveEditor");
     expect(vue2IndexSource).toContain("useMarkweaveEditorController");
     expect(vue3IndexSource).toContain("MarkweaveEditor");
@@ -156,8 +162,10 @@ describe("editor entrypoint boundary", () => {
     const defaultFormat: MarkweaveContentFormat = "markdown";
     const tocState: MarkweaveTocState = { activeId: null, items: [] };
     const tocItem: MarkweaveTocItem | undefined = tocState.items[0];
+    const searchController: MarkweaveSearchController | null = null;
     expect(defaultFormat).toBe("markdown");
     expect(tocItem).toBeUndefined();
+    expect(searchController).toBeNull();
   });
 
   it("keeps playground code out of the publishable package", () => {
@@ -238,6 +246,19 @@ describe("editor entrypoint boundary", () => {
     expect(vue3Package.peerDependencies).toEqual({ vue: "^3.3.0" });
     expect(vue3Package.dependencies).not.toHaveProperty("@tiptap/react");
     expect(vue3Package.dependencies).not.toHaveProperty("@tiptap/vue-2");
+  });
+
+  it("passes the image upload handler from every adapter into the shared clipboard extension", () => {
+    for (const path of [
+      "packages/markweave-react/src/create-editor-extensions.ts",
+      "packages/markweave-vue2/src/create-editor-extensions.ts",
+      "packages/markweave-vue3/src/create-editor-extensions.ts",
+    ]) {
+      const source = readWorkspaceFile(path);
+
+      expect(source).toContain("createMarkweaveCoreEditorExtensions");
+      expect(source).toContain("onImageUpload: options.onImageUpload");
+    }
   });
 
   it("renders the complete editor frame through the public component", async () => {

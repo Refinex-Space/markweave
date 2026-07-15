@@ -12,6 +12,12 @@ function expectSourceContract(source: string, selectors: readonly string[]) {
 }
 
 describe("Vue3 adapter parity source contract", () => {
+  it("passes image uploads into the shared core clipboard behavior", () => {
+    const source = readWorkspaceFile("packages/markweave-vue3/src/create-editor-extensions.ts");
+
+    expectSourceContract(source, ["createMarkweaveCoreEditorExtensions", "onImageUpload: options.onImageUpload"]);
+  });
+
   it("keeps floating toolbar DOM hooks aligned with the React adapter", () => {
     const source = readWorkspaceFile("packages/markweave-vue3/src/MarkweaveEditor.ts");
 

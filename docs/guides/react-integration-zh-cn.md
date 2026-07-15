@@ -1,6 +1,6 @@
 ---
 owner: refinex
-updated: 2026-07-11
+updated: 2026-07-15
 status: active
 referenced_by: docs/README.md#knowledge-map
 ---
@@ -106,6 +106,8 @@ export function ControlledEditor({ value }: { value: string }) {
 
 高级自定义壳层可以使用 `useMarkweaveEditorController`，其中 `actions.setContent(content, { format, emitUpdate, focusFirstTableBodyCell })` 可用于命令式设置内容。普通产品接入推荐直接使用 `MarkweaveEditor`，因为它已经渲染完整的 toolbar、slash 菜单、表格控制、代码块控制、数学公式编辑、媒体 NodeView 和 TOC。
 
+宿主如需实现文档内查找/替换 UI，可通过 `onSearchControllerChange` 保存共享搜索 controller。调用 `subscribe` 同步结果计数，通过 `setQuery`/`setOptions` 更新查询，使用 `findNext`/`findPrevious` 导航，并在可编辑模式调用 `replaceCurrent`/`replaceAll`。关闭搜索栏时调用 `clear` 移除全部搜索 Decoration。
+
 ## 模式、语言与目录
 
 ```tsx
@@ -138,6 +140,8 @@ export function ControlledEditor({ value }: { value: string }) {
 ## 上传 API
 
 图片和视频支持 URL、绝对路径、相对路径、Base64、本地文件。本地文件必须由宿主通过 `onSlashCommandUpload` 上传；URL/path/Base64 可以直接作为结果使用。
+
+Live 模式下，粘贴本地 `image/*` 剪贴板文件会按顺序插入全部图片，并通过同一个 `onSlashCommandUpload` 处理器逐个上传，请求使用 `kind: "image"` 和 `trigger: "image-insert"`。仅包含图片的 HTML `<img>` 剪贴板内容在来源为 HTTP(S) 时直接插入；单独的 HTTP(S) URL 只有路径带常见图片扩展名时才转换为图片，Markweave 不会请求远端判断类型。同一次剪贴板同时存在文件和 HTML/URL 表示时优先处理文件，避免重复插入。
 
 ```tsx
 import {

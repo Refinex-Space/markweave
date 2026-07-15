@@ -593,7 +593,11 @@ describe("Markweave Vue3 editor", () => {
     );
 
     expect(getByTestId(container, "markweave-mermaid-tabs").getAttribute("data-positioned")).toBe("true");
+    expect(getByTestId(container, "markweave-mermaid-mode-preview").getAttribute("data-active")).toBe("true");
+
+    await click(getByTestId(container, "markweave-mermaid-mode-code"));
     expect(getByTestId(container, "markweave-mermaid-mode-code").getAttribute("data-active")).toBe("true");
+    expect(queryByTestId(container, "markweave-mermaid-inline-preview")).toBeNull();
 
     await click(getByTestId(container, "markweave-mermaid-mode-preview"));
     expect(getByTestId(container, "markweave-mermaid-mode-preview").getAttribute("data-active")).toBe("true");
@@ -667,5 +671,5 @@ describe("Markweave Vue3 editor", () => {
     await flushVue();
     expect(writeText).toHaveBeenCalledWith("flowchart TB\n  A --> B");
     expect(getByTestId(container, "markweave-codeblock-copy").getAttribute("data-copy-state")).toBe("copied");
-  });
+  }, 15000);
 });

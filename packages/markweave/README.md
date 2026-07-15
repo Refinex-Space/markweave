@@ -111,6 +111,16 @@ Math formulas are editable in Live mode: click inline `$...$` or display `$$...$
 
 `innerToc` defaults to `true` and shows a built-in right-side outline derived from document headings. `innerTocPlacement` defaults to `"container"`, which keeps the outline vertically centered in the visual viewport and centers the writing column with symmetric TOC gutters. The built-in outline hides automatically when the actual editor container is narrow, preserving readable document width. Set `innerTocPlacement="viewport"` only when a fixed viewport-side outline is required; set `innerToc={false}` when rendering your own outline from `onTocChange` or `runtimeSnapshot.toc`.
 
+Markweave 0.2.3 exports `createMarkweaveSearchController` and the shared `MarkweaveSearch` extension. The default extension bundle already registers it. Controllers support Unicode-aware literal and regex queries, case and whole-word options, cyclic navigation, ProseMirror result decorations, subscriptions, and editable-only replacement.
+
+Markweave 0.2.4 adds framework-neutral image clipboard handling. Local image files use the host upload callback, while HTTP(S) images from image-only HTML or standalone URLs with common image extensions are inserted directly without remote MIME detection.
+
+## Code Block Languages
+
+Markweave 0.2.2 shares one searchable language catalog across all adapters. It includes XML, Properties, INI, TOML, JSON variants, YAML, Dockerfile, Nginx, HTTP, GraphQL, Protocol Buffers, JavaScript/JSX, TypeScript/TSX, Java, Kotlin, Scala, C/C++/C#, Go, Rust, Python, Ruby, PHP, Swift, Dart, shell languages, SQL variants, and additional template, functional, scientific, and infrastructure languages.
+
+Every selectable language identifier is registered with either a dedicated Highlight.js grammar or a compatible grammar. Stored Markdown fence identifiers are preserved. Compatibility groups cover JavaScript (`js`, `jsx`), TypeScript (`ts`, `tsx`), XML-derived HTML identifiers, JSON variants, shell variants, TOML/INI, PostCSS/CSS, PL/SQL/SQL, and Vyper/Python. Plain text has no token coloring. Mermaid defaults to Preview, while slash-inserted Mermaid opens in Code mode for immediate source editing.
+
 ## Framework Parity
 
 | Capability | React | Vue 3 | Vue 2 |
@@ -119,7 +129,7 @@ Math formulas are editable in Live mode: click inline `$...$` or display `$$...$
 | Live/View mode | Yes | Yes | Yes |
 | Floating toolbar | Yes | Yes | Yes |
 | Slash command menu | Yes | Yes | Yes |
-| Tables and clipboard callbacks | Yes | Yes | Yes |
+| Tables and image clipboard paste | Yes | Yes | Yes |
 | Image/video/attachment rendering | Yes | Yes | Yes |
 | Code blocks and Mermaid | Yes | Yes | Yes |
 | Math editing/rendering | Yes | Yes | Yes |

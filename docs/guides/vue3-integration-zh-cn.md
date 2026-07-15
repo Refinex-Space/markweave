@@ -1,6 +1,6 @@
 ---
 owner: refinex
-updated: 2026-07-11
+updated: 2026-07-15
 status: active
 referenced_by: docs/README.md#knowledge-map
 ---
@@ -156,6 +156,8 @@ function handleRuntimeStateChange(snapshot) {
 ## 上传 API
 
 图片和视频支持 URL、绝对路径、相对路径、Base64、本地文件。本地文件必须由宿主通过 `on-slash-command-upload` 上传；URL/path/Base64 可以直接作为结果使用。
+
+Live 模式下，粘贴本地 `image/*` 剪贴板文件会按顺序插入全部图片，并通过同一个 `on-slash-command-upload` 处理器逐个上传，请求使用 `kind: "image"` 和 `trigger: "image-insert"`。仅包含图片的 HTML `<img>` 剪贴板内容在来源为 HTTP(S) 时直接插入；单独的 HTTP(S) URL 只有路径带常见图片扩展名时才转换为图片，Markweave 不会请求远端判断类型。同一次剪贴板同时存在文件和 HTML/URL 表示时优先处理文件，避免重复插入。
 
 ```vue
 <script setup lang="ts">

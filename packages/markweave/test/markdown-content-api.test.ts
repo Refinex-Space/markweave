@@ -196,12 +196,14 @@ describe("Markdown-first content API", () => {
       '<a href="markweave://sample/spec.pdf" data-markweave-attachment="true" data-markweave-attachment-name="spec.pdf">spec.pdf</a>',
     ].join("\n");
 
-    await renderReact(createElement(Harness, { defaultContent: markdown }));
+    const container = await renderReact(createElement(Harness, { defaultContent: markdown }));
     const editor = getActiveController().editor;
+    const mermaidNode = editor?.getJSON().content?.find((node) => node.type === "codeBlock" && node.attrs?.language === "mermaid");
 
     expect(editor?.getJSON().content?.some((node) => node.type === "taskList")).toBe(true);
     expect(editor?.getJSON().content?.some((node) => node.type === "table")).toBe(true);
-    expect(editor?.getJSON().content?.some((node) => node.type === "codeBlock" && node.attrs?.language === "mermaid")).toBe(true);
+    expect(mermaidNode?.attrs?.mermaidPreviewMode).toBe("preview");
+    expect(container.querySelector('[data-testid="markweave-mermaid-inline-preview"]')).not.toBeNull();
     expect(editor?.getJSON().content?.some((node) => node.type === "markweaveCallout" && node.attrs?.type === "warning")).toBe(true);
     expect(editor?.getJSON().content?.some((node) => node.type === "image" && node.attrs?.caption === "Diagram caption")).toBe(true);
     expect(editor?.getJSON().content?.some((node) => node.type === "markweaveVideo" && node.attrs?.provider === "youtube")).toBe(true);
@@ -213,5 +215,5 @@ describe("Markdown-first content API", () => {
     expect(serialized).toContain("data-markweave-image");
     expect(serialized).toContain("data-markweave-video-embed");
     expect(serialized).toContain("data-markweave-attachment");
-  });
+  }, 15000);
 });

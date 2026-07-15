@@ -20,11 +20,12 @@ import TaskItem from "@tiptap/extension-task-item";
 import TaskList from "@tiptap/extension-task-list";
 import Underline from "@tiptap/extension-underline";
 import StarterKit from "@tiptap/starter-kit";
-import { common, createLowlight } from "lowlight";
 import { MarkweaveCompositionGuard } from "./composition-guard";
+import { MarkweaveLinkClick } from "./link-click";
 import { MarkweaveMarkBoundary } from "./mark-boundary";
 import { MarkweaveCallout } from "../plugins/callout/callout-node";
 import { MarkweaveCodeBlockClickFocus, MarkweaveCodeBlockCollapse, markweaveCodeBlockBehavior } from "../plugins/codeblock/codeblock-behavior";
+import { createMarkweaveLowlight } from "../plugins/codeblock/codeblock-lowlight";
 import { MarkweaveIndent } from "../plugins/indent/indent-extension";
 import { MarkweaveLinkCard } from "../plugins/link-card/link-card-node";
 import { MarkweaveMarkdownInput } from "../plugins/markdown/markdown-input";
@@ -34,8 +35,10 @@ import {
   renderMarkweaveHtmlFallback,
 } from "../plugins/markdown/lossless-html";
 import { MarkweaveCoreImage, MarkweaveCoreVideo } from "../plugins/media/core-media-nodes";
+import { MarkweaveImageClipboard } from "../plugins/media/image-clipboard";
 import { MarkweaveAttachment } from "../plugins/media/media-nodes";
 import { MarkweaveMermaidInlinePreview } from "../plugins/mermaid/mermaid-inline-preview";
+import { MarkweaveSearch } from "../plugins/search/search-controller";
 import { MarkweaveTableClipboard } from "../plugins/table/table-clipboard";
 import { MarkweaveTableArrowNavigation } from "../plugins/table/table-arrow-navigation";
 import { MarkweaveTableInteractionLayer } from "../plugins/table/table-interaction-layer";
@@ -43,14 +46,16 @@ import { MarkweaveTableKeyboard } from "../plugins/table/table-keyboard";
 import { MarkweaveMarkdownTableInput } from "../plugins/table/table-markdown-input";
 
 import type { MarkweaveLang } from "../i18n";
+import type { MarkweaveSlashCommandUploadHandler } from "../plugins/slash-command/upload";
 
 export interface CreateMarkweaveEditorExtensionsOptions {
   readonly lang?: MarkweaveLang;
   readonly mediaExtensions?: Extensions;
   readonly linkCardExtension?: AnyExtension;
+  readonly onImageUpload?: MarkweaveSlashCommandUploadHandler;
 }
 
-const markweaveLowlight = createLowlight(common);
+const markweaveLowlight = createMarkweaveLowlight();
 const renderStandardTableMarkdown = (Table.config as {
   renderMarkdown?: (node: JSONContent, helpers: MarkdownRendererHelpers, context: RenderContext) => string;
 }).renderMarkdown;
@@ -159,6 +164,7 @@ export function createMarkweaveEditorExtensions(options: CreateMarkweaveEditorEx
         class: "markweave-link",
       },
     }),
+    MarkweaveLinkClick,
     MarkweaveMarkdownInput,
     Emoji.configure({
       emojis,
@@ -178,8 +184,12 @@ export function createMarkweaveEditorExtensions(options: CreateMarkweaveEditorEx
       },
     }),
     MarkweaveMarkBoundary,
+    MarkweaveSearch,
     options.linkCardExtension ?? MarkweaveLinkCard,
     ...(options.mediaExtensions ?? [MarkweaveCoreImage, MarkweaveCoreVideo]),
+    MarkweaveImageClipboard.configure({
+      onUpload: options.onImageUpload,
+    }),
     MarkweaveAttachment,
     HorizontalRule.configure({
       HTMLAttributes: {

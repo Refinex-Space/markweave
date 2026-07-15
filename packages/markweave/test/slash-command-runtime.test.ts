@@ -340,6 +340,27 @@ describe("slash command runtime", () => {
     expect(selectionAncestorNames(editor)).toContain("blockquote");
   });
 
+  it("inserts Mermaid from slash in Code mode", () => {
+    const editor = createEditor("<p>/mermaid</p>");
+    expect(editor.commands.setTextSelection(textPosition(editor, "/mermaid"))).toBe(true);
+    const state = getNextSlashCommandState(initialSlashCommandState, getSlashCommandContext(editor.state));
+    const codeBlockCommand = defaultSlashCommandSpecs.find((command) => command.id === "code-block");
+
+    if (!codeBlockCommand) {
+      throw new Error("Expected code block slash command.");
+    }
+
+    expect(executeSlashCommand(editor, state, { ...codeBlockCommand, id: "mermaid" })).toBe(true);
+    expect(codeBlockSnapshots(editor)).toEqual([
+      {
+        language: "mermaid",
+        mermaidPreviewMode: "code",
+        text: "graph TD\n  A[Start] --> B[End]",
+      },
+    ]);
+    expect(editor.getHTML()).toContain('data-mermaid-preview-mode="code"');
+  });
+
   it("exposes the Notion-like slash command inventory in fixed groups and order", () => {
     expect(defaultSlashCommandSpecs.map((command) => command.id)).toEqual([
       "paragraph",

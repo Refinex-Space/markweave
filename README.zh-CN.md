@@ -128,7 +128,23 @@ export default {
 <MarkweaveEditor defaultContent="<h1>Hello Markweave</h1>" defaultContentFormat="html" />
 ```
 
-`mode` 默认是 `"live"`。传 `mode="view"` 后进入只读渲染模式，并复用同一套 Markweave 输出样式。旧的 `editable={false}` 仍作为兼容锁，因此 `mode="live" editable={false}` 也是只读。`theme` 默认是 `"light"`；传 `theme="dark"` 可将编辑器根节点及全部内置交互界面切换为深石墨暗色主题。主题可在运行时切换，不会重建编辑器内容。`canvasColor` 为可选项，只覆盖编辑器画布背景，其他主题 token 保持不变；不传时使用主题默认值（亮色透明、暗色 `#181A1F`），可传 `"#000"` 或 `"var(--app-canvas)"` 等宿主颜色，并支持运行时切换且不重建编辑器。
+`mode` 默认是 `"live"`。传 `mode="view"` 后进入只读渲染模式，并复用同一套 Markweave 输出样式。旧的 `editable={false}` 仍作为兼容锁，因此 `mode="live" editable={false}` 也是只读。`theme` 默认是 `"light"`；传 `theme="dark"` 可将编辑器根节点及全部内置交互界面切换为深石墨暗色主题。主题可在运行时切换，不会重建编辑器内容。Live 模式下普通链接的单击会留在编辑器内，使用 Ctrl/Cmd 点击才会安全打开。`canvasColor` 为可选项，只覆盖编辑器画布背景，其他主题 token 保持不变；不传时使用主题默认值（亮色透明、暗色 `#181A1F`），可传 `"#000"` 或 `"var(--app-canvas)"` 等宿主颜色，并支持运行时切换且不重建编辑器。
+
+## 文档搜索与替换
+
+Markweave 0.2.3 内置框架无关的 ProseMirror 搜索插件，但不强制宿主使用特定搜索栏。React 宿主可通过 `onSearchControllerChange` 获取 controller，自行实现 Ctrl/Cmd+F 界面：
+
+```tsx
+const searchRef = useRef<MarkweaveSearchController | null>(null);
+
+<MarkweaveEditor
+  onSearchControllerChange={(controller) => {
+    searchRef.current = controller;
+  }}
+/>
+```
+
+controller 提供 `setQuery`、`setOptions`、`findNext`、`findPrevious`、`replaceCurrent`、`replaceAll`、`clear`、`getState` 和 `subscribe`。匹配支持大小写、Unicode 完整词与正则表达式；所有结果由 ProseMirror Decoration 高亮，当前结果使用独立样式。View 模式可以搜索和导航，但替换方法会安全返回失败。
 
 ## 外部超链接卡片
 
@@ -149,6 +165,18 @@ resolver 会收到已校验的 HTTP(S) URL、链接标题和 `AbortSignal`，并
 浮层操作保持紧凑：复制地址、嵌入、复制 Markdown 和移除链接均为纯图标控件，提供可访问标签以及 hover/focus Tooltip。
 
 `innerToc` 默认是 `true`，会根据 Markdown 标题渲染内置右侧目录。`innerTocPlacement` 默认是 `"container"`：目录会相对视觉窗口垂直居中，正文以对称的目录留白保持居中；实际编辑器容器较窄时会自动隐藏内置目录，优先保证正文可读性。仅在确实需要固定到浏览器视口右侧时使用 `innerTocPlacement="viewport"`；传 `innerToc={false}` 或 `:inner-toc="false"` 可以隐藏内置 UI，同时继续通过 `onTocChange` 和 `onRuntimeStateChange` 获取目录数据。
+
+## 代码块语言
+
+Markweave 0.2.2 在 React、Vue 2 和 Vue 3 中共用同一套可搜索代码块语言目录。Markdown 围栏语言标识会原样保留，每个可选标识都对应独立的 Highlight.js 语法或明确的兼容语法。
+
+- Web 与模板：HTML、XML、Angular HTML、Vue HTML、CSS、SCSS、Less、Stylus、PostCSS、JavaScript、JSX、TypeScript、TSX、Django、ERB、Handlebars、PHP Template、Twig。
+- 数据与配置：JSON、JSON5、JSONC、JSONL、Jsonnet、Hjson、YAML、INI、TOML、Properties、Protocol Buffers、GraphQL、HTTP。
+- 系统与应用语言：C、C++、C#、Java、Kotlin、Scala、Go、Rust、Python、Ruby、PHP、Swift、Objective-C、Dart、F#、Fortran、Lua、Perl、R、MATLAB、GLSL、WebAssembly、Arduino、Vyper。
+- 函数式与脚本语言：Bash、Shell、PowerShell、NuShell、Clojure、Elixir、Erlang、Groovy、Haskell、Lisp、OCaml、Scheme。
+- 工具与基础设施：Apache、CMake、Dockerfile、Gradle、Makefile、Nginx、Nix、SQL、PL/SQL、PostgreSQL、Diff、LaTeX、Markdown、Shell Session。
+
+纯文本不做语法着色。Mermaid 代码块默认使用 Preview，并继续提供 Code/Preview 控件；通过 slash 命令插入 Mermaid 时默认进入 Code，便于立即编辑初始源码。兼容标识不会改写已存储的围栏值：`js`/`jsx` 使用 JavaScript，`ts`/`tsx` 使用 TypeScript，`angular-html`/`html`/`html-derivative`/`vue-html` 使用 XML，`hjson`/`json5`/`jsonc`/`jsonl`/`jsonnet` 使用 JSON，`nushell`/`shellscript`/`shellsession` 使用 Bash，`toml` 使用 INI，`postcss` 使用 CSS，`plsql` 使用 SQL，`vyper` 使用 Python。
 
 ## 框架能力矩阵
 

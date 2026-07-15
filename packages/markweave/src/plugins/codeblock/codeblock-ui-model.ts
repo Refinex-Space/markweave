@@ -7,6 +7,7 @@ import {
   markweaveCodeBlockLanguages,
   type MarkweaveCodeBlockLanguage,
 } from "./codeblock-behavior";
+import { formatCodeBlockLanguageLabel } from "./codeblock-language-catalog";
 import { getEffectiveMermaidPreviewMode } from "../mermaid/mermaid-inline-preview";
 import { normalizeMermaidPreviewMode, type MermaidPreviewMode } from "../mermaid/mermaid-renderer";
 
@@ -69,49 +70,7 @@ export function clamp(value: number, min: number, max: number) {
   return Math.min(Math.max(value, min), max);
 }
 
-export function formatCodeBlockLanguageLabel(language: MarkweaveCodeBlockLanguage) {
-  const labels: Partial<Record<MarkweaveCodeBlockLanguage, string>> = {
-    "angular-html": "Angular HTML",
-    css: "CSS",
-    fsharp: "F#",
-    hjson: "Hjson",
-    html: "HTML",
-    "html-derivative": "HTML derivative",
-    java: "Java",
-    javascript: "JavaScript",
-    js: "JavaScript",
-    json: "JSON",
-    json5: "JSON5",
-    jsonc: "JSONC",
-    jsonl: "JSONL",
-    jsonnet: "Jsonnet",
-    markdown: "Markdown",
-    mermaid: "Mermaid",
-    plsql: "PL/SQL",
-    postcss: "PostCSS",
-    powershell: "PowerShell",
-    python: "Python",
-    rust: "Rust",
-    scss: "SCSS",
-    shellscript: "Shell",
-    shellsession: "Shell session",
-    sql: "SQL",
-    text: "Plain text",
-    ts: "TypeScript",
-    tsx: "TSX",
-    typescript: "TypeScript",
-    "vue-html": "Vue HTML",
-    yaml: "YAML",
-  };
-
-  return (
-    labels[language] ??
-    language
-      .split("-")
-      .map((part) => `${part.slice(0, 1).toUpperCase()}${part.slice(1)}`)
-      .join(" ")
-  );
-}
+export { formatCodeBlockLanguageLabel } from "./codeblock-language-catalog";
 
 export function getCodeBlockLanguageItems(query: string) {
   const normalizedQuery = query.trim().toLowerCase();

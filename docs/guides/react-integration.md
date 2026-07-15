@@ -1,6 +1,6 @@
 ---
 owner: refinex
-updated: 2026-07-11
+updated: 2026-07-15
 status: active
 referenced_by: docs/README.md#knowledge-map
 ---
@@ -106,6 +106,8 @@ Legacy HTML must be explicit:
 
 For advanced custom shells, `useMarkweaveEditorController` exposes `actions.setContent(content, { format, emitUpdate, focusFirstTableBodyCell })`. The stock `MarkweaveEditor` component is recommended for normal product integration because it renders the full toolbar, slash menu, table controls, code controls, math editor, media NodeViews, and TOC.
 
+To build a host document find/replace UI, store the shared search controller from `onSearchControllerChange`. Use `subscribe` for result counts, `setQuery`/`setOptions` for matching, `findNext`/`findPrevious` for navigation, and `replaceCurrent`/`replaceAll` in editable mode. Call `clear` when the search surface closes to remove all search decorations.
+
 ## Modes, Language, And TOC
 
 ```tsx
@@ -138,6 +140,8 @@ For advanced custom shells, `useMarkweaveEditorController` exposes `actions.setC
 ## Upload API
 
 Images and videos support URL, absolute path, relative path, Base64, and local file input. URL/path/Base64 values can be used directly by Markweave. Local files must be uploaded by the host app through `onSlashCommandUpload`.
+
+In Live mode, pasting local `image/*` clipboard files inserts every image in order and sends each file through the same `onSlashCommandUpload` handler with `kind: "image"` and `trigger: "image-insert"`. Image-only HTML `<img>` clipboard content is inserted directly when its source is HTTP(S). A standalone HTTP(S) URL is converted to an image only when its path has a common image extension; Markweave does not fetch the URL. When files and HTML/URL representations coexist, files take precedence to avoid duplicate images.
 
 ```tsx
 import {
