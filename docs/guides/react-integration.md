@@ -1,6 +1,6 @@
 ---
 owner: refinex
-updated: 2026-07-11
+updated: 2026-07-14
 status: active
 referenced_by: docs/README.md#knowledge-map
 ---
@@ -105,6 +105,8 @@ Legacy HTML must be explicit:
 ```
 
 For advanced custom shells, `useMarkweaveEditorController` exposes `actions.setContent(content, { format, emitUpdate, focusFirstTableBodyCell })`. The stock `MarkweaveEditor` component is recommended for normal product integration because it renders the full toolbar, slash menu, table controls, code controls, math editor, media NodeViews, and TOC.
+
+To build a host document find/replace UI, store the shared search controller from `onSearchControllerChange`. Use `subscribe` for result counts, `setQuery`/`setOptions` for matching, `findNext`/`findPrevious` for navigation, and `replaceCurrent`/`replaceAll` in editable mode. Call `clear` when the search surface closes to remove all search decorations.
 
 ## Modes, Language, And TOC
 

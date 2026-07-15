@@ -111,6 +111,8 @@ Math formulas are editable in Live mode: click inline `$...$` or display `$$...$
 
 `innerToc` defaults to `true` and shows a built-in right-side outline derived from document headings. `innerTocPlacement` defaults to `"container"`, which keeps the outline vertically centered in the visual viewport and centers the writing column with symmetric TOC gutters. The built-in outline hides automatically when the actual editor container is narrow, preserving readable document width. Set `innerTocPlacement="viewport"` only when a fixed viewport-side outline is required; set `innerToc={false}` when rendering your own outline from `onTocChange` or `runtimeSnapshot.toc`.
 
+Markweave 0.2.3 exports `createMarkweaveSearchController` and the shared `MarkweaveSearch` extension. The default extension bundle already registers it. Controllers support Unicode-aware literal and regex queries, case and whole-word options, cyclic navigation, ProseMirror result decorations, subscriptions, and editable-only replacement.
+
 ## Code Block Languages
 
 Markweave 0.2.2 shares one searchable language catalog across all adapters. It includes XML, Properties, INI, TOML, JSON variants, YAML, Dockerfile, Nginx, HTTP, GraphQL, Protocol Buffers, JavaScript/JSX, TypeScript/TSX, Java, Kotlin, Scala, C/C++/C#, Go, Rust, Python, Ruby, PHP, Swift, Dart, shell languages, SQL variants, and additional template, functional, scientific, and infrastructure languages.

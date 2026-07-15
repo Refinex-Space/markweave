@@ -1,6 +1,6 @@
 ---
 owner: refinex
-updated: 2026-07-11
+updated: 2026-07-14
 status: active
 referenced_by: docs/README.md#knowledge-map
 ---
@@ -105,6 +105,8 @@ export function ControlledEditor({ value }: { value: string }) {
 ```
 
 高级自定义壳层可以使用 `useMarkweaveEditorController`，其中 `actions.setContent(content, { format, emitUpdate, focusFirstTableBodyCell })` 可用于命令式设置内容。普通产品接入推荐直接使用 `MarkweaveEditor`，因为它已经渲染完整的 toolbar、slash 菜单、表格控制、代码块控制、数学公式编辑、媒体 NodeView 和 TOC。
+
+宿主如需实现文档内查找/替换 UI，可通过 `onSearchControllerChange` 保存共享搜索 controller。调用 `subscribe` 同步结果计数，通过 `setQuery`/`setOptions` 更新查询，使用 `findNext`/`findPrevious` 导航，并在可编辑模式调用 `replaceCurrent`/`replaceAll`。关闭搜索栏时调用 `clear` 移除全部搜索 Decoration。
 
 ## 模式、语言与目录
 

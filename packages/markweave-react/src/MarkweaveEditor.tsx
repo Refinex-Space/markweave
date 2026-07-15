@@ -83,6 +83,10 @@ import {
 } from "markweave/internal/core/toc-state";
 import { createMarkweaveReactEditorExtensions } from "./create-editor-extensions";
 import type { MarkweaveLinkCardResolver } from "markweave/internal/plugins/link-card/link-card";
+import {
+  createMarkweaveSearchController,
+  type MarkweaveSearchController,
+} from "markweave/internal/plugins/search/search-controller";
 
 export interface MarkweaveEditorControllerActions {
   readonly closeSlashMenu: () => void;
@@ -142,6 +146,7 @@ export interface MarkweaveEditorControllerOptions {
   readonly onTableCopyPayload?: (payload: MarkweaveMenuCopyPayload) => void;
   readonly onTableCommandResult?: (result: TableCommandResult) => void;
   readonly onRuntimeStateChange?: (snapshot: MarkweaveEditorRuntimeSnapshot) => void;
+  readonly onSearchControllerChange?: (controller: MarkweaveSearchController | null) => void;
   readonly onTocChange?: (state: MarkweaveTocState) => void;
   readonly linkCardResolver?: MarkweaveLinkCardResolver;
 }
@@ -234,6 +239,7 @@ export function useMarkweaveEditorController({
   onExtractToNote,
   onRewriteSelection,
   onRuntimeStateChange,
+  onSearchControllerChange,
   onSlashCommandUpload,
   onTableCommandResult,
   onTableCopyPayload,
@@ -258,6 +264,8 @@ export function useMarkweaveEditorController({
   const slashCommands = useMemo(() => getLocalizedSlashCommandSpecs(resolvedLang), [resolvedLang]);
   const uploadHandlerRef = useRef(onSlashCommandUpload);
   uploadHandlerRef.current = onSlashCommandUpload;
+  const searchControllerChangeRef = useRef(onSearchControllerChange);
+  searchControllerChangeRef.current = onSearchControllerChange;
   const linkCardResolverRef = useRef(linkCardResolver);
   linkCardResolverRef.current = linkCardResolver;
   const extensions = useMemo(
@@ -487,6 +495,18 @@ export function useMarkweaveEditorController({
       }
     },
   });
+
+  useEffect(() => {
+    if (!editor) {
+      return;
+    }
+
+    searchControllerChangeRef.current?.(createMarkweaveSearchController(editor));
+
+    return () => {
+      searchControllerChangeRef.current?.(null);
+    };
+  }, [editor]);
 
   useEffect(() => {
     if (!editor) {

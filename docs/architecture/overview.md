@@ -1,6 +1,6 @@
 ---
 owner: refinex
-updated: 2026-07-09
+updated: 2026-07-14
 status: active
 referenced_by: AGENTS.md#knowledge-map
 ---
@@ -54,6 +54,7 @@ The built-in document outline is enabled by default with `innerToc={true}`. It d
 - video insertion: the video node renders an inline upload placeholder for empty videos, supports local-file host uploads and direct video URLs, and automatically embeds YouTube and Bilibili links or whitelisted platform embed sources through framework-specific NodeViews
 - editor modes: `mode="live"` keeps the full editable surface, while `mode="view"` is a UI-only read mode that reuses the same document rendering and keeps serialization output unchanged
 - inner TOC: framework adapters render the right-side hover outline by default and keep the TOC state available even when the built-in UI is disabled
+- document search: the shared ProseMirror search plugin owns Unicode-aware literal/regex matching, result decorations, cyclic navigation, and editable-only replacement; host adapters expose the controller while products own their search UI
 
 Shared adapter behavior belongs in small framework-neutral helpers before it reaches framework components:
 
@@ -61,6 +62,7 @@ Shared adapter behavior belongs in small framework-neutral helpers before it rea
 - `packages/markweave/src/editor-core/floating-toolbar-model.ts` owns floating toolbar menu data, color values, link commands, assistant request payloads, and text/block command helpers.
 - `packages/markweave/src/editor-core/readonly-link.ts` owns safe View mode link-opening behavior.
 - `packages/markweave/src/editor-core/runtime-snapshot.ts` owns the runtime snapshot field contract.
+- `packages/markweave/src/plugins/search/search-controller.ts` owns document search state, decorations, navigation, replacement transactions, and the framework-neutral controller contract.
 - `packages/markweave/src/plugins/media/media-extension-factory.ts` owns shared image/video extension configuration while adapters still supply their framework NodeViews.
 
 Framework-specific rendering must stay outside the core boundary. React `.tsx` files and React-only imports belong under `packages/markweave-react/src/**`; Vue 2 render functions belong under `packages/markweave-vue2/src/**`; Vue 3 render functions belong under `packages/markweave-vue3/src/**`. The `packages/markweave/src/core`, `src/editor-core`, and `src/plugins` layers must remain framework-neutral TypeScript and must not import React, Vue, Tiptap framework adapters, or framework-specific lucide packages.

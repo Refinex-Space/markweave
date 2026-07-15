@@ -36,6 +36,15 @@ export type {
 } from "./core/public-types";
 export type { MarkweaveUploadRequest, MarkweaveUploadResult, MarkweaveSlashCommandUploadHandler } from "./plugins/slash-command/upload";
 export type { MarkweaveMenuCopyPayload } from "./plugins/table/table-clipboard";
+export type {
+  MarkweaveSearchController,
+  MarkweaveSearchOptions,
+  MarkweaveSearchState,
+} from "./plugins/search/search-controller";
+export {
+  createMarkweaveSearchController,
+  MarkweaveSearch,
+} from "./plugins/search/search-controller";
 export type { MarkweaveLinkCardAttrs, MarkweaveLinkCardMetadata, MarkweaveLinkCardResolveRequest, MarkweaveLinkCardResolver } from "./plugins/link-card/link-card";
 export {
   getMarkweaveLinkCardMarkdown,

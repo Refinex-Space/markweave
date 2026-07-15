@@ -125,6 +125,22 @@ Legacy HTML input remains supported when declared explicitly:
 
 `mode` defaults to `"live"`. Pass `mode="view"` for a read-only rendered view that reuses the same Markweave output styling. The existing `editable={false}` prop still works as a compatibility lock, so `mode="live" editable={false}` is also read-only. `theme` defaults to `"light"`; pass `theme="dark"` to switch the editor frame and every built-in interaction surface to the graphite dark theme. Theme changes are safe at runtime and do not recreate editor content. In Live mode, ordinary links stay in the editor on a plain click; use Ctrl/Cmd-click to open them safely. `canvasColor` is optional: it overrides only the editor canvas background while preserving the rest of the theme. Omit it to use the theme default (`transparent` in light mode and `#181A1F` in dark mode), or pass a host color such as `"#000"` or `"var(--app-canvas)"`; it can also change at runtime without recreating the editor.
 
+## Document Search And Replace
+
+Markweave 0.2.3 includes a framework-neutral ProseMirror search plugin without imposing a specific host search bar. React hosts can receive the controller through `onSearchControllerChange` and build their own Ctrl/Cmd+F UI:
+
+```tsx
+const searchRef = useRef<MarkweaveSearchController | null>(null);
+
+<MarkweaveEditor
+  onSearchControllerChange={(controller) => {
+    searchRef.current = controller;
+  }}
+/>
+```
+
+The controller exposes `setQuery`, `setOptions`, `findNext`, `findPrevious`, `replaceCurrent`, `replaceAll`, `clear`, `getState`, and `subscribe`. Matching supports case sensitivity, Unicode whole words, and regular expressions. ProseMirror decorations highlight every result and distinguish the active result. View mode can search and navigate, while replacement methods safely return failure.
+
 ## External Link Cards
 
 A paragraph containing exactly one HTTP(S) link can be embedded as a link card in Live mode. Mixed text links, inline links, and `markweave:` document links remain ordinary links. Markweave never fetches a URL itself: pass an optional `linkCardResolver` when the host has a controlled metadata service.
