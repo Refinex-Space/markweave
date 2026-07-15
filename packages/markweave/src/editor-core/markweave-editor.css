@@ -2239,7 +2239,7 @@
   align-items: center;
   z-index: 40;
   border: 1px solid rgba(229, 231, 235, 0.88);
-  border-radius: 16px;
+  border-radius: 12px;
   background: #ffffff;
   box-shadow:
     0 10px 28px rgba(31, 35, 40, 0.08),
@@ -2258,9 +2258,9 @@
   position: relative;
   display: inline-flex;
   align-items: center;
-  gap: 3px;
-  height: 38px;
-  padding: 3px 5px;
+  gap: 2px;
+  height: 34px;
+  padding: 2px 4px;
   overflow: visible;
   color: #5f636b;
   font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -2319,13 +2319,13 @@
 .markweave-floating-toolbar-content>button,
 .markweave-floating-toolbar-more-item>button {
   display: inline-grid;
-  min-width: 30px;
-  height: 30px;
+  min-width: 28px;
+  height: 28px;
   place-items: center;
   border: 0;
-  border-radius: 9px;
+  border-radius: 7px;
   background: transparent;
-  padding: 0 8px;
+  padding: 0 7px;
   color: #62666d;
   cursor: default;
   font-family: inherit;
@@ -2355,18 +2355,18 @@
 }
 
 .markweave-floating-toolbar-button--improve {
-  min-width: 96px;
-  padding: 0 12px;
+  min-width: 90px;
+  padding: 0 10px;
 }
 
 .markweave-floating-toolbar-button--block-type {
-  min-width: 100px;
-  padding: 0 9px 0 11px;
+  min-width: 92px;
+  padding: 0 8px 0 9px;
 }
 
 .markweave-floating-toolbar-button--color {
-  min-width: 54px;
-  padding: 0 7px;
+  min-width: 50px;
+  padding: 0 6px;
 }
 
 .markweave-floating-toolbar-button-inner {
@@ -2402,8 +2402,8 @@
 .markweave-floating-toolbar-divider {
   display: block;
   width: 1px;
-  height: 26px;
-  margin: 0 5px;
+  height: 22px;
+  margin: 0 4px;
   background: #e5e7eb;
 }
 
@@ -2656,15 +2656,15 @@
   z-index: 58;
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
-  width: min(292px, calc(100vw - 32px));
+  width: min(280px, calc(100vw - 32px));
   overflow: visible;
   border: 1px solid rgba(229, 231, 235, 0.9);
-  border-radius: 10px;
+  border-radius: 8px;
   background: #ffffff;
   box-shadow:
     0 12px 28px rgba(31, 35, 40, 0.1),
     0 1px 2px rgba(31, 35, 40, 0.08);
-  padding: 6px 7px;
+  padding: 5px 6px;
   color: #5f636b;
   font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
@@ -2712,7 +2712,7 @@
 .markweave-slash-command-list,
 .markweave-slash-subpanel {
   min-height: 0;
-  max-height: calc(var(--markweave-slash-menu-max-height, 420px) - 14px);
+  max-height: min(408px, calc(var(--markweave-slash-menu-max-height, 420px) - 12px));
   overflow-y: auto;
   padding-right: 1px;
   scrollbar-color: #d7d7d7 transparent;
@@ -2740,16 +2740,16 @@
 .markweave-slash-group {
   display: grid;
   gap: 1px;
-  padding: 0 0 6px;
+  padding: 0 0 5px;
 }
 
 .markweave-slash-group+.markweave-slash-group {
   border-top: 1px solid #ebecef;
-  padding-top: 8px;
+  padding-top: 6px;
 }
 
 .markweave-slash-group-title {
-  padding: 0 8px 4px;
+  padding: 0 7px 3px;
   color: #3f434a;
   font-size: 13px;
   font-weight: 650;
@@ -2766,12 +2766,12 @@
 
 .markweave-slash-group>button {
   display: grid;
-  grid-template-columns: 22px minmax(0, 1fr);
+  grid-template-columns: 20px minmax(0, 1fr);
   align-items: center;
   width: 100%;
-  min-height: 30px;
-  border-radius: 8px;
-  padding: 0 8px;
+  min-height: 28px;
+  border-radius: 6px;
+  padding: 0 7px;
   color: #62666d;
   text-align: left;
 }
