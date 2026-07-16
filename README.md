@@ -125,7 +125,7 @@ Legacy HTML input remains supported when declared explicitly:
 
 `mode` defaults to `"live"`. Pass `mode="view"` for a read-only rendered view that reuses the same Markweave output styling. The existing `editable={false}` prop still works as a compatibility lock, so `mode="live" editable={false}` is also read-only. `theme` defaults to `"light"`; pass `theme="dark"` to switch the editor frame and every built-in interaction surface to the graphite dark theme. Theme changes are safe at runtime and do not recreate editor content. In Live mode, ordinary links stay in the editor on a plain click; use Ctrl/Cmd-click to open them safely. `canvasColor` is optional: it overrides only the editor canvas background while preserving the rest of the theme. Omit it to use the theme default (`transparent` in light mode and `#181A1F` in dark mode), or pass a host color such as `"#000"` or `"var(--app-canvas)"`; it can also change at runtime without recreating the editor.
 
-Markweave 0.2.4 supports direct image paste in Live mode. Local clipboard image files are inserted in order and sent through `onSlashCommandUpload`; remote HTTP(S) images from image-only HTML or standalone URLs with a common image extension are inserted without a network probe. The host remains responsible for storing local files and returning a displayable `src`.
+Markweave 0.2.5 supports direct image paste in Live mode. Local clipboard image files are inserted in order and sent through `onSlashCommandUpload`; remote HTTP(S) images from image-only HTML or standalone URLs with a common image extension are inserted without a network probe. The host remains responsible for storing local files and returning a displayable `src`.
 
 ## Document Search And Replace
 

@@ -113,7 +113,7 @@ Math formulas are editable in Live mode: click inline `$...$` or display `$$...$
 
 Markweave 0.2.3 exports `createMarkweaveSearchController` and the shared `MarkweaveSearch` extension. The default extension bundle already registers it. Controllers support Unicode-aware literal and regex queries, case and whole-word options, cyclic navigation, ProseMirror result decorations, subscriptions, and editable-only replacement.
 
-Markweave 0.2.4 adds framework-neutral image clipboard handling. Local image files use the host upload callback, while HTTP(S) images from image-only HTML or standalone URLs with common image extensions are inserted directly without remote MIME detection.
+Markweave 0.2.5 adds framework-neutral image clipboard handling. Local image files use the host upload callback, while HTTP(S) images from image-only HTML or standalone URLs with common image extensions are inserted directly without remote MIME detection.
 
 ## Code Block Languages
 
