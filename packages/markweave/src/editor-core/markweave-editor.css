@@ -3497,6 +3497,16 @@
   white-space: pre-wrap;
 }
 
+.markweave-mermaid-fullscreen-layer,
+.markweave-image-preview-layer {
+  --markweave-preview-controls-top: 72px;
+}
+
+body:has(.markweave-mermaid-fullscreen-layer, .markweave-image-preview-layer) .markweave-inner-toc {
+  visibility: hidden;
+  pointer-events: none;
+}
+
 .markweave-mermaid-fullscreen-layer {
   position: fixed;
   z-index: 1000;
@@ -3512,7 +3522,7 @@
 .markweave-mermaid-fullscreen-toolbar {
   position: absolute;
   z-index: 2;
-  top: 72px;
+  top: var(--markweave-preview-controls-top);
   left: 96px;
   display: inline-flex;
   align-items: center;
@@ -3576,7 +3586,7 @@
 .markweave-mermaid-fullscreen-close {
   position: absolute;
   z-index: 2;
-  top: 12px;
+  top: var(--markweave-preview-controls-top);
   right: 14px;
   display: grid;
   width: 30px;
@@ -3680,7 +3690,7 @@
 .markweave-image-preview-toolbar {
   position: absolute;
   z-index: 2;
-  top: 72px;
+  top: var(--markweave-preview-controls-top);
   left: 96px;
   display: inline-flex;
   align-items: center;
@@ -3729,7 +3739,7 @@
 .markweave-image-preview-close {
   position: absolute;
   z-index: 2;
-  top: 12px;
+  top: var(--markweave-preview-controls-top);
   right: 14px;
   width: 30px;
   height: 30px;
