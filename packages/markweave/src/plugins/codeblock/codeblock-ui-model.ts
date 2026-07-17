@@ -343,7 +343,7 @@ export function calculateCodeBlockLanguageMenuPosition(input: {
 
   return {
     left: Math.round(clamp(rawLeft, visibleLeft + 8, Math.max(visibleLeft + 8, visibleRight - codeBlockLanguageMenuWidth - 8))),
-    top: Math.round(clamp(top, visibleTop + 8, Math.max(visibleTop + 8, visibleBottom - menuHeight - 8))),
+    top: Math.round(top),
   };
 }
 
