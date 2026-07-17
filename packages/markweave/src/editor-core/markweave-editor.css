@@ -3407,6 +3407,7 @@
 }
 
 .markweave-codeblock-language-list button:hover,
+.markweave-codeblock-language-list button[data-highlighted="true"],
 .markweave-codeblock-language-list button[data-active="true"] {
   background: #d8d8d8;
 }
@@ -4026,6 +4027,7 @@ body:has(.markweave-mermaid-fullscreen-layer, .markweave-image-preview-layer) .m
 }
 
 .markweave-editor-frame[data-markweave-theme="dark"] .markweave-codeblock-language-list button:hover,
+.markweave-editor-frame[data-markweave-theme="dark"] .markweave-codeblock-language-list button[data-highlighted="true"],
 .markweave-editor-frame[data-markweave-theme="dark"] .markweave-codeblock-language-list button[data-active="true"] {
   background: var(--markweave-surface-raised);
   color: var(--markweave-text);

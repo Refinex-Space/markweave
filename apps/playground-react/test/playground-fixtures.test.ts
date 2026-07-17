@@ -47,6 +47,7 @@ describe("playground fixtures", () => {
     expect(initialPlaygroundDocument).toContain("| Capability | Markdown surface | What to inspect |");
     expect(initialPlaygroundDocument).toContain("```mermaid");
     expect(initialPlaygroundDocument).toContain("```ts");
+    expect(initialPlaygroundDocument).toContain("```bash\nnpm login --registry=https://registry.npmjs.org/\n```");
     expect(initialPlaygroundDocument).toContain("- [x] Ship a stable Live mode editing surface.");
     expect(initialPlaygroundDocument).toContain(":::info");
     expect(initialPlaygroundDocument).toContain('data-markweave-image="true"');

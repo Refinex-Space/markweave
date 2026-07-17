@@ -183,7 +183,9 @@ Markweave 0.2.2 uses one searchable code-block language catalog across React, Vu
 - Functional and scripting languages: Bash, Shell, PowerShell, NuShell, Clojure, Elixir, Erlang, Groovy, Haskell, Lisp, OCaml, and Scheme.
 - Tooling and infrastructure: Apache, CMake, Dockerfile, Gradle, Makefile, Nginx, Nix, SQL, PL/SQL, PostgreSQL, Diff, LaTeX, Markdown, and shell sessions.
 
-Plain text remains available without token coloring. Mermaid code blocks default to Preview and retain Markweave's Code/Preview controls; Mermaid inserted through the slash command opens in Code mode so its starter source can be edited immediately. Compatibility identifiers keep their stored fence value while using the closest registered grammar: `js`/`jsx` use JavaScript, `ts`/`tsx` use TypeScript, `angular-html`/`html`/`html-derivative`/`vue-html` use XML, `hjson`/`json5`/`jsonc`/`jsonl`/`jsonnet` use JSON, `nushell`/`shellscript`/`shellsession` use Bash, `toml` uses INI, `postcss` uses CSS, `plsql` uses SQL, and `vyper` uses Python.
+Markweave 0.2.6 strengthens shell highlighting without changing stored Markdown fences. Bash, Shell, and Shell Script recognize external command positions, options, and URLs in addition to the standard Bash tokens. Shell Session uses its dedicated prompt grammar and delegates command bodies to the enhanced Bash grammar.
+
+Plain text remains available without token coloring. Mermaid code blocks default to Preview and retain Markweave's Code/Preview controls; Mermaid inserted through the slash command opens in Code mode so its starter source can be edited immediately. Compatibility identifiers keep their stored fence value while using the closest registered grammar: `js`/`jsx` use JavaScript, `ts`/`tsx` use TypeScript, `angular-html`/`html`/`html-derivative`/`vue-html` use XML, `hjson`/`json5`/`jsonc`/`jsonl`/`jsonnet` use JSON, `nushell`/`shellscript` use the enhanced Bash grammar, `shellsession` uses the dedicated Shell Session grammar, `toml` uses INI, `postcss` uses CSS, `plsql` uses SQL, and `vyper` uses Python.
 
 ## Framework Parity
 

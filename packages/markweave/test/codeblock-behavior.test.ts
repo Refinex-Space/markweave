@@ -19,6 +19,10 @@ import {
   toggleActiveCodeBlockCollapsed,
 } from "../src/plugins/codeblock/codeblock-behavior";
 import { createMarkweaveLowlight } from "../src/plugins/codeblock/codeblock-lowlight";
+import {
+  codeBlockHighlightFixtures,
+  intentionallyUnhighlightedCodeBlockLanguages,
+} from "./fixtures/codeblock-highlight-fixtures";
 
 let activeEditor: Editor | null = null;
 const addedMockMethods: Array<{ prototype: object; key: string }> = [];
@@ -76,6 +80,58 @@ function codeBlockSnapshot(editor: Editor): { language: string | null; text: str
   });
 
   return snapshot;
+}
+
+function collectHighlightClasses(node: unknown): string[] {
+  if (!node || typeof node !== "object") {
+    return [];
+  }
+
+  const candidate = node as {
+    properties?: { className?: unknown };
+    children?: unknown;
+  };
+  const classNames = Array.isArray(candidate.properties?.className)
+    ? candidate.properties.className.filter((className): className is string => typeof className === "string")
+    : [];
+
+  for (const child of Array.isArray(candidate.children) ? candidate.children : []) {
+    classNames.push(...collectHighlightClasses(child));
+  }
+
+  return classNames;
+}
+
+function collectHighlightTokenText(node: unknown, className: string): string[] {
+  if (!node || typeof node !== "object") {
+    return [];
+  }
+
+  const candidate = node as {
+    type?: unknown;
+    value?: unknown;
+    properties?: { className?: unknown };
+    children?: unknown;
+  };
+  const children = Array.isArray(candidate.children) ? candidate.children : [];
+  const text = children
+    .map((child) => {
+      if (!child || typeof child !== "object") {
+        return "";
+      }
+      const textNode = child as { type?: unknown; value?: unknown };
+      return textNode.type === "text" && typeof textNode.value === "string" ? textNode.value : "";
+    })
+    .join("");
+  const tokens = Array.isArray(candidate.properties?.className) && candidate.properties.className.includes(className)
+    ? [text]
+    : [];
+
+  for (const child of children) {
+    tokens.push(...collectHighlightTokenText(child, className));
+  }
+
+  return tokens;
 }
 
 function dispatchKey(editor: Editor, key: string, shiftKey = false) {
@@ -185,6 +241,54 @@ describe("code block behavior", () => {
     const lowlight = createMarkweaveLowlight();
 
     expect(markweaveCodeBlockLanguages.filter((language) => !lowlight.registered(language))).toEqual([]);
+  });
+
+  it.each(["bash", "shell", "shellscript"] as const)(
+    "highlights commands, options, and URLs in %s code blocks",
+    (language) => {
+      const lowlight = createMarkweaveLowlight();
+      const result = lowlight.highlight(language, "npm login --registry=https://registry.npmjs.org/");
+
+      expect(collectHighlightClasses(result)).toEqual(
+        expect.arrayContaining(["hljs-title", "function_", "hljs-attr", "hljs-link"]),
+      );
+    },
+  );
+
+  it("uses the terminal-session grammar for shellsession fences", () => {
+    const lowlight = createMarkweaveLowlight();
+    const result = lowlight.highlight(
+      "shellsession",
+      "$ npm login --registry=https://registry.npmjs.org/\nLogged in as refinex",
+    );
+
+    expect(collectHighlightClasses(result)).toEqual(
+      expect.arrayContaining(["hljs-meta", "prompt_", "hljs-title", "function_", "hljs-attr", "hljs-link"]),
+    );
+  });
+
+  it("preserves standard Bash keyword and built-in classifications", () => {
+    const lowlight = createMarkweaveLowlight();
+    const result = lowlight.highlight("bash", 'if true; then echo "$HOME"; fi\nreturn 0');
+
+    expect(collectHighlightTokenText(result, "hljs-keyword")).toEqual(expect.arrayContaining(["if", "then", "fi"]));
+    expect(collectHighlightTokenText(result, "hljs-built_in")).toEqual(expect.arrayContaining(["echo", "return"]));
+    expect(collectHighlightTokenText(result, "hljs-title")).not.toEqual(
+      expect.arrayContaining(["if", "then", "echo", "fi", "return"]),
+    );
+  });
+
+  it.each(markweaveCodeBlockLanguages)("produces the expected syntax token coverage for %s", (language) => {
+    const lowlight = createMarkweaveLowlight();
+    const result = lowlight.highlight(language, codeBlockHighlightFixtures[language]);
+    const classNames = collectHighlightClasses(result);
+
+    if (intentionallyUnhighlightedCodeBlockLanguages.has(language)) {
+      expect(classNames).toEqual([]);
+      return;
+    }
+
+    expect(classNames.some((className) => className.startsWith("hljs-"))).toBe(true);
   });
 
   it("renders lowlight syntax tokens while preserving the code block language", () => {

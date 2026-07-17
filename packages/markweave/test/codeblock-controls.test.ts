@@ -67,6 +67,16 @@ function installLayoutMocks() {
       return createRect(frameLeft + 24, frameTop + 90, 840, 300);
     }
 
+    if (this.classList.contains("markweave-codeblock-language-list")) {
+      return createRect(0, 0, 220, 26);
+    }
+
+    if (this.dataset.languageIndex) {
+      const index = Number.parseInt(this.dataset.languageIndex, 10);
+      const listScrollTop = this.parentElement?.scrollTop ?? 0;
+      return createRect(0, index * 26 - listScrollTop, 220, 26);
+    }
+
     if (this.tagName === "PRE") {
       return createRect(frameLeft + 24, frameTop + 50, 840, 160);
     }
@@ -183,6 +193,12 @@ function inputValue(input: HTMLInputElement, value: string) {
   act(() => {
     valueSetter?.call(input, value);
     input.dispatchEvent(new Event("input", { bubbles: true, cancelable: true }));
+  });
+}
+
+function keyDown(element: Element, key: string) {
+  act(() => {
+    element.dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true }));
   });
 }
 
@@ -402,6 +418,35 @@ describe("code block controls", () => {
     click(getByTestId("markweave-codeblock-language-option-properties"));
 
     expect(getActiveCodeBlockState(editor).language).toBe("properties");
+    expect(queryByTestId("markweave-codeblock-language-menu")).toBeNull();
+    expect(editor.view.hasFocus()).toBe(true);
+  });
+
+  it("navigates filtered languages with arrow keys, scrolls the highlight into view, and selects with Enter", () => {
+    const scrollIntoView = vi.fn();
+    const { editor } = renderControls('<pre><code class="language-ts">const value = 1;</code></pre>', { selectText: "value" });
+    mockPrototypeMethod(HTMLElement.prototype, "scrollIntoView", scrollIntoView);
+
+    click(getByTestId("markweave-codeblock-language"));
+    expect(getByTestId("markweave-codeblock-language-option-ts").dataset.highlighted).toBe("true");
+
+    const search = getByTestId<HTMLInputElement>("markweave-codeblock-language-search");
+    inputValue(search, "p");
+    expect(getByTestId("markweave-codeblock-language-option-apache").dataset.highlighted).toBe("true");
+
+    keyDown(search, "ArrowDown");
+    expect(getByTestId("markweave-codeblock-language-option-csharp").dataset.highlighted).toBe("true");
+    expect(getByTestId("markweave-codeblock-language-menu").querySelector<HTMLElement>(".markweave-codeblock-language-list")?.scrollTop).toBe(26);
+    expect(scrollIntoView).not.toHaveBeenCalled();
+
+    keyDown(search, "ArrowUp");
+    expect(getByTestId("markweave-codeblock-language-option-apache").dataset.highlighted).toBe("true");
+    expect(search.getAttribute("aria-activedescendant")).toBe(getByTestId("markweave-codeblock-language-option-apache").id);
+
+    keyDown(search, "ArrowDown");
+
+    keyDown(search, "Enter");
+    expect(getActiveCodeBlockState(editor).language).toBe("csharp");
     expect(queryByTestId("markweave-codeblock-language-menu")).toBeNull();
     expect(editor.view.hasFocus()).toBe(true);
   });

@@ -61,6 +61,7 @@ export const mermaidFullscreenMinScale = 0.25;
 export const mermaidFullscreenMaxScale = 4;
 export const mermaidFullscreenZoomStep = 0.25;
 const codeBlockElementSelector = "pre.markweave-code-block, pre";
+let codeBlockLanguageMenuDomId = 0;
 
 export type CodeBlockClipboardLike = {
   readonly writeText: (text: string) => Promise<void>;
@@ -82,6 +83,75 @@ export function getCodeBlockLanguageItems(query: string) {
     }))
     .sort((left, right) => left.label.localeCompare(right.label))
     .filter((item) => !normalizedQuery || item.language.includes(normalizedQuery) || item.label.toLowerCase().includes(normalizedQuery));
+}
+
+export function getInitialCodeBlockLanguageItemIndex(
+  items: readonly { readonly language: MarkweaveCodeBlockLanguage }[],
+  currentLanguage: MarkweaveCodeBlockLanguage | null,
+) {
+  if (items.length === 0) {
+    return -1;
+  }
+
+  const currentIndex = currentLanguage === null ? -1 : items.findIndex((item) => item.language === currentLanguage);
+  return currentIndex >= 0 ? currentIndex : 0;
+}
+
+export function moveCodeBlockLanguageItemIndex(currentIndex: number, itemCount: number, direction: "previous" | "next") {
+  if (itemCount <= 0) {
+    return -1;
+  }
+
+  if (currentIndex < 0) {
+    return direction === "previous" ? itemCount - 1 : 0;
+  }
+
+  return clamp(currentIndex + (direction === "previous" ? -1 : 1), 0, itemCount - 1);
+}
+
+export interface CodeBlockLanguageListScrollMetrics {
+  readonly itemBottom: number;
+  readonly itemTop: number;
+  readonly listBottom: number;
+  readonly listTop: number;
+  readonly scrollTop: number;
+}
+
+export function calculateCodeBlockLanguageListScrollTop(metrics: CodeBlockLanguageListScrollMetrics) {
+  if (metrics.itemTop < metrics.listTop) {
+    return Math.max(0, metrics.scrollTop - (metrics.listTop - metrics.itemTop));
+  }
+
+  if (metrics.itemBottom > metrics.listBottom) {
+    return Math.max(0, metrics.scrollTop + (metrics.itemBottom - metrics.listBottom));
+  }
+
+  return Math.max(0, metrics.scrollTop);
+}
+
+export function scrollCodeBlockLanguageItemIntoView(listElement: HTMLElement, itemElement: HTMLElement) {
+  const listRect = listElement.getBoundingClientRect();
+  const itemRect = itemElement.getBoundingClientRect();
+  const nextScrollTop = calculateCodeBlockLanguageListScrollTop({
+    itemBottom: itemRect.bottom,
+    itemTop: itemRect.top,
+    listBottom: listRect.bottom,
+    listTop: listRect.top,
+    scrollTop: listElement.scrollTop,
+  });
+
+  if (nextScrollTop !== listElement.scrollTop) {
+    listElement.scrollTop = nextScrollTop;
+  }
+}
+
+export function createCodeBlockLanguageMenuDomId() {
+  codeBlockLanguageMenuDomId += 1;
+  return `markweave-codeblock-language-list-${codeBlockLanguageMenuDomId}`;
+}
+
+export function getCodeBlockLanguageOptionDomId(menuDomId: string, language: MarkweaveCodeBlockLanguage) {
+  return `${menuDomId}-${language}`;
 }
 
 export function getCodeBlockElementByDocumentOrder(editor: Editor, codeBlockPos: number) {

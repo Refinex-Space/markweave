@@ -140,6 +140,7 @@ import {
   clampFullscreenScale,
   codeBlockCopyFeedbackTimeoutMs,
   copyCodeBlockText,
+  createCodeBlockLanguageMenuDomId,
   createCodeBlockOverlayPosition,
   createMermaidFullscreenViewerState,
   createMermaidTabPosition,
@@ -149,6 +150,8 @@ import {
   getActiveCodeBlockElement,
   getAnchoredRect,
   getCodeBlockLanguageItems,
+  getCodeBlockLanguageOptionDomId,
+  getInitialCodeBlockLanguageItemIndex,
   getCodeBlockPositionFromEventTarget,
   getCodeBlockStateAtPosition,
   getFrameElement,
@@ -157,7 +160,9 @@ import {
   isCodeBlockTargetCollapsed,
   mergeStableMermaidTabPositions,
   mermaidFullscreenZoomStep,
+  moveCodeBlockLanguageItemIndex,
   moveMermaidFullscreenViewer,
+  scrollCodeBlockLanguageItemIntoView,
   type CodeBlockMenuPosition,
   type CodeBlockOverlayPosition,
   type CodeBlockTargetState,
@@ -1689,12 +1694,15 @@ const VueCodeBlockControls = defineComponent({
     const controlsRef = ref<HTMLDivElement | null>(null);
     const languageButtonRef = ref<HTMLButtonElement | null>(null);
     const searchInputRef = ref<HTMLInputElement | null>(null);
+    const languageListRef = ref<HTMLDivElement | null>(null);
+    const languageMenuDomId = ref<string | null>(null);
     const hoveredCodeBlockPos = ref<number | null>(null);
     const position = ref<CodeBlockOverlayPosition | null>(null);
     const mermaidTabPositions = ref<readonly MermaidTabPosition[]>([]);
     const languageMenuPosition = ref<CodeBlockMenuPosition | null>(null);
     const languageMenuOpen = ref(false);
     const languageQuery = ref("");
+    const activeLanguageIndex = ref(-1);
     const copyFeedback = ref<MarkweaveCodeBlockCopyFeedbackSnapshot | null>(null);
     const copyTooltipVisible = ref(false);
     const fullscreenViewer = ref<MermaidFullscreenViewerState | null>(null);
@@ -1878,10 +1886,59 @@ const VueCodeBlockControls = defineComponent({
         }
         languageMenuOpen.value = false;
         languageQuery.value = "";
+        activeLanguageIndex.value = -1;
         controlsRevision.value += 1;
         if (refocusEditor) {
           props.editor.view.focus();
         }
+      }
+    };
+
+    const toggleLanguageMenu = () => {
+      languageMenuOpen.value = !languageMenuOpen.value;
+      if (languageMenuOpen.value && languageMenuDomId.value === null) {
+        languageMenuDomId.value = createCodeBlockLanguageMenuDomId();
+      }
+      activeLanguageIndex.value = languageMenuOpen.value
+        ? getInitialCodeBlockLanguageItemIndex(languageItems.value, codeBlock.value?.language ?? null)
+        : -1;
+    };
+
+    const updateLanguageQuery = (query: string) => {
+      const nextItems = getCodeBlockLanguageItems(query);
+      languageQuery.value = query;
+      activeLanguageIndex.value = getInitialCodeBlockLanguageItemIndex(nextItems, query.trim() ? null : codeBlock.value?.language ?? null);
+    };
+
+    const handleLanguageSearchKeydown = (event: KeyboardEvent) => {
+      if (event.isComposing) {
+        return;
+      }
+
+      if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+        event.preventDefault();
+        activeLanguageIndex.value = moveCodeBlockLanguageItemIndex(
+          activeLanguageIndex.value,
+          languageItems.value.length,
+          event.key === "ArrowUp" ? "previous" : "next",
+        );
+        return;
+      }
+
+      if (event.key === "Enter") {
+        const item = languageItems.value[activeLanguageIndex.value];
+        if (item) {
+          event.preventDefault();
+          selectLanguage(item.language);
+        }
+        return;
+      }
+
+      if (event.key === "Escape") {
+        event.preventDefault();
+        languageMenuOpen.value = false;
+        activeLanguageIndex.value = -1;
+        props.editor.view.focus();
       }
     };
 
@@ -1985,6 +2042,7 @@ const VueCodeBlockControls = defineComponent({
       setCopyFeedbackSnapshot(null);
       languageMenuOpen.value = false;
       languageQuery.value = "";
+      activeLanguageIndex.value = -1;
       fullscreenViewer.value = null;
       fullscreenTooltip.value = null;
       fullscreenDragging.value = false;
@@ -1992,12 +2050,29 @@ const VueCodeBlockControls = defineComponent({
 
     watch(languageMenuOpen, async (open) => {
       if (!open) {
+        activeLanguageIndex.value = -1;
         return;
       }
       await nextTick();
       updatePosition();
       searchInputRef.value?.focus({ preventScroll: true });
     });
+
+    watch(
+      () => [languageMenuOpen.value, languageQuery.value, activeLanguageIndex.value] as const,
+      async () => {
+        if (!languageMenuOpen.value || activeLanguageIndex.value < 0) {
+          return;
+        }
+        await nextTick();
+        const listElement = languageListRef.value;
+        const itemElement = listElement?.querySelector<HTMLElement>(`[data-language-index="${activeLanguageIndex.value}"]`);
+        if (listElement && itemElement) {
+          scrollCodeBlockLanguageItemIntoView(listElement, itemElement);
+        }
+      },
+      { flush: "post" },
+    );
 
     watch(
       () => [showTargetControls.value, collapseRevision.value, codeBlock.value?.pos ?? null, languageMenuOpen.value, visibleMermaidMode.value] as const,
@@ -2050,6 +2125,7 @@ const VueCodeBlockControls = defineComponent({
           }
           if (languageMenuOpen.value) {
             languageMenuOpen.value = false;
+            activeLanguageIndex.value = -1;
             props.editor.view.focus();
           }
         };
@@ -2061,6 +2137,7 @@ const VueCodeBlockControls = defineComponent({
             return;
           }
           languageMenuOpen.value = false;
+          activeLanguageIndex.value = -1;
         };
         const onTransaction = ({ transaction }: { readonly transaction: Transaction }) => {
           if (transaction.getMeta(codeBlockCollapsePluginKey)) {
@@ -2178,9 +2255,7 @@ const VueCodeBlockControls = defineComponent({
                         "aria-haspopup": "listbox",
                         "data-testid": "markweave-codeblock-language",
                         onMousedown: preventVuePointerFocusLoss,
-                        onClick: () => {
-                          languageMenuOpen.value = !languageMenuOpen.value;
-                        },
+                        onClick: toggleLanguageMenu,
                       },
                       [h("span", null, currentLanguageLabel.value), createCodeBlockIcon("chevron")],
                     ),
@@ -2268,8 +2343,6 @@ const VueCodeBlockControls = defineComponent({
               "div",
               {
                 class: "markweave-codeblock-language-menu",
-                role: "listbox",
-                "aria-label": "Code block languages",
                 "data-testid": "markweave-codeblock-language-menu",
                 "data-positioned": languageMenuPosition.value ? "true" : "false",
                 style: languageMenuStyle,
@@ -2278,37 +2351,53 @@ const VueCodeBlockControls = defineComponent({
                 h("label", { class: "markweave-codeblock-language-search" }, [
                   h("input", {
                     ref: searchInputRef,
+                    role: "combobox",
+                    "aria-autocomplete": "list",
+                    "aria-controls": languageMenuDomId.value ?? undefined,
+                    "aria-expanded": "true",
+                    "aria-activedescendant":
+                      languageMenuDomId.value && languageItems.value[activeLanguageIndex.value]
+                        ? getCodeBlockLanguageOptionDomId(languageMenuDomId.value, languageItems.value[activeLanguageIndex.value].language)
+                        : undefined,
+                    "aria-label": "Search code block languages",
                     value: languageQuery.value,
                     placeholder: "Search...",
                     "data-testid": "markweave-codeblock-language-search",
                     onInput: (event: Event) => {
-                      languageQuery.value = (event.target as HTMLInputElement).value;
+                      updateLanguageQuery((event.target as HTMLInputElement).value);
                     },
-                    onKeydown: (event: KeyboardEvent) => {
-                      if (event.key === "Escape") {
-                        event.preventDefault();
-                        languageMenuOpen.value = false;
-                        props.editor.view.focus();
-                      }
-                    },
+                    onKeydown: handleLanguageSearchKeydown,
                   }),
                   createCodeBlockIcon("search"),
                 ]),
                 h(
                   "div",
-                  { class: "markweave-codeblock-language-list" },
-                  languageItems.value.map((item) => {
+                  {
+                    ref: languageListRef,
+                    id: languageMenuDomId.value ?? undefined,
+                    class: "markweave-codeblock-language-list",
+                    role: "listbox",
+                    "aria-label": "Code block languages",
+                  },
+                  languageItems.value.map((item, index) => {
                     const selected = codeBlock.value?.language === item.language;
+                    const highlighted = index === activeLanguageIndex.value;
                     return h(
                       "button",
                       {
                         key: item.language,
+                        id: languageMenuDomId.value ? getCodeBlockLanguageOptionDomId(languageMenuDomId.value, item.language) : undefined,
                         type: "button",
                         role: "option",
                         "aria-selected": selected ? "true" : "false",
                         "data-testid": `markweave-codeblock-language-option-${item.language}`,
                         "data-active": selected ? "true" : "false",
+                        "data-highlighted": highlighted ? "true" : "false",
+                        "data-language-index": index,
                         onMousedown: preventVuePointerFocusLoss,
+                        onMouseenter: () => {
+                          activeLanguageIndex.value = index;
+                        },
                         onClick: () => selectLanguage(item.language),
                       },
                       [h("span", null, item.label), selected ? createCodeBlockIcon("check") : null],
