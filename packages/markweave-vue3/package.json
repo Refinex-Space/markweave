@@ -1,6 +1,6 @@
 {
   "name": "@markweave/vue3",
-  "version": "0.2.5",
+  "version": "0.2.6",
   "type": "module",
   "description": "Vue 3 adapter for the Markweave Markdown-first WYSIWYG editor.",
   "license": "MIT",
