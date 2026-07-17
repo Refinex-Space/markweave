@@ -66,6 +66,7 @@ import {
   type Ref,
 } from "./vue2-compat";
 import { isEditorComposing } from "markweave/internal/editor-core/composition-guard";
+import { saveMarkweaveBrowserFile } from "markweave/internal/core/browser-file-save";
 import { createMarkweaveFrameScheduler } from "markweave/internal/editor-core/frame-scheduler";
 import {
   createMarkweaveEditorUpdatePayload,
@@ -1908,14 +1909,12 @@ const VueCodeBlockControls = defineComponent({
         return;
       }
 
-      const blob = new Blob([svg], { type: "image/svg+xml" });
-      const url = URL.createObjectURL(blob);
-      const anchor = document.createElement("a");
-      anchor.href = url;
-      anchor.download = "markweave-mermaid.svg";
-      anchor.click();
-      URL.revokeObjectURL(url);
-      props.editor.view.focus();
+      saveMarkweaveBrowserFile({
+        data: new Blob([svg], { type: "image/svg+xml" }),
+        fileName: "markweave-mermaid.svg",
+        onSettled: () => props.editor.view.focus(),
+        ownerDocument: document,
+      });
     };
 
     const openMermaidFullscreen = () => {

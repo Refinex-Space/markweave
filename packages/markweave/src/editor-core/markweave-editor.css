@@ -412,17 +412,17 @@
 .markweave-image-toolbar {
   position: absolute;
   z-index: 46;
-  top: -46px;
+  top: -42px;
   left: 50%;
   display: flex;
   align-items: center;
-  gap: 3px;
-  height: 38px;
+  gap: 2px;
+  height: 34px;
   border: 1px solid #e1e4e8;
-  border-radius: 17px;
+  border-radius: 8px;
   background: rgba(255, 255, 255, 0.97);
   box-shadow: 0 12px 28px rgba(28, 31, 36, 0.14);
-  padding: 0 8px;
+  padding: 0 6px;
   opacity: 0;
   pointer-events: none;
   transform: translateX(-50%) translateY(4px);
@@ -451,13 +451,18 @@
   position: relative;
   display: grid;
   place-items: center;
-  width: 30px;
-  height: 30px;
+  width: 26px;
+  height: 26px;
   border: 0;
-  border-radius: 11px;
+  border-radius: 6px;
   background: transparent;
   color: #626870;
   cursor: pointer;
+}
+
+.markweave-image-toolbar button svg {
+  width: 16px;
+  height: 16px;
 }
 
 .markweave-image-toolbar button:hover,
@@ -468,8 +473,8 @@
 
 .markweave-image-toolbar-divider {
   width: 1px;
-  height: 22px;
-  margin: 0 4px;
+  height: 18px;
+  margin: 0 3px;
   background: #e2e5ea;
 }
 
@@ -548,8 +553,8 @@
   position: absolute;
   top: 50%;
   display: block;
-  width: 24px;
-  height: 96px;
+  width: 18px;
+  height: 64px;
   border: 0;
   background: transparent;
   cursor: ew-resize;
@@ -561,20 +566,32 @@
   position: absolute;
   top: 50%;
   left: 50%;
-  width: 8px;
-  height: 58px;
+  box-sizing: border-box;
+  width: 4px;
+  height: 34px;
+  border: 1px solid rgba(69, 76, 86, 0.42);
   border-radius: 999px;
-  background: #30343a;
+  background: rgba(255, 255, 255, 0.88);
+  box-shadow: 0 1px 4px rgba(28, 31, 36, 0.14);
   content: "";
   transform: translate(-50%, -50%);
+  transition:
+    border-color 120ms ease,
+    background 120ms ease;
+}
+
+.markweave-image-resize-handle:hover::after,
+.markweave-image-resize-handle:focus-visible::after {
+  border-color: rgba(47, 52, 59, 0.68);
+  background: #ffffff;
 }
 
 .markweave-image-resize-handle[data-side="left"] {
-  left: 4px;
+  left: 3px;
 }
 
 .markweave-image-resize-handle[data-side="right"] {
-  right: 4px;
+  right: 3px;
 }
 
 .markweave-image-node[data-hovered="true"] .markweave-image-resize-handle,

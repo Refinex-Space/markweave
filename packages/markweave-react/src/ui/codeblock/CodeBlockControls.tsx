@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties, MouseEvent as ReactMouseEvent, WheelEvent as ReactWheelEvent } from "react";
 import type { Editor } from "@tiptap/react";
 import type { Transaction } from "@tiptap/pm/state";
+import { saveMarkweaveBrowserFile } from "markweave/internal/core/browser-file-save";
 import {
   copyActiveCodeBlock,
   codeBlockCollapsePluginKey,
@@ -542,14 +543,12 @@ export function CodeBlockControls({ active, editor, mermaidMode, onMermaidModeCh
       return;
     }
 
-    const blob = new Blob([svg], { type: "image/svg+xml" });
-    const url = URL.createObjectURL(blob);
-    const anchor = document.createElement("a");
-    anchor.href = url;
-    anchor.download = "markweave-mermaid.svg";
-    anchor.click();
-    URL.revokeObjectURL(url);
-    editor.view.focus();
+    saveMarkweaveBrowserFile({
+      data: new Blob([svg], { type: "image/svg+xml" }),
+      fileName: "markweave-mermaid.svg",
+      onSettled: () => editor.view.focus(),
+      ownerDocument: document,
+    });
   };
 
   const openMermaidFullscreen = () => {

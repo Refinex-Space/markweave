@@ -212,6 +212,10 @@ function drag(element: Element, from: { readonly x: number; readonly y: number }
   });
 }
 
+async function flushAsyncSave() {
+  await new Promise((resolve) => window.setTimeout(resolve, 0));
+}
+
 afterEach(() => {
   activeRoot?.unmount();
   activeRoot = null;
@@ -224,6 +228,7 @@ afterEach(() => {
   }
   activeEditor?.destroy();
   activeEditor = null;
+  Reflect.deleteProperty(window, "showSaveFilePicker");
   document.body.replaceChildren();
 });
 
@@ -520,7 +525,7 @@ describe("code block controls", () => {
     expect(editor.getHTML()).toBe(initialHtml);
   });
 
-  it("keeps Mermaid source durable while switching tabs and exposing preview actions", () => {
+  it("keeps Mermaid source durable while switching tabs and exposing preview actions", async () => {
     const { editor, rerender } = renderControls(
       `<pre><code class="language-mermaid">flowchart TB
   A --> B</code></pre>`,
@@ -564,23 +569,21 @@ describe("code block controls", () => {
     expect(queryByTestId("markweave-mermaid-fullscreen-layer")).toBeNull();
     expect(editor.getHTML()).toBe(initialHtml);
 
-    const createObjectUrl = vi.fn(() => "blob:markweave-mermaid");
-    const revokeObjectUrl = vi.fn();
+    const write = vi.fn().mockResolvedValue(undefined);
+    const close = vi.fn().mockResolvedValue(undefined);
+    const showSaveFilePicker = vi.fn().mockResolvedValue({
+      createWritable: vi.fn().mockResolvedValue({ write, close }),
+    });
     const anchorClick = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
-    Object.defineProperty(URL, "createObjectURL", {
-      configurable: true,
-      value: createObjectUrl,
-    });
-    Object.defineProperty(URL, "revokeObjectURL", {
-      configurable: true,
-      value: revokeObjectUrl,
-    });
+    Object.defineProperty(window, "showSaveFilePicker", { configurable: true, value: showSaveFilePicker });
 
     click(getByTestId("markweave-mermaid-download"));
+    await flushAsyncSave();
 
-    expect(createObjectUrl).toHaveBeenCalledTimes(1);
-    expect(anchorClick).toHaveBeenCalledTimes(1);
-    expect(revokeObjectUrl).toHaveBeenCalledWith("blob:markweave-mermaid");
+    expect(showSaveFilePicker).toHaveBeenCalledWith({ suggestedName: "markweave-mermaid.svg", startIn: "downloads" });
+    expect(write).toHaveBeenCalledWith(expect.any(Blob));
+    expect(close).toHaveBeenCalledTimes(1);
+    expect(anchorClick).not.toHaveBeenCalled();
 
     click(getByTestId("markweave-mermaid-mode-code"));
 
