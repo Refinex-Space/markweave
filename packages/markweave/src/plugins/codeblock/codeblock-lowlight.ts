@@ -27,9 +27,17 @@ import properties from "highlight.js/lib/languages/properties";
 import protobuf from "highlight.js/lib/languages/protobuf";
 import scala from "highlight.js/lib/languages/scala";
 import scheme from "highlight.js/lib/languages/scheme";
+import shellSession from "highlight.js/lib/languages/shell";
 import stylus from "highlight.js/lib/languages/stylus";
 import twig from "highlight.js/lib/languages/twig";
 import { common, createLowlight } from "lowlight";
+import { markweaveBashGrammar } from "./codeblock-shell-grammar";
+
+const markweaveCommonCodeBlockGrammars = {
+  ...common,
+  bash: markweaveBashGrammar,
+  shell: markweaveBashGrammar,
+};
 
 const additionalMarkweaveCodeBlockGrammars = {
   apache,
@@ -61,12 +69,13 @@ const additionalMarkweaveCodeBlockGrammars = {
   protobuf,
   scala,
   scheme,
+  "shell-session": shellSession,
   stylus,
   twig,
 };
 
 const markweaveCodeBlockLanguageAliases = {
-  bash: ["nushell", "shellscript", "shellsession"],
+  bash: ["nushell", "shellscript"],
   css: ["postcss"],
   ini: ["toml"],
   javascript: ["js", "jsx"],
@@ -79,7 +88,7 @@ const markweaveCodeBlockLanguageAliases = {
 } as const;
 
 export function createMarkweaveLowlight() {
-  const lowlight = createLowlight(common);
+  const lowlight = createLowlight(markweaveCommonCodeBlockGrammars);
   lowlight.register(additionalMarkweaveCodeBlockGrammars);
   lowlight.registerAlias(markweaveCodeBlockLanguageAliases);
   return lowlight;

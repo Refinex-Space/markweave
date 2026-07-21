@@ -113,13 +113,13 @@ Math formulas are editable in Live mode: click inline `$...$` or display `$$...$
 
 Markweave 0.2.3 exports `createMarkweaveSearchController` and the shared `MarkweaveSearch` extension. The default extension bundle already registers it. Controllers support Unicode-aware literal and regex queries, case and whole-word options, cyclic navigation, ProseMirror result decorations, subscriptions, and editable-only replacement.
 
-Markweave 0.2.4 adds framework-neutral image clipboard handling. Local image files use the host upload callback, while HTTP(S) images from image-only HTML or standalone URLs with common image extensions are inserted directly without remote MIME detection.
+Markweave 0.2.5 adds framework-neutral image clipboard handling. Local image files use the host upload callback, while HTTP(S) images from image-only HTML or standalone URLs with common image extensions are inserted directly without remote MIME detection.
 
 ## Code Block Languages
 
 Markweave 0.2.2 shares one searchable language catalog across all adapters. It includes XML, Properties, INI, TOML, JSON variants, YAML, Dockerfile, Nginx, HTTP, GraphQL, Protocol Buffers, JavaScript/JSX, TypeScript/TSX, Java, Kotlin, Scala, C/C++/C#, Go, Rust, Python, Ruby, PHP, Swift, Dart, shell languages, SQL variants, and additional template, functional, scientific, and infrastructure languages.
 
-Every selectable language identifier is registered with either a dedicated Highlight.js grammar or a compatible grammar. Stored Markdown fence identifiers are preserved. Compatibility groups cover JavaScript (`js`, `jsx`), TypeScript (`ts`, `tsx`), XML-derived HTML identifiers, JSON variants, shell variants, TOML/INI, PostCSS/CSS, PL/SQL/SQL, and Vyper/Python. Plain text has no token coloring. Mermaid defaults to Preview, while slash-inserted Mermaid opens in Code mode for immediate source editing.
+Every selectable language identifier is registered with either a dedicated Highlight.js grammar or a compatible grammar. Stored Markdown fence identifiers are preserved. Compatibility groups cover JavaScript (`js`, `jsx`), TypeScript (`ts`, `tsx`), XML-derived HTML identifiers, JSON variants, shell variants, TOML/INI, PostCSS/CSS, PL/SQL/SQL, and Vyper/Python. Markweave 0.2.6 enhances Bash, Shell, and Shell Script with external command, option, and URL tokens; Shell Session keeps its dedicated prompt grammar and uses the enhanced Bash grammar for command bodies. Plain text has no token coloring. Mermaid defaults to Preview, while slash-inserted Mermaid opens in Code mode for immediate source editing.
 
 ## Framework Parity
 

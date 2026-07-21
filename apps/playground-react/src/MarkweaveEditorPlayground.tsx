@@ -13,9 +13,25 @@ import {
   type TableCommandResult,
   type TableEditWithAiRequest,
 } from "@markweave/react";
-import { createPlaygroundUploadResult, initialPlaygroundDocument, largeDocumentPerformanceFixture, mergedTablePlaygroundDocument, resolvePlaygroundLinkCard } from "@markweave/playground-fixtures";
+import {
+  createPlaygroundUploadResult,
+  initialPlaygroundDocument,
+  largeDocumentPerformanceFixture,
+  largeMissingMediaPerformanceFixture,
+  largeTextPerformanceFixture,
+  largeValidMediaPerformanceFixture,
+  mergedTablePlaygroundDocument,
+  resolvePlaygroundLinkCard,
+  resolvePlaygroundMediaSource,
+  stressDocumentPerformanceFixture,
+} from "@markweave/playground-fixtures";
 
 export function MarkweaveEditorPlayground() {
+  const [benchmarkMode] = useState(
+    () =>
+      typeof window !== "undefined" &&
+      new URLSearchParams(window.location.search).get("benchmark") === "1",
+  );
   const [fixtureContent, setFixtureContent] = useState(initialPlaygroundDocument);
   const [fixtureFormat, setFixtureFormat] = useState<MarkweaveContentFormat>("markdown");
   const [fixtureRevision, setFixtureRevision] = useState(0);
@@ -86,16 +102,17 @@ export function MarkweaveEditorPlayground() {
       <MarkweaveEditor
         key={fixtureRevision}
         ariaLabel="Markweave editor playground"
-        autoFocusFirstTableBodyCell
+        autoFocusFirstTableBodyCell={!benchmarkMode}
         defaultContent={fixtureContent}
         defaultContentFormat={fixtureFormat}
         mode={editorMode}
         theme={theme}
         linkCardResolver={resolvePlaygroundLinkCard}
+        resolveMediaSource={resolvePlaygroundMediaSource}
         onEditWithAi={setLastTableEditWithAiRequest}
         onExtractToNote={setLastFloatingToolbarAssistantRequest}
         onRewriteSelection={setLastFloatingToolbarAssistantRequest}
-        onRuntimeStateChange={setRuntimeSnapshot}
+        onRuntimeStateChange={benchmarkMode ? undefined : setRuntimeSnapshot}
         onSlashCommandUpload={handleSlashUpload}
         onTableCommandResult={setLastTableCommandResult}
         onTableCopyPayload={setLastTableCopyPayload}
@@ -111,6 +128,18 @@ export function MarkweaveEditorPlayground() {
           </button>
           <button type="button" onClick={() => loadFixture(largeDocumentPerformanceFixture)}>
             100k Performance Fixture
+          </button>
+          <button type="button" onClick={() => loadFixture(largeTextPerformanceFixture)}>
+            250k Text Fixture
+          </button>
+          <button type="button" onClick={() => loadFixture(largeValidMediaPerformanceFixture)}>
+            250k Valid Media Fixture
+          </button>
+          <button type="button" onClick={() => loadFixture(largeMissingMediaPerformanceFixture)}>
+            250k Missing Media Fixture
+          </button>
+          <button type="button" onClick={() => loadFixture(stressDocumentPerformanceFixture)}>
+            1MB Stress Fixture
           </button>
         </div>
         {lastTableCopyPayload ? (

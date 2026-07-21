@@ -47,6 +47,7 @@ type ImageClipboardPluginMeta =
 
 const remoteImageExtensions = new Set(["avif", "bmp", "gif", "ico", "jpeg", "jpg", "png", "svg", "webp"]);
 const imageOnlyWrapperTags = new Set(["A", "DIV", "P", "SPAN", "FIGURE"]);
+const madoraDrawingReferencePattern = /^\[!\[((?:\\.|[^\]])*)\]\((madora-asset:\/\/[0-9a-f]{64})\)\]\((madora-drawing:\/\/[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})\)$/i;
 const imageClipboardPluginKey = new PluginKey<ImageClipboardPluginState>("markweaveImageClipboard");
 let clipboardImageSequence = 0;
 
@@ -60,6 +61,10 @@ function normalizeRemoteImageUrl(input: string, requireImageExtension: boolean) 
 
   if (!trimmed || /[\r\n]/.test(trimmed)) {
     return null;
+  }
+
+  if (!requireImageExtension && /^madora-asset:\/\/[0-9a-f]{64}$/i.test(trimmed)) {
+    return trimmed;
   }
 
   try {
@@ -129,6 +134,21 @@ function parseImageOnlyHtml(html: string): readonly MarkweaveClipboardImageCandi
     : null;
 }
 
+function parseMadoraDrawingReference(input: string): MarkweaveClipboardImageCandidate | null {
+  const match = madoraDrawingReferencePattern.exec(input.trim());
+
+  if (!match) {
+    return null;
+  }
+
+  return {
+    type: "remote",
+    src: match[2]!,
+    alt: match[1]!.replace(/\\([\\[\]])/g, "$1"),
+    title: match[3]!,
+  };
+}
+
 export function sanitizeMarkweavePastedImageHtml(html: string) {
   if (!html.trim()) {
     return html;
@@ -163,7 +183,14 @@ export function parseMarkweaveClipboardImages(clipboardData: MarkweaveClipboardD
     return parseImageOnlyHtml(html) ?? [];
   }
 
-  const src = normalizeRemoteImageUrl(clipboardData.getData("text/plain"), true);
+  const text = clipboardData.getData("text/plain");
+  const drawingReference = parseMadoraDrawingReference(text);
+
+  if (drawingReference) {
+    return [drawingReference];
+  }
+
+  const src = normalizeRemoteImageUrl(text, true);
   return src ? [{ type: "remote", src }] : [];
 }
 

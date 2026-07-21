@@ -2,6 +2,7 @@ import { createMarkweaveEditorExtensions as createMarkweaveCoreEditorExtensions 
 import { getMarkweaveMessages, type MarkweaveLang } from "markweave/internal/i18n";
 import type { MarkweaveLinkCardResolver } from "markweave/internal/plugins/link-card/link-card";
 import type { MarkweaveSlashCommandUploadHandler } from "markweave/internal/plugins/slash-command/upload";
+import type { MarkweaveMediaSourceResolver } from "markweave/internal/plugins/media/media-source";
 import { createMarkweaveAdapterMediaExtensions } from "markweave/internal/plugins/media/media-extension-factory";
 import { MarkweaveVueImage, MarkweaveVueLinkCard, MarkweaveVueVideo } from "./media-nodeviews";
 
@@ -10,6 +11,7 @@ export interface CreateMarkweaveVue3EditorExtensionsOptions {
   readonly onImageUpload?: MarkweaveSlashCommandUploadHandler;
   readonly onVideoUpload?: MarkweaveSlashCommandUploadHandler;
   readonly linkCardResolver?: MarkweaveLinkCardResolver;
+  readonly resolveMediaSource?: MarkweaveMediaSourceResolver;
 }
 
 export function createMarkweaveVue3EditorExtensions(options: CreateMarkweaveVue3EditorExtensionsOptions = {}) {
@@ -23,6 +25,7 @@ export function createMarkweaveVue3EditorExtensions(options: CreateMarkweaveVue3
       lang: options.lang,
       onImageUpload: options.onImageUpload,
       onVideoUpload: options.onVideoUpload,
+      resolveMediaSource: options.resolveMediaSource,
     }),
   });
 }

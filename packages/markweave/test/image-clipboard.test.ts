@@ -99,6 +99,27 @@ afterEach(() => {
 });
 
 describe("Markweave image clipboard parsing", () => {
+  it("preserves validated Madora drawing snapshot references as editable images", () => {
+    const assetId = "a".repeat(64);
+    const drawingId = "11111111-1111-4111-8111-111111111111";
+
+    expect(
+      parseMarkweaveClipboardImages({
+        files: [],
+        getData: (type) =>
+          type === "text/plain"
+            ? `[![Architecture](madora-asset://${assetId})](madora-drawing://${drawingId})`
+            : "",
+      }),
+    ).toEqual([
+      {
+        type: "remote",
+        src: `madora-asset://${assetId}`,
+        alt: "Architecture",
+        title: `madora-drawing://${drawingId}`,
+      },
+    ]);
+  });
   it("prefers every image file over duplicate HTML and URL clipboard representations", () => {
     const first = new File(["a"], "first.png", { type: "image/png" });
     const second = new File(["b"], "second.jpg", { type: "image/jpeg" });

@@ -23,6 +23,12 @@ import { MarkweaveLinkCard, type MarkweaveLinkCardExtensionOptions } from "markw
 import { openMarkweaveLinkCardComposer } from "markweave/internal/plugins/link-card/link-card-composer";
 import { normalizeMarkweaveLinkCardAttrs, normalizeMarkweaveLinkCardHref, replaceMarkweaveLinkCardWithLink, type MarkweaveLinkCardResolver } from "markweave/internal/plugins/link-card/link-card";
 import { openMarkweaveImagePreview } from "markweave/internal/plugins/media/image-preview";
+import { createMarkweaveLightweightImageNodeViewRenderer } from "markweave/internal/plugins/media/lightweight-image-node-view";
+import {
+  resolveMarkweaveMediaSource,
+  type MarkweaveMediaSourceResolver,
+  type MarkweaveMediaSourceResult,
+} from "markweave/internal/plugins/media/media-source";
 import {
   attrsFromMarkweaveImageUploadResult,
   attrsFromMarkweaveVideoUploadResult,
@@ -55,11 +61,13 @@ export type MarkweaveVueVideoProvider = MarkweaveCoreVideoProvider;
 export interface MarkweaveVueImageOptions extends ImageOptions {
   readonly messages?: MarkweaveMessages;
   readonly onUpload?: MarkweaveSlashCommandUploadHandler;
+  readonly resolveMediaSource?: MarkweaveMediaSourceResolver;
 }
 
 export interface MarkweaveVueVideoOptions extends MarkweaveCoreVideoOptions {
   readonly messages?: MarkweaveMessages;
   readonly onUpload?: MarkweaveSlashCommandUploadHandler;
+  readonly resolveMediaSource?: MarkweaveMediaSourceResolver;
 }
 
 export interface MarkweaveVueLinkCardOptions extends MarkweaveLinkCardExtensionOptions {
@@ -358,14 +366,57 @@ const MarkweaveVueImageNodeView = defineComponent({
     const allMessages = computed(() => (props.extension as { options?: MarkweaveVueImageOptions }).options?.messages ?? getMarkweaveMessages("zh"));
     const messages = computed(() => allMessages.value.image);
     const src = computed(() => stringAttribute(attrs.value.src));
+    const mediaResolver = computed(
+      () =>
+        (props.extension as { options?: MarkweaveVueImageOptions }).options
+          ?.resolveMediaSource,
+    );
+    const resolvedSource = ref<MarkweaveMediaSourceResult | null>(null);
+    let mediaAbortController: AbortController | null = null;
+    watch(
+      src,
+      (nextSrc) => {
+        mediaAbortController?.abort();
+        mediaAbortController = null;
+
+        if (!nextSrc) {
+          resolvedSource.value = null;
+          return;
+        }
+
+        const resolver = mediaResolver.value;
+        if (!resolver) {
+          resolvedSource.value = { src: nextSrc };
+          return;
+        }
+
+        const controller = new AbortController();
+        mediaAbortController = controller;
+        void resolveMarkweaveMediaSource(resolver, {
+          kind: "image",
+          priority: props.selected ? "visible" : "nearby",
+          signal: controller.signal,
+          src: nextSrc,
+        }).then((result) => {
+          if (!controller.signal.aborted) {
+            resolvedSource.value = result;
+          }
+        });
+      },
+      { immediate: true },
+    );
+    onBeforeUnmount(() => mediaAbortController?.abort());
+    const displaySrc = computed(
+      () => resolvedSource.value?.src ?? (mediaResolver.value ? null : src.value),
+    );
     const align = computed(() => normalizeImageAlign(attrs.value.align));
     const width = computed(() => numberAttribute(attrs.value.width));
     const caption = computed(() => stringAttribute(attrs.value.caption));
     const showPlaceholder = computed(() => canEdit.value && (!src.value || replacing.value));
     const openPreview = () => {
-      if (!src.value) return;
+      if (!displaySrc.value) return;
       openMarkweaveImagePreview({
-        src: src.value,
+        src: displaySrc.value,
         alt: stringAttribute(attrs.value.alt) ?? "",
         messages: {
           dialogAriaLabel: messages.value.previewDialogAriaLabel,
@@ -570,8 +621,8 @@ const MarkweaveVueImageNodeView = defineComponent({
                   label: messages.value.download,
                   icon: Download,
                   onClick: () => {
-                    if (src.value) {
-                      downloadMarkweaveImage(src.value);
+                    if (displaySrc.value) {
+                      downloadMarkweaveImage(displaySrc.value);
                     }
                   },
                 }),
@@ -594,19 +645,28 @@ const MarkweaveVueImageNodeView = defineComponent({
             {
               ref: imageBoxRef,
               class: "markweave-image-box",
-              style: width.value ? { width: `${Math.round(width.value)}px` } : undefined,
+              style: {
+                ...(width.value ? { width: `${Math.round(width.value)}px` } : {}),
+                ...(resolvedSource.value?.width && resolvedSource.value.height
+                  ? { aspectRatio: `${resolvedSource.value.width} / ${resolvedSource.value.height}` }
+                  : {}),
+              },
             },
             [
-              src.value
+              displaySrc.value
                 ? h("img", {
                     class: "markweave-image",
-                    src: src.value,
+                    src: displaySrc.value,
                     alt: stringAttribute(attrs.value.alt) ?? "",
                     title: stringAttribute(attrs.value.title) ?? undefined,
                     draggable: false,
+                    loading: "lazy",
+                    decoding: "async",
+                    width: resolvedSource.value?.width,
+                    height: resolvedSource.value?.height,
                   })
                 : h("div", { class: "markweave-image-readonly-empty", "data-testid": "markweave-image-readonly-empty", "aria-hidden": "true" }),
-              !canEdit.value && src.value
+              !canEdit.value && displaySrc.value
                 ? h(
                     "button",
                     {
@@ -877,6 +937,7 @@ export const MarkweaveVueImage = MarkweaveCoreImage.extend<MarkweaveVueImageOpti
       ...(this.parent?.() as ImageOptions),
       messages: getMarkweaveMessages("zh"),
       onUpload: undefined,
+      resolveMediaSource: undefined,
     };
   },
 
@@ -885,9 +946,22 @@ export const MarkweaveVueImage = MarkweaveCoreImage.extend<MarkweaveVueImageOpti
       return null;
     }
 
-    return VueNodeViewRenderer(MarkweaveVueImageNodeView as unknown as Component<NodeViewProps>, {
+    const richRenderer = VueNodeViewRenderer(MarkweaveVueImageNodeView as unknown as Component<NodeViewProps>, {
       stopEvent: ({ event }) => isImageUiEventTarget(event.target),
     });
+    const resolver = this.options.resolveMediaSource;
+    if (!resolver) {
+      return richRenderer;
+    }
+    const lightweightRenderer = createMarkweaveLightweightImageNodeViewRenderer({
+      messages: this.options.messages ?? getMarkweaveMessages("zh"),
+      onUpload: this.options.onUpload,
+      resolveMediaSource: resolver,
+    });
+    return (props) =>
+      stringAttribute(props.node.attrs.src)
+        ? lightweightRenderer(props)
+        : richRenderer(props);
   },
 });
 
@@ -897,6 +971,7 @@ export const MarkweaveVueVideo = MarkweaveCoreVideo.extend<MarkweaveVueVideoOpti
       ...(this.parent?.() as MarkweaveCoreVideoOptions),
       messages: getMarkweaveMessages("zh"),
       onUpload: undefined,
+      resolveMediaSource: undefined,
     };
   },
 

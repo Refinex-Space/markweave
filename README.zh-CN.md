@@ -176,7 +176,9 @@ Markweave 0.2.2 在 React、Vue 2 和 Vue 3 中共用同一套可搜索代码块
 - 函数式与脚本语言：Bash、Shell、PowerShell、NuShell、Clojure、Elixir、Erlang、Groovy、Haskell、Lisp、OCaml、Scheme。
 - 工具与基础设施：Apache、CMake、Dockerfile、Gradle、Makefile、Nginx、Nix、SQL、PL/SQL、PostgreSQL、Diff、LaTeX、Markdown、Shell Session。
 
-纯文本不做语法着色。Mermaid 代码块默认使用 Preview，并继续提供 Code/Preview 控件；通过 slash 命令插入 Mermaid 时默认进入 Code，便于立即编辑初始源码。兼容标识不会改写已存储的围栏值：`js`/`jsx` 使用 JavaScript，`ts`/`tsx` 使用 TypeScript，`angular-html`/`html`/`html-derivative`/`vue-html` 使用 XML，`hjson`/`json5`/`jsonc`/`jsonl`/`jsonnet` 使用 JSON，`nushell`/`shellscript`/`shellsession` 使用 Bash，`toml` 使用 INI，`postcss` 使用 CSS，`plsql` 使用 SQL，`vyper` 使用 Python。
+Markweave 0.2.6 在不改写 Markdown 围栏标识的前提下增强 Shell 高亮。Bash、Shell 和 Shell Script 除标准 Bash token 外，还会识别外部命令位置、参数和 URL；Shell Session 使用专用提示符语法，并将命令正文交给增强 Bash 语法处理。
+
+纯文本不做语法着色。Mermaid 代码块默认使用 Preview，并继续提供 Code/Preview 控件；通过 slash 命令插入 Mermaid 时默认进入 Code，便于立即编辑初始源码。兼容标识不会改写已存储的围栏值：`js`/`jsx` 使用 JavaScript，`ts`/`tsx` 使用 TypeScript，`angular-html`/`html`/`html-derivative`/`vue-html` 使用 XML，`hjson`/`json5`/`jsonc`/`jsonl`/`jsonnet` 使用 JSON，`nushell`/`shellscript` 使用增强 Bash 语法，`shellsession` 使用专用 Shell Session 语法，`toml` 使用 INI，`postcss` 使用 CSS，`plsql` 使用 SQL，`vyper` 使用 Python。
 
 ## 框架能力矩阵
 

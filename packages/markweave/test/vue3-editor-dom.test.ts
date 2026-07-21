@@ -87,6 +87,16 @@ function installLayoutMocks() {
       return createRect(120, 180, 720, 260);
     }
 
+    if (this.classList.contains("markweave-codeblock-language-list")) {
+      return createRect(0, 0, 220, 26);
+    }
+
+    if (this.dataset.languageIndex) {
+      const index = Number.parseInt(this.dataset.languageIndex, 10);
+      const listScrollTop = this.parentElement?.scrollTop ?? 0;
+      return createRect(0, index * 26 - listScrollTop, 220, 26);
+    }
+
     if (this.classList.contains("markweave-table-menu")) {
       return createRect(0, 0, 240, 320);
     }
@@ -538,6 +548,8 @@ describe("Markweave Vue3 editor", () => {
   it("aligns Vue code block language menu and copy controls with React", async () => {
     installLayoutMocks();
     const inputFocus = vi.spyOn(HTMLInputElement.prototype, "focus");
+    const scrollIntoView = vi.fn();
+    mockPrototypeMethod(HTMLElement.prototype, "scrollIntoView", scrollIntoView);
     const writeText = vi.fn<Clipboard["writeText"]>().mockResolvedValue(undefined);
     Object.defineProperty(globalThis.navigator, "clipboard", {
       configurable: true,
@@ -562,14 +574,21 @@ describe("Markweave Vue3 editor", () => {
     await click(getByTestId(container, "markweave-codeblock-language"));
     expect(getByTestId(container, "markweave-codeblock-language-menu").getAttribute("data-positioned")).toBe("true");
     expect(inputFocus).toHaveBeenCalledWith({ preventScroll: true });
-    await inputValue(getByTestId<HTMLInputElement>(container, "markweave-codeblock-language-search"), "json");
-    expect(getByTestId(container, "markweave-codeblock-language-option-json")).toBeTruthy();
-    expect(queryByTestId(container, "markweave-codeblock-language-option-java")).toBeNull();
+    expect(getByTestId(container, "markweave-codeblock-language-option-ts").getAttribute("data-highlighted")).toBe("true");
 
-    await click(getByTestId(container, "markweave-codeblock-language-option-json"));
+    const search = getByTestId<HTMLInputElement>(container, "markweave-codeblock-language-search");
+    await inputValue(search, "p");
+    expect(getByTestId(container, "markweave-codeblock-language-option-apache").getAttribute("data-highlighted")).toBe("true");
+    await keyDown(search, "ArrowDown");
+    expect(getByTestId(container, "markweave-codeblock-language-option-csharp").getAttribute("data-highlighted")).toBe("true");
+    expect(container.querySelector<HTMLElement>(".markweave-codeblock-language-list")?.scrollTop).toBe(26);
+    expect(scrollIntoView).not.toHaveBeenCalled();
+    expect(search.getAttribute("aria-activedescendant")).toBe(getByTestId(container, "markweave-codeblock-language-option-csharp").id);
+
+    await keyDown(search, "Enter");
     expect(queryByTestId(container, "markweave-codeblock-language-menu")).toBeNull();
     await pointerMove(container.querySelector("pre") as Element);
-    expect(getByTestId(container, "markweave-codeblock-language").textContent).toContain("JSON");
+    expect(getByTestId(container, "markweave-codeblock-language").textContent).toContain("C#");
 
     await click(getByTestId(container, "markweave-codeblock-copy"));
     await flushVue();

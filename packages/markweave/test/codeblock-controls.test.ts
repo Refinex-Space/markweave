@@ -67,6 +67,16 @@ function installLayoutMocks() {
       return createRect(frameLeft + 24, frameTop + 90, 840, 300);
     }
 
+    if (this.classList.contains("markweave-codeblock-language-list")) {
+      return createRect(0, 0, 220, 26);
+    }
+
+    if (this.dataset.languageIndex) {
+      const index = Number.parseInt(this.dataset.languageIndex, 10);
+      const listScrollTop = this.parentElement?.scrollTop ?? 0;
+      return createRect(0, index * 26 - listScrollTop, 220, 26);
+    }
+
     if (this.tagName === "PRE") {
       return createRect(frameLeft + 24, frameTop + 50, 840, 160);
     }
@@ -186,6 +196,12 @@ function inputValue(input: HTMLInputElement, value: string) {
   });
 }
 
+function keyDown(element: Element, key: string) {
+  act(() => {
+    element.dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true }));
+  });
+}
+
 function hover(element: Element) {
   act(() => {
     element.dispatchEvent(new MouseEvent("mouseover", { bubbles: true, cancelable: true }));
@@ -212,6 +228,10 @@ function drag(element: Element, from: { readonly x: number; readonly y: number }
   });
 }
 
+async function flushAsyncSave() {
+  await new Promise((resolve) => window.setTimeout(resolve, 0));
+}
+
 afterEach(() => {
   activeRoot?.unmount();
   activeRoot = null;
@@ -224,6 +244,7 @@ afterEach(() => {
   }
   activeEditor?.destroy();
   activeEditor = null;
+  Reflect.deleteProperty(window, "showSaveFilePicker");
   document.body.replaceChildren();
 });
 
@@ -401,6 +422,35 @@ describe("code block controls", () => {
     expect(editor.view.hasFocus()).toBe(true);
   });
 
+  it("navigates filtered languages with arrow keys, scrolls the highlight into view, and selects with Enter", () => {
+    const scrollIntoView = vi.fn();
+    const { editor } = renderControls('<pre><code class="language-ts">const value = 1;</code></pre>', { selectText: "value" });
+    mockPrototypeMethod(HTMLElement.prototype, "scrollIntoView", scrollIntoView);
+
+    click(getByTestId("markweave-codeblock-language"));
+    expect(getByTestId("markweave-codeblock-language-option-ts").dataset.highlighted).toBe("true");
+
+    const search = getByTestId<HTMLInputElement>("markweave-codeblock-language-search");
+    inputValue(search, "p");
+    expect(getByTestId("markweave-codeblock-language-option-apache").dataset.highlighted).toBe("true");
+
+    keyDown(search, "ArrowDown");
+    expect(getByTestId("markweave-codeblock-language-option-csharp").dataset.highlighted).toBe("true");
+    expect(getByTestId("markweave-codeblock-language-menu").querySelector<HTMLElement>(".markweave-codeblock-language-list")?.scrollTop).toBe(26);
+    expect(scrollIntoView).not.toHaveBeenCalled();
+
+    keyDown(search, "ArrowUp");
+    expect(getByTestId("markweave-codeblock-language-option-apache").dataset.highlighted).toBe("true");
+    expect(search.getAttribute("aria-activedescendant")).toBe(getByTestId("markweave-codeblock-language-option-apache").id);
+
+    keyDown(search, "ArrowDown");
+
+    keyDown(search, "Enter");
+    expect(getActiveCodeBlockState(editor).language).toBe("csharp");
+    expect(queryByTestId("markweave-codeblock-language-menu")).toBeNull();
+    expect(editor.view.hasFocus()).toBe(true);
+  });
+
   it("changes a hovered code block language without moving the editor selection", () => {
     const { editor } = renderControls('<p>outside</p><pre><code class="language-ts">const value = 1;</code></pre>', {
       selectText: "outside",
@@ -520,7 +570,7 @@ describe("code block controls", () => {
     expect(editor.getHTML()).toBe(initialHtml);
   });
 
-  it("keeps Mermaid source durable while switching tabs and exposing preview actions", () => {
+  it("keeps Mermaid source durable while switching tabs and exposing preview actions", async () => {
     const { editor, rerender } = renderControls(
       `<pre><code class="language-mermaid">flowchart TB
   A --> B</code></pre>`,
@@ -564,23 +614,21 @@ describe("code block controls", () => {
     expect(queryByTestId("markweave-mermaid-fullscreen-layer")).toBeNull();
     expect(editor.getHTML()).toBe(initialHtml);
 
-    const createObjectUrl = vi.fn(() => "blob:markweave-mermaid");
-    const revokeObjectUrl = vi.fn();
+    const write = vi.fn().mockResolvedValue(undefined);
+    const close = vi.fn().mockResolvedValue(undefined);
+    const showSaveFilePicker = vi.fn().mockResolvedValue({
+      createWritable: vi.fn().mockResolvedValue({ write, close }),
+    });
     const anchorClick = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
-    Object.defineProperty(URL, "createObjectURL", {
-      configurable: true,
-      value: createObjectUrl,
-    });
-    Object.defineProperty(URL, "revokeObjectURL", {
-      configurable: true,
-      value: revokeObjectUrl,
-    });
+    Object.defineProperty(window, "showSaveFilePicker", { configurable: true, value: showSaveFilePicker });
 
     click(getByTestId("markweave-mermaid-download"));
+    await flushAsyncSave();
 
-    expect(createObjectUrl).toHaveBeenCalledTimes(1);
-    expect(anchorClick).toHaveBeenCalledTimes(1);
-    expect(revokeObjectUrl).toHaveBeenCalledWith("blob:markweave-mermaid");
+    expect(showSaveFilePicker).toHaveBeenCalledWith({ suggestedName: "markweave-mermaid.svg", startIn: "downloads" });
+    expect(write).toHaveBeenCalledWith(expect.any(Blob));
+    expect(close).toHaveBeenCalledTimes(1);
+    expect(anchorClick).not.toHaveBeenCalled();
 
     click(getByTestId("markweave-mermaid-mode-code"));
 

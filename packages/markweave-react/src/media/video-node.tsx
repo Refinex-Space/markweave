@@ -22,6 +22,7 @@ import {
 import { getMarkweaveMessages, type MarkweaveMessages } from "markweave/internal/i18n";
 import { isMarkweaveEditorLiveEditable } from "markweave/internal/core/editor-mode-state";
 import { useMarkweaveEditorModeState } from "../editor-mode-state";
+import type { MarkweaveMediaSourceResolver } from "markweave/internal/plugins/media/media-source";
 
 export { isDirectMarkweaveVideoUrl as isDirectVideoUrl, parseMarkweaveVideoEmbed } from "markweave/internal/plugins/media/core-media-nodes";
 export type MarkweaveVideoProvider = MarkweaveCoreVideoProvider;
@@ -29,6 +30,7 @@ export type MarkweaveVideoProvider = MarkweaveCoreVideoProvider;
 export interface MarkweaveVideoOptions extends MarkweaveCoreVideoOptions {
   readonly messages?: MarkweaveMessages;
   readonly onUpload?: MarkweaveSlashCommandUploadHandler;
+  readonly resolveMediaSource?: MarkweaveMediaSourceResolver;
 }
 
 export type MarkweaveVideoEmbed = MarkweaveCoreVideoEmbed;
@@ -295,6 +297,7 @@ export const MarkweaveVideo = MarkweaveCoreVideo.extend<MarkweaveVideoOptions>({
       ...(this.parent?.() as MarkweaveCoreVideoOptions),
       messages: getMarkweaveMessages("zh"),
       onUpload: undefined,
+      resolveMediaSource: undefined,
     };
   },
 

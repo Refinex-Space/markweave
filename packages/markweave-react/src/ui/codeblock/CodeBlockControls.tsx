@@ -1,7 +1,8 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import type { CSSProperties, MouseEvent as ReactMouseEvent, WheelEvent as ReactWheelEvent } from "react";
+import type { CSSProperties, KeyboardEvent as ReactKeyboardEvent, MouseEvent as ReactMouseEvent, WheelEvent as ReactWheelEvent } from "react";
 import type { Editor } from "@tiptap/react";
 import type { Transaction } from "@tiptap/pm/state";
+import { saveMarkweaveBrowserFile } from "markweave/internal/core/browser-file-save";
 import {
   copyActiveCodeBlock,
   codeBlockCollapsePluginKey,
@@ -18,6 +19,7 @@ import {
   clampFullscreenScale,
   codeBlockCopyFeedbackTimeoutMs,
   copyCodeBlockText,
+  createCodeBlockLanguageMenuDomId,
   createCodeBlockOverlayPosition,
   createMermaidFullscreenViewerState,
   createMermaidTabPosition,
@@ -27,6 +29,8 @@ import {
   getActiveCodeBlockElement,
   getAnchoredRect,
   getCodeBlockLanguageItems,
+  getCodeBlockLanguageOptionDomId,
+  getInitialCodeBlockLanguageItemIndex,
   getCodeBlockPositionFromEventTarget,
   getCodeBlockStateAtPosition,
   getFrameElement,
@@ -35,7 +39,9 @@ import {
   isCodeBlockTargetCollapsed,
   mergeStableMermaidTabPositions,
   mermaidFullscreenZoomStep,
+  moveCodeBlockLanguageItemIndex,
   moveMermaidFullscreenViewer,
+  scrollCodeBlockLanguageItemIntoView,
   type CodeBlockOverlayPosition,
   type CodeBlockMenuPosition,
   type CodeBlockTargetState,
@@ -163,6 +169,8 @@ export function CodeBlockControls({ active, editor, mermaidMode, onMermaidModeCh
   const controlsRef = useRef<HTMLDivElement | null>(null);
   const languageButtonRef = useRef<HTMLButtonElement | null>(null);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
+  const languageListRef = useRef<HTMLDivElement | null>(null);
+  const languageMenuDomIdRef = useRef<string | null>(null);
   const fullscreenDragRef = useRef<MermaidFullscreenDragState>({ active: false, lastX: 0, lastY: 0 });
   const [hoveredCodeBlockPos, setHoveredCodeBlockPos] = useState<number | null>(null);
   const [position, setPosition] = useState<CodeBlockOverlayPosition | null>(null);
@@ -170,6 +178,7 @@ export function CodeBlockControls({ active, editor, mermaidMode, onMermaidModeCh
   const [languageMenuPosition, setLanguageMenuPosition] = useState<CodeBlockMenuPosition | null>(null);
   const [languageMenuOpen, setLanguageMenuOpen] = useState(false);
   const [languageQuery, setLanguageQuery] = useState("");
+  const [activeLanguageIndex, setActiveLanguageIndex] = useState(-1);
   const [copyFeedback, setCopyFeedback] = useState<MarkweaveCodeBlockCopyFeedbackSnapshot | null>(null);
   const [copyTooltipVisible, setCopyTooltipVisible] = useState(false);
   const [fullscreenViewer, setFullscreenViewer] = useState<MermaidFullscreenViewerState | null>(null);
@@ -206,6 +215,7 @@ export function CodeBlockControls({ active, editor, mermaidMode, onMermaidModeCh
     if (readOnly) {
       setLanguageMenuOpen(false);
       setLanguageQuery("");
+      setActiveLanguageIndex(-1);
     }
   }, [readOnly]);
 
@@ -227,6 +237,7 @@ export function CodeBlockControls({ active, editor, mermaidMode, onMermaidModeCh
     setCopyFeedback(null);
     setLanguageMenuOpen(false);
     setLanguageQuery("");
+    setActiveLanguageIndex(-1);
     setFullscreenViewer(null);
     setFullscreenTooltip(null);
     setFullscreenDragging(false);
@@ -291,6 +302,19 @@ export function CodeBlockControls({ active, editor, mermaidMode, onMermaidModeCh
     searchInputRef.current?.focus({ preventScroll: true });
   }, [languageMenuOpen]);
 
+  useLayoutEffect(() => {
+    if (!languageMenuOpen || activeLanguageIndex < 0) {
+      return;
+    }
+
+    const listElement = languageListRef.current;
+    const itemElement = listElement?.querySelector<HTMLElement>(`[data-language-index="${activeLanguageIndex}"]`);
+
+    if (listElement && itemElement) {
+      scrollCodeBlockLanguageItemIntoView(listElement, itemElement);
+    }
+  }, [activeLanguageIndex, languageItems, languageMenuOpen]);
+
   useEffect(() => {
     if (!fullscreenViewer) {
       return undefined;
@@ -325,6 +349,7 @@ export function CodeBlockControls({ active, editor, mermaidMode, onMermaidModeCh
       }
 
       setLanguageMenuOpen(false);
+      setActiveLanguageIndex(-1);
       editor.view.focus();
     };
 
@@ -334,6 +359,7 @@ export function CodeBlockControls({ active, editor, mermaidMode, onMermaidModeCh
       }
 
       setLanguageMenuOpen(false);
+      setActiveLanguageIndex(-1);
     };
 
     document.addEventListener("keydown", closeOnEscape);
@@ -513,12 +539,64 @@ export function CodeBlockControls({ active, editor, mermaidMode, onMermaidModeCh
 
       setLanguageMenuOpen(false);
       setLanguageQuery("");
+      setActiveLanguageIndex(-1);
       setControlsRevision((revision) => revision + 1);
       if (refocusEditor) {
         editor.view.focus();
       }
     }
   };
+
+  const toggleLanguageMenu = () => {
+    const nextOpen = !languageMenuOpen;
+    if (nextOpen && languageMenuDomIdRef.current === null) {
+      languageMenuDomIdRef.current = createCodeBlockLanguageMenuDomId();
+    }
+    setActiveLanguageIndex(nextOpen ? getInitialCodeBlockLanguageItemIndex(languageItems, codeBlock?.language ?? null) : -1);
+    setLanguageMenuOpen(nextOpen);
+  };
+
+  const updateLanguageQuery = (query: string) => {
+    const nextItems = getCodeBlockLanguageItems(query);
+    setLanguageQuery(query);
+    setActiveLanguageIndex(getInitialCodeBlockLanguageItemIndex(nextItems, query.trim() ? null : codeBlock?.language ?? null));
+  };
+
+  const handleLanguageSearchKeyDown = (event: ReactKeyboardEvent<HTMLInputElement>) => {
+    if (event.nativeEvent.isComposing) {
+      return;
+    }
+
+    if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+      event.preventDefault();
+      setActiveLanguageIndex((currentIndex) =>
+        moveCodeBlockLanguageItemIndex(currentIndex, languageItems.length, event.key === "ArrowUp" ? "previous" : "next"),
+      );
+      return;
+    }
+
+    if (event.key === "Enter") {
+      const item = languageItems[activeLanguageIndex];
+      if (item) {
+        event.preventDefault();
+        selectLanguage(item.language);
+      }
+      return;
+    }
+
+    if (event.key === "Escape") {
+      event.preventDefault();
+      setLanguageMenuOpen(false);
+      setActiveLanguageIndex(-1);
+      editor.view.focus();
+    }
+  };
+
+  const activeLanguageItem = languageItems[activeLanguageIndex];
+  const activeLanguageOptionDomId =
+    languageMenuDomIdRef.current && activeLanguageItem
+      ? getCodeBlockLanguageOptionDomId(languageMenuDomIdRef.current, activeLanguageItem.language)
+      : undefined;
 
   const toggleCollapse = () => {
     if (readOnly || !codeBlock) {
@@ -542,14 +620,12 @@ export function CodeBlockControls({ active, editor, mermaidMode, onMermaidModeCh
       return;
     }
 
-    const blob = new Blob([svg], { type: "image/svg+xml" });
-    const url = URL.createObjectURL(blob);
-    const anchor = document.createElement("a");
-    anchor.href = url;
-    anchor.download = "markweave-mermaid.svg";
-    anchor.click();
-    URL.revokeObjectURL(url);
-    editor.view.focus();
+    saveMarkweaveBrowserFile({
+      data: new Blob([svg], { type: "image/svg+xml" }),
+      fileName: "markweave-mermaid.svg",
+      onSettled: () => editor.view.focus(),
+      ownerDocument: document,
+    });
   };
 
   const openMermaidFullscreen = () => {
@@ -684,7 +760,7 @@ export function CodeBlockControls({ active, editor, mermaidMode, onMermaidModeCh
               aria-haspopup="listbox"
               data-testid="markweave-codeblock-language"
               onMouseDown={(event) => event.preventDefault()}
-              onClick={() => setLanguageMenuOpen((open) => !open)}
+              onClick={toggleLanguageMenu}
             >
               <span>{currentLanguageLabel}</span>
               <Icon icon="chevron" />
@@ -757,8 +833,6 @@ export function CodeBlockControls({ active, editor, mermaidMode, onMermaidModeCh
       {showWritableControls && showTargetControls && languageMenuOpen ? (
         <div
           className="markweave-codeblock-language-menu"
-          role="listbox"
-          aria-label="Code block languages"
           data-testid="markweave-codeblock-language-menu"
           data-positioned={languageMenuPosition ? "true" : "false"}
           style={
@@ -773,33 +847,48 @@ export function CodeBlockControls({ active, editor, mermaidMode, onMermaidModeCh
           <label className="markweave-codeblock-language-search">
             <input
               ref={searchInputRef}
+              role="combobox"
+              aria-autocomplete="list"
+              aria-controls={languageMenuDomIdRef.current ?? undefined}
+              aria-expanded="true"
+              aria-activedescendant={activeLanguageOptionDomId}
+              aria-label="Search code block languages"
               value={languageQuery}
               placeholder="Search..."
               data-testid="markweave-codeblock-language-search"
-              onChange={(event) => setLanguageQuery(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === "Escape") {
-                  event.preventDefault();
-                  setLanguageMenuOpen(false);
-                  editor.view.focus();
-                }
-              }}
+              onChange={(event) => updateLanguageQuery(event.target.value)}
+              onKeyDown={handleLanguageSearchKeyDown}
             />
             <Icon icon="search" />
           </label>
-          <div className="markweave-codeblock-language-list">
-            {languageItems.map((item) => {
+          <div
+            ref={languageListRef}
+            id={languageMenuDomIdRef.current ?? undefined}
+            className="markweave-codeblock-language-list"
+            role="listbox"
+            aria-label="Code block languages"
+          >
+            {languageItems.map((item, index) => {
               const selected = item.language === codeBlock.language;
+              const highlighted = index === activeLanguageIndex;
 
               return (
                 <button
                   key={item.language}
+                  id={
+                    languageMenuDomIdRef.current
+                      ? getCodeBlockLanguageOptionDomId(languageMenuDomIdRef.current, item.language)
+                      : undefined
+                  }
                   type="button"
                   role="option"
                   aria-selected={selected}
                   data-testid={`markweave-codeblock-language-option-${item.language}`}
                   data-active={selected ? "true" : "false"}
+                  data-highlighted={highlighted ? "true" : "false"}
+                  data-language-index={index}
                   onMouseDown={(event) => event.preventDefault()}
+                  onMouseEnter={() => setActiveLanguageIndex(index)}
                   onClick={() => selectLanguage(item.language)}
                 >
                   <span>{item.label}</span>

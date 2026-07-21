@@ -4,7 +4,7 @@ import { EditorContent } from "@tiptap/react";
 import { act, createElement, useEffect } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { useMarkweaveEditorController, type MarkweaveEditorController, type MarkweaveEditorMode, type MarkweaveLang } from "@markweave/react";
+import { useMarkweaveEditorController, type MarkweaveEditorController, type MarkweaveEditorMode, type MarkweaveLang, type MarkweaveMediaSourceResolver } from "@markweave/react";
 import type { MarkweaveSlashCommandUploadHandler } from "../src/plugins/slash-command/upload";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -46,18 +46,21 @@ function Harness({
   mode,
   onReady,
   onUpload,
+  resolveMediaSource,
 }: {
   readonly defaultContent: string;
   readonly lang?: MarkweaveLang;
   readonly mode?: MarkweaveEditorMode;
   readonly onReady: (controller: MarkweaveEditorController) => void;
   readonly onUpload?: MarkweaveSlashCommandUploadHandler;
+  readonly resolveMediaSource?: MarkweaveMediaSourceResolver;
 }) {
   const controller = useMarkweaveEditorController({
     defaultContent,
     lang,
     mode,
     onSlashCommandUpload: onUpload,
+    resolveMediaSource,
   });
 
   useEffect(() => {
@@ -75,7 +78,7 @@ async function flushReact() {
   });
 }
 
-async function renderEditor(defaultContent = "<p></p>", onUpload?: MarkweaveSlashCommandUploadHandler, lang?: MarkweaveLang, mode?: MarkweaveEditorMode) {
+async function renderEditor(defaultContent = "<p></p>", onUpload?: MarkweaveSlashCommandUploadHandler, lang?: MarkweaveLang, mode?: MarkweaveEditorMode, resolveMediaSource?: MarkweaveMediaSourceResolver) {
   installLayoutMocks();
   const host = document.createElement("div");
   document.body.appendChild(host);
@@ -91,6 +94,7 @@ async function renderEditor(defaultContent = "<p></p>", onUpload?: MarkweaveSlas
           activeController = controller;
         },
         onUpload,
+        resolveMediaSource,
       }),
     );
   });
@@ -270,5 +274,42 @@ describe("image node view", () => {
     expect(document.querySelector('[data-testid="markweave-image-resize-left"]')).toBeNull();
     expect(document.querySelector('[data-testid="markweave-image-caption-input"]')).toBeNull();
     expect(getByTestId("markweave-image-caption").textContent).toBe("Read-only caption");
+  });
+
+  it("resolves display-only image sources lazily without changing serialized content", async () => {
+    const resolveMediaSource = vi.fn<MarkweaveMediaSourceResolver>(() => ({
+      src: "asset://resolved/image.png",
+      width: 640,
+      height: 360,
+    }));
+    const controller = await renderEditor(
+      '<img src="madora-asset://hash" alt="Asset">',
+      undefined,
+      undefined,
+      undefined,
+      resolveMediaSource,
+    );
+    await flushReact();
+
+    const image = document.querySelector<HTMLImageElement>("img.markweave-image");
+    expect(
+      document.querySelector('[data-markweave-lightweight-image="true"]'),
+    ).not.toBeNull();
+    expect(
+      document.querySelector('[data-testid="markweave-image-upload-placeholder"]'),
+    ).toBeNull();
+    expect(resolveMediaSource).toHaveBeenCalledWith(
+      expect.objectContaining({
+        kind: "image",
+        priority: "visible",
+        src: "madora-asset://hash",
+      }),
+    );
+    expect(image?.src).toContain("asset://resolved/image.png");
+    expect(image?.getAttribute("loading")).toBe("lazy");
+    expect(image?.getAttribute("decoding")).toBe("async");
+    expect(image?.getAttribute("width")).toBe("640");
+    expect(image?.getAttribute("height")).toBe("360");
+    expect(controller.editor?.getHTML()).toContain('src="madora-asset://hash"');
   });
 });

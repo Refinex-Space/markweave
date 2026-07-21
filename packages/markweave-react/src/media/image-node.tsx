@@ -34,6 +34,13 @@ import {
 import { getMarkweaveMessages, type MarkweaveMessages } from "markweave/internal/i18n";
 import { isMarkweaveEditorLiveEditable } from "markweave/internal/core/editor-mode-state";
 import { openMarkweaveImagePreview } from "markweave/internal/plugins/media/image-preview";
+import { createMarkweaveLightweightImageNodeViewRenderer } from "markweave/internal/plugins/media/lightweight-image-node-view";
+import {
+  resolveMarkweaveMediaSource,
+  type MarkweaveMediaPriority,
+  type MarkweaveMediaSourceResolver,
+  type MarkweaveMediaSourceResult,
+} from "markweave/internal/plugins/media/media-source";
 import { useMarkweaveEditorModeState } from "../editor-mode-state";
 
 export type MarkweaveImageAlign = MarkweaveCoreImageAlign;
@@ -41,6 +48,7 @@ export type MarkweaveImageAlign = MarkweaveCoreImageAlign;
 export interface MarkweaveImageOptions extends ImageOptions {
   readonly messages?: MarkweaveMessages;
   readonly onUpload?: MarkweaveSlashCommandUploadHandler;
+  readonly resolveMediaSource?: MarkweaveMediaSourceResolver;
 }
 
 export const normalizeMarkweaveImageAlign = normalizeMarkweaveCoreImageAlign;
@@ -61,6 +69,14 @@ function MarkweaveImageNodeView(props: NodeViewProps) {
   const width = numberAttribute(node.attrs.width);
   const caption = stringAttribute(node.attrs.caption);
   const imageBoxRef = useRef<HTMLDivElement | null>(null);
+  const resolvedSource = useResolvedImageSource(
+    src,
+    options.resolveMediaSource,
+    imageBoxRef,
+    selected,
+  );
+  const displaySrc =
+    resolvedSource?.src ?? (options.resolveMediaSource ? null : src);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [hovered, setHovered] = useState(false);
   const [replacing, setReplacing] = useState(false);
@@ -72,9 +88,9 @@ function MarkweaveImageNodeView(props: NodeViewProps) {
   const [captionValue, setCaptionValue] = useState(caption ?? "");
   const showPlaceholder = canEditImage && (!src || replacing);
   const openPreview = () => {
-    if (!src) return;
+    if (!displaySrc) return;
     openMarkweaveImagePreview({
-      src,
+      src: displaySrc,
       alt: stringAttribute(node.attrs.alt) ?? "",
       messages: {
         dialogAriaLabel: imageMessages.previewDialogAriaLabel,
@@ -273,8 +289,8 @@ function MarkweaveImageNodeView(props: NodeViewProps) {
               onCaption={toggleCaption}
               onDelete={deleteNode}
               onDownload={() => {
-                if (src) {
-                  downloadMarkweaveImage(src);
+                if (displaySrc) {
+                  downloadMarkweaveImage(displaySrc);
                 }
               }}
               onPreview={openPreview}
@@ -285,13 +301,32 @@ function MarkweaveImageNodeView(props: NodeViewProps) {
               }}
             />
           ) : null}
-          <div className="markweave-image-box" ref={imageBoxRef} style={width ? { width: `${width}px` } : undefined}>
-            {src ? (
-              <img className="markweave-image" src={src} alt={stringAttribute(node.attrs.alt) ?? ""} title={stringAttribute(node.attrs.title) ?? undefined} draggable={false} />
+          <div
+            className="markweave-image-box"
+            ref={imageBoxRef}
+            style={{
+              ...(width ? { width: `${width}px` } : null),
+              ...(resolvedSource?.width && resolvedSource.height
+                ? { aspectRatio: `${resolvedSource.width} / ${resolvedSource.height}` }
+                : null),
+            }}
+          >
+            {displaySrc ? (
+              <img
+                className="markweave-image"
+                src={displaySrc}
+                alt={stringAttribute(node.attrs.alt) ?? ""}
+                title={stringAttribute(node.attrs.title) ?? undefined}
+                draggable={false}
+                loading="lazy"
+                decoding="async"
+                width={resolvedSource?.width}
+                height={resolvedSource?.height}
+              />
             ) : (
               <div className="markweave-image-readonly-empty" data-testid="markweave-image-readonly-empty" aria-hidden="true" />
             )}
-            {!canEditImage && src ? (
+            {!canEditImage && displaySrc ? (
               <button
                 type="button"
                 className="markweave-image-preview-trigger"
@@ -518,6 +553,7 @@ export const MarkweaveImage = MarkweaveCoreImage.extend<MarkweaveImageOptions>({
       ...(this.parent?.() as ImageOptions),
       messages: getMarkweaveMessages("zh"),
       onUpload: undefined,
+      resolveMediaSource: undefined,
     };
   },
 
@@ -526,8 +562,96 @@ export const MarkweaveImage = MarkweaveCoreImage.extend<MarkweaveImageOptions>({
       return null;
     }
 
-    return ReactNodeViewRenderer(MarkweaveImageNodeView, {
+    const richRenderer = ReactNodeViewRenderer(MarkweaveImageNodeView, {
       stopEvent: ({ event }) => isImageUiEventTarget(event.target),
     });
+    const resolver = this.options.resolveMediaSource;
+    if (!resolver) {
+      return richRenderer;
+    }
+    const lightweightRenderer = createMarkweaveLightweightImageNodeViewRenderer({
+      messages: this.options.messages ?? getMarkweaveMessages("zh"),
+      onUpload: this.options.onUpload,
+      resolveMediaSource: resolver,
+    });
+    return (props) =>
+      stringAttribute(props.node.attrs.src)
+        ? lightweightRenderer(props)
+        : richRenderer(props);
   },
 });
+
+function useResolvedImageSource(
+  src: string | null,
+  resolver: MarkweaveMediaSourceResolver | undefined,
+  imageBoxRef: RefObject<HTMLDivElement | null>,
+  selected: boolean,
+) {
+  const [priority, setPriority] = useState<MarkweaveMediaPriority>(
+    resolver ? "background" : "visible",
+  );
+  const [result, setResult] = useState<MarkweaveMediaSourceResult | null>(() =>
+    !resolver && src ? { src } : null,
+  );
+
+  useEffect(() => {
+    setResult(!resolver && src ? { src } : null);
+    setPriority(resolver ? "background" : "visible");
+  }, [resolver, src]);
+
+  useEffect(() => {
+    if (!resolver || !src) {
+      return;
+    }
+
+    if (selected) {
+      setPriority("visible");
+      return;
+    }
+
+    const element = imageBoxRef.current;
+    if (!element || typeof IntersectionObserver === "undefined") {
+      setPriority("visible");
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const entry = entries[0];
+        if (!entry?.isIntersecting) {
+          return;
+        }
+
+        const rect = entry.boundingClientRect;
+        const visible = rect.bottom >= 0 && rect.top <= window.innerHeight;
+        setPriority(visible ? "visible" : "nearby");
+      },
+      { rootMargin: "300% 0px" },
+    );
+    observer.observe(element);
+
+    return () => observer.disconnect();
+  }, [imageBoxRef, resolver, selected, src]);
+
+  useEffect(() => {
+    if (!resolver || !src || priority === "background") {
+      return;
+    }
+
+    const controller = new AbortController();
+    void resolveMarkweaveMediaSource(resolver, {
+      kind: "image",
+      priority,
+      signal: controller.signal,
+      src,
+    }).then((next) => {
+      if (!controller.signal.aborted) {
+        setResult(next);
+      }
+    });
+
+    return () => controller.abort();
+  }, [priority, resolver, src]);
+
+  return result;
+}

@@ -1,5 +1,6 @@
 import { mergeAttributes, Node } from "@tiptap/core";
 import Image, { type ImageOptions } from "@tiptap/extension-image";
+import { saveMarkweaveBrowserFile } from "../../core/browser-file-save";
 import type { MarkweaveUploadRequest, MarkweaveUploadResult, MarkweaveUploadSource } from "../slash-command/upload";
 
 export type MarkweaveCoreImageAlign = "left" | "center" | "right";
@@ -73,8 +74,29 @@ export function clampMarkweaveImageWidth(width: number, containerWidth: number) 
 }
 
 function getImageFileName(src: string) {
+  const dataImageType = src.match(/^data:image\/([a-z0-9.+-]+)[;,]/i)?.[1]?.toLowerCase();
+
+  if (dataImageType) {
+    const extension = dataImageType === "jpeg" ? "jpg" : dataImageType === "svg+xml" ? "svg" : dataImageType === "x-icon" ? "ico" : dataImageType;
+    return /^[a-z0-9]+$/.test(extension) ? `markweave-image.${extension}` : "markweave-image";
+  }
+
   const cleanSrc = src.split(/[?#]/)[0] ?? "";
-  return cleanSrc.split("/").filter(Boolean).at(-1) || "markweave-image";
+  const encodedFileName = cleanSrc.split("/").filter(Boolean).at(-1);
+
+  if (!encodedFileName) {
+    return "markweave-image";
+  }
+
+  let fileName = encodedFileName;
+
+  try {
+    fileName = decodeURIComponent(encodedFileName);
+  } catch {
+    // Keep the encoded path segment when it is not valid percent-encoded text.
+  }
+
+  return fileName.replace(/[<>:"/\\|?*\u0000-\u001f]/g, "-").replace(/[. ]+$/g, "") || "markweave-image";
 }
 
 export function downloadMarkweaveImage(src: string, ownerDocument: Document = document) {
@@ -84,14 +106,21 @@ export function downloadMarkweaveImage(src: string, ownerDocument: Document = do
     return false;
   }
 
-  const anchor = ownerDocument.createElement("a");
-  anchor.href = trimmedSrc;
-  anchor.download = getImageFileName(trimmedSrc);
-  anchor.rel = "noopener noreferrer";
-  ownerDocument.body.appendChild(anchor);
-  anchor.click();
-  anchor.remove();
-  return true;
+  const fileName = getImageFileName(trimmedSrc);
+  return saveMarkweaveBrowserFile({
+    data: async () => {
+      const response = await ownerDocument.defaultView?.fetch(trimmedSrc);
+
+      if (!response?.ok) {
+        throw new Error(`Unable to download image: ${response?.status ?? "fetch-unavailable"}`);
+      }
+
+      return response.blob();
+    },
+    fallbackHref: trimmedSrc,
+    fileName,
+    ownerDocument,
+  });
 }
 
 export function attrsFromMarkweaveImageUploadResult(nodeAttrs: Record<string, unknown>, result: MarkweaveUploadResult) {

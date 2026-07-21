@@ -66,6 +66,7 @@ import {
   type Ref,
 } from "./vue2-compat";
 import { isEditorComposing } from "markweave/internal/editor-core/composition-guard";
+import { saveMarkweaveBrowserFile } from "markweave/internal/core/browser-file-save";
 import { createMarkweaveFrameScheduler } from "markweave/internal/editor-core/frame-scheduler";
 import {
   createMarkweaveEditorUpdatePayload,
@@ -112,7 +113,7 @@ import {
   createMarkweaveTocState,
   emptyMarkweaveTocState,
   getActiveMarkweaveTocId,
-  getMarkweaveTocItems,
+  getMarkweaveTocItemsFromState,
   getValidMarkweaveTocActiveId,
   normalizeMarkweaveInnerTocPlacement,
   observeMarkweaveInnerTocContainerPosition,
@@ -139,6 +140,7 @@ import {
   clampFullscreenScale,
   codeBlockCopyFeedbackTimeoutMs,
   copyCodeBlockText,
+  createCodeBlockLanguageMenuDomId,
   createCodeBlockOverlayPosition,
   createMermaidFullscreenViewerState,
   createMermaidTabPosition,
@@ -148,6 +150,8 @@ import {
   getActiveCodeBlockElement,
   getAnchoredRect,
   getCodeBlockLanguageItems,
+  getCodeBlockLanguageOptionDomId,
+  getInitialCodeBlockLanguageItemIndex,
   getCodeBlockPositionFromEventTarget,
   getCodeBlockStateAtPosition,
   getFrameElement,
@@ -156,7 +160,9 @@ import {
   isCodeBlockTargetCollapsed,
   mergeStableMermaidTabPositions,
   mermaidFullscreenZoomStep,
+  moveCodeBlockLanguageItemIndex,
   moveMermaidFullscreenViewer,
+  scrollCodeBlockLanguageItemIntoView,
   type CodeBlockMenuPosition,
   type CodeBlockOverlayPosition,
   type CodeBlockTargetState,
@@ -247,6 +253,7 @@ import {
 } from "markweave/internal/plugins/table/table-ui-model";
 import { createMarkweaveVue2EditorExtensions } from "./create-editor-extensions";
 import type { MarkweaveLinkCardResolver } from "markweave/internal/plugins/link-card/link-card";
+import type { MarkweaveMediaSourceResolver } from "markweave/internal/plugins/media/media-source";
 
 export interface MarkweaveVue2EditorControllerActions {
   readonly closeSlashMenu: () => void;
@@ -279,6 +286,7 @@ export interface MarkweaveVue2EditorControllerOptions {
   readonly onRuntimeStateChange?: (snapshot: MarkweaveEditorRuntimeSnapshot) => void;
   readonly onTocChange?: (state: MarkweaveTocState) => void;
   readonly linkCardResolver?: MarkweaveLinkCardResolver;
+  readonly resolveMediaSource?: MarkweaveMediaSourceResolver;
 }
 
 export interface MarkweaveVue2EditorController {
@@ -1690,12 +1698,15 @@ const VueCodeBlockControls = defineComponent({
     const controlsRef = ref<HTMLDivElement | null>(null);
     const languageButtonRef = ref<HTMLButtonElement | null>(null);
     const searchInputRef = ref<HTMLInputElement | null>(null);
+    const languageListRef = ref<HTMLDivElement | null>(null);
+    const languageMenuDomId = ref<string | null>(null);
     const hoveredCodeBlockPos = ref<number | null>(null);
     const position = ref<CodeBlockOverlayPosition | null>(null);
     const mermaidTabPositions = ref<readonly MermaidTabPosition[]>([]);
     const languageMenuPosition = ref<CodeBlockMenuPosition | null>(null);
     const languageMenuOpen = ref(false);
     const languageQuery = ref("");
+    const activeLanguageIndex = ref(-1);
     const copyFeedback = ref<MarkweaveCodeBlockCopyFeedbackSnapshot | null>(null);
     const copyTooltipVisible = ref(false);
     const fullscreenViewer = ref<MermaidFullscreenViewerState | null>(null);
@@ -1879,10 +1890,59 @@ const VueCodeBlockControls = defineComponent({
         }
         languageMenuOpen.value = false;
         languageQuery.value = "";
+        activeLanguageIndex.value = -1;
         controlsRevision.value += 1;
         if (refocusEditor) {
           props.editor.view.focus();
         }
+      }
+    };
+
+    const toggleLanguageMenu = () => {
+      languageMenuOpen.value = !languageMenuOpen.value;
+      if (languageMenuOpen.value && languageMenuDomId.value === null) {
+        languageMenuDomId.value = createCodeBlockLanguageMenuDomId();
+      }
+      activeLanguageIndex.value = languageMenuOpen.value
+        ? getInitialCodeBlockLanguageItemIndex(languageItems.value, codeBlock.value?.language ?? null)
+        : -1;
+    };
+
+    const updateLanguageQuery = (query: string) => {
+      const nextItems = getCodeBlockLanguageItems(query);
+      languageQuery.value = query;
+      activeLanguageIndex.value = getInitialCodeBlockLanguageItemIndex(nextItems, query.trim() ? null : codeBlock.value?.language ?? null);
+    };
+
+    const handleLanguageSearchKeydown = (event: KeyboardEvent) => {
+      if (event.isComposing) {
+        return;
+      }
+
+      if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+        event.preventDefault();
+        activeLanguageIndex.value = moveCodeBlockLanguageItemIndex(
+          activeLanguageIndex.value,
+          languageItems.value.length,
+          event.key === "ArrowUp" ? "previous" : "next",
+        );
+        return;
+      }
+
+      if (event.key === "Enter") {
+        const item = languageItems.value[activeLanguageIndex.value];
+        if (item) {
+          event.preventDefault();
+          selectLanguage(item.language);
+        }
+        return;
+      }
+
+      if (event.key === "Escape") {
+        event.preventDefault();
+        languageMenuOpen.value = false;
+        activeLanguageIndex.value = -1;
+        props.editor.view.focus();
       }
     };
 
@@ -1908,14 +1968,12 @@ const VueCodeBlockControls = defineComponent({
         return;
       }
 
-      const blob = new Blob([svg], { type: "image/svg+xml" });
-      const url = URL.createObjectURL(blob);
-      const anchor = document.createElement("a");
-      anchor.href = url;
-      anchor.download = "markweave-mermaid.svg";
-      anchor.click();
-      URL.revokeObjectURL(url);
-      props.editor.view.focus();
+      saveMarkweaveBrowserFile({
+        data: new Blob([svg], { type: "image/svg+xml" }),
+        fileName: "markweave-mermaid.svg",
+        onSettled: () => props.editor.view.focus(),
+        ownerDocument: document,
+      });
     };
 
     const openMermaidFullscreen = () => {
@@ -1988,6 +2046,7 @@ const VueCodeBlockControls = defineComponent({
       setCopyFeedbackSnapshot(null);
       languageMenuOpen.value = false;
       languageQuery.value = "";
+      activeLanguageIndex.value = -1;
       fullscreenViewer.value = null;
       fullscreenTooltip.value = null;
       fullscreenDragging.value = false;
@@ -1995,12 +2054,29 @@ const VueCodeBlockControls = defineComponent({
 
     watch(languageMenuOpen, async (open) => {
       if (!open) {
+        activeLanguageIndex.value = -1;
         return;
       }
       await nextTick();
       updatePosition();
       searchInputRef.value?.focus({ preventScroll: true });
     });
+
+    watch(
+      () => [languageMenuOpen.value, languageQuery.value, activeLanguageIndex.value] as const,
+      async () => {
+        if (!languageMenuOpen.value || activeLanguageIndex.value < 0) {
+          return;
+        }
+        await nextTick();
+        const listElement = languageListRef.value;
+        const itemElement = listElement?.querySelector<HTMLElement>(`[data-language-index="${activeLanguageIndex.value}"]`);
+        if (listElement && itemElement) {
+          scrollCodeBlockLanguageItemIntoView(listElement, itemElement);
+        }
+      },
+      { flush: "post" },
+    );
 
     watch(
       () => [showTargetControls.value, collapseRevision.value, codeBlock.value?.pos ?? null, languageMenuOpen.value, visibleMermaidMode.value] as const,
@@ -2053,6 +2129,7 @@ const VueCodeBlockControls = defineComponent({
           }
           if (languageMenuOpen.value) {
             languageMenuOpen.value = false;
+            activeLanguageIndex.value = -1;
             props.editor.view.focus();
           }
         };
@@ -2064,6 +2141,7 @@ const VueCodeBlockControls = defineComponent({
             return;
           }
           languageMenuOpen.value = false;
+          activeLanguageIndex.value = -1;
         };
         const onTransaction = ({ transaction }: { readonly transaction: Transaction }) => {
           if (transaction.getMeta(codeBlockCollapsePluginKey)) {
@@ -2181,9 +2259,7 @@ const VueCodeBlockControls = defineComponent({
                         "aria-haspopup": "listbox",
                         "data-testid": "markweave-codeblock-language",
                         onMousedown: preventVuePointerFocusLoss,
-                        onClick: () => {
-                          languageMenuOpen.value = !languageMenuOpen.value;
-                        },
+                        onClick: toggleLanguageMenu,
                       },
                       [h("span", null, currentLanguageLabel.value), createCodeBlockIcon("chevron")],
                     ),
@@ -2271,8 +2347,6 @@ const VueCodeBlockControls = defineComponent({
               "div",
               {
                 class: "markweave-codeblock-language-menu",
-                role: "listbox",
-                "aria-label": "Code block languages",
                 "data-testid": "markweave-codeblock-language-menu",
                 "data-positioned": languageMenuPosition.value ? "true" : "false",
                 style: languageMenuStyle,
@@ -2281,37 +2355,53 @@ const VueCodeBlockControls = defineComponent({
                 h("label", { class: "markweave-codeblock-language-search" }, [
                   h("input", {
                     ref: searchInputRef,
+                    role: "combobox",
+                    "aria-autocomplete": "list",
+                    "aria-controls": languageMenuDomId.value ?? undefined,
+                    "aria-expanded": "true",
+                    "aria-activedescendant":
+                      languageMenuDomId.value && languageItems.value[activeLanguageIndex.value]
+                        ? getCodeBlockLanguageOptionDomId(languageMenuDomId.value, languageItems.value[activeLanguageIndex.value].language)
+                        : undefined,
+                    "aria-label": "Search code block languages",
                     value: languageQuery.value,
                     placeholder: "Search...",
                     "data-testid": "markweave-codeblock-language-search",
                     onInput: (event: Event) => {
-                      languageQuery.value = (event.target as HTMLInputElement).value;
+                      updateLanguageQuery((event.target as HTMLInputElement).value);
                     },
-                    onKeydown: (event: KeyboardEvent) => {
-                      if (event.key === "Escape") {
-                        event.preventDefault();
-                        languageMenuOpen.value = false;
-                        props.editor.view.focus();
-                      }
-                    },
+                    onKeydown: handleLanguageSearchKeydown,
                   }),
                   createCodeBlockIcon("search"),
                 ]),
                 h(
                   "div",
-                  { class: "markweave-codeblock-language-list" },
-                  languageItems.value.map((item) => {
+                  {
+                    ref: languageListRef,
+                    id: languageMenuDomId.value ?? undefined,
+                    class: "markweave-codeblock-language-list",
+                    role: "listbox",
+                    "aria-label": "Code block languages",
+                  },
+                  languageItems.value.map((item, index) => {
                     const selected = codeBlock.value?.language === item.language;
+                    const highlighted = index === activeLanguageIndex.value;
                     return h(
                       "button",
                       {
                         key: item.language,
+                        id: languageMenuDomId.value ? getCodeBlockLanguageOptionDomId(languageMenuDomId.value, item.language) : undefined,
                         type: "button",
                         role: "option",
                         "aria-selected": selected ? "true" : "false",
                         "data-testid": `markweave-codeblock-language-option-${item.language}`,
                         "data-active": selected ? "true" : "false",
+                        "data-highlighted": highlighted ? "true" : "false",
+                        "data-language-index": index,
                         onMousedown: preventVuePointerFocusLoss,
+                        onMouseenter: () => {
+                          activeLanguageIndex.value = index;
+                        },
                         onClick: () => selectLanguage(item.language),
                       },
                       [h("span", null, item.label), selected ? createCodeBlockIcon("check") : null],
@@ -2509,6 +2599,9 @@ export function useMarkweaveEditorController(options: MarkweaveVue2EditorControl
   const applyingControlledContent = ref(false);
   const controlledContentEcho = shallowRef<MarkweaveControlledContentEcho | null>(null);
   const activeFormat = normalizeMarkweaveContentFormat(options.content === undefined ? options.defaultContentFormat : options.contentFormat);
+  const initialContent = options.content ?? options.defaultContent ?? "";
+  const largeDocument =
+    typeof initialContent === "string" && initialContent.length >= 200_000;
   let projectionTimer: number | null = null;
 
   function flushRuntimeProjection() {
@@ -2538,8 +2631,9 @@ export function useMarkweaveEditorController(options: MarkweaveVue2EditorControl
       linkCardResolver: options.linkCardResolver,
       onImageUpload: (request) => uploadHandler?.(request) ?? getDirectUploadResult(request) ?? Promise.reject(new Error("File upload requires an upload handler.")),
       onVideoUpload: (request) => uploadHandler?.(request) ?? getDirectUploadResult(request) ?? Promise.reject(new Error("File upload requires an upload handler.")),
+      resolveMediaSource: options.resolveMediaSource,
     }),
-    content: options.content ?? options.defaultContent ?? "",
+    content: initialContent,
     contentType: getMarkweaveContentType(activeFormat),
     editable: effectiveEditable.value,
     autofocus: options.autofocus,
@@ -2547,6 +2641,7 @@ export function useMarkweaveEditorController(options: MarkweaveVue2EditorControl
       attributes: {
         class: "markweave-editor-surface",
         "data-testid": "markweave-editor-surface",
+        "data-markweave-large-document": largeDocument ? "true" : "false",
         autocapitalize: "off",
         autocorrect: "off",
         spellcheck: "false",
@@ -2699,8 +2794,12 @@ export function useMarkweaveEditorController(options: MarkweaveVue2EditorControl
   const mermaidPreviewState = computed(() =>
     editor.value ? getMermaidPreviewState({ active: isMermaidActive.value, mode: mermaidMode.value, source: codeBlockState.value.text }) : getMermaidPreviewState({ active: false, mode: "code", source: "" }),
   );
-  const tableDebugSnapshot = computed(() => (editor.value ? getFirstTableDebugSnapshot(editor.value.state) : null));
-  const tocItems = computed(() => (editor.value ? getMarkweaveTocItems(editor.value.state.doc) : emptyMarkweaveTocState.items));
+  const tableDebugSnapshot = computed(() =>
+    editor.value && options.onRuntimeStateChange
+      ? getFirstTableDebugSnapshot(editor.value.state)
+      : null,
+  );
+  const tocItems = computed(() => (editor.value ? getMarkweaveTocItemsFromState(editor.value.state) : emptyMarkweaveTocState.items));
   const normalizedTocActiveId = computed(() => getValidMarkweaveTocActiveId(tocItems.value, tocActiveId.value));
   const tocState = computed(() => createMarkweaveTocState(tocItems.value, normalizedTocActiveId.value));
   const filteredSlashCommands = computed(() => filterSlashCommands(slashState.value.query, slashCommands));
@@ -2932,6 +3031,7 @@ export const MarkweaveEditor = defineComponent({
     ariaLabel: { type: String, default: undefined },
     autoFocusFirstTableBodyCell: { type: Boolean, default: false },
     linkCardResolver: { type: Function as PropType<MarkweaveLinkCardResolver>, default: undefined },
+    resolveMediaSource: { type: Function as PropType<MarkweaveMediaSourceResolver>, default: undefined },
     className: { type: String, default: undefined },
     onUpdate: { type: Function as PropType<(payload: MarkweaveEditorUpdatePayload) => void>, default: undefined },
     onEditWithAi: { type: Function as PropType<(request: TableEditWithAiRequest) => void>, default: undefined },

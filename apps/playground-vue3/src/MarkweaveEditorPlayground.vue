@@ -34,6 +34,7 @@
       :mode="editorMode"
       :theme="theme"
       :link-card-resolver="resolvePlaygroundLinkCard"
+      :resolve-media-source="resolvePlaygroundMediaSource"
       :on-edit-with-ai="handleEditWithAi"
       :on-extract-to-note="handleFloatingToolbarAssistantRequest"
       :on-rewrite-selection="handleFloatingToolbarAssistantRequest"
@@ -49,6 +50,10 @@
         <button type="button" @click="loadFixture(initialPlaygroundDocument)">Default Fixture</button>
         <button type="button" @click="loadFixture(mergedTablePlaygroundDocument, 'html')">Merged Table Fixture</button>
         <button type="button" @click="loadFixture(largeDocumentPerformanceFixture)">100k Performance Fixture</button>
+        <button type="button" @click="loadFixture(largeTextPerformanceFixture)">250k Text Fixture</button>
+        <button type="button" @click="loadFixture(largeValidMediaPerformanceFixture)">250k Valid Media Fixture</button>
+        <button type="button" @click="loadFixture(largeMissingMediaPerformanceFixture)">250k Missing Media Fixture</button>
+        <button type="button" @click="loadFixture(stressDocumentPerformanceFixture)">1MB Stress Fixture</button>
       </div>
 
       <div v-if="lastTableCopyPayload" class="markweave-debug-copy" data-testid="markweave-debug-copy">
@@ -102,7 +107,18 @@ import {
   type TableCommandResult,
   type TableEditWithAiRequest,
 } from "@markweave/vue3";
-import { createPlaygroundUploadResult, initialPlaygroundDocument, largeDocumentPerformanceFixture, mergedTablePlaygroundDocument, resolvePlaygroundLinkCard } from "@markweave/playground-fixtures";
+import {
+  createPlaygroundUploadResult,
+  initialPlaygroundDocument,
+  largeDocumentPerformanceFixture,
+  largeMissingMediaPerformanceFixture,
+  largeTextPerformanceFixture,
+  largeValidMediaPerformanceFixture,
+  mergedTablePlaygroundDocument,
+  resolvePlaygroundLinkCard,
+  resolvePlaygroundMediaSource,
+  stressDocumentPerformanceFixture,
+} from "@markweave/playground-fixtures";
 
 const fixtureContent = ref(initialPlaygroundDocument);
 const fixtureFormat = ref<MarkweaveContentFormat>("markdown");

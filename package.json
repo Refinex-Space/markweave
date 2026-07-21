@@ -16,9 +16,11 @@
     "typecheck": "pnpm -r typecheck",
     "test": "vitest run",
     "test:watch": "vitest",
+    "benchmark:large-document": "node scripts/benchmark-large-document.mjs",
     "harness:check": "python ops/harness/check-harness.py"
   },
   "devDependencies": {
+    "@playwright/test": "^1.61.1",
     "@types/node": "^24.10.2",
     "@vitejs/plugin-react": "^6.0.3",
     "@vitejs/plugin-vue": "^6.0.3",

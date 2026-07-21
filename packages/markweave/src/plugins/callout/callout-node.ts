@@ -49,7 +49,9 @@ export const MarkweaveCallout = Node.create({
     name: "markweaveCallout",
     level: "block",
     start: (src: string) => {
-      const match = src.match(/^:::(info|warning|error|success|tip)\b/m);
+      const match = src
+        .slice(0, 8_192)
+        .match(/^:::(info|warning|error|success|tip)\b/m);
       return match?.index ?? -1;
     },
     tokenize: (src: string, _tokens: MarkdownToken[], lexer) => {

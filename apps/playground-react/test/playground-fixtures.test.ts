@@ -4,7 +4,15 @@ import { act, createElement, type ReactNode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it } from "vitest";
 import { MarkweaveEditor } from "@markweave/react";
-import { initialPlaygroundDocument, largeDocumentPerformanceFixture, mergedTablePlaygroundDocument } from "@markweave/playground-fixtures";
+import {
+  initialPlaygroundDocument,
+  largeDocumentPerformanceFixture,
+  largeMissingMediaPerformanceFixture,
+  largeTextPerformanceFixture,
+  largeValidMediaPerformanceFixture,
+  mergedTablePlaygroundDocument,
+  stressDocumentPerformanceFixture,
+} from "@markweave/playground-fixtures";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -47,6 +55,7 @@ describe("playground fixtures", () => {
     expect(initialPlaygroundDocument).toContain("| Capability | Markdown surface | What to inspect |");
     expect(initialPlaygroundDocument).toContain("```mermaid");
     expect(initialPlaygroundDocument).toContain("```ts");
+    expect(initialPlaygroundDocument).toContain("```bash\nnpm login --registry=https://registry.npmjs.org/\n```");
     expect(initialPlaygroundDocument).toContain("- [x] Ship a stable Live mode editing surface.");
     expect(initialPlaygroundDocument).toContain(":::info");
     expect(initialPlaygroundDocument).toContain('data-markweave-image="true"');
@@ -82,5 +91,19 @@ describe("playground fixtures", () => {
     expect(largeDocumentPerformanceFixture.length).toBeGreaterThanOrEqual(100_000);
     expect(largeDocumentPerformanceFixture).toContain("Performance section 180");
     expect(largeDocumentPerformanceFixture).not.toContain("https://");
+  });
+
+  it("provides deterministic large-document performance fixtures", () => {
+    expect(largeTextPerformanceFixture.length).toBeGreaterThanOrEqual(250_000);
+    expect(largeValidMediaPerformanceFixture.length).toBeGreaterThanOrEqual(250_000);
+    expect(largeMissingMediaPerformanceFixture.length).toBeGreaterThanOrEqual(250_000);
+    expect(stressDocumentPerformanceFixture.length).toBeGreaterThanOrEqual(1_000_000);
+
+    const validReferences = [...largeValidMediaPerformanceFixture.matchAll(/fixture-asset:\/\/asset-(\d+)/g)];
+    const missingReferences = [...largeMissingMediaPerformanceFixture.matchAll(/missing-asset:\/\/asset-(\d+)/g)];
+    expect(validReferences).toHaveLength(426);
+    expect(missingReferences).toHaveLength(426);
+    expect(new Set(validReferences.map((match) => match[1])).size).toBe(421);
+    expect(new Set(missingReferences.map((match) => match[1])).size).toBe(421);
   });
 });
