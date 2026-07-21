@@ -113,7 +113,7 @@ import {
   createMarkweaveTocState,
   emptyMarkweaveTocState,
   getActiveMarkweaveTocId,
-  getMarkweaveTocItems,
+  getMarkweaveTocItemsFromState,
   getValidMarkweaveTocActiveId,
   normalizeMarkweaveInnerTocPlacement,
   observeMarkweaveInnerTocContainerPosition,
@@ -253,6 +253,7 @@ import {
 } from "markweave/internal/plugins/table/table-ui-model";
 import { createMarkweaveVue3EditorExtensions } from "./create-editor-extensions";
 import type { MarkweaveLinkCardResolver } from "markweave/internal/plugins/link-card/link-card";
+import type { MarkweaveMediaSourceResolver } from "markweave/internal/plugins/media/media-source";
 
 export interface MarkweaveVue3EditorControllerActions {
   readonly closeSlashMenu: () => void;
@@ -285,6 +286,7 @@ export interface MarkweaveVue3EditorControllerOptions {
   readonly onRuntimeStateChange?: (snapshot: MarkweaveEditorRuntimeSnapshot) => void;
   readonly onTocChange?: (state: MarkweaveTocState) => void;
   readonly linkCardResolver?: MarkweaveLinkCardResolver;
+  readonly resolveMediaSource?: MarkweaveMediaSourceResolver;
 }
 
 export interface MarkweaveVue3EditorController {
@@ -2595,6 +2597,9 @@ export function useMarkweaveEditorController(options: MarkweaveVue3EditorControl
   const applyingControlledContent = ref(false);
   const controlledContentEcho = shallowRef<MarkweaveControlledContentEcho | null>(null);
   const activeFormat = normalizeMarkweaveContentFormat(options.content === undefined ? options.defaultContentFormat : options.contentFormat);
+  const initialContent = options.content ?? options.defaultContent ?? "";
+  const largeDocument =
+    typeof initialContent === "string" && initialContent.length >= 200_000;
   let projectionTimer: number | null = null;
 
   function flushRuntimeProjection() {
@@ -2622,8 +2627,9 @@ export function useMarkweaveEditorController(options: MarkweaveVue3EditorControl
       linkCardResolver: options.linkCardResolver,
       onImageUpload: (request) => uploadHandler?.(request) ?? getDirectUploadResult(request) ?? Promise.reject(new Error("File upload requires an upload handler.")),
       onVideoUpload: (request) => uploadHandler?.(request) ?? getDirectUploadResult(request) ?? Promise.reject(new Error("File upload requires an upload handler.")),
+      resolveMediaSource: options.resolveMediaSource,
     }),
-    content: options.content ?? options.defaultContent ?? "",
+    content: initialContent,
     contentType: getMarkweaveContentType(activeFormat),
     editable: effectiveEditable.value,
     autofocus: options.autofocus,
@@ -2631,6 +2637,7 @@ export function useMarkweaveEditorController(options: MarkweaveVue3EditorControl
       attributes: {
         class: "markweave-editor-surface",
         "data-testid": "markweave-editor-surface",
+        "data-markweave-large-document": largeDocument ? "true" : "false",
         autocapitalize: "off",
         autocorrect: "off",
         spellcheck: "false",
@@ -2783,8 +2790,12 @@ export function useMarkweaveEditorController(options: MarkweaveVue3EditorControl
   const mermaidPreviewState = computed(() =>
     editor.value ? getMermaidPreviewState({ active: isMermaidActive.value, mode: mermaidMode.value, source: codeBlockState.value.text }) : getMermaidPreviewState({ active: false, mode: "code", source: "" }),
   );
-  const tableDebugSnapshot = computed(() => (editor.value ? getFirstTableDebugSnapshot(editor.value.state) : null));
-  const tocItems = computed(() => (editor.value ? getMarkweaveTocItems(editor.value.state.doc) : emptyMarkweaveTocState.items));
+  const tableDebugSnapshot = computed(() =>
+    editor.value && options.onRuntimeStateChange
+      ? getFirstTableDebugSnapshot(editor.value.state)
+      : null,
+  );
+  const tocItems = computed(() => (editor.value ? getMarkweaveTocItemsFromState(editor.value.state) : emptyMarkweaveTocState.items));
   const normalizedTocActiveId = computed(() => getValidMarkweaveTocActiveId(tocItems.value, tocActiveId.value));
   const tocState = computed(() => createMarkweaveTocState(tocItems.value, normalizedTocActiveId.value));
   const filteredSlashCommands = computed(() => filterSlashCommands(slashState.value.query, slashCommands));
@@ -3013,6 +3024,7 @@ export const MarkweaveEditor = defineComponent({
     ariaLabel: { type: String, default: undefined },
     autoFocusFirstTableBodyCell: { type: Boolean, default: false },
     linkCardResolver: { type: Function as PropType<MarkweaveLinkCardResolver>, default: undefined },
+    resolveMediaSource: { type: Function as PropType<MarkweaveMediaSourceResolver>, default: undefined },
     className: { type: String, default: undefined },
     onUpdate: { type: Function as PropType<(payload: MarkweaveEditorUpdatePayload) => void>, default: undefined },
     onEditWithAi: { type: Function as PropType<(request: TableEditWithAiRequest) => void>, default: undefined },

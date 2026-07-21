@@ -1,11 +1,13 @@
 import type { AnyExtension, Extensions } from "@tiptap/core";
 import { getMarkweaveMessages, type MarkweaveLang, type MarkweaveMessages } from "../../i18n";
 import type { MarkweaveSlashCommandUploadHandler } from "../slash-command/upload";
+import type { MarkweaveMediaSourceResolver } from "./media-source";
 
 export interface CreateMarkweaveMediaExtensionOptions {
   readonly lang?: MarkweaveLang;
   readonly onImageUpload?: MarkweaveSlashCommandUploadHandler;
   readonly onVideoUpload?: MarkweaveSlashCommandUploadHandler;
+  readonly resolveMediaSource?: MarkweaveMediaSourceResolver;
 }
 
 export interface MarkweaveAdapterImageExtensionOptions {
@@ -13,6 +15,7 @@ export interface MarkweaveAdapterImageExtensionOptions {
   readonly allowBase64: boolean;
   readonly messages: MarkweaveMessages;
   readonly onUpload?: MarkweaveSlashCommandUploadHandler;
+  readonly resolveMediaSource?: MarkweaveMediaSourceResolver;
   readonly HTMLAttributes: {
     readonly class: "markweave-image";
   };
@@ -21,6 +24,7 @@ export interface MarkweaveAdapterImageExtensionOptions {
 export interface MarkweaveAdapterVideoExtensionOptions {
   readonly messages: MarkweaveMessages;
   readonly onUpload?: MarkweaveSlashCommandUploadHandler;
+  readonly resolveMediaSource?: MarkweaveMediaSourceResolver;
   readonly HTMLAttributes: {
     readonly class: "markweave-video";
   };
@@ -36,6 +40,7 @@ export function createMarkweaveAdapterMediaExtensions(options: {
   readonly lang?: MarkweaveLang;
   readonly onImageUpload?: MarkweaveSlashCommandUploadHandler;
   readonly onVideoUpload?: MarkweaveSlashCommandUploadHandler;
+  readonly resolveMediaSource?: MarkweaveMediaSourceResolver;
 }): Extensions {
   const messages = getMarkweaveMessages(options.lang);
 
@@ -45,6 +50,7 @@ export function createMarkweaveAdapterMediaExtensions(options: {
       allowBase64: true,
       messages,
       onUpload: options.onImageUpload,
+      resolveMediaSource: options.resolveMediaSource,
       HTMLAttributes: {
         class: "markweave-image",
       },
@@ -52,6 +58,7 @@ export function createMarkweaveAdapterMediaExtensions(options: {
     options.video.configure({
       messages,
       onUpload: options.onVideoUpload,
+      resolveMediaSource: options.resolveMediaSource,
       HTMLAttributes: {
         class: "markweave-video",
       },

@@ -1,6 +1,6 @@
 ---
 owner: refinex
-updated: 2026-07-15
+updated: 2026-07-21
 status: active
 referenced_by: docs/README.md#knowledge-map
 ---
@@ -10,6 +10,8 @@ referenced_by: docs/README.md#knowledge-map
 语言：中文 | [English](./vue2-integration.md)
 
 这是 Markweave 的 Vue 2 完整接入手册，覆盖安装、Vue 2.6 编译器要求、Vue CLI 4 / Webpack 4 兼容配置、内容存储、Live/View 模式、上传、回调、TOC 和生产边界。仓库里的私有参考实现是 `apps/playground-vue2`。
+
+大文档应使用 `defaultContent`，避免每次按键都通过受控 `content` 往返；保留惰性 update payload，只在宿主保存/flush 边界读取 `payload.markdown`。可选 `resolveMediaSource` prop 与 React、Vue 3 共用带优先级和取消信号的请求；返回展示 URL 与可选固有尺寸后会启用共享轻量图片 NodeView，但不会改变序列化 Markdown。
 
 ## 安装
 

@@ -1,4 +1,4 @@
-import type { AnyExtension, Extensions, JSONContent, MarkdownRendererHelpers, RenderContext } from "@tiptap/core";
+import { mergeAttributes, Node, type AnyExtension, type Extensions, type JSONContent, type MarkdownRendererHelpers, type MarkdownTokenizer, type RenderContext } from "@tiptap/core";
 import CodeBlockLowlight from "@tiptap/extension-code-block-lowlight";
 import Emoji, { emojis } from "@tiptap/extension-emoji";
 import Highlight from "@tiptap/extension-highlight";
@@ -7,6 +7,7 @@ import HorizontalRule from "@tiptap/extension-horizontal-rule";
 import Link from "@tiptap/extension-link";
 import { Markdown } from "@tiptap/markdown";
 import Mathematics from "@tiptap/extension-mathematics";
+import OrderedList from "@tiptap/extension-ordered-list";
 import { Paragraph } from "@tiptap/extension-paragraph";
 import Subscript from "@tiptap/extension-subscript";
 import Superscript from "@tiptap/extension-superscript";
@@ -17,7 +18,6 @@ import { TableRow } from "@tiptap/extension-table-row";
 import TextAlign from "@tiptap/extension-text-align";
 import { Color, TextStyle } from "@tiptap/extension-text-style";
 import TaskItem from "@tiptap/extension-task-item";
-import TaskList from "@tiptap/extension-task-list";
 import Underline from "@tiptap/extension-underline";
 import StarterKit from "@tiptap/starter-kit";
 import { MarkweaveCompositionGuard } from "./composition-guard";
@@ -47,6 +47,7 @@ import { MarkweaveMarkdownTableInput } from "../plugins/table/table-markdown-inp
 
 import type { MarkweaveLang } from "../i18n";
 import type { MarkweaveSlashCommandUploadHandler } from "../plugins/slash-command/upload";
+import { MarkweaveTocProjection } from "../core/toc-state";
 
 export interface CreateMarkweaveEditorExtensionsOptions {
   readonly lang?: MarkweaveLang;
@@ -105,9 +106,208 @@ const MarkweaveTable = Table.extend({
   },
 });
 
+const MarkweaveTaskList = Node.create<{
+  readonly HTMLAttributes: Record<string, unknown>;
+  readonly itemTypeName: string;
+}>({
+  name: "taskList",
+
+  addOptions() {
+    return {
+      HTMLAttributes: {},
+      itemTypeName: "taskItem",
+    };
+  },
+
+  group: "block list",
+
+  content() {
+    return `${this.options.itemTypeName}+`;
+  },
+
+  parseHTML() {
+    return [{ tag: `ul[data-type="${this.name}"]`, priority: 51 }];
+  },
+
+  renderHTML({ HTMLAttributes }) {
+    return [
+      "ul",
+      mergeAttributes(this.options.HTMLAttributes, HTMLAttributes, {
+        "data-type": this.name,
+      }),
+      0,
+    ];
+  },
+
+  parseMarkdown(token, helpers) {
+    return helpers.createNode(
+      "taskList",
+      {},
+      helpers.parseChildren(token.items ?? []),
+    );
+  },
+
+  renderMarkdown(node, helpers) {
+    return node.content ? helpers.renderChildren(node.content, "\n") : "";
+  },
+
+  markdownOptions: { indentsContent: true },
+
+  markdownTokenizer: {
+    name: "taskList",
+    level: "block",
+    start(src) {
+      return /^\s*[-+*]\s+\[([ xX])\]\s+/.test(src) ? 0 : -1;
+    },
+    tokenize(src, _tokens, lexer) {
+      const firstLine = readMarkdownLine(src, 0);
+      const firstMatch = firstLine.text.match(
+        /^(\s*)([-+*])\s+\[([ xX])\]\s+(.*)$/,
+      );
+      if (!firstMatch) {
+        return undefined;
+      }
+
+      const baseIndent = firstMatch[1]!.length;
+      const rawParts: string[] = [];
+      const items: Array<Record<string, unknown>> = [];
+      let offset = 0;
+
+      while (offset < src.length) {
+        const line = readMarkdownLine(src, offset);
+        const match = line.text.match(
+          /^(\s*)([-+*])\s+\[([ xX])\]\s+(.*)$/,
+        );
+        if (!match || match[1]!.length !== baseIndent) {
+          break;
+        }
+
+        rawParts.push(line.raw);
+        offset = line.end;
+        const nestedParts: string[] = [];
+        while (offset < src.length) {
+          const nextLine = readMarkdownLine(src, offset);
+          const nextTask = nextLine.text.match(
+            /^(\s*)([-+*])\s+\[([ xX])\]\s+(.*)$/,
+          );
+          if (nextTask && nextTask[1]!.length === baseIndent) {
+            break;
+          }
+
+          const indent = nextLine.text.match(/^(\s*)/)?.[1]?.length ?? 0;
+          if (nextLine.text.trim() && indent <= baseIndent) {
+            break;
+          }
+          if (!nextLine.text.trim() && !hasIndentedContinuation(src, nextLine.end, baseIndent)) {
+            break;
+          }
+
+          rawParts.push(nextLine.raw);
+          nestedParts.push(stripMarkdownIndent(nextLine.raw, baseIndent + 2));
+          offset = nextLine.end;
+        }
+
+        const mainContent = match[4]!;
+        items.push({
+          type: "taskItem",
+          raw: "",
+          mainContent,
+          indentLevel: baseIndent,
+          checked: match[3]!.toLowerCase() === "x",
+          text: mainContent,
+          tokens: lexer.inlineTokens(mainContent),
+          nestedTokens: nestedParts.length
+            ? lexer.blockTokens(nestedParts.join(""))
+            : [],
+        });
+      }
+
+      if (!items.length) {
+        return undefined;
+      }
+      return {
+        type: "taskList",
+        raw: rawParts.join(""),
+        items,
+      };
+    },
+  },
+
+  addCommands() {
+    return {
+      toggleTaskList:
+        () =>
+        ({ commands }) =>
+          commands.toggleList(this.name, this.options.itemTypeName),
+    };
+  },
+
+  addKeyboardShortcuts() {
+    return { "Mod-Shift-9": () => this.editor.commands.toggleTaskList() };
+  },
+});
+
+const orderedListMarkdownTokenizer = (
+  OrderedList.config as { readonly markdownTokenizer: MarkdownTokenizer }
+).markdownTokenizer;
+const orderedListStartRegex =
+  /^(\s*)(?:\d+|[ivxlcdmIVXLCDM]+|[a-zA-Z]{1,2})[.)]\s+/;
+
+const MarkweaveOrderedList = OrderedList.extend({
+  markdownTokenizer: {
+    ...orderedListMarkdownTokenizer,
+    start(src) {
+      const match = src.slice(0, 8_192).match(orderedListStartRegex);
+      return match?.index ?? -1;
+    },
+    tokenize(src, tokens, lexer) {
+      if (!orderedListStartRegex.test(readMarkdownLine(src, 0).text)) {
+        return undefined;
+      }
+      return orderedListMarkdownTokenizer.tokenize(src, tokens, lexer);
+    },
+  },
+});
+
+function readMarkdownLine(source: string, offset: number) {
+  const newline = source.indexOf("\n", offset);
+  const end = newline === -1 ? source.length : newline + 1;
+  const raw = source.slice(offset, end);
+  return {
+    end,
+    raw,
+    text: raw.endsWith("\n") ? raw.slice(0, -1) : raw,
+  };
+}
+
+function hasIndentedContinuation(
+  source: string,
+  offset: number,
+  baseIndent: number,
+) {
+  let cursor = offset;
+  while (cursor < source.length) {
+    const line = readMarkdownLine(source, cursor);
+    if (line.text.trim()) {
+      return (line.text.match(/^(\s*)/)?.[1]?.length ?? 0) > baseIndent;
+    }
+    cursor = line.end;
+  }
+  return false;
+}
+
+function stripMarkdownIndent(line: string, count: number) {
+  let index = 0;
+  while (index < line.length && index < count && line[index] === " ") {
+    index += 1;
+  }
+  return line.slice(index);
+}
+
 export function createMarkweaveEditorExtensions(options: CreateMarkweaveEditorExtensionsOptions = {}) {
   return [
     MarkweaveCompositionGuard,
+    MarkweaveTocProjection,
     Markdown.configure({
       markedOptions: {
         breaks: false,
@@ -120,6 +320,7 @@ export function createMarkweaveEditorExtensions(options: CreateMarkweaveEditorEx
       codeBlock: false,
       horizontalRule: false,
       link: false,
+      orderedList: false,
       underline: false,
     }),
     MarkweaveParagraph,
@@ -196,11 +397,12 @@ export function createMarkweaveEditorExtensions(options: CreateMarkweaveEditorEx
         class: "markweave-separator",
       },
     }),
-    TaskList.configure({
+    MarkweaveTaskList.configure({
       HTMLAttributes: {
         class: "markweave-task-list",
       },
     }),
+    MarkweaveOrderedList,
     TaskItem.configure({
       nested: true,
       HTMLAttributes: {

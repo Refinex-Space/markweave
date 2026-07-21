@@ -7,6 +7,7 @@ import {
   createMarkweaveTocState,
   getActiveMarkweaveTocId,
   getMarkweaveTocItems,
+  getMarkweaveTocItemsFromState,
   scrollToMarkweaveTocItem,
 } from "../src/core/toc-state";
 
@@ -47,6 +48,18 @@ afterEach(() => {
 });
 
 describe("markweave table of contents model", () => {
+  it("registers only the optimized task-list extension", () => {
+    const editor = createEditor("<p>Body</p>");
+    const taskLists = editor.extensionManager.extensions.filter(
+      (extension) => extension.name === "taskList",
+    );
+
+    expect(taskLists).toHaveLength(1);
+    expect(
+      String(taskLists[0]?.config.markdownTokenizer?.tokenize),
+    ).toContain("readMarkdownLine");
+  });
+
   it("extracts non-empty H2-H6 headings and skips H1 or empty headings", () => {
     const editor = createEditor("<h1>Title</h1><h2>Section</h2><h2>  </h2><p>Body</p><h6>Deep Heading</h6>");
     const items = getMarkweaveTocItems(editor.state.doc);
@@ -81,6 +94,24 @@ describe("markweave table of contents model", () => {
     expect(after[0]?.pos).not.toBe(before[0]?.pos);
   });
 
+  it("keeps the plugin projection equal to a full scan after local edits", () => {
+    const editor = createEditor(
+      "<p>Intro</p><h2>Before</h2><p>Body</p><h3>After</h3>",
+    );
+    const before = getMarkweaveTocItemsFromState(editor.state);
+
+    editor.commands.insertContentAt(before[0]!.pos + 1, "Updated ");
+    editor.commands.insertContentAt(0, "Preface");
+
+    const projected = getMarkweaveTocItemsFromState(editor.state);
+    const scanned = getMarkweaveTocItems(editor.state.doc);
+    expect(projected).toEqual(scanned);
+    expect(projected.map((item) => item.text)).toEqual([
+      "Updated Before",
+      "After",
+    ]);
+  });
+
   it("marks the active item in the derived TOC state", () => {
     const editor = createEditor("<h1>One</h1><h2>Two</h2><h3>Three</h3>");
     const items = getMarkweaveTocItems(editor.state.doc);
@@ -107,5 +138,21 @@ describe("markweave table of contents model", () => {
     expect(getActiveMarkweaveTocId(editor, items)).toBe(items[0]?.id);
     expect(scrollToMarkweaveTocItem(editor, items[1]!, { behavior: "auto" })).toBe(true);
     expect(scrollIntoView).toHaveBeenCalledWith({ behavior: "auto", block: "start" });
+  });
+
+  it("uses logarithmic heading measurements while scrolling large outlines", () => {
+    const editor = createEditor(
+      Array.from({ length: 128 }, (_, index) => `<h2>Section ${index + 1}</h2>`).join(""),
+    );
+    const items = getMarkweaveTocItems(editor.state.doc);
+    const headings = Array.from(editor.view.dom.querySelectorAll("h2"));
+    const measurements = headings.map((heading, index) =>
+      vi.spyOn(heading, "getBoundingClientRect").mockReturnValue(
+        createRect(index * 80 - 4_000),
+      ),
+    );
+
+    expect(getActiveMarkweaveTocId(editor, items)).toBe(items[51]?.id);
+    expect(measurements.reduce((total, spy) => total + spy.mock.calls.length, 0)).toBeLessThanOrEqual(8);
   });
 });

@@ -75,7 +75,7 @@ import {
   createMarkweaveTocState,
   emptyMarkweaveTocState,
   getActiveMarkweaveTocId,
-  getMarkweaveTocItems,
+  getMarkweaveTocItemsFromState,
   getValidMarkweaveTocActiveId,
   normalizeMarkweaveInnerTocPlacement,
   type MarkweaveInnerTocPlacement,
@@ -83,6 +83,8 @@ import {
 } from "markweave/internal/core/toc-state";
 import { createMarkweaveReactEditorExtensions } from "./create-editor-extensions";
 import type { MarkweaveLinkCardResolver } from "markweave/internal/plugins/link-card/link-card";
+import type { MarkweaveMediaSourceResolver } from "markweave/internal/plugins/media/media-source";
+import { splitMarkweaveLargeMarkdown } from "markweave/internal/core/large-document";
 import {
   createMarkweaveSearchController,
   type MarkweaveSearchController,
@@ -149,6 +151,7 @@ export interface MarkweaveEditorControllerOptions {
   readonly onSearchControllerChange?: (controller: MarkweaveSearchController | null) => void;
   readonly onTocChange?: (state: MarkweaveTocState) => void;
   readonly linkCardResolver?: MarkweaveLinkCardResolver;
+  readonly resolveMediaSource?: MarkweaveMediaSourceResolver;
 }
 
 export interface MarkweaveEditorProps extends MarkweaveEditorControllerOptions {
@@ -246,6 +249,7 @@ export function useMarkweaveEditorController({
   onTocChange,
   onUpdate,
   linkCardResolver,
+  resolveMediaSource,
 }: MarkweaveEditorControllerOptions = {}): MarkweaveEditorController {
   const editorMode = normalizeMarkweaveEditorMode(mode);
   const resolvedTheme = normalizeMarkweaveTheme(theme);
@@ -253,6 +257,20 @@ export function useMarkweaveEditorController({
   const resolvedInnerTocPlacement = normalizeMarkweaveInnerTocPlacement(innerTocPlacement);
   const effectiveEditable = editorMode === "live" && editable !== false;
   const activeContentFormat = normalizeMarkweaveContentFormat(content === undefined ? defaultContentFormat : contentFormat);
+  const initialContent = content ?? defaultContent;
+  const largeDocument =
+    typeof initialContent === "string" && initialContent.length >= 200_000;
+  const progressivelyLoadLargeDocument =
+    content === undefined &&
+    activeContentFormat === "markdown" &&
+    largeDocument &&
+    typeof initialContent === "string";
+  const progressiveMarkdownRef = useRef(
+    progressivelyLoadLargeDocument ? initialContent : null,
+  );
+  const [largeDocumentLoading, setLargeDocumentLoading] = useState(
+    progressivelyLoadLargeDocument,
+  );
   const runtimeModeRef = useRef({ editorMode, effectiveEditable });
   runtimeModeRef.current = { editorMode, effectiveEditable };
   const langRef = useRef<MarkweaveLang | null>(null);
@@ -297,8 +315,9 @@ export function useMarkweaveEditorController({
           return directResult;
         },
         linkCardResolver: (request) => linkCardResolverRef.current?.(request) ?? Promise.resolve(null),
+        resolveMediaSource,
       }),
-    [resolvedLang],
+    [resolveMediaSource, resolvedLang],
   );
   const [selectionSnapshot, setSelectionSnapshot] = useState<EditorSelectionSnapshot | null>(null);
   const [slashState, setSlashState] = useState<SlashCommandState>(initialSlashCommandState);
@@ -388,8 +407,9 @@ export function useMarkweaveEditorController({
   }, []);
 
   const editor = useEditor({
+    shouldRerenderOnTransaction: false,
     extensions,
-    content: content ?? defaultContent,
+    content: progressivelyLoadLargeDocument ? "" : initialContent,
     contentType: getMarkweaveContentType(activeContentFormat),
     editable: effectiveEditable,
     autofocus,
@@ -397,6 +417,7 @@ export function useMarkweaveEditorController({
       attributes: {
         class: "markweave-editor-surface",
         "data-testid": "markweave-editor-surface",
+        "data-markweave-large-document": largeDocument ? "true" : "false",
         autocapitalize: "off",
         autocorrect: "off",
         spellcheck: "false",
@@ -497,6 +518,66 @@ export function useMarkweaveEditorController({
   });
 
   useEffect(() => {
+    const markdown = progressiveMarkdownRef.current;
+    if (!editor || !markdown) {
+      return;
+    }
+
+    let cancelled = false;
+    void (async () => {
+      applyingControlledContentRef.current = true;
+      try {
+        let firstChunk = true;
+        for (const chunk of splitMarkweaveLargeMarkdown(markdown)) {
+          await new Promise<void>((resolve) => window.setTimeout(resolve, 0));
+          if (cancelled) {
+            return;
+          }
+          const parsed = editor.markdown?.parse(chunk);
+          if (!parsed) {
+            throw new Error("Markdown parser is unavailable.");
+          }
+          const fragment = editor.schema.nodeFromJSON(parsed).content;
+          const transaction = firstChunk
+            ? editor.state.tr.replaceWith(
+                0,
+                editor.state.doc.content.size,
+                fragment,
+              )
+            : editor.state.tr.insert(editor.state.doc.content.size, fragment);
+          editor.view.dispatch(transaction.setMeta("addToHistory", false));
+          firstChunk = false;
+        }
+        if (cancelled) {
+          return;
+        }
+
+        syncSelectionState(editor);
+        syncTableInteractionState(editor);
+        flushRuntimeProjection();
+        progressiveMarkdownRef.current = null;
+        setLargeDocumentLoading(false);
+      } finally {
+        applyingControlledContentRef.current = false;
+      }
+    })().catch(() => {
+      if (cancelled) {
+        return;
+      }
+      editor.commands.setContent(markdown, {
+        contentType: "markdown",
+        emitUpdate: false,
+      });
+      progressiveMarkdownRef.current = null;
+      setLargeDocumentLoading(false);
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [editor, flushRuntimeProjection, syncSelectionState, syncTableInteractionState]);
+
+  useEffect(() => {
     if (!editor) {
       return;
     }
@@ -513,15 +594,16 @@ export function useMarkweaveEditorController({
       return;
     }
 
-    editor.setEditable(effectiveEditable);
-    setMarkweaveEditorModeState(editor, { mode: editorMode, editable: effectiveEditable });
-    setMermaidInlinePreviewEditorMode(editor, effectiveEditable ? "live" : "view");
+    const editableNow = effectiveEditable && !largeDocumentLoading;
+    editor.setEditable(editableNow);
+    setMarkweaveEditorModeState(editor, { mode: editorMode, editable: editableNow });
+    setMermaidInlinePreviewEditorMode(editor, editableNow ? "live" : "view");
     flushRuntimeProjection();
 
     if (!effectiveEditable) {
       closeSlashMenu();
     }
-  }, [closeSlashMenu, editor, editorMode, effectiveEditable, flushRuntimeProjection]);
+  }, [closeSlashMenu, editor, editorMode, effectiveEditable, flushRuntimeProjection, largeDocumentLoading]);
 
   useEffect(() => {
     if (editor) {
@@ -587,8 +669,11 @@ export function useMarkweaveEditorController({
     () => (editor ? getMermaidPreviewState({ active: isMermaidActive, mode: mermaidMode, source: codeBlockState.text }) : hiddenMermaidPreviewState),
     [codeBlockState.text, editor, isMermaidActive, mermaidMode],
   );
-  const tableDebugSnapshot = useMemo(() => (editor ? getFirstTableDebugSnapshot(editor.state) : null), [editor, revision]);
-  const tocItems = useMemo(() => (editor ? getMarkweaveTocItems(editor.state.doc) : emptyMarkweaveTocState.items), [editor, revision]);
+  const tableDebugSnapshot = useMemo(
+    () => (editor && onRuntimeStateChange ? getFirstTableDebugSnapshot(editor.state) : null),
+    [editor, onRuntimeStateChange, revision],
+  );
+  const tocItems = useMemo(() => (editor ? getMarkweaveTocItemsFromState(editor.state) : emptyMarkweaveTocState.items), [editor, revision]);
   const normalizedTocActiveId = useMemo(() => getValidMarkweaveTocActiveId(tocItems, tocActiveId), [tocActiveId, tocItems]);
   const tocState = useMemo(() => createMarkweaveTocState(tocItems, normalizedTocActiveId), [normalizedTocActiveId, tocItems]);
 
@@ -787,6 +872,8 @@ export function useMarkweaveEditorController({
       "aria-label": ariaLabel ?? messages.common.editorAriaLabel,
       "data-testid": "markweave-editor-frame",
       "data-markweave-mode": editorMode,
+      "aria-busy": largeDocumentLoading,
+      "data-markweave-large-document-loading": largeDocumentLoading ? "true" : "false",
       "data-markweave-theme": resolvedTheme,
       style: resolvedCanvasColor ? ({ "--markweave-canvas": resolvedCanvasColor } as CSSProperties) : undefined,
       "data-markweave-inner-toc": innerToc ? "true" : "false",
@@ -795,7 +882,7 @@ export function useMarkweaveEditorController({
       "data-table-focus-mode": tableFocusState.mode,
       onKeyDownCapture: handleEditorKeyDown,
     }),
-    [ariaLabel, editorMode, handleEditorKeyDown, innerToc, mermaidPreviewState.mode, messages.common.editorAriaLabel, resolvedCanvasColor, resolvedInnerTocPlacement, resolvedTheme, tableFocusState.mode],
+    [ariaLabel, editorMode, handleEditorKeyDown, innerToc, largeDocumentLoading, mermaidPreviewState.mode, messages.common.editorAriaLabel, resolvedCanvasColor, resolvedInnerTocPlacement, resolvedTheme, tableFocusState.mode],
   );
 
   const overlayProps = useMemo<MarkweaveEditorOverlayProps>(

@@ -1,6 +1,6 @@
 ---
 owner: refinex
-updated: 2026-07-15
+updated: 2026-07-21
 status: active
 referenced_by: docs/README.md#knowledge-map
 ---
@@ -10,6 +10,8 @@ referenced_by: docs/README.md#knowledge-map
 Language: [中文](./vue2-integration-zh-cn.md) | English
 
 This guide is the complete Vue 2 integration path for Markweave. It covers installation, Vue 2.6 compiler requirements, Vue CLI 4 / Webpack 4 compatibility, content storage, Live/View mode, uploads, callbacks, TOC, and production boundaries. The private reference implementation is `apps/playground-vue2`.
+
+For large documents, use `defaultContent` instead of a per-keystroke controlled `content` loop, retain the lazy update payload, and read `payload.markdown` only at the host save/flush boundary. The optional `resolveMediaSource` prop accepts the same cancellable priority request as React and Vue 3; returning a display URL plus optional intrinsic dimensions activates the shared lightweight image NodeView without changing serialized Markdown.
 
 ## Install
 

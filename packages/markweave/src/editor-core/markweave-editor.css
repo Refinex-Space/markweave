@@ -99,6 +99,16 @@
   line-height: 1.72;
 }
 
+.markweave-editor-surface[data-markweave-large-document="true"] > * {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 32px;
+}
+
+.markweave-editor-surface[data-markweave-large-document="true"] > .markweave-image-node,
+.markweave-editor-surface[data-markweave-large-document="true"] > .markweave-image-figure {
+  contain-intrinsic-size: auto 240px;
+}
+
 /* CJK fallback fonts commonly lack a real italic face. */
 .markweave-editor-surface em,
 .markweave-editor-surface i {

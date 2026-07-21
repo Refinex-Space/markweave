@@ -1,6 +1,6 @@
 ---
 owner: refinex
-updated: 2026-07-17
+updated: 2026-07-21
 status: active
 referenced_by: AGENTS.md#knowledge-map
 ---
@@ -35,9 +35,9 @@ Framework adapters are exposed through adapter packages:
 
 The core package exports `markweave`, `markweave/styles.css`, and the internal `markweave/internal/*` subpath consumed by adapter packages. `markweave/react`, `markweave/vue2`, and `markweave/vue3` remain legacy compatibility shims for one release cycle and forward to the adapter packages. Package-boundary changes should keep `packages/markweave/test/editor-entrypoint-boundary.test.ts` current.
 
-`MarkweaveEditor` is Markdown-first at the content API boundary. `defaultContent` and controlled `content` default to Markdown parsing, `onUpdate.markdown` is the recommended storage output, and legacy HTML/JSON inputs must declare `defaultContentFormat` or `contentFormat` explicitly. `mode="live"` and `mode="view"` are UI-only rendering modes and do not change the serialized document output.
+`MarkweaveEditor` is Markdown-first at the content API boundary. `defaultContent` and controlled `content` default to Markdown parsing, and legacy HTML/JSON inputs must declare `defaultContentFormat` or `contentFormat` explicitly. Small controlled integrations may read `onUpdate.markdown` immediately; large-document hosts should use uncontrolled `defaultContent`, retain the lazy update payload, and read `payload.markdown` only at their debounce/flush boundary. `mode="live"` and `mode="view"` are UI-only rendering modes and do not change the serialized document output.
 
-The built-in document outline is enabled by default with `innerToc={true}`. It derives heading data from the current Tiptap document, exposes that data through `runtimeSnapshot.toc` and `onTocChange`, and does not write heading ids or TOC metadata into serialized Markdown/HTML. Hosts can pass `innerToc={false}` to hide the default Octarine-style side outline while rendering their own TOC from the same state.
+The built-in document outline is enabled by default with `innerToc={true}`. A ProseMirror plugin state maps unaffected heading positions through normal transactions and rescans only changed top-level ranges, with a full-scan fallback for complex replacements. The outline exposes that data through `runtimeSnapshot.toc` and `onTocChange`, uses logarithmic layout reads while scrolling, and does not write heading ids or TOC metadata into serialized Markdown/HTML. Hosts can pass `innerToc={false}` to hide the default Octarine-style side outline while rendering their own TOC from the same state.
 
 ## Editor Core
 
@@ -50,7 +50,7 @@ The built-in document outline is enabled by default with `innerToc={true}`. It d
 - previews and controls: Mermaid inline preview, floating toolbar, slash menu, table controls, table selection overlay, code block controls; the code-block language menu stays anchored to its trigger while scrolling, supports Arrow Up/Down navigation with automatic option scrolling, and selects the highlighted language with Enter; Mermaid SVG downloads use the system save picker when supported and otherwise fall back to the browser download flow
 - link editing: the floating toolbar opens an inline link popover for selected text, with apply, open, and remove actions
 - math editing: inline and block math render through the shared mathematics extension, while Live mode adapters expose the shared in-place LaTeX editor and View mode remains read-only
-- image editing: the shared core clipboard extension inserts remote HTTP(S) images directly and routes pasted local image files through the host upload handler; the image node renders an inline upload placeholder for empty or failed local images, then exposes align, caption, download, replace, delete, and width-resize controls through framework-specific NodeViews; image downloads use the system save picker when the browser supports it and fall back to the browser download flow otherwise
+- image editing: the shared core clipboard extension inserts remote HTTP(S) images directly and routes pasted local image files through the host upload handler; without a media resolver the existing framework NodeViews remain compatible, while `resolveMediaSource` switches populated images to a framework-neutral lightweight DOM NodeView with lazy decoding, viewport-near activation, intrinsic sizing, and a selected-only DOM toolbar for align, preview, download, replace, and delete; empty upload placeholders still use the adapter UI
 - video insertion: the video node renders an inline upload placeholder for empty videos, supports local-file host uploads and direct video URLs, and automatically embeds YouTube and Bilibili links or whitelisted platform embed sources through framework-specific NodeViews
 - editor modes: `mode="live"` keeps the full editable surface, while `mode="view"` is a UI-only read mode that reuses the same document rendering and keeps serialization output unchanged
 - inner TOC: framework adapters render the right-side hover outline by default and keep the TOC state available even when the built-in UI is disabled
@@ -63,7 +63,13 @@ Shared adapter behavior belongs in small framework-neutral helpers before it rea
 - `packages/markweave/src/editor-core/readonly-link.ts` owns safe View mode link-opening behavior.
 - `packages/markweave/src/editor-core/runtime-snapshot.ts` owns the runtime snapshot field contract.
 - `packages/markweave/src/plugins/search/search-controller.ts` owns document search state, decorations, navigation, replacement transactions, and the framework-neutral controller contract.
-- `packages/markweave/src/plugins/media/media-extension-factory.ts` owns shared image/video extension configuration while adapters still supply their framework NodeViews.
+- `packages/markweave/src/plugins/media/media-extension-factory.ts` owns shared image/video extension configuration; `media-source.ts` defines the cancellable display-only resolver contract and `lightweight-image-node-view.ts` owns the cross-framework large-document image path.
+
+## Large-document Scheduling
+
+Markdown inputs at or above 200 KB use progressive parsing in the React adapter: the source is split only at safe heading boundaries outside fenced code and callouts, parsed over separate tasks, and appended with history-disabled transactions before the editor becomes writable. Storage remains one complete ProseMirror document; this is not multi-editor virtualization. Large surfaces enable guarded top-level `content-visibility`, while active selection, search, copy, TOC and document semantics remain in the same editor.
+
+Custom Markdown tokenizers must not scan or `split` the entire remaining source for every block. Markweave bounds look-ahead for absent callout/link-card/attachment tokens and replaces the Tiptap ordered-list tokenizer's unconditional whole-tail split with a constant-time rejection path. The adapters set `shouldRerenderOnTransaction: false` where supported, compute full table debug snapshots only when a runtime debug callback is supplied, and keep ordinary transaction projections behind the shared debounce/plugin state.
 
 Framework-specific rendering must stay outside the core boundary. React `.tsx` files and React-only imports belong under `packages/markweave-react/src/**`; Vue 2 render functions belong under `packages/markweave-vue2/src/**`; Vue 3 render functions belong under `packages/markweave-vue3/src/**`. The `packages/markweave/src/core`, `src/editor-core`, and `src/plugins` layers must remain framework-neutral TypeScript and must not import React, Vue, Tiptap framework adapters, or framework-specific lucide packages.
 

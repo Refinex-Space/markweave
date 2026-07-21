@@ -1,6 +1,6 @@
 ---
 owner: refinex
-updated: 2026-07-15
+updated: 2026-07-21
 status: active
 referenced_by: docs/README.md#knowledge-map
 ---
@@ -10,6 +10,8 @@ referenced_by: docs/README.md#knowledge-map
 Language: [中文](./react-integration-zh-cn.md) | English
 
 This guide is the complete React integration path for Markweave. It covers installation, content storage, Live/View mode, uploads, callbacks, table and AI hooks, TOC, and production boundaries. The private reference implementation is `apps/playground-react`.
+
+For documents above roughly 200 KB, prefer uncontrolled `defaultContent`. Keep the latest `onUpdate` payload without reading `payload.markdown` on every transaction, then serialize once at the host's idle/manual-save/navigation flush boundary. Pass `resolveMediaSource` when stored media URLs require a display-only URL; the resolver receives `visible | nearby | background` priority plus an `AbortSignal`, and may return intrinsic `width`/`height`. The stored node source is never replaced by the resolved display URL.
 
 ## Install
 

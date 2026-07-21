@@ -180,7 +180,14 @@ export async function resolvePlaygroundLinkCard(request: { readonly href: string
 
 const largeDocumentParagraph = "Markweave performance fixture keeps realistic prose, punctuation, inline `code`, **emphasis**, and stable block boundaries so typing, serialization, outline projection, and overlay state can be exercised together without loading remote media.";
 
-export const largeDocumentPerformanceFixture = Array.from({ length: 180 }, (_, index) => {
+function createLargeDocumentPerformanceFixture(options: {
+  readonly sections: number;
+  readonly media?: "missing" | "valid";
+  readonly mediaCount?: number;
+}) {
+  const mediaCount = options.mediaCount ?? 0;
+
+  return Array.from({ length: options.sections }, (_, index) => {
   const section = index + 1;
   const blocks = [
     `## Performance section ${section}`,
@@ -205,8 +212,47 @@ export const largeDocumentPerformanceFixture = Array.from({ length: 180 }, (_, i
     blocks.push("", "```ts", `export const performanceSection${section} = ${section};`, "```");
   }
 
+  if (options.media && index < mediaCount) {
+    const assetIndex = index % 421;
+    const scheme = options.media === "valid" ? "fixture-asset" : "missing-asset";
+    blocks.push("", `![Performance image ${index + 1}](${scheme}://asset-${assetIndex})`);
+  }
+
   return blocks.join("\n");
-}).join("\n\n");
+  }).join("\n\n");
+}
+
+export const largeDocumentPerformanceFixture = createLargeDocumentPerformanceFixture({ sections: 180 });
+export const largeTextPerformanceFixture = createLargeDocumentPerformanceFixture({ sections: 500 });
+export const largeValidMediaPerformanceFixture = createLargeDocumentPerformanceFixture({
+  sections: 500,
+  media: "valid",
+  mediaCount: 426,
+});
+export const largeMissingMediaPerformanceFixture = createLargeDocumentPerformanceFixture({
+  sections: 500,
+  media: "missing",
+  mediaCount: 426,
+});
+export const stressDocumentPerformanceFixture = createLargeDocumentPerformanceFixture({ sections: 2_500 });
+
+const playgroundImageDataUrl =
+  "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='64' height='36' viewBox='0 0 64 36'%3E%3Crect width='64' height='36' fill='%23d9e4f5'/%3E%3C/svg%3E";
+
+export function resolvePlaygroundMediaSource(request: {
+  readonly src: string;
+  readonly signal: AbortSignal;
+}) {
+  if (request.signal.aborted || !request.src.startsWith("fixture-asset://")) {
+    return null;
+  }
+
+  return {
+    src: playgroundImageDataUrl,
+    width: 64,
+    height: 36,
+  };
+}
 
 export const mergedTablePlaygroundDocument = `
 <h1>Table Merge Fixture</h1>

@@ -1,6 +1,6 @@
 ---
 owner: refinex
-updated: 2026-07-15
+updated: 2026-07-21
 status: active
 referenced_by: AGENTS.md#knowledge-map
 ---
@@ -71,6 +71,17 @@ pnpm test
 pnpm typecheck
 pnpm build
 ```
+
+## Large-document Benchmark
+
+The shared playground exposes deterministic 250 KB text, 250 KB valid-media, 250 KB missing-media, and 1 MB stress fixtures. Run the real Chromium benchmark from the workspace root:
+
+```sh
+pnpm benchmark:large-document
+MARKWEAVE_BENCHMARK_PROFILE=1 pnpm benchmark:large-document "250k Text Fixture"
+```
+
+The script starts the React playground, uses Playwright with bundled Chromium or the installed stable Chrome fallback, and prints content-free JSON containing mount time, per-key input-to-paint P95/P99, long tasks, DOM/lightweight media node counts, and renderer heap when available. It does not replace final WKWebView/WebView2 acceptance. Rebuild `markweave` and `@markweave/react` before benchmarking changes to package source because the playground consumes package build output.
 
 For control-plane or documentation changes:
 

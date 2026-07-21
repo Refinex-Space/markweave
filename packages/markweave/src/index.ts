@@ -35,6 +35,13 @@ export type {
   TableEditWithAiRequest,
 } from "./core/public-types";
 export type { MarkweaveUploadRequest, MarkweaveUploadResult, MarkweaveSlashCommandUploadHandler } from "./plugins/slash-command/upload";
+export type {
+  MarkweaveMediaKind,
+  MarkweaveMediaPriority,
+  MarkweaveMediaSourceRequest,
+  MarkweaveMediaSourceResolver,
+  MarkweaveMediaSourceResult,
+} from "./plugins/media/media-source";
 export type { MarkweaveMenuCopyPayload } from "./plugins/table/table-clipboard";
 export type {
   MarkweaveSearchController,

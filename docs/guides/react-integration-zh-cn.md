@@ -1,6 +1,6 @@
 ---
 owner: refinex
-updated: 2026-07-15
+updated: 2026-07-21
 status: active
 referenced_by: docs/README.md#knowledge-map
 ---
@@ -10,6 +10,8 @@ referenced_by: docs/README.md#knowledge-map
 语言：中文 | [English](./react-integration.md)
 
 这是 Markweave 的 React 完整接入手册，覆盖安装、内容存储、Live/View 模式、上传、回调、表格、AI、TOC 和生产边界。仓库里的私有参考实现是 `apps/playground-react`。
+
+对于约 200 KB 以上的文档，优先使用非受控 `defaultContent`。`onUpdate` 只保留最新惰性 payload，不要在每个事务读取 `payload.markdown`；宿主应在 idle、手动保存或导航 flush 边界只序列化一次。持久化媒体 URL 需要映射为展示 URL 时传入 `resolveMediaSource`：请求包含 `visible | nearby | background` 优先级与 `AbortSignal`，结果可返回固有 `width`/`height`。解析出的展示 URL 不会写回节点或 Markdown。
 
 ## 安装
 

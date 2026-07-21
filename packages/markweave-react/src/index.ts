@@ -34,4 +34,9 @@ export type {
   MarkweaveLinkCardMetadata,
   MarkweaveLinkCardResolveRequest,
   MarkweaveLinkCardResolver,
+  MarkweaveMediaKind,
+  MarkweaveMediaPriority,
+  MarkweaveMediaSourceRequest,
+  MarkweaveMediaSourceResolver,
+  MarkweaveMediaSourceResult,
 } from "markweave";

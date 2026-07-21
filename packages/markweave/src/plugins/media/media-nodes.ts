@@ -96,8 +96,9 @@ export const MarkweaveAttachment = Node.create({
     name: "markweaveAttachment",
     level: "block",
     start: (src: string) => {
-      const index = src.indexOf("data-markweave-attachment");
-      return index >= 0 ? Math.max(0, src.lastIndexOf("<a", index)) : -1;
+      const prefix = src.slice(0, 8_192);
+      const index = prefix.indexOf("data-markweave-attachment");
+      return index >= 0 ? Math.max(0, prefix.lastIndexOf("<a", index)) : -1;
     },
     tokenize: (src: string) => {
       const match = src.match(/^<a\b[^>]*data-markweave-attachment[^>]*>[\s\S]*?<\/a>/);
