@@ -4,6 +4,7 @@ import type { EditorState } from "@tiptap/pm/state";
 import { CellSelection } from "@tiptap/pm/tables";
 import { Plugin, PluginKey } from "prosemirror-state";
 import type { Transaction } from "prosemirror-state";
+import { isSelectionInsideCodeBlock } from "../codeblock/codeblock-behavior";
 import { focusFirstTableBodyCell } from "./table-focus-position";
 
 export type ClipboardTableSource = "html" | "markdown" | "tsv";
@@ -878,6 +879,10 @@ export function runMarkweaveTableCopy(state: EditorState, clipboardData: Pick<Da
 }
 
 export function runMarkweaveTablePaste(editor: Editor, clipboardData: Pick<DataTransfer, "getData">) {
+  if (isSelectionInsideCodeBlock(editor.state)) {
+    return false;
+  }
+
   const html = clipboardData.getData("text/html");
   const text = clipboardData.getData("text/plain");
   const insertFrom = editor.state.selection.from;

@@ -91,6 +91,26 @@ function isCodeBlockNode(node: ProseMirrorNode | null | undefined): node is Pros
   return node?.type.name === "codeBlock";
 }
 
+export function isSelectionInsideCodeBlock(state: EditorState) {
+  const { $from, $to } = state.selection;
+  return $from.sameParent($to) && isCodeBlockNode($from.parent);
+}
+
+function selectActiveCodeBlockContent(editor: Editor) {
+  const { state } = editor;
+
+  if (!isSelectionInsideCodeBlock(state)) {
+    return false;
+  }
+
+  const from = state.selection.$from.start();
+  const to = state.selection.$from.end();
+  editor.view.dispatch(
+    state.tr.setSelection(TextSelection.create(state.doc, from, to)).scrollIntoView(),
+  );
+  return true;
+}
+
 function getActiveCodeBlockContext(state: EditorState) {
   const { selection } = state;
   const { $from } = selection;
@@ -240,6 +260,12 @@ export const MarkweaveCodeBlockCollapse = Extension.create({
 export const MarkweaveCodeBlockClickFocus = Extension.create({
   name: "markweaveCodeBlockClickFocus",
   priority: 660,
+
+  addKeyboardShortcuts() {
+    return {
+      "Mod-a": () => selectActiveCodeBlockContent(this.editor),
+    };
+  },
 
   addProseMirrorPlugins() {
     return [
