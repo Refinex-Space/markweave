@@ -3,6 +3,11 @@ import { NodeSelection } from "@tiptap/pm/state";
 import type { NodeView } from "@tiptap/pm/view";
 import type { MarkweaveMessages } from "../../i18n";
 import {
+  getMarkweaveEditorModeState,
+  isMarkweaveEditorLiveEditable,
+  subscribeToMarkweaveEditorMode,
+} from "../../core/editor-mode-state";
+import {
   attrsFromMarkweaveImageUploadResult,
   clampMarkweaveImageWidth,
   createMarkweaveImageUploadRequest,
@@ -110,9 +115,11 @@ class MarkweaveLightweightImageNodeView implements NodeView {
   private readonly image: HTMLImageElement;
   private readonly placeholder: HTMLDivElement;
   private readonly caption: HTMLElement;
+  private readonly unsubscribeMode: () => void;
   private observer: IntersectionObserver | null = null;
   private resolveController: AbortController | null = null;
   private resolvedSrc: string | null = null;
+  private previewTrigger: HTMLButtonElement | null = null;
   private toolbar: HTMLElement | null = null;
   private captionInput: HTMLInputElement | null = null;
   private captionButton: HTMLButtonElement | null = null;
@@ -155,6 +162,10 @@ class MarkweaveLightweightImageNodeView implements NodeView {
     this.dom.addEventListener("mousedown", this.handleMouseDown);
     this.dom.addEventListener("dblclick", this.handleDoubleClick);
     this.image.addEventListener("error", this.handleImageError);
+    this.unsubscribeMode = subscribeToMarkweaveEditorMode(
+      this.props.editor,
+      () => this.syncPreviewTrigger(),
+    );
     this.renderNodeAttributes();
     this.captionOpen = Boolean(stringAttribute(this.node.attrs.caption));
     this.observeProximity();
@@ -207,7 +218,10 @@ class MarkweaveLightweightImageNodeView implements NodeView {
     this.destroyed = true;
     this.resolveController?.abort();
     this.observer?.disconnect();
+    this.unsubscribeMode();
     this.unmountEditingControls();
+    this.previewTrigger?.remove();
+    this.previewTrigger = null;
     this.dom.removeEventListener("mousedown", this.handleMouseDown);
     this.dom.removeEventListener("dblclick", this.handleDoubleClick);
     this.image.removeEventListener("error", this.handleImageError);
@@ -310,6 +324,36 @@ class MarkweaveLightweightImageNodeView implements NodeView {
     const resolved = state === "resolved";
     this.image.hidden = !resolved;
     this.placeholder.hidden = resolved;
+    this.syncPreviewTrigger();
+  }
+
+  private syncPreviewTrigger() {
+    const modeState = getMarkweaveEditorModeState(this.props.editor);
+    const shouldMount =
+      this.dom.dataset.mediaState === "resolved" &&
+      Boolean(this.resolvedSrc) &&
+      !isMarkweaveEditorLiveEditable(modeState);
+
+    if (!shouldMount) {
+      this.previewTrigger?.remove();
+      this.previewTrigger = null;
+      return;
+    }
+
+    if (this.previewTrigger) {
+      return;
+    }
+
+    const messages = this.options.messages.image;
+    const previewTrigger = this.createButton(
+      messages.preview,
+      "preview",
+      "markweave-image-preview",
+      () => this.handleDoubleClick(),
+    );
+    previewTrigger.className = "markweave-image-preview-trigger";
+    this.box.append(previewTrigger);
+    this.previewTrigger = previewTrigger;
   }
 
   private readonly handleMouseDown = (event: MouseEvent) => {

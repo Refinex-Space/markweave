@@ -5,6 +5,7 @@ import { act, createElement, useEffect } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { useMarkweaveEditorController, type MarkweaveEditorController, type MarkweaveEditorMode, type MarkweaveLang, type MarkweaveMediaSourceResolver } from "@markweave/react";
+import { setMarkweaveEditorModeState } from "../src/core/editor-mode-state";
 import type { MarkweaveSlashCommandUploadHandler } from "../src/plugins/slash-command/upload";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -311,6 +312,79 @@ describe("image node view", () => {
     expect(image?.getAttribute("width")).toBe("640");
     expect(image?.getAttribute("height")).toBe("360");
     expect(controller.editor?.getHTML()).toContain('src="madora-asset://hash"');
+  });
+
+  it("opens resolved lightweight images from the View mode preview action", async () => {
+    const resolveMediaSource = vi.fn<MarkweaveMediaSourceResolver>(() => ({
+      src: "https://example.com/resolved-view.png",
+      width: 640,
+      height: 360,
+    }));
+    await renderEditor(
+      '<img src="madora-asset://view" alt="Resolved view">',
+      undefined,
+      undefined,
+      "view",
+      resolveMediaSource,
+    );
+    await flushReact();
+
+    expect(
+      document.querySelector('[data-markweave-lightweight-image="true"]'),
+    ).not.toBeNull();
+    const preview = getByTestId("markweave-image-preview");
+    expect(preview.classList.contains("markweave-image-preview-trigger")).toBe(true);
+    expect(preview.getAttribute("aria-label")).toBe("预览图片");
+
+    await click(preview);
+
+    const layer = getByTestId("markweave-image-preview-layer");
+    expect(layer.querySelector("img")?.getAttribute("src")).toBe(
+      "https://example.com/resolved-view.png",
+    );
+    expect(layer.querySelector("img")?.getAttribute("alt")).toBe("Resolved view");
+  });
+
+  it("syncs the lightweight image preview action when editor mode changes", async () => {
+    const resolveMediaSource = vi.fn<MarkweaveMediaSourceResolver>(() => ({
+      src: "https://example.com/mode-switch.png",
+    }));
+    const controller = await renderEditor(
+      '<img src="madora-asset://mode-switch" alt="Mode switch">',
+      undefined,
+      undefined,
+      "live",
+      resolveMediaSource,
+    );
+    await flushReact();
+
+    expect(document.querySelector(".markweave-image-preview-trigger")).toBeNull();
+
+    await act(async () => {
+      controller.editor?.setEditable(false);
+      if (controller.editor) {
+        setMarkweaveEditorModeState(controller.editor, {
+          mode: "view",
+          editable: false,
+        });
+      }
+    });
+    await flushReact();
+
+    expect(document.querySelector(".markweave-image-preview-trigger")).not.toBeNull();
+
+    await act(async () => {
+      controller.editor?.setEditable(true);
+      if (controller.editor) {
+        setMarkweaveEditorModeState(controller.editor, {
+          mode: "live",
+          editable: true,
+        });
+      }
+    });
+    await flushReact();
+
+    expect(document.querySelector(".markweave-image-preview-trigger")).toBeNull();
   });
 
   it("keeps rich image controls available for resolved lightweight images", async () => {

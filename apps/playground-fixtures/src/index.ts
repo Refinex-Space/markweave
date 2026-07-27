@@ -243,15 +243,23 @@ export function resolvePlaygroundMediaSource(request: {
   readonly src: string;
   readonly signal: AbortSignal;
 }) {
-  if (request.signal.aborted || !request.src.startsWith("fixture-asset://")) {
+  if (request.signal.aborted) {
     return null;
   }
 
-  return {
-    src: playgroundImageDataUrl,
-    width: 64,
-    height: 36,
-  };
+  if (request.src.startsWith("fixture-asset://")) {
+    return {
+      src: playgroundImageDataUrl,
+      width: 64,
+      height: 36,
+    };
+  }
+
+  if (/^(?:https?:\/\/|blob:|data:image\/)/i.test(request.src)) {
+    return { src: request.src };
+  }
+
+  return null;
 }
 
 export const mergedTablePlaygroundDocument = `
