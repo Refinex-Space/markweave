@@ -11,6 +11,8 @@ export const slashCommandLifecycle = [
   "composition-start-closes-menu",
   "composition-end-reopens-valid-query",
   "suppress-code-range-composition",
+  "reposition-on-scroll-and-resize",
+  "close-when-trigger-leaves-visible-editor",
   "remove-query-range-only",
 ] as const;
 

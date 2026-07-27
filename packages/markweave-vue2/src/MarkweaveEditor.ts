@@ -198,10 +198,12 @@ import { getMermaidPreviewState, type MermaidPreviewMode } from "markweave/inter
 import { filterSlashCommands, isExecutableSlashCommand, type SlashCommandIconName, type SlashCommandSpec } from "markweave/internal/plugins/slash-command/command-spec";
 import { getSlashCommandKeyboardAction } from "markweave/internal/plugins/slash-command/slash-keyboard";
 import {
+  areSlashCommandMenuPositionsEquivalent,
   executeSlashCommand,
   getNextSlashCommandState,
   getSlashCommandAnchoredMenuPosition,
   getSlashCommandContext,
+  isSlashCommandAnchorVisible,
   type ExecuteSlashCommandOptions,
   type SlashCommandMenuPosition,
 } from "markweave/internal/plugins/slash-command/slash-runtime";
@@ -2759,7 +2761,15 @@ export function useMarkweaveEditorController(options: MarkweaveVue2EditorControl
     const cursorRect = view.coordsAtPos(slashContext.cursor);
     const triggerRect = view.coordsAtPos(slashContext.triggerFrom);
     const frameRect = view.dom.closest(".markweave-editor-frame")?.getBoundingClientRect();
-    slashMenuPosition.value = getSlashCommandAnchoredMenuPosition(cursorRect, { frameRect, triggerRect });
+    if (!isSlashCommandAnchorVisible(triggerRect, { frameRect })) {
+      closeSlashMenu();
+      return;
+    }
+
+    const nextPosition = getSlashCommandAnchoredMenuPosition(cursorRect, { frameRect, triggerRect });
+    if (!areSlashCommandMenuPositionsEquivalent(slashMenuPosition.value, nextPosition)) {
+      slashMenuPosition.value = nextPosition;
+    }
     slashState.value = getNextSlashCommandState(slashState.value, slashContext);
   }
 
@@ -2938,6 +2948,33 @@ export function useMarkweaveEditorController(options: MarkweaveVue2EditorControl
     if (tocActiveId.value !== nextActiveId) {
       tocActiveId.value = nextActiveId;
     }
+  });
+
+  const slashMenuPositionScheduler = createMarkweaveFrameScheduler(() => {
+    if (editor.value && slashMenuPosition.value) {
+      syncSlashCommandStateFromView(editor.value.view);
+    }
+  });
+  const scheduleSlashMenuPositionUpdate = () => {
+    if (slashMenuPosition.value) {
+      slashMenuPositionScheduler.schedule();
+    }
+  };
+  watch(slashMenuPosition, (position) => {
+    if (position) {
+      scheduleSlashMenuPositionUpdate();
+    } else {
+      slashMenuPositionScheduler.cancel();
+    }
+  });
+  onMounted(() => {
+    window.addEventListener("resize", scheduleSlashMenuPositionUpdate);
+    window.addEventListener("scroll", scheduleSlashMenuPositionUpdate, true);
+  });
+  onBeforeUnmount(() => {
+    slashMenuPositionScheduler.cancel();
+    window.removeEventListener("resize", scheduleSlashMenuPositionUpdate);
+    window.removeEventListener("scroll", scheduleSlashMenuPositionUpdate, true);
   });
 
   let cleanupTocListeners: (() => void) | null = null;
