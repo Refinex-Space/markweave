@@ -39,13 +39,14 @@ import { MarkweaveImageClipboard } from "../plugins/media/image-clipboard";
 import { MarkweaveAttachment } from "../plugins/media/media-nodes";
 import { MarkweaveMermaidInlinePreview } from "../plugins/mermaid/mermaid-inline-preview";
 import { MarkweaveSearch } from "../plugins/search/search-controller";
+import { MarkweaveSlashEmptyLinePlaceholder } from "../plugins/slash-command/empty-line-placeholder";
 import { MarkweaveTableClipboard } from "../plugins/table/table-clipboard";
 import { MarkweaveTableArrowNavigation } from "../plugins/table/table-arrow-navigation";
 import { MarkweaveTableInteractionLayer } from "../plugins/table/table-interaction-layer";
 import { MarkweaveTableKeyboard } from "../plugins/table/table-keyboard";
 import { MarkweaveMarkdownTableInput } from "../plugins/table/table-markdown-input";
 
-import type { MarkweaveLang } from "../i18n";
+import { getMarkweaveMessages, type MarkweaveLang } from "../i18n";
 import type { MarkweaveSlashCommandUploadHandler } from "../plugins/slash-command/upload";
 import { MarkweaveTocProjection } from "../core/toc-state";
 
@@ -305,8 +306,13 @@ function stripMarkdownIndent(line: string, count: number) {
 }
 
 export function createMarkweaveEditorExtensions(options: CreateMarkweaveEditorExtensionsOptions = {}) {
+  const messages = getMarkweaveMessages(options.lang);
+
   return [
     MarkweaveCompositionGuard,
+    MarkweaveSlashEmptyLinePlaceholder.configure({
+      placeholder: messages.slash.emptyLinePlaceholder,
+    }),
     MarkweaveTocProjection,
     Markdown.configure({
       markedOptions: {

@@ -52,6 +52,7 @@ export interface MarkweaveMessages {
   };
   readonly slash: {
     readonly ariaLabel: string;
+    readonly emptyLinePlaceholder: string;
     readonly filterPlaceholder: string;
     readonly noResults: string;
     readonly emojiTitle: string;
@@ -657,6 +658,7 @@ const messagesByLang: Record<MarkweaveLang, MarkweaveMessages> = {
     },
     slash: {
       ariaLabel: "Slash 命令",
+      emptyLinePlaceholder: "输入 / 唤起快捷操作",
       filterPlaceholder: "筛选...",
       noResults: "无结果",
       emojiTitle: "表情",
@@ -867,6 +869,7 @@ const messagesByLang: Record<MarkweaveLang, MarkweaveMessages> = {
     },
     slash: {
       ariaLabel: "Slash commands",
+      emptyLinePlaceholder: "Press / for quick actions",
       filterPlaceholder: "Filter...",
       noResults: "No results",
       emojiTitle: "Emoji",

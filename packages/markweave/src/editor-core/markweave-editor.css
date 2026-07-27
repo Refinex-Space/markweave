@@ -339,6 +339,15 @@
   margin: 0.65em 0;
 }
 
+.markweave-editor-surface[contenteditable="true"]:focus .markweave-slash-empty-line-placeholder::before {
+  content: attr(data-markweave-slash-placeholder);
+  float: left;
+  height: 0;
+  color: var(--markweave-text-subtle);
+  pointer-events: none;
+  user-select: none;
+}
+
 .markweave-editor-surface blockquote {
   margin: 1.1em 0;
   padding: 10px 14px;
