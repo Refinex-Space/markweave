@@ -88,10 +88,11 @@ describe("editor entrypoint boundary", () => {
         keywords?: string[];
         publishConfig?: { access?: string; registry?: string };
         repository?: { directory?: string; type?: string; url?: string };
+        scripts?: Record<string, string>;
         version?: string;
       };
 
-      expect(packageJson.version).toBe("0.3.2");
+      expect(packageJson.version).toBe("0.3.3");
       expect(packageJson.homepage).toBe(homepageUrl);
       expect(packageJson.bugs).toEqual({ url: bugsUrl });
       expect(packageJson.repository).toEqual({
@@ -102,6 +103,7 @@ describe("editor entrypoint boundary", () => {
       expect(packageJson.keywords).toEqual(expect.arrayContaining(["markdown", "wysiwyg", "editor", "tiptap", "prosemirror"]));
       expect(packageJson.publishConfig?.registry).toBe("https://registry.npmjs.org/");
       expect(packageJson.publishConfig?.access).toBe(item.scoped ? "public" : undefined);
+      expect(packageJson.scripts?.prepack).toBe("pnpm run build");
     }
   });
 

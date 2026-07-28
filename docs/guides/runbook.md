@@ -1,6 +1,6 @@
 ---
 owner: refinex
-updated: 2026-07-21
+updated: 2026-07-28
 status: active
 referenced_by: AGENTS.md#knowledge-map
 ---
@@ -118,6 +118,8 @@ Before publishing, verify:
 - packed adapter package metadata rewrites the local `markweave: workspace:^` dependency to the current publishable core version range
 - playground-only files are not included in package `files`
 - README usage examples match the exported API
+
+Each publishable package runs `pnpm run build` from its `prepack` lifecycle. Do not bypass lifecycle scripts with `--ignore-scripts`: the generated `dist` directories are Git-ignored and are not release sources of truth. `pnpm release:pack` and `pnpm release:dry-run` finish by running `scripts/verify-publish-artifacts.mjs`, which rejects stale or incomplete output before authentication or registry writes are attempted.
 
 Run the release checks from the workspace root:
 
