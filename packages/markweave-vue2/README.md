@@ -26,3 +26,5 @@ export default {
 Vue remains a peer dependency and should come from the host app. Vue CLI 4 / Webpack 4 projects should keep `vue-template-compiler` on the same Vue 2.6.x version as `vue`.
 
 The built-in outline uses `inner-toc-placement="container"` by default, keeping it vertically centered in the visual viewport while symmetric TOC gutters keep the writing column centered. It hides automatically in a narrow editor container to preserve readable content width.
+
+Version 0.3.5 keeps this fixed positioning and resolver-backed first-screen image loading compatible with Vue CLI 4 applications hosted in Electron 21 / Chromium 106.

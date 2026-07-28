@@ -1,6 +1,6 @@
 ---
 owner: refinex
-updated: 2026-07-27
+updated: 2026-07-28
 status: active
 referenced_by: docs/README.md#knowledge-map
 ---
@@ -319,6 +319,7 @@ Vue 2 适配器提供完整 Markweave UI：浮动工具栏、链接弹层、slas
 - 即使宿主系统的中文回退字体没有原生斜体字形，行内斜体也会保持可见。
 - 保持 `vue` 和 `vue-template-compiler` 版本完全一致。
 - 使用 Vue CLI 4 / Webpack 4 时，为现代 ESM 依赖保留 `transpileDependencies`。
+- Markweave 0.3.5 不再让 CSS 查询容器影响固定目录定位，并会在挂载后主动探测 pending 状态的首屏图片，覆盖 Electron 21 / Chromium 106 延迟首次 `IntersectionObserver` 回调的情况。
 - 上传接口必须做认证、文件大小、MIME 类型和返回 URL 校验。
 - 不要接受任意 iframe host。Markweave 只处理直接视频和受支持的 YouTube/Bilibili embed 形态。
 - Markweave 面向浏览器运行；SSR 场景中应在客户端渲染编辑器。

@@ -34,6 +34,8 @@ export const markweaveTocProjectionPluginKey = new PluginKey<
   readonly MarkweaveTocItem[]
 >("markweaveTocProjection");
 
+const compactInnerTocContainerWidth = 900;
+
 export function normalizeMarkweaveInnerTocPlacement(value: unknown): MarkweaveInnerTocPlacement {
   return value === "viewport" ? "viewport" : "container";
 }
@@ -48,6 +50,10 @@ export function observeMarkweaveInnerTocContainerPosition(tocElement: HTMLElemen
     const frameBounds = frameElement.getBoundingClientRect();
     const rightOffset = Math.max(28, window.innerWidth - frameBounds.right + 28);
     tocElement.style.setProperty("--markweave-inner-toc-right", `${rightOffset}px`);
+    frameElement.setAttribute(
+      "data-markweave-inner-toc-compact",
+      frameBounds.width <= compactInnerTocContainerWidth ? "true" : "false",
+    );
   };
 
   syncPosition();
@@ -58,6 +64,7 @@ export function observeMarkweaveInnerTocContainerPosition(tocElement: HTMLElemen
   return () => {
     resizeObserver?.disconnect();
     window.removeEventListener("resize", syncPosition);
+    frameElement.removeAttribute("data-markweave-inner-toc-compact");
   };
 }
 

@@ -99,6 +99,63 @@ export interface MarkweaveLightweightImageNodeViewOptions {
   readonly resolveMediaSource: MarkweaveMediaSourceResolver;
 }
 
+interface MarkweaveViewportWakeCoordinator {
+  readonly callbacks: Set<() => void>;
+  readonly ownerWindow: Window;
+  readonly wake: () => void;
+}
+
+const viewportWakeCoordinators = new WeakMap<
+  Document,
+  MarkweaveViewportWakeCoordinator
+>();
+
+function subscribeToMarkweaveViewportWake(
+  ownerDocument: Document,
+  callback: () => void,
+) {
+  const ownerWindow = ownerDocument.defaultView;
+  if (!ownerWindow) {
+    return () => undefined;
+  }
+
+  let coordinator = viewportWakeCoordinators.get(ownerDocument);
+  if (!coordinator) {
+    const callbacks = new Set<() => void>();
+    const wake = () => callbacks.forEach((subscriber) => subscriber());
+    coordinator = { callbacks, ownerWindow, wake };
+    viewportWakeCoordinators.set(ownerDocument, coordinator);
+    ownerWindow.addEventListener("focus", wake);
+    ownerWindow.addEventListener("pageshow", wake);
+    ownerDocument.addEventListener("visibilitychange", wake);
+  }
+
+  coordinator.callbacks.add(callback);
+  return () => {
+    const activeCoordinator = viewportWakeCoordinators.get(ownerDocument);
+    if (!activeCoordinator) {
+      return;
+    }
+    activeCoordinator.callbacks.delete(callback);
+    if (activeCoordinator.callbacks.size) {
+      return;
+    }
+    activeCoordinator.ownerWindow.removeEventListener(
+      "focus",
+      activeCoordinator.wake,
+    );
+    activeCoordinator.ownerWindow.removeEventListener(
+      "pageshow",
+      activeCoordinator.wake,
+    );
+    ownerDocument.removeEventListener(
+      "visibilitychange",
+      activeCoordinator.wake,
+    );
+    viewportWakeCoordinators.delete(ownerDocument);
+  };
+}
+
 export function createMarkweaveLightweightImageNodeViewRenderer(
   options: MarkweaveLightweightImageNodeViewOptions,
 ): NodeViewRenderer {
@@ -118,7 +175,14 @@ class MarkweaveLightweightImageNodeView implements NodeView {
   private readonly unsubscribeMode: () => void;
   private observer: IntersectionObserver | null = null;
   private resolveController: AbortController | null = null;
+  private resolvingSource: string | null = null;
+  private resolvingPriority: MarkweaveMediaPriority | null = null;
+  private resolvedSource: string | null = null;
+  private resolvedPriority: MarkweaveMediaPriority | null = null;
   private resolvedSrc: string | null = null;
+  private mountCheckScheduled = false;
+  private mountCheckTimer: number | null = null;
+  private unsubscribeViewportWake: (() => void) | null = null;
   private previewTrigger: HTMLButtonElement | null = null;
   private toolbar: HTMLElement | null = null;
   private captionInput: HTMLInputElement | null = null;
@@ -161,14 +225,18 @@ class MarkweaveLightweightImageNodeView implements NodeView {
 
     this.dom.addEventListener("mousedown", this.handleMouseDown);
     this.dom.addEventListener("dblclick", this.handleDoubleClick);
+    this.image.addEventListener("load", this.handleImageLoad);
     this.image.addEventListener("error", this.handleImageError);
     this.unsubscribeMode = subscribeToMarkweaveEditorMode(
       this.props.editor,
       () => this.syncPreviewTrigger(),
     );
     this.renderNodeAttributes();
+    this.setMediaState("pending");
     this.captionOpen = Boolean(stringAttribute(this.node.attrs.caption));
     this.observeProximity();
+    this.startViewportWakeListeners();
+    this.scheduleMountedProximityCheck();
   }
 
   update(node: NodeViewRendererProps["node"]) {
@@ -183,10 +251,15 @@ class MarkweaveLightweightImageNodeView implements NodeView {
 
     if (previousSrc !== nextSrc) {
       this.resolveController?.abort();
+      this.resolvingSource = null;
+      this.resolvingPriority = null;
+      this.resolvedSource = null;
+      this.resolvedPriority = null;
       this.resolvedSrc = null;
       this.image.removeAttribute("src");
       this.setMediaState("pending");
-      this.resolveSource(this.dom.dataset.selected === "true" ? "visible" : "nearby");
+      this.startViewportWakeListeners();
+      this.scheduleMountedProximityCheck();
     }
 
     return true;
@@ -218,12 +291,15 @@ class MarkweaveLightweightImageNodeView implements NodeView {
     this.destroyed = true;
     this.resolveController?.abort();
     this.observer?.disconnect();
+    this.clearMountedProximityCheck();
+    this.stopViewportWakeListeners();
     this.unsubscribeMode();
     this.unmountEditingControls();
     this.previewTrigger?.remove();
     this.previewTrigger = null;
     this.dom.removeEventListener("mousedown", this.handleMouseDown);
     this.dom.removeEventListener("dblclick", this.handleDoubleClick);
+    this.image.removeEventListener("load", this.handleImageLoad);
     this.image.removeEventListener("error", this.handleImageError);
   }
 
@@ -277,15 +353,109 @@ class MarkweaveLightweightImageNodeView implements NodeView {
     this.observer.observe(this.dom);
   }
 
+  private scheduleMountedProximityCheck() {
+    if (this.mountCheckScheduled || this.destroyed) {
+      return;
+    }
+
+    this.mountCheckScheduled = true;
+    void Promise.resolve().then(() => {
+      this.mountCheckScheduled = false;
+      if (this.destroyed) {
+        return;
+      }
+      if (this.dom.isConnected) {
+        this.resolveSourceIfNearViewport();
+        return;
+      }
+
+      const ownerWindow = this.dom.ownerDocument.defaultView;
+      if (ownerWindow) {
+        this.mountCheckTimer = ownerWindow.setTimeout(() => {
+          this.mountCheckTimer = null;
+          this.resolveSourceIfNearViewport();
+        }, 0);
+      }
+    });
+  }
+
+  private clearMountedProximityCheck() {
+    if (this.mountCheckTimer === null) {
+      return;
+    }
+    this.dom.ownerDocument.defaultView?.clearTimeout(this.mountCheckTimer);
+    this.mountCheckTimer = null;
+  }
+
+  private resolveSourceIfNearViewport() {
+    if (this.destroyed || !this.dom.isConnected) {
+      return false;
+    }
+
+    const ownerWindow = this.dom.ownerDocument.defaultView;
+    if (!ownerWindow) {
+      this.resolveSource("visible");
+      return true;
+    }
+
+    const viewportHeight = Math.max(
+      this.dom.ownerDocument.documentElement.clientHeight,
+      ownerWindow.innerHeight,
+    );
+    const bounds = this.dom.getBoundingClientRect();
+    const nearMargin = viewportHeight * 3;
+    if (
+      bounds.bottom < -nearMargin ||
+      bounds.top > viewportHeight + nearMargin
+    ) {
+      return false;
+    }
+
+    const visible = bounds.bottom >= 0 && bounds.top <= viewportHeight;
+    this.resolveSource(visible ? "visible" : "nearby");
+    return true;
+  }
+
+  private startViewportWakeListeners() {
+    if (this.unsubscribeViewportWake) {
+      return;
+    }
+    this.unsubscribeViewportWake = subscribeToMarkweaveViewportWake(
+      this.dom.ownerDocument,
+      this.handleViewportWake,
+    );
+  }
+
+  private stopViewportWakeListeners() {
+    this.unsubscribeViewportWake?.();
+    this.unsubscribeViewportWake = null;
+  }
+
   private resolveSource(priority: MarkweaveMediaPriority) {
     const src = stringAttribute(this.node.attrs.src);
-    if (!src || (this.resolvedSrc && priority !== "visible")) {
+    if (!src) {
+      return;
+    }
+    if (
+      this.resolvingSource === src &&
+      this.resolveController &&
+      !this.resolveController.signal.aborted &&
+      (this.resolvingPriority === "visible" || priority === "nearby")
+    ) {
+      return;
+    }
+    if (
+      this.resolvedSource === src &&
+      (this.resolvedPriority === "visible" || priority === "nearby")
+    ) {
       return;
     }
 
     this.resolveController?.abort();
     const controller = new AbortController();
     this.resolveController = controller;
+    this.resolvingSource = src;
+    this.resolvingPriority = priority;
     void resolveMarkweaveMediaSource(this.options.resolveMediaSource, {
       kind: "image",
       src,
@@ -301,6 +471,8 @@ class MarkweaveLightweightImageNodeView implements NodeView {
           return;
         }
 
+        this.resolvedSource = src;
+        this.resolvedPriority = priority;
         this.resolvedSrc = result.src;
         if (result.width && result.height) {
           this.image.width = result.width;
@@ -309,23 +481,57 @@ class MarkweaveLightweightImageNodeView implements NodeView {
             this.box.style.aspectRatio = `${result.width} / ${result.height}`;
           }
         }
+        this.setMediaState("pending");
         this.image.src = result.src;
-        this.setMediaState("resolved");
+        if (this.image.complete && this.image.naturalWidth > 0) {
+          this.handleImageLoad();
+        }
       })
       .catch(() => {
         if (!controller.signal.aborted) {
           this.setMediaState("unreadable");
+        }
+      })
+      .finally(() => {
+        if (this.resolveController === controller) {
+          this.resolveController = null;
+          this.resolvingSource = null;
+          this.resolvingPriority = null;
         }
       });
   }
 
   private setMediaState(state: "pending" | "resolved" | "missing" | "unreadable") {
     this.dom.dataset.mediaState = state;
+    if (state === "pending") {
+      this.dom.setAttribute("aria-busy", "true");
+    } else {
+      this.dom.removeAttribute("aria-busy");
+    }
     const resolved = state === "resolved";
     this.image.hidden = !resolved;
     this.placeholder.hidden = resolved;
+    if (state !== "pending") {
+      this.stopViewportWakeListeners();
+    }
     this.syncPreviewTrigger();
   }
+
+  private readonly handleViewportWake = () => {
+    if (this.dom.ownerDocument.visibilityState === "hidden") {
+      return;
+    }
+    this.resolveSourceIfNearViewport();
+  };
+
+  private readonly handleImageLoad = () => {
+    if (
+      this.resolvedSrc &&
+      this.image.getAttribute("src") === this.resolvedSrc
+    ) {
+      this.setMediaState("resolved");
+    }
+  };
 
   private syncPreviewTrigger() {
     const modeState = getMarkweaveEditorModeState(this.props.editor);
@@ -733,7 +939,7 @@ class MarkweaveLightweightImageNodeView implements NodeView {
       );
       this.updateAttributes(attrsFromMarkweaveImageUploadResult(this.node.attrs, result));
     } catch {
-      this.dom.dataset.mediaState = "unreadable";
+      this.setMediaState("unreadable");
     }
   }
 }
