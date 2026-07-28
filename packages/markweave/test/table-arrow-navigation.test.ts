@@ -47,6 +47,26 @@ const mergedTableFixture = `
 </table>
 `;
 
+const bottomColspanFixture = `
+<table>
+  <tbody>
+    <tr>
+      <td><p>A</p></td>
+      <td><p>B</p></td>
+      <td><p>C</p></td>
+    </tr>
+    <tr>
+      <td><p>D</p></td>
+      <td><p>E</p></td>
+      <td><p>F</p></td>
+    </tr>
+    <tr>
+      <td colspan="3"><p>Full width footer</p></td>
+    </tr>
+  </tbody>
+</table>
+`;
+
 const hardBreakTableFixture = `
 <table>
   <tbody>
@@ -251,6 +271,18 @@ describe("table arrow boundary navigation", () => {
       selectedCellCount: 2,
     });
     expect(selectedCellTexts(editor)).toEqual(["Merged Header", "Solo"]);
+  });
+
+  it("moves down from the first visual column into a full-width footer cell", () => {
+    const editor = createTableEditor(bottomColspanFixture);
+    placeCursor(editor, "D", "end");
+
+    expect(runArrow(editor, "ArrowDown")).toBe(true);
+    expect(activeCellText(editor)).toBe("Full width footer");
+    expect(getTableFocusState(editor.state)).toMatchObject({
+      mode: "cell-cursor",
+      selectedCellCount: 1,
+    });
   });
 
   it("does not steal right arrow before the final text block inside a multi-paragraph cell", () => {

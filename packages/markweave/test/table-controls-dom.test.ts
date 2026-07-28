@@ -10,7 +10,7 @@ import { getMarkweaveMessages, type MarkweaveMessages } from "../src/i18n";
 import { getTableFocusState } from "../src/plugins/table/table-focus-state";
 import { initialTableInteractionState, type TableInteractionState } from "../src/plugins/table/table-interaction-layer";
 import { TableControls } from "../../markweave-react/src/ui/table/TableControls";
-import { getTableAxisDropIndexAtPoint } from "../src/plugins/table/table-ui-model";
+import { getTableAxisDropIndexAtPoint, getTableMenuBoundaryRect } from "../src/plugins/table/table-ui-model";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -174,6 +174,23 @@ afterEach(async () => {
 });
 
 describe("table controls DOM i18n", () => {
+  it("intersects the editor frame with clipping ancestors when positioning menus", () => {
+    const clippingParent = document.createElement("div");
+    clippingParent.style.overflow = "auto";
+    const frame = document.createElement("section");
+    clippingParent.appendChild(frame);
+    document.body.appendChild(clippingParent);
+    vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(function getBoundingClientRect(this: HTMLElement) {
+      return this === clippingParent ? createRect(100, 80, 500, 300) : this === frame ? createRect(50, 40, 800, 600) : createRect(0, 0, 0, 0);
+    });
+
+    expect(frame.parentElement).toBe(clippingParent);
+    expect(frame.ownerDocument.defaultView).toBe(window);
+    expect(clippingParent.style.overflow).toBe("auto");
+    expect(window.getComputedStyle(clippingParent).overflow).toBe("auto");
+    expect(getTableMenuBoundaryRect(frame)).toEqual({ left: 100, top: 80, width: 500, height: 300 });
+  });
+
   it("renders the row handle menu in Chinese by default", async () => {
     await renderTableControls();
 
@@ -187,6 +204,8 @@ describe("table controls DOM i18n", () => {
     const menu = getByTestId("markweave-table-menu");
     expect(menu.getAttribute("aria-label")).toBe("行操作");
     expect(menu.getAttribute("data-positioned")).toBe("true");
+    expect(menu.getAttribute("data-placement")).toBe("right");
+    expect(menu.querySelector<HTMLElement>(".markweave-table-menu-scroll")?.style.maxHeight).toBe("308px");
     expect(menu.textContent).not.toContain("使用 AI 编辑");
     expect(menu.textContent).toContain("插入上方行");
     expect(menu.textContent).toContain("行排序 A-Z");
@@ -246,6 +265,8 @@ describe("table controls DOM i18n", () => {
     await click(getByTestId("markweave-table-menu-submenu-color"));
 
     const colorMenu = getByTestId("markweave-table-color-menu");
+    expect(colorMenu.getAttribute("data-positioned")).toBe("true");
+    expect(colorMenu.getAttribute("data-placement")).toBe("right");
     expect(colorMenu.textContent).toContain("文字颜色");
     expect(colorMenu.textContent).toContain("黄色背景");
     const defaultTextColor = getByTestId("markweave-table-text-color-default");

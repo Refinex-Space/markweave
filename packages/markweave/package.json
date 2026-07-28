@@ -1,6 +1,6 @@
 {
   "name": "markweave",
-  "version": "0.3.2",
+  "version": "0.3.4",
   "type": "module",
   "description": "Markdown-first WYSIWYG editor built on Tiptap and CodeMirror, providing Typora-like editing experience with block-level structure, slash commands, and rich text tooling.",
   "license": "MIT",
@@ -93,6 +93,7 @@
   ],
   "scripts": {
     "build": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\" && tsc -p tsconfig.build.json && node -e \"require('node:fs').copyFileSync('src/editor-core/markweave-editor.css','dist/styles.css')\"",
+    "prepack": "pnpm run build",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {

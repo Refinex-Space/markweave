@@ -1,6 +1,6 @@
 ---
 owner: refinex
-updated: 2026-07-09
+updated: 2026-07-28
 status: active
 referenced_by: AGENTS.md#knowledge-map
 ---
@@ -28,8 +28,9 @@ Do not introduce additional lockfiles or package-manager workflows without a sep
 | `dev:vue3` | `pnpm --filter @markweave/playground-vue3 dev` | Starts the private Vue 3 playground. |
 | `build` | `pnpm --filter markweave build && pnpm --filter @markweave/react build && pnpm --filter @markweave/vue2 build && pnpm --filter @markweave/vue3 build && pnpm --filter @markweave/playground-react build && pnpm --filter @markweave/playground-vue2 build && pnpm --filter @markweave/playground-vue3 build` | Builds the core package, adapter packages, then all playground apps. |
 | `build:vue2` | `pnpm --filter @markweave/playground-vue2 build` | Builds the private Vue 2 playground. |
-| `release:pack` | `pnpm --filter markweave pack --dry-run && pnpm --filter @markweave/react pack --dry-run && pnpm --filter @markweave/vue2 pack --dry-run && pnpm --filter @markweave/vue3 pack --dry-run` | Checks npm tarball contents for all publishable packages without publishing. |
-| `release:dry-run` | `pnpm --filter markweave publish --dry-run --no-git-checks && pnpm --filter @markweave/react publish --dry-run --access public --no-git-checks && pnpm --filter @markweave/vue2 publish --dry-run --access public --no-git-checks && pnpm --filter @markweave/vue3 publish --dry-run --access public --no-git-checks` | Exercises the publish command path for all publishable packages without publishing. |
+| `release:pack` | sequential package `pack --dry-run`, then `pnpm release:verify-artifacts` | Rebuilds every publishable package through `prepack`, checks npm tarball contents, then verifies generated exports, source-module coverage, styles, and release-critical media artifacts. |
+| `release:dry-run` | sequential package `publish --dry-run`, then `pnpm release:verify-artifacts` | Exercises the publish lifecycle, including mandatory package rebuilds, without publishing, then verifies the generated artifacts. |
+| `release:verify-artifacts` | `node scripts/verify-publish-artifacts.mjs` | Rejects missing or stale build output, mismatched package versions, incomplete core module emission, and missing Madora image-reference support. |
 | `typecheck` | `pnpm -r typecheck` | Runs TypeScript checks across workspace projects. |
 | `test` | `vitest run` | Runs all Vitest tests. |
 | `test:watch` | `vitest` | Starts Vitest watch mode. |
@@ -53,6 +54,8 @@ The adapter packages build with Vite library mode:
 - `packages/markweave-vue3` outputs `@markweave/vue3` from `src/index.ts`.
 
 Adapter packages externalize `markweave`, `markweave/internal/*`, their Tiptap framework adapter, and the host framework runtime.
+
+Every publishable package defines `prepack: pnpm run build`. `pnpm pack` and `pnpm publish` therefore remove and regenerate that package's ignored `dist` directory before npm reads `files`; publishing a previously generated `dist` without rebuilding is not a supported path.
 
 ## Exports
 

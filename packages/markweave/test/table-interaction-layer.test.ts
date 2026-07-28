@@ -13,6 +13,7 @@ import {
   setTableHoverCell,
   tableInteractionPluginKey,
 } from "../src/plugins/table/table-interaction-layer";
+import { selectTableAxisFromCell } from "../src/plugins/table/table-ui-model";
 
 const tableFixture = `
 <table>
@@ -45,6 +46,31 @@ const mergedTableFixture = `
     <tr>
       <td><p>D</p></td>
       <td><p>E</p></td>
+    </tr>
+  </tbody>
+</table>
+`;
+
+const bottomColspanFixture = `
+<table>
+  <tbody>
+    <tr>
+      <th><p>H1</p></th>
+      <th><p>H2</p></th>
+      <th><p>H3</p></th>
+    </tr>
+    <tr>
+      <td><p>A</p></td>
+      <td><p>B</p></td>
+      <td><p>C</p></td>
+    </tr>
+    <tr>
+      <td><p>D</p></td>
+      <td><p>E</p></td>
+      <td><p>F</p></td>
+    </tr>
+    <tr>
+      <td colspan="3"><p>Full width footer</p></td>
     </tr>
   </tbody>
 </table>
@@ -251,6 +277,50 @@ describe("table interaction decoration layer", () => {
     );
   });
 
+  it("keeps the targeted visual column authoritative when a full-width colspan cell closes the table", () => {
+    const editor = createTableEditor(bottomColspanFixture);
+
+    expect(selectTableAxisFromCell(editor, cellByText(editor, "H1").pos, "column", { visualIndex: 0 })).toBe(true);
+
+    ["H1", "A", "D", "Full width footer"].forEach((text) => {
+      expect(classesFor(editor, text)).toEqual(
+        expect.arrayContaining(["markweave-axis-selection-cell", "markweave-selection-cell"]),
+      );
+    });
+    ["H2", "H3", "B", "C", "E", "F"].forEach((text) => {
+      expect(classesFor(editor, text)).toContain("markweave-selection-excluded-cell");
+      expect(classesFor(editor, text)).not.toContain("markweave-selection-cell");
+    });
+
+    const targetCell = editor.view.nodeDOM(cellByText(editor, "Full width footer").pos);
+    const excludedCell = editor.view.nodeDOM(cellByText(editor, "H2").pos);
+    expect(targetCell).toBeInstanceOf(HTMLElement);
+    expect(excludedCell).toBeInstanceOf(HTMLElement);
+    expect((targetCell as HTMLElement).classList).toContain("selectedCell");
+    expect((targetCell as HTMLElement).classList).toContain("markweave-axis-selection-cell");
+    expect((excludedCell as HTMLElement).classList).toContain("selectedCell");
+    expect((excludedCell as HTMLElement).classList).toContain("markweave-selection-excluded-cell");
+
+    expect(getTableSelectionOverlayState(editor.state)).toEqual({
+      active: true,
+      axisTarget: "column",
+      anchorCellPos: cellByText(editor, "H1").pos,
+      headCellPos: cellByText(editor, "Full width footer").pos,
+      selectedCellCount: 4,
+      cellPositions: ["H1", "A", "D", "Full width footer"].map((text) => cellByText(editor, text).pos),
+      visualCellPositions: ["H1", "A", "D", "Full width footer"].map((text) => cellByText(editor, text).pos),
+      rect: {
+        left: 0,
+        right: 1,
+        top: 0,
+        bottom: 4,
+        width: 1,
+        height: 4,
+        slotCount: 4,
+      },
+    });
+  });
+
   it("exposes a continuous overlay model only for cell selections", () => {
     const editor = createTableEditor();
     const alpha = cellByText(editor, "alpha");
@@ -268,10 +338,12 @@ describe("table interaction decoration layer", () => {
 
     expect(getTableSelectionOverlayState(editor.state)).toEqual({
       active: true,
+      axisTarget: null,
       anchorCellPos: alpha.pos,
       headCellPos: delta.pos,
       selectedCellCount: 4,
       cellPositions: tableCells(editor).map((cell) => cell.pos),
+      visualCellPositions: tableCells(editor).map((cell) => cell.pos),
       rect: {
         left: 0,
         right: 2,
@@ -294,10 +366,12 @@ describe("table interaction decoration layer", () => {
 
     expect(getTableSelectionOverlayState(editor.state)).toEqual({
       active: true,
+      axisTarget: null,
       anchorCellPos: header.pos,
       headCellPos: end.pos,
       selectedCellCount: cells.length,
       cellPositions: cells.map((cell) => cell.pos),
+      visualCellPositions: cells.map((cell) => cell.pos),
       rect: {
         left: 0,
         right: 3,
@@ -321,7 +395,8 @@ describe("table interaction decoration layer", () => {
 
     expect(getTableSelectionOverlayState(editor.state)).toMatchObject({
       active: true,
-      selectedCellCount: 7,
+      axisTarget: "row",
+      selectedCellCount: 2,
       rect: {
         left: 0,
         right: 3,
