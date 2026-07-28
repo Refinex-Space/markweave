@@ -16,7 +16,7 @@ describe("markweave i18n model", () => {
     expect(getMarkweaveMessages("zh").linkCard.embedLink).toBe("嵌入链接");
     expect(getMarkweaveMessages("en").linkCard.embedLink).toBe("Embed link");
     expect(getMarkweaveMessages("zh").table.commands["add-row-before"]).toBe("插入上方行");
-    expect(getMarkweaveMessages("en").table.commands["add-row-before"]).toBe("Insert Row Above");
+    expect(getMarkweaveMessages("en").table.commands["add-row-before"]).toBe("Insert row above");
     expect(getMarkweaveMessages("zh").toc.ariaLabel).toBe("文档目录");
     expect(getMarkweaveMessages("zh").toc.itemAriaLabel).toBe("跳转到标题");
     expect(getMarkweaveMessages("en").toc.ariaLabel).toBe("Document outline");

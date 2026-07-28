@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
   calculateTableControlsPosition,
+  calculateTableAxisHandleLayout,
   calculateTableEdgeHandlePosition,
+  calculateTableExtendButtonLayout,
   calculateTableMenuPosition,
 } from "../src/plugins/table/table-ui-model";
 
@@ -91,5 +93,21 @@ describe("table controls positioning", () => {
         kind: "row",
       }),
     ).toEqual({ left: 4, top: 116 });
+  });
+
+  it("sizes axis handles to the complete active row or column", () => {
+    const targetRect = { left: 180, top: 240, width: 160, height: 36 };
+    const frameRect = { left: 100, top: 120, width: 720, height: 480 };
+
+    expect(calculateTableAxisHandleLayout({ targetRect, frameRect, kind: "row" })).toEqual({ left: 64, top: 120, width: 12, height: 36 });
+    expect(calculateTableAxisHandleLayout({ targetRect, frameRect, kind: "column" })).toEqual({ left: 80, top: 104, width: 160, height: 12 });
+  });
+
+  it("places add-row and add-column strips flush with the table edge", () => {
+    const tableRect = { left: 120, top: 120, width: 720, height: 120 };
+    const frameRect = { left: 0, top: 0, width: 1000, height: 600 };
+
+    expect(calculateTableExtendButtonLayout({ tableRect, frameRect, kind: "row" })).toEqual({ left: 120, top: 248, width: 720, height: 12 });
+    expect(calculateTableExtendButtonLayout({ tableRect, frameRect, kind: "column" })).toEqual({ left: 848, top: 120, width: 12, height: 120 });
   });
 });

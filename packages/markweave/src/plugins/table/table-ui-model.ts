@@ -1,4 +1,5 @@
 import type { Editor } from "@tiptap/core";
+import { TextSelection } from "@tiptap/pm/state";
 import { CellSelection, findCell, isInTable, selectedRect, TableMap } from "@tiptap/pm/tables";
 import type { TableCommandResult, TableCommandSnapshot, TableEditWithAiRequest } from "../../core/public-types";
 import { getMarkweaveMessages, type MarkweaveMessages } from "../../i18n";
@@ -13,6 +14,18 @@ import {
   type TableMenuCopyKind,
 } from "./table-clipboard";
 import { canRunMarkweaveTableCommand, runMarkweaveTableCommand } from "./table-command-runtime";
+export { moveTargetedTableAxis } from "./table-command-runtime";
+export {
+  applyTableAxisAlignment,
+  applyTableAxisBackgroundColor,
+  applyTableAxisTextColor,
+  getTableAxisFormattingState,
+  tableColorOptions,
+  tableHorizontalAlignmentOptions,
+  tableVerticalAlignmentOptions,
+  type TableAlignmentId,
+  type TableColorId,
+} from "./table-formatting";
 import {
   getExecutableTableMenuCommandSpecs,
   tableCommandSpecs,
@@ -45,6 +58,11 @@ export interface TableMenuPosition {
 export interface TableEdgeHandlePosition {
   readonly left: number;
   readonly top: number;
+}
+
+export interface TableAxisHandleLayout extends TableEdgeHandlePosition {
+  readonly width: number;
+  readonly height: number;
 }
 
 export interface TableAxisSelectionModel {
@@ -212,6 +230,63 @@ export function calculateTableEdgeHandlePosition(input: {
   };
 }
 
+export function calculateTableAxisHandleLayout(input: {
+  readonly targetRect: TableControlsRect;
+  readonly frameRect: TableControlsRect;
+  readonly kind: "row" | "column" | "selection";
+  readonly gap?: number;
+}): TableAxisHandleLayout {
+  const gap = input.gap ?? 4;
+
+  if (input.kind === "row") {
+    return {
+      left: Math.round(input.targetRect.left - input.frameRect.left - 12 - gap),
+      top: Math.round(input.targetRect.top - input.frameRect.top),
+      width: 12,
+      height: Math.round(input.targetRect.height),
+    };
+  }
+
+  if (input.kind === "column") {
+    return {
+      left: Math.round(input.targetRect.left - input.frameRect.left),
+      top: Math.round(input.targetRect.top - input.frameRect.top - 12 - gap),
+      width: Math.round(input.targetRect.width),
+      height: 12,
+    };
+  }
+
+  return {
+    left: Math.round(input.targetRect.left + input.targetRect.width - input.frameRect.left - 8),
+    top: Math.round(input.targetRect.top + input.targetRect.height - input.frameRect.top - 8),
+    width: 16,
+    height: 16,
+  };
+}
+
+export function calculateTableExtendButtonLayout(input: {
+  readonly tableRect: TableControlsRect;
+  readonly frameRect: TableControlsRect;
+  readonly kind: "row" | "column";
+  readonly gap?: number;
+}): TableAxisHandleLayout {
+  const gap = input.gap ?? 8;
+
+  return input.kind === "row"
+    ? {
+        left: Math.round(input.tableRect.left - input.frameRect.left),
+        top: Math.round(input.tableRect.top + input.tableRect.height - input.frameRect.top + gap),
+        width: Math.round(input.tableRect.width),
+        height: 12,
+      }
+    : {
+        left: Math.round(input.tableRect.left + input.tableRect.width - input.frameRect.left + gap),
+        top: Math.round(input.tableRect.top - input.frameRect.top),
+        width: 12,
+        height: Math.round(input.tableRect.height),
+      };
+}
+
 export function getEditorFrameElement(editor: Editor) {
   return editor.view.dom.closest<HTMLElement>(".markweave-editor-frame") ?? editor.view.dom.parentElement;
 }
@@ -238,6 +313,50 @@ export function getActiveCellElement(editor: Editor) {
 
 export function getActiveTableElement(editor: Editor) {
   return getActiveCellElement(editor)?.closest<HTMLElement>("table") ?? null;
+}
+
+export function getTableAxisDropIndexAtPoint(editor: Editor, axis: "row" | "column", clientX: number, clientY: number) {
+  const table = getActiveTableElement(editor) as HTMLTableElement | null;
+
+  if (!table) {
+    return null;
+  }
+
+  if (axis === "row") {
+    const rows = Array.from(table.rows);
+    if (rows.length === 0) return null;
+    let nearestIndex = 0;
+    let nearestDistance = Number.POSITIVE_INFINITY;
+    rows.forEach((row, index) => {
+      const rect = row.getBoundingClientRect();
+      const distance = Math.abs(clientY - (rect.top + rect.height / 2));
+      if (distance < nearestDistance) {
+        nearestDistance = distance;
+        nearestIndex = index;
+      }
+    });
+    return nearestIndex;
+  }
+
+  const firstRow = table.rows.item(0);
+  if (!firstRow) return null;
+  const visualColumns: Array<{ readonly index: number; readonly center: number }> = [];
+  let visualIndex = 0;
+
+  Array.from(firstRow.cells).forEach((cell) => {
+    const rect = cell.getBoundingClientRect();
+    const span = Math.max(1, cell.colSpan);
+    const slotWidth = rect.width / span;
+    for (let offset = 0; offset < span; offset += 1) {
+      visualColumns.push({ index: visualIndex, center: rect.left + slotWidth * (offset + 0.5) });
+      visualIndex += 1;
+    }
+  });
+
+  if (visualColumns.length === 0) return null;
+  return visualColumns.reduce((nearest, candidate) =>
+    Math.abs(clientX - candidate.center) < Math.abs(clientX - nearest.center) ? candidate : nearest,
+  ).index;
 }
 
 export function getTableAxisTargetRect(editor: Editor, model: TableAxisSelectionModel): TableControlsRect | null {
@@ -454,6 +573,44 @@ export function selectTableAxisFromCell(
   return true;
 }
 
+export function targetTableAxisFromCell(
+  editor: Editor,
+  cellPos: number,
+  axis: "row" | "column",
+  options: { readonly visualIndex?: number | null } = {},
+) {
+  const model = getTableAxisSelectionModel(editor, cellPos, axis, options);
+  const cellNode = editor.state.doc.nodeAt(cellPos);
+
+  if (!model || !cellNode) {
+    return false;
+  }
+
+  let cursorPosition: number | null = null;
+  const cellContentStart = cellPos + 1;
+
+  cellNode.descendants((node, relativePos) => {
+    if (!node.isTextblock) {
+      return true;
+    }
+
+    cursorPosition = cellContentStart + relativePos + 1;
+    return false;
+  });
+
+  if (cursorPosition === null) {
+    return false;
+  }
+
+  const selection = TextSelection.create(editor.state.doc, cursorPosition);
+  const tr = editor.state.tr.setSelection(selection);
+
+  setMarkweaveTableMenuAxisTarget(tr, { kind: axis, index: model.index });
+  editor.view.dispatch(tr);
+  editor.view.focus();
+  return true;
+}
+
 export async function writeMarkweaveMenuPayloadToClipboard(
   payload: MarkweaveMenuCopyPayload,
   clipboard: ClipboardWriter | undefined = globalThis.navigator?.clipboard,
@@ -553,12 +710,34 @@ function getAxisMenuItems(menu: TableCommandMenuKind) {
 }
 
 function getSelectionMenuItems(editor: Editor): readonly TableMenuItemSpec[] {
+  const commandSpecs = [
+    ...getAvailableCellMenuCommandSpecs(editor),
+    ...["copy-table", "delete-table"]
+      .map((commandId) => tableCommandSpecs.find((command) => command.id === commandId))
+      .filter((command): command is (typeof tableCommandSpecs)[number] => Boolean(command)),
+  ];
+
   return [
-    ...getAvailableCellMenuCommandSpecs(editor).map((command) => ({
+    ...commandSpecs.map((command) => ({
       id: command.id,
       label: command.label,
       menu: "row" as const,
       commandId: command.id,
+      submenuId: null,
+      icon:
+        command.id === "merge-cells"
+          ? ("merge" as const)
+          : command.id === "split-cell"
+            ? ("split" as const)
+            : command.id === "copy-table"
+              ? ("copy" as const)
+              : ("delete" as const),
+      group:
+        command.id === "merge-cells" || command.id === "split-cell"
+          ? ("cell" as const)
+          : command.id === "copy-table"
+            ? ("copy" as const)
+            : ("delete" as const),
       availability: "available" as const,
     })),
   ];
@@ -573,27 +752,7 @@ export function getTableMenuItems(editor: Editor, menu: TableMenuKind): readonly
 }
 
 export function getTableMenuItemGroup(item: TableMenuItemSpec) {
-  if (item.commandId === null) {
-    return "ai";
-  }
-
-  if (item.commandId.startsWith("add-")) {
-    return "insert";
-  }
-
-  if (item.commandId.startsWith("move-")) {
-    return "move";
-  }
-
-  if (item.commandId.startsWith("copy-")) {
-    return "copy";
-  }
-
-  if (item.commandId.startsWith("delete-")) {
-    return "delete";
-  }
-
-  return "cell";
+  return item.group;
 }
 
 export function getCopyKindForTableCommand(commandId: TableCommandId): TableMenuCopyKind | null {
@@ -713,6 +872,10 @@ export function getTableCommandLabel(commandId: TableCommandId, messages: Markwe
 export function getTableMenuItemLabel(item: TableMenuItemSpec, messages: MarkweaveMessages = defaultTableMessages) {
   if (item.id === "edit-with-ai") {
     return messages.table.commands["edit-with-ai"];
+  }
+
+  if (item.submenuId) {
+    return messages.table.submenus[item.submenuId];
   }
 
   return item.commandId ? getTableCommandLabel(item.commandId, messages) : item.label;

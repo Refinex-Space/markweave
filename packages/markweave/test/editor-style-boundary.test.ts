@@ -82,6 +82,27 @@ describe("editor style boundary", () => {
     expect(packageJson.sideEffects).toContain("**/*.css");
   });
 
+  it("keeps the table selection overlay transparent so selected cell content remains visible", () => {
+    const overlayRule = editorCss.match(/\.markweave-table-selection-overlay\s*\{([\s\S]*?)\n\}/)?.[1];
+
+    expect(overlayRule).toBeDefined();
+    expect(overlayRule).toContain("background:");
+    expect(overlayRule).not.toContain("var(--markweave-selection);");
+  });
+
+  it("keeps an open table menu above the inner table of contents and below the floating toolbar", () => {
+    const innerTocZIndex = Number(editorCss.match(/\.markweave-inner-toc\s*\{[^}]*z-index:\s*(\d+);/s)?.[1]);
+    const openTableMenuZIndex = Number(
+      editorCss.match(
+        /\.markweave-table-controls\[data-open-menu\]:not\(\[data-open-menu="none"\]\)\s*\{[^}]*z-index:\s*(\d+);/s,
+      )?.[1],
+    );
+    const floatingToolbarZIndex = Number(editorCss.match(/\.markweave-floating-toolbar\s*\{[^}]*z-index:\s*(\d+);/s)?.[1]);
+
+    expect(openTableMenuZIndex).toBeGreaterThan(innerTocZIndex);
+    expect(openTableMenuZIndex).toBeLessThan(floatingToolbarZIndex);
+  });
+
   it("keeps code block controls compact and Mermaid source readable in the core stylesheet", () => {
     expect(editorCss).toContain(".markweave-floating-toolbar");
     expect(editorCss).toContain("z-index: 40");
@@ -186,6 +207,29 @@ describe("editor style boundary", () => {
     expect(editorCss).toContain(".katex .katex-mathml");
     expect(editorCss).toContain(".katex .hide-tail");
     expect(editorCss).toContain("width: 100%");
+  });
+
+  it("keeps table selection, handles, and menus compact across light and dark themes", () => {
+    expect(editorCss).toContain("--markweave-table-selection-border: #7296c8");
+    expect(editorCss).toContain("--markweave-table-selection-border: #86a8d8");
+    expect(editorCss).toContain("--markweave-table-handle-hover: #e4e8ed");
+    expect(editorCss).toMatch(
+      /\.markweave-table-controls \.markweave-table-edge-handle--selection \{[^}]*background: var\(--markweave-table-handle-surface\);/s,
+    );
+    expect(editorCss).toMatch(/\.markweave-table-menu button \{[^}]*background: transparent;/s);
+    expect(editorCss).toContain('.markweave-table-menu button[data-starts-group="true"]::before');
+    expect(editorCss).toMatch(
+      /\.markweave-table-submenu button\[data-active="true"\] \{[^}]*color: var\(--markweave-focus\);/s,
+    );
+    expect(editorCss).toMatch(
+      /\.markweave-table-controls \.markweave-table-extend-button::before \{[^}]*position: absolute;[^}]*background: transparent;/s,
+    );
+    expect(editorCss).toMatch(
+      /\.markweave-table-controls \.markweave-table-extend-button--row::before \{[^}]*top: -9px;[^}]*height: 9px;/s,
+    );
+    expect(editorCss).toMatch(
+      /\.markweave-table-controls \.markweave-table-extend-button--column::before \{[^}]*left: -9px;[^}]*width: 9px;/s,
+    );
   });
 
   it("keeps XML, Bash, and Shell syntax tokens visibly themed", () => {

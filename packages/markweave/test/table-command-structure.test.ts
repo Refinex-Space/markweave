@@ -5,6 +5,12 @@ import { CellSelection } from "@tiptap/pm/tables";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createMarkweaveEditorExtensions } from "../src/editor-core/create-editor-extensions";
 import { getMarkweaveMessages } from "../src/i18n";
+import {
+  applyTableAxisAlignment,
+  applyTableAxisBackgroundColor,
+  applyTableAxisTextColor,
+  getTableAxisFormattingState,
+} from "../src/plugins/table/table-formatting";
 import { getMarkweaveMenuCopyPayloadFromState } from "../src/plugins/table/table-clipboard";
 import { getTableFocusState } from "../src/plugins/table/table-focus-state";
 import {
@@ -17,6 +23,7 @@ import {
   getTableEditWithAiRequest,
   runTableCommand,
   selectTableAxisFromCell,
+  targetTableAxisFromCell,
   writeMarkweaveMenuPayloadToClipboard,
 } from "../src/plugins/table/table-ui-model";
 
@@ -149,8 +156,9 @@ function createTableEditor(content = tableFixture) {
   return activeEditor;
 }
 
-function tableShape(editor: Editor) {
-  let shape: { rows: number; columns: number; rowWidths: number[] } | null = null;
+function tableShape(editor: Editor): { rows: number; columns: number; rowWidths: number[] } {
+  type Shape = { rows: number; columns: number; rowWidths: number[] };
+  let shape: Shape | null = null;
 
   editor.state.doc.descendants((node) => {
     if (node.type.name !== "table") {
@@ -171,7 +179,7 @@ function tableShape(editor: Editor) {
     throw new Error("Expected a table node in the fixture.");
   }
 
-  return shape;
+  return shape as Shape;
 }
 
 function tableCount(editor: Editor) {
@@ -579,6 +587,46 @@ describe("table command structure", () => {
     expect((columnEditor.state.selection as CellSelection).isColSelection()).toBe(true);
     expect(runTableCommand(columnEditor, "move-column-right")).toBe(true);
     expect(tableTextRows(columnEditor)[0]).toEqual(["Module", "Role", "Artifact"]);
+  });
+
+  it("targets add strips without promoting the triggering row or column to a CellSelection", () => {
+    const rowEditor = createTableEditor();
+    const rowCell = cellByText(rowEditor, "agentscope-harness");
+
+    expect(targetTableAxisFromCell(rowEditor, rowCell.pos, "row", { visualIndex: 2 })).toBe(true);
+    expect(rowEditor.state.selection).not.toBeInstanceOf(CellSelection);
+    expect(focusedCellSnapshot(rowEditor)).toMatchObject({
+      focusState: { mode: "cell-cursor", selectedCellCount: 1 },
+      cell: { text: "agentscope-harness" },
+    });
+    expect(runTableCommand(rowEditor, "add-row-after")).toBe(true);
+    expect(tableShape(rowEditor)).toEqual({ rows: 4, columns: 3, rowWidths: [3, 3, 3, 3] });
+    expect(rowEditor.state.selection).not.toBeInstanceOf(CellSelection);
+    expect(focusedCellSnapshot(rowEditor)).toMatchObject({
+      focusState: { mode: "cell-cursor", selectedCellCount: 1 },
+      cell: { text: "agentscope-harness" },
+    });
+
+    rowEditor.destroy();
+    activeEditor = null;
+    document.body.replaceChildren();
+
+    const columnEditor = createTableEditor();
+    const columnCell = cellByText(columnEditor, "Role");
+
+    expect(targetTableAxisFromCell(columnEditor, columnCell.pos, "column", { visualIndex: 2 })).toBe(true);
+    expect(columnEditor.state.selection).not.toBeInstanceOf(CellSelection);
+    expect(focusedCellSnapshot(columnEditor)).toMatchObject({
+      focusState: { mode: "cell-cursor", selectedCellCount: 1 },
+      cell: { text: "Role" },
+    });
+    expect(runTableCommand(columnEditor, "add-column-after")).toBe(true);
+    expect(tableShape(columnEditor)).toEqual({ rows: 3, columns: 4, rowWidths: [4, 4, 4] });
+    expect(columnEditor.state.selection).not.toBeInstanceOf(CellSelection);
+    expect(focusedCellSnapshot(columnEditor)).toMatchObject({
+      focusState: { mode: "cell-cursor", selectedCellCount: 1 },
+      cell: { text: "Role" },
+    });
   });
 
   it("keeps edge column menu copy target on the hovered visual column when headers span columns", () => {
@@ -1006,5 +1054,87 @@ describe("table command structure", () => {
     expect(tableShape(editor)).toEqual({ rows: 3, columns: 3, rowWidths: [3, 3, 3] });
     expect(tableSnapshot(editor)).toEqual(splitSnapshot);
     expect(focusedCellSnapshot(editor).focusState.active).toBe(true);
+  });
+
+  it("sorts a targeted column while preserving the header row", () => {
+    const editor = createTableEditor();
+    const target = cellByText(editor, "Module");
+    expect(selectTableAxisFromCell(editor, target.pos, "column")).toBe(true);
+
+    expect(runTableCommand(editor, "sort-column-desc")).toBe(true);
+    expect(tableTextRows(editor).map((row) => row[0])).toEqual(["Module", "agentscope-harness", "agentscope-core"]);
+
+    expect(editor.commands.undo()).toBe(true);
+    expect(tableTextRows(editor).map((row) => row[0])).toEqual(["Module", "agentscope-core", "agentscope-harness"]);
+  });
+
+  it("sorts, clears, and duplicates a targeted row as single history steps", () => {
+    const editor = createTableEditor();
+    const target = cellByText(editor, "agentscope-core");
+    expect(selectTableAxisFromCell(editor, target.pos, "row")).toBe(true);
+
+    expect(runTableCommand(editor, "sort-row-desc")).toBe(true);
+    expect(tableTextRows(editor)[1]).toEqual(["Reasoning", "io.agentscope:agentscope-core", "agentscope-core"]);
+    expect(editor.commands.undo()).toBe(true);
+    expect(selectTableAxisFromCell(editor, cellByText(editor, "agentscope-core").pos, "row")).toBe(true);
+
+    expect(runTableCommand(editor, "duplicate-row")).toBe(true);
+    expect(tableShape(editor).rows).toBe(4);
+    expect(tableTextRows(editor)[2]).toEqual(tableTextRows(editor)[1]);
+    expect(editor.commands.undo()).toBe(true);
+    expect(selectTableAxisFromCell(editor, cellByText(editor, "agentscope-core").pos, "row")).toBe(true);
+
+    expect(runTableCommand(editor, "clear-row")).toBe(true);
+    expect(tableTextRows(editor)[1]).toEqual(["", "", ""]);
+    expect(editor.commands.undo()).toBe(true);
+    expect(tableTextRows(editor)[1]).toEqual(["agentscope-core", "io.agentscope:agentscope-core", "Reasoning"]);
+  });
+
+  it("duplicates a targeted column and keeps the operation undoable", () => {
+    const editor = createTableEditor();
+    const target = cellByText(editor, "Artifact");
+    expect(selectTableAxisFromCell(editor, target.pos, "column")).toBe(true);
+
+    expect(runTableCommand(editor, "duplicate-column")).toBe(true);
+    expect(tableShape(editor)).toEqual({ rows: 3, columns: 4, rowWidths: [4, 4, 4] });
+    expect(tableTextRows(editor).map((row) => row.slice(1, 3))).toEqual([
+      ["Artifact", "Artifact"],
+      ["io.agentscope:agentscope-core", "io.agentscope:agentscope-core"],
+      ["io.agentscope:agentscope-harness", "io.agentscope:agentscope-harness"],
+    ]);
+
+    expect(editor.commands.undo()).toBe(true);
+    expect(tableShape(editor)).toEqual({ rows: 3, columns: 3, rowWidths: [3, 3, 3] });
+  });
+
+  it("applies persistent color and alignment attributes to the targeted axis", () => {
+    const editor = createTableEditor();
+    const target = cellByText(editor, "Artifact");
+    expect(selectTableAxisFromCell(editor, target.pos, "column")).toBe(true);
+
+    expect(applyTableAxisTextColor(editor, "column", "blue")).toBe(true);
+    expect(applyTableAxisBackgroundColor(editor, "column", "yellow")).toBe(true);
+    expect(applyTableAxisAlignment(editor, "column", "center")).toBe(true);
+    expect(applyTableAxisAlignment(editor, "column", "top")).toBe(true);
+    expect(getTableAxisFormattingState(editor, "column")).toMatchObject({
+      textColorId: "blue",
+      backgroundColorId: "yellow",
+      textAlign: "center",
+      verticalAlign: "top",
+    });
+
+    expect(editor.getHTML()).toContain("color: rgb(50, 125, 169)");
+    expect(editor.getHTML()).toContain("background-color: rgb(254, 249, 195)");
+    expect(editor.getHTML()).toContain("text-align: center");
+    expect(editor.getHTML()).toContain("vertical-align: top");
+  });
+
+  it("disables sort and duplicate operations that would cross merged cells", () => {
+    const editor = createTableEditor(mixedSpanFixture);
+    const target = cellByText(editor, "Merged Header");
+    expect(selectTableAxisFromCell(editor, target.pos, "column", { visualIndex: 0 })).toBe(true);
+
+    expect(canRunTableCommand(editor, "sort-column-asc")).toBe(false);
+    expect(canRunTableCommand(editor, "duplicate-column")).toBe(false);
   });
 });

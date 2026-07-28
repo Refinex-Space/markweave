@@ -466,7 +466,9 @@ describe("Markweave Vue3 editor", () => {
     expect(menu.getAttribute("data-positioned")).toBe("true");
     expect(menu.textContent).not.toContain("使用 AI 编辑");
     expect(menu.textContent).toContain("插入上方行");
-    expect(menu.textContent).toContain("复制表格");
+    expect(menu.textContent).toContain("行排序 A-Z");
+    expect(menu.textContent).toContain("颜色");
+    expect(menu.textContent).toContain("复制行");
     expect(menu.textContent).toContain("删除行");
     expect(container.querySelector('[data-testid="markweave-table-menu-command-edit-with-ai"]')).toBeNull();
     expect(container.querySelector('[data-testid="markweave-floating-toolbar"]')).toBeNull();
@@ -515,11 +517,11 @@ describe("Markweave Vue3 editor", () => {
       }),
     );
 
-    await click(getByTestId(container, "markweave-table-hover-row-handle"));
+    await click(getByTestId(container, "markweave-table-cell-handle"));
     await click(getByTestId(container, "markweave-table-menu-command-copy-table"));
 
     expect(copyPayloads).toHaveLength(1);
-    expect(commandResults.at(-1)).toMatchObject({ commandId: "copy-table", menu: "row", copyPayload: { kind: "table" } });
+    expect(commandResults.at(-1)).toMatchObject({ commandId: "copy-table", menu: "selection", copyPayload: { kind: "table" } });
     const feedback = getByTestId(container, "markweave-table-copy-feedback");
     expect(feedback.getAttribute("data-copy-kind")).toBe("table");
     expect(feedback.textContent).toContain("表格已复制到剪贴板");

@@ -107,6 +107,83 @@ const MarkweaveTable = Table.extend({
   },
 });
 
+const tableHorizontalAlignmentValues = new Set(["left", "center", "right"]);
+const tableVerticalAlignmentValues = new Set(["top", "middle", "bottom"]);
+
+function parseTableCellStyle(element: HTMLElement, property: "color" | "backgroundColor" | "textAlign" | "verticalAlign") {
+  const value = element.style[property]?.trim() ?? "";
+
+  if (property === "color" || property === "backgroundColor") {
+    return normalizeMarkweaveHtmlColor(value);
+  }
+
+  if (property === "textAlign") {
+    return tableHorizontalAlignmentValues.has(value) ? value : "left";
+  }
+
+  return tableVerticalAlignmentValues.has(value) ? value : "middle";
+}
+
+function renderTableCellStyle(name: "color" | "background-color" | "text-align" | "vertical-align", value: unknown) {
+  const normalized =
+    name === "color" || name === "background-color"
+      ? normalizeMarkweaveHtmlColor(value)
+      : typeof value === "string"
+        ? value
+        : null;
+
+  return normalized ? { style: `${name}: ${normalized}` } : {};
+}
+
+function tableCellStyleAttributes() {
+  return {
+    textColor: {
+      default: null,
+      parseHTML: (element: HTMLElement) => parseTableCellStyle(element, "color"),
+      renderHTML: (attributes: Record<string, unknown>) => renderTableCellStyle("color", attributes.textColor),
+    },
+    backgroundColor: {
+      default: null,
+      parseHTML: (element: HTMLElement) => parseTableCellStyle(element, "backgroundColor"),
+      renderHTML: (attributes: Record<string, unknown>) => renderTableCellStyle("background-color", attributes.backgroundColor),
+    },
+    textAlign: {
+      default: "left",
+      parseHTML: (element: HTMLElement) => parseTableCellStyle(element, "textAlign"),
+      renderHTML: (attributes: Record<string, unknown>) =>
+        tableHorizontalAlignmentValues.has(String(attributes.textAlign)) && attributes.textAlign !== "left"
+          ? renderTableCellStyle("text-align", attributes.textAlign)
+          : {},
+    },
+    verticalAlign: {
+      default: "middle",
+      parseHTML: (element: HTMLElement) => parseTableCellStyle(element, "verticalAlign"),
+      renderHTML: (attributes: Record<string, unknown>) =>
+        tableVerticalAlignmentValues.has(String(attributes.verticalAlign)) && attributes.verticalAlign !== "middle"
+          ? renderTableCellStyle("vertical-align", attributes.verticalAlign)
+          : {},
+    },
+  };
+}
+
+const MarkweaveTableHeader = TableHeader.extend({
+  addAttributes() {
+    return {
+      ...this.parent?.(),
+      ...tableCellStyleAttributes(),
+    };
+  },
+});
+
+const MarkweaveTableCell = TableCell.extend({
+  addAttributes() {
+    return {
+      ...this.parent?.(),
+      ...tableCellStyleAttributes(),
+    };
+  },
+});
+
 const MarkweaveTaskList = Node.create<{
   readonly HTMLAttributes: Record<string, unknown>;
   readonly itemTypeName: string;
@@ -423,8 +500,8 @@ export function createMarkweaveEditorExtensions(options: CreateMarkweaveEditorEx
       },
     }),
     TableRow,
-    TableHeader,
-    TableCell,
+    MarkweaveTableHeader,
+    MarkweaveTableCell,
     MarkweaveTableClipboard,
     MarkweaveMarkdownTableInput,
     MarkweaveTableArrowNavigation,

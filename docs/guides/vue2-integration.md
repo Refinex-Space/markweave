@@ -1,6 +1,6 @@
 ---
 owner: refinex
-updated: 2026-07-21
+updated: 2026-07-27
 status: active
 referenced_by: docs/README.md#knowledge-map
 ---
@@ -298,6 +298,8 @@ Images render with preview, align, caption, resize, replace, download, and delet
 - `on-rewrite-selection` and `on-extract-to-note` receive selected text and HTML from the floating toolbar.
 - `on-table-copy-payload` mirrors table copy actions for row, column, or table payloads.
 - `on-table-command-result` reports table command outcomes and before/after snapshots.
+
+The built-in table controls use Notion-like row, column, and selection handles. Row and column menus cover moving, inserting, sorting, color, alignment, clearing, duplication, and deletion; selection controls retain merge, split, copy, and delete. Hovering the last row or column reveals a full-edge add control, while dragging a row or column handle reorders it. All labels follow `lang` (`zh` or `en`).
 
 ## External Link Cards
 

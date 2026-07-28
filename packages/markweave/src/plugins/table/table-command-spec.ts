@@ -3,10 +3,18 @@ export type TableCommandId =
   | "add-row-after"
   | "move-row-up"
   | "move-row-down"
+  | "sort-row-asc"
+  | "sort-row-desc"
+  | "clear-row"
+  | "duplicate-row"
   | "add-column-before"
   | "add-column-after"
   | "move-column-left"
   | "move-column-right"
+  | "sort-column-asc"
+  | "sort-column-desc"
+  | "clear-column"
+  | "duplicate-column"
   | "copy-row"
   | "copy-column"
   | "copy-table"
@@ -23,13 +31,36 @@ export interface TableCommandSpec {
 }
 
 export type TableCommandMenuKind = "row" | "column";
-export type TableMenuItemId = TableCommandId | "edit-with-ai";
+export type TableMenuSubmenuId = "color" | "alignment";
+export type TableMenuIconId =
+  | "move-left"
+  | "move-right"
+  | "move-up"
+  | "move-down"
+  | "insert-left"
+  | "insert-right"
+  | "insert-above"
+  | "insert-below"
+  | "sort-asc"
+  | "sort-desc"
+  | "color"
+  | "alignment"
+  | "clear"
+  | "duplicate"
+  | "copy"
+  | "merge"
+  | "split"
+  | "delete";
+export type TableMenuItemId = TableCommandId | TableMenuSubmenuId | "edit-with-ai";
 
 export interface TableMenuItemSpec {
   readonly id: TableMenuItemId;
   readonly label: string;
   readonly menu: TableCommandMenuKind;
   readonly commandId: TableCommandId | null;
+  readonly submenuId: TableMenuSubmenuId | null;
+  readonly icon: TableMenuIconId;
+  readonly group: "move" | "insert" | "sort" | "format" | "duplicate" | "copy" | "cell" | "delete";
   readonly availability: "external" | "available";
 }
 
@@ -55,6 +86,26 @@ export const tableCommandSpecs: readonly TableCommandSpec[] = [
     behaviorGroup: "insert-row",
   },
   {
+    id: "sort-row-asc",
+    label: "Sort Row A-Z",
+    behaviorGroup: "sort-row",
+  },
+  {
+    id: "sort-row-desc",
+    label: "Sort Row Z-A",
+    behaviorGroup: "sort-row",
+  },
+  {
+    id: "clear-row",
+    label: "Clear Row Contents",
+    behaviorGroup: "clear-row",
+  },
+  {
+    id: "duplicate-row",
+    label: "Duplicate Row",
+    behaviorGroup: "duplicate-row",
+  },
+  {
     id: "add-column-before",
     label: "Insert Column Left",
     behaviorGroup: "insert-column",
@@ -73,6 +124,26 @@ export const tableCommandSpecs: readonly TableCommandSpec[] = [
     id: "move-column-right",
     label: "Move Column Right",
     behaviorGroup: "insert-column",
+  },
+  {
+    id: "sort-column-asc",
+    label: "Sort Column A-Z",
+    behaviorGroup: "sort-column",
+  },
+  {
+    id: "sort-column-desc",
+    label: "Sort Column Z-A",
+    behaviorGroup: "sort-column",
+  },
+  {
+    id: "clear-column",
+    label: "Clear Column Contents",
+    behaviorGroup: "clear-column",
+  },
+  {
+    id: "duplicate-column",
+    label: "Duplicate Column",
+    behaviorGroup: "duplicate-column",
   },
   {
     id: "copy-row",
@@ -116,6 +187,44 @@ export const tableCommandSpecs: readonly TableCommandSpec[] = [
   },
 ] as const;
 
+const tableCommandIcon: Readonly<Record<TableCommandId, TableMenuIconId>> = {
+  "add-row-before": "insert-above",
+  "add-row-after": "insert-below",
+  "move-row-up": "move-up",
+  "move-row-down": "move-down",
+  "sort-row-asc": "sort-asc",
+  "sort-row-desc": "sort-desc",
+  "clear-row": "clear",
+  "duplicate-row": "duplicate",
+  "add-column-before": "insert-left",
+  "add-column-after": "insert-right",
+  "move-column-left": "move-left",
+  "move-column-right": "move-right",
+  "sort-column-asc": "sort-asc",
+  "sort-column-desc": "sort-desc",
+  "clear-column": "clear",
+  "duplicate-column": "duplicate",
+  "copy-row": "copy",
+  "copy-column": "copy",
+  "copy-table": "copy",
+  "delete-row": "delete",
+  "delete-column": "delete",
+  "merge-cells": "merge",
+  "split-cell": "split",
+  "delete-table": "delete",
+};
+
+function commandGroup(commandId: TableCommandId): TableMenuItemSpec["group"] {
+  if (commandId.startsWith("move-")) return "move";
+  if (commandId.startsWith("add-")) return "insert";
+  if (commandId.startsWith("sort-")) return "sort";
+  if (commandId.startsWith("clear-")) return "format";
+  if (commandId.startsWith("duplicate-")) return "duplicate";
+  if (commandId.startsWith("copy-")) return "copy";
+  if (commandId === "merge-cells" || commandId === "split-cell") return "cell";
+  return "delete";
+}
+
 function executableMenuItem(menu: TableCommandMenuKind, commandId: TableCommandId): TableMenuItemSpec {
   const command = tableCommandSpecs.find((candidate) => candidate.id === commandId);
 
@@ -128,27 +237,49 @@ function executableMenuItem(menu: TableCommandMenuKind, commandId: TableCommandI
     label: command.label,
     menu,
     commandId,
+    submenuId: null,
+    icon: tableCommandIcon[commandId],
+    group: commandGroup(commandId),
+    availability: "available",
+  };
+}
+
+function submenuMenuItem(menu: TableCommandMenuKind, submenuId: TableMenuSubmenuId): TableMenuItemSpec {
+  return {
+    id: submenuId,
+    label: submenuId === "color" ? "Color" : "Alignment",
+    menu,
+    commandId: null,
+    submenuId,
+    icon: submenuId,
+    group: "format",
     availability: "available",
   };
 }
 
 export const tableMenuSpecs: readonly TableMenuItemSpec[] = [
-  executableMenuItem("row", "add-row-before"),
-  executableMenuItem("row", "add-row-after"),
   executableMenuItem("row", "move-row-up"),
   executableMenuItem("row", "move-row-down"),
-  executableMenuItem("row", "copy-row"),
-  executableMenuItem("row", "copy-table"),
+  executableMenuItem("row", "add-row-before"),
+  executableMenuItem("row", "add-row-after"),
+  executableMenuItem("row", "sort-row-asc"),
+  executableMenuItem("row", "sort-row-desc"),
+  submenuMenuItem("row", "color"),
+  submenuMenuItem("row", "alignment"),
+  executableMenuItem("row", "clear-row"),
+  executableMenuItem("row", "duplicate-row"),
   executableMenuItem("row", "delete-row"),
-  executableMenuItem("row", "delete-table"),
-  executableMenuItem("column", "add-column-before"),
-  executableMenuItem("column", "add-column-after"),
   executableMenuItem("column", "move-column-left"),
   executableMenuItem("column", "move-column-right"),
-  executableMenuItem("column", "copy-column"),
-  executableMenuItem("column", "copy-table"),
+  executableMenuItem("column", "add-column-before"),
+  executableMenuItem("column", "add-column-after"),
+  executableMenuItem("column", "sort-column-asc"),
+  executableMenuItem("column", "sort-column-desc"),
+  submenuMenuItem("column", "color"),
+  submenuMenuItem("column", "alignment"),
+  executableMenuItem("column", "clear-column"),
+  executableMenuItem("column", "duplicate-column"),
   executableMenuItem("column", "delete-column"),
-  executableMenuItem("column", "delete-table"),
 ] as const;
 
 export function getMarkweaveTableMenuLabels(menu: TableCommandMenuKind) {
