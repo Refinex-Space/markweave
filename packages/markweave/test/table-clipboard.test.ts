@@ -62,6 +62,34 @@ function createPasteEditor() {
   return activeEditor;
 }
 
+function createCodeBlockPasteEditor() {
+  const element = document.createElement("div");
+  document.body.appendChild(element);
+
+  activeEditor = new Editor({
+    element,
+    extensions: createMarkweaveEditorExtensions(),
+    content: '<p>Before</p><pre><code class="language-groovy">existing</code></pre><p>After</p>',
+  });
+
+  let codeBlockStart: number | null = null;
+  activeEditor.state.doc.descendants((node, pos) => {
+    if (node.type.name !== "codeBlock") {
+      return true;
+    }
+
+    codeBlockStart = pos + 1;
+    return false;
+  });
+
+  if (codeBlockStart === null) {
+    throw new Error("Expected code block paste target.");
+  }
+
+  activeEditor.commands.setTextSelection(codeBlockStart);
+  return activeEditor;
+}
+
 function createTableEditor() {
   const element = document.createElement("div");
   document.body.appendChild(element);
@@ -91,6 +119,18 @@ function dispatchPaste(editor: Editor, payload: Record<string, string>) {
   });
 
   return { handled, defaultPrevented: event.defaultPrevented };
+}
+
+function dispatchNativePaste(editor: Editor, payload: Record<string, string>) {
+  const event = new Event("paste", { bubbles: true, cancelable: true }) as ClipboardEvent;
+  Object.defineProperty(event, "clipboardData", {
+    value: {
+      getData: (type: string) => payload[type] ?? "",
+    },
+  });
+
+  editor.view.dom.dispatchEvent(event);
+  return { defaultPrevented: event.defaultPrevented };
 }
 
 function dispatchCopy(editor: Editor) {
@@ -413,6 +453,31 @@ describe("table clipboard paste extension", () => {
 
     expect(result).toEqual({ handled: true, defaultPrevented: true });
     expect(tableShape(editor)).toEqual([{ rows: 3, columns: 2, rowWidths: [2, 2, 2] }]);
+  });
+
+  it("leaves tab-indented code block paste to the default plain-text pipeline", () => {
+    const editor = createCodeBlockPasteEditor();
+    const text = [
+      "pipeline {",
+      "  stages {",
+      "\tstage('Build') {",
+      "\t\tsteps {",
+      "          echo 'compile | verify'",
+      "        }",
+      "      }",
+      "  }",
+      "}",
+    ].join("\n");
+    const payload = { "text/plain": text };
+    const result = dispatchPaste(editor, payload);
+
+    expect(result).toEqual({ handled: false, defaultPrevented: false });
+    expect(tableShape(editor)).toEqual([]);
+
+    expect(dispatchNativePaste(editor, payload)).toEqual({ defaultPrevented: true });
+    expect(tableShape(editor)).toEqual([]);
+    expect(editor.state.selection.$from.parent.type.name).toBe("codeBlock");
+    expect(editor.state.selection.$from.parent.textContent).toBe(`${text}existing`);
   });
 
   it("lets non-table paste fall through to the default editor pipeline", () => {

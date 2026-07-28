@@ -671,8 +671,10 @@ describe("code block controls", () => {
     inlinePreview = getByTestId("markweave-mermaid-inline-preview");
     inlinePreview.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 100"><text>diagram</text></svg>';
     inlinePreview.dataset.state = "rendered";
+    const diagramText = inlinePreview.querySelector("text");
+    expect(diagramText).not.toBeNull();
 
-    pointerMove(inlinePreview);
+    pointerMove(diagramText!);
 
     expect(getByTestId("markweave-codeblock-controls").dataset.readOnly).toBe("true");
     expect(getByTestId("markweave-codeblock-language").textContent).toContain("Mermaid");

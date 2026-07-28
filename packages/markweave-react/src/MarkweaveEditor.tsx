@@ -2,6 +2,7 @@ import type { EditorView } from "@tiptap/pm/view";
 import { EditorContent, useEditor, type Editor } from "@tiptap/react";
 import { useCallback, useEffect, useMemo, useRef, useState, type ComponentProps, type CSSProperties, type HTMLAttributes, type KeyboardEvent as ReactKeyboardEvent } from "react";
 import { isEditorComposing } from "markweave/internal/editor-core/composition-guard";
+import { createMarkweaveFrameScheduler } from "markweave/internal/editor-core/frame-scheduler";
 import {
   createMarkweaveEditorUpdatePayload,
   getMarkweaveContentType,
@@ -34,10 +35,12 @@ import {
 import { filterSlashCommands, isExecutableSlashCommand, type SlashCommandSpec } from "markweave/internal/plugins/slash-command/command-spec";
 import { getSlashCommandKeyboardAction } from "markweave/internal/plugins/slash-command/slash-keyboard";
 import {
+  areSlashCommandMenuPositionsEquivalent,
   executeSlashCommand,
   getNextSlashCommandState,
   getSlashCommandAnchoredMenuPosition,
   getSlashCommandContext,
+  isSlashCommandAnchorVisible,
   type ExecuteSlashCommandOptions,
   type SlashCommandMenuPosition,
 } from "markweave/internal/plugins/slash-command/slash-runtime";
@@ -381,7 +384,15 @@ export function useMarkweaveEditorController({
     const cursorRect = view.coordsAtPos(slashContext.cursor);
     const triggerRect = view.coordsAtPos(slashContext.triggerFrom);
     const frameRect = view.dom.closest(".markweave-editor-frame")?.getBoundingClientRect();
-    setSlashMenuPosition(getSlashCommandAnchoredMenuPosition(cursorRect, { frameRect, triggerRect }));
+    if (!isSlashCommandAnchorVisible(triggerRect, { frameRect })) {
+      setSlashMenuPosition(null);
+      setSlashInputCommand(null);
+      setSlashState(initialSlashCommandState);
+      return;
+    }
+
+    const nextPosition = getSlashCommandAnchoredMenuPosition(cursorRect, { frameRect, triggerRect });
+    setSlashMenuPosition((current) => (areSlashCommandMenuPositionsEquivalent(current, nextPosition) ? current : nextPosition));
     setSlashState((state) => getNextSlashCommandState(state, slashContext));
   }, []);
 
@@ -660,6 +671,30 @@ export function useMarkweaveEditorController({
     document.addEventListener("pointerdown", closeOnOutsidePointerDown, true);
     return () => document.removeEventListener("pointerdown", closeOnOutsidePointerDown, true);
   }, [closeSlashMenu, slashMenuPosition]);
+
+  const slashMenuOpen = slashMenuPosition !== null;
+  useEffect(() => {
+    if (!editor || !slashMenuOpen) {
+      return undefined;
+    }
+
+    const slashMenuPositionScheduler = createMarkweaveFrameScheduler(() => {
+      if (!editor.isDestroyed) {
+        syncSlashCommandStateFromView(editor.view);
+      }
+    });
+    const scheduleSlashMenuPositionUpdate = () => slashMenuPositionScheduler.schedule();
+
+    window.addEventListener("resize", scheduleSlashMenuPositionUpdate);
+    window.addEventListener("scroll", scheduleSlashMenuPositionUpdate, true);
+    scheduleSlashMenuPositionUpdate();
+
+    return () => {
+      slashMenuPositionScheduler.cancel();
+      window.removeEventListener("resize", scheduleSlashMenuPositionUpdate);
+      window.removeEventListener("scroll", scheduleSlashMenuPositionUpdate, true);
+    };
+  }, [editor, slashMenuOpen, syncSlashCommandStateFromView]);
 
   const codeBlockState = useMemo(() => (editor ? getActiveCodeBlockState(editor) : inactiveCodeBlockState), [editor, revision, selectionSnapshot]);
   const tableFocusState = useMemo(() => (editor ? getTableFocusState(editor.state) : outsideTableFocusState), [editor, revision, selectionSnapshot, tableInteractionState]);

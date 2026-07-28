@@ -12,11 +12,13 @@ import {
 } from "../src/plugins/slash-command/command-spec";
 import { getSlashCommandKeyboardAction, isSlashCommandMenuState } from "../src/plugins/slash-command/slash-keyboard";
 import {
+  areSlashCommandMenuPositionsEquivalent,
   executeSlashCommand,
   getNextSlashCommandState,
   getSlashCommandAnchoredMenuPosition,
   getSlashCommandContext,
   getSlashCommandOpenDecision,
+  isSlashCommandAnchorVisible,
 } from "../src/plugins/slash-command/slash-runtime";
 import { initialSlashCommandState, reduceSlashCommandState } from "../src/plugins/slash-command/slash-state";
 import { getSlashCommandMenuPresentation } from "../../markweave-react/src/ui/slash-command/SlashCommandMenu";
@@ -500,6 +502,44 @@ describe("slash command runtime", () => {
     expect(bottomPosition.triggerLeft).toBe(576);
     expect(bottomPosition.top).toBe(440);
     expect(bottomPosition.top).toBeGreaterThanOrEqual(frameRect.top);
+  });
+
+  it("tracks whether the slash anchor intersects both the viewport and editor frame", () => {
+    const frameRect = { left: 100, right: 700, top: -300, bottom: 900, width: 600, height: 1200 };
+
+    expect(
+      isSlashCommandAnchorVisible(
+        { left: 120, right: 124, top: 20, bottom: 40, width: 4, height: 20 },
+        { frameRect, viewportWidth: 800, viewportHeight: 600 },
+      ),
+    ).toBe(true);
+    expect(
+      isSlashCommandAnchorVisible(
+        { left: 120, right: 124, top: -40, bottom: -20, width: 4, height: 20 },
+        { frameRect, viewportWidth: 800, viewportHeight: 600 },
+      ),
+    ).toBe(false);
+    expect(
+      isSlashCommandAnchorVisible(
+        { left: 80, right: 90, top: 20, bottom: 40, width: 10, height: 20 },
+        { frameRect, viewportWidth: 800, viewportHeight: 600 },
+      ),
+    ).toBe(false);
+  });
+
+  it("treats subpixel-equivalent slash positions as unchanged", () => {
+    const position = {
+      left: 120,
+      top: 240,
+      triggerLeft: 118,
+      triggerTop: 200,
+      maxHeight: 320,
+      placement: "bottom" as const,
+    };
+
+    expect(areSlashCommandMenuPositionsEquivalent(position, { ...position, top: 240.4, triggerTop: 200.4 })).toBe(true);
+    expect(areSlashCommandMenuPositionsEquivalent(position, { ...position, top: 241, triggerTop: 201 })).toBe(false);
+    expect(areSlashCommandMenuPositionsEquivalent(position, { ...position, placement: "top" })).toBe(false);
   });
 
   it("inserts an empty image placeholder without an upload result", () => {

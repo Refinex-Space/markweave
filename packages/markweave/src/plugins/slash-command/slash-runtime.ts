@@ -232,6 +232,50 @@ export function getNextSlashCommandState(previous: SlashCommandState, context: S
   return reduceSlashCommandState(opened, { type: "change-query", query: context.query });
 }
 
+export function isSlashCommandAnchorVisible(
+  anchorRect: SlashCommandPositionRect,
+  options: SlashCommandPositionOptions = {},
+): boolean {
+  const viewportWidth = options.viewportWidth ?? globalThis.window?.innerWidth ?? 1024;
+  const viewportHeight = options.viewportHeight ?? globalThis.window?.innerHeight ?? 768;
+  const frameRect =
+    options.frameRect ?? ({ left: 0, right: viewportWidth, top: 0, bottom: viewportHeight } as SlashCommandPositionRect);
+  const visibleLeft = Math.max(0, frameRect.left);
+  const visibleRight = Math.min(viewportWidth, frameRect.right);
+  const visibleTop = Math.max(0, frameRect.top);
+  const visibleBottom = Math.min(viewportHeight, frameRect.bottom);
+
+  return (
+    visibleLeft < visibleRight &&
+    visibleTop < visibleBottom &&
+    anchorRect.right > visibleLeft &&
+    anchorRect.left < visibleRight &&
+    anchorRect.bottom > visibleTop &&
+    anchorRect.top < visibleBottom
+  );
+}
+
+export function areSlashCommandMenuPositionsEquivalent(
+  current: SlashCommandMenuPosition | null,
+  next: SlashCommandMenuPosition | null,
+  tolerance = 0.5,
+): boolean {
+  if (current === next) {
+    return true;
+  }
+  if (!current || !next || current.placement !== next.placement) {
+    return false;
+  }
+
+  return (
+    Math.abs(current.left - next.left) <= tolerance &&
+    Math.abs(current.top - next.top) <= tolerance &&
+    Math.abs(current.triggerLeft - next.triggerLeft) <= tolerance &&
+    Math.abs(current.triggerTop - next.triggerTop) <= tolerance &&
+    Math.abs(current.maxHeight - next.maxHeight) <= tolerance
+  );
+}
+
 export function getSlashCommandAnchoredMenuPosition(
   cursorRect: SlashCommandPositionRect,
   options: SlashCommandPositionOptions = {},

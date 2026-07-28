@@ -147,6 +147,26 @@ function dispatchKey(editor: Editor, key: string, shiftKey = false) {
   return handled;
 }
 
+function dispatchModKey(editor: Editor, key: string) {
+  const isMac = /Mac|iP(hone|[oa]d)/.test(navigator.platform);
+  const event = new KeyboardEvent("keydown", {
+    key,
+    ctrlKey: !isMac,
+    metaKey: isMac,
+    bubbles: true,
+    cancelable: true,
+  });
+  let handled = false;
+
+  editor.view.someProp("handleKeyDown", (handler) => {
+    const didHandle = handler(editor.view, event) === true;
+    handled = handled || didHandle;
+    return didHandle;
+  });
+
+  return handled;
+}
+
 function dispatchTextInput(editor: Editor, text: string) {
   const { from, to } = editor.state.selection;
   let handled = false;
@@ -462,6 +482,32 @@ gamma</code></pre>`);
       textLength: 16,
     });
     expect(formatCodeBlockCopyFeedback(feedback)).toBe("Code copied to clipboard | text 16 | ts");
+  });
+
+  it("selects only the active code block content with Mod-a", () => {
+    const editor = createEditor(
+      '<p>before</p><pre><code class="language-groovy">pipeline {\n  stages {\n    stage("Build") {}\n  }\n}</code></pre><p>after</p>',
+    );
+    expect(editor.commands.setTextSelection(textPosition(editor, "stages"))).toBe(true);
+
+    expect(dispatchModKey(editor, "a")).toBe(true);
+
+    const { from, to } = editor.state.selection;
+    expect(editor.state.doc.textBetween(from, to, "\n")).toBe('pipeline {\n  stages {\n    stage("Build") {}\n  }\n}');
+    expect(editor.state.selection.$from.parent.type.name).toBe("codeBlock");
+    expect(editor.state.selection.$to.parent.type.name).toBe("codeBlock");
+  });
+
+  it("keeps document-wide Mod-a selection outside code blocks", () => {
+    const editor = createEditor(
+      '<p>before</p><pre><code class="language-groovy">pipeline {}</code></pre><p>after</p>',
+    );
+    expect(editor.commands.setTextSelection(textPosition(editor, "before"))).toBe(true);
+
+    expect(dispatchModKey(editor, "a")).toBe(true);
+
+    expect(editor.state.selection.from).toBe(0);
+    expect(editor.state.selection.to).toBe(editor.state.doc.content.size);
   });
 
   it("indents code lines with Tab", () => {

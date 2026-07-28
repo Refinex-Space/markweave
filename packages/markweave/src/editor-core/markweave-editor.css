@@ -15,6 +15,12 @@
   --markweave-focus: #4168c9;
   --markweave-focus-ring: rgba(65, 104, 201, 0.28);
   --markweave-selection: #e8f1ff;
+  --markweave-table-selection-border: #7296c8;
+  --markweave-table-selection-border-strong: #5479ad;
+  --markweave-table-selection-grid: rgba(84, 121, 173, 0.16);
+  --markweave-table-handle-surface: #f1f3f5;
+  --markweave-table-handle-hover: #e4e8ed;
+  --markweave-table-handle-text: #68717d;
   --markweave-code: #30343a;
   --markweave-code-surface: #f3f4f6;
   --markweave-syntax-text: #3c4148;
@@ -58,6 +64,12 @@
   --markweave-focus: #91adff;
   --markweave-focus-ring: rgba(145, 173, 255, 0.38);
   --markweave-selection: rgba(104, 142, 234, 0.32);
+  --markweave-table-selection-border: #86a8d8;
+  --markweave-table-selection-border-strong: #a0bce2;
+  --markweave-table-selection-grid: rgba(134, 168, 216, 0.22);
+  --markweave-table-handle-surface: #292d34;
+  --markweave-table-handle-hover: #343a44;
+  --markweave-table-handle-text: #b6bcc7;
   --markweave-code: #e6e9ef;
   --markweave-code-surface: #1e2127;
   --markweave-syntax-text: #d7dce4;
@@ -337,6 +349,15 @@
 
 .markweave-editor-surface p {
   margin: 0.65em 0;
+}
+
+.markweave-editor-surface[contenteditable="true"]:focus .markweave-slash-empty-line-placeholder::before {
+  content: attr(data-markweave-slash-placeholder);
+  float: left;
+  height: 0;
+  color: var(--markweave-text-subtle);
+  pointer-events: none;
+  user-select: none;
 }
 
 .markweave-editor-surface blockquote {
@@ -1636,7 +1657,7 @@
 
 .markweave-editor-surface table {
   width: 100%;
-  margin: 1.1em 0;
+  margin: 1.25em 0;
   border-collapse: collapse;
   table-layout: fixed;
   font-family: ui-sans-serif, system-ui, sans-serif;
@@ -1648,14 +1669,14 @@
 .markweave-editor-surface td {
   position: relative;
   min-width: 120px;
-  border: 1px solid #d7dce3;
-  padding: 5px 8px;
+  border: 1px solid rgba(37, 39, 45, 0.18);
+  padding: 8px;
   vertical-align: middle;
 }
 
 .markweave-editor-surface th {
-  background: #f3f4f6;
-  font-weight: 600;
+  background: rgba(15, 22, 36, 0.05);
+  font-weight: 700;
 }
 
 .markweave-editor-surface th>p,
@@ -1669,15 +1690,15 @@
 }
 
 .markweave-editor-surface .selectedCell {
-  background: #e8f1ff;
-  outline: 2px solid #5d86d9;
+  background: var(--markweave-selection);
+  outline: 2px solid var(--markweave-table-selection-border);
   outline-offset: -2px;
 }
 
 .markweave-editor-surface th.markweave-selection-cell,
 .markweave-editor-surface td.markweave-selection-cell {
-  background: #e8f1ff;
-  box-shadow: inset 0 0 0 1px rgba(93, 134, 217, 0.42);
+  background: var(--markweave-selection);
+  box-shadow: inset 0 0 0 1px var(--markweave-table-selection-grid);
 }
 
 .markweave-editor-surface th.markweave-selection-cell::after,
@@ -1685,8 +1706,8 @@
   content: "";
   position: absolute;
   inset: -1px;
-  border: 0 solid #5d86d9;
-  background: rgba(81, 132, 220, 0.08);
+  border: 0 solid var(--markweave-table-selection-border);
+  background: var(--markweave-table-selection-grid);
   pointer-events: none;
 }
 
@@ -1713,29 +1734,26 @@
 .markweave-editor-surface th.markweave-selection-anchor-cell,
 .markweave-editor-surface td.markweave-selection-anchor-cell {
   box-shadow:
-    inset 0 0 0 1px #6f93d3,
-    inset 0 0 0 999px rgba(81, 132, 220, 0.02);
+    inset 0 0 0 1px var(--markweave-table-selection-border),
+    inset 0 0 0 999px var(--markweave-table-selection-grid);
 }
 
 .markweave-editor-surface th.markweave-selection-head-cell,
 .markweave-editor-surface td.markweave-selection-head-cell {
   box-shadow:
-    inset 0 0 0 2px #4c78c9,
-    inset 0 0 0 999px rgba(81, 132, 220, 0.03);
+    inset 0 0 0 2px var(--markweave-table-selection-border-strong),
+    inset 0 0 0 999px var(--markweave-table-selection-grid);
 }
 
 .markweave-table-selection-overlay {
   position: absolute;
   z-index: 6;
-  border: 2px solid #4c78c9;
-  border-radius: 3px;
+  border: 2px solid var(--markweave-table-selection-border);
+  border-radius: 2px;
   background:
-    linear-gradient(rgba(76, 120, 201, 0.16) 1px, transparent 1px) 0 0 / 100% calc(100% / var(--markweave-table-selection-rows, 1)),
-    linear-gradient(90deg, rgba(76, 120, 201, 0.16) 1px, transparent 1px) 0 0 / calc(100% / var(--markweave-table-selection-columns, 1)) 100%,
-    rgba(81, 132, 220, 0.08);
-  box-shadow:
-    0 0 0 1px rgba(255, 255, 255, 0.85),
-    0 3px 10px rgba(76, 120, 201, 0.16);
+    linear-gradient(var(--markweave-table-selection-grid) 1px, transparent 1px) 0 0 / 100% calc(100% / var(--markweave-table-selection-rows, 1)),
+    linear-gradient(90deg, var(--markweave-table-selection-grid) 1px, transparent 1px) 0 0 / calc(100% / var(--markweave-table-selection-columns, 1)) 100%;
+  box-shadow: none;
   pointer-events: none;
   transition:
     left 80ms cubic-bezier(0.2, 0, 0, 1),
@@ -3008,27 +3026,31 @@
   pointer-events: none;
 }
 
+.markweave-table-controls[data-open-menu]:not([data-open-menu="none"]) {
+  z-index: 39;
+}
+
 .markweave-table-controls[data-positioned="false"] {
   opacity: 0;
 }
 
 .markweave-table-controls button {
   position: relative;
-  display: grid;
-  place-items: center;
-  border: 1px solid #d6dbe3;
-  background: rgba(255, 255, 255, 0.98);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  background: var(--markweave-table-handle-surface);
   padding: 0;
-  color: #9ba7b8;
-  cursor: default;
+  color: var(--markweave-table-handle-text);
+  cursor: pointer;
   pointer-events: auto;
 }
 
 .markweave-table-controls button:hover,
 .markweave-table-controls button[aria-expanded="true"] {
-  border-color: #c9d1df;
-  background: #ffffff;
-  color: #7d8ca2;
+  background: var(--markweave-table-handle-hover);
+  color: var(--markweave-text);
 }
 
 .markweave-table-controls button:disabled {
@@ -3037,7 +3059,7 @@
 }
 
 .markweave-table-controls button:disabled:hover {
-  background: #ffffff;
+  background: transparent;
   color: #a3abb7;
 }
 
@@ -3064,13 +3086,11 @@
 .markweave-table-controls .markweave-table-edge-handle {
   position: absolute;
   z-index: 11;
-  border-radius: 5px;
-  box-shadow:
-    0 1px 2px rgba(31, 35, 40, 0.12),
-    0 3px 9px rgba(31, 35, 40, 0.1);
+  border-radius: 6px;
+  box-shadow: none;
   font-family: ui-sans-serif, system-ui, sans-serif;
-  font-size: 12px;
-  font-weight: 700;
+  font-size: 14px;
+  font-weight: 500;
   line-height: 1;
   letter-spacing: 0;
   transition:
@@ -3082,80 +3102,87 @@
 
 .markweave-table-controls .markweave-table-edge-handle:hover,
 .markweave-table-controls .markweave-table-edge-handle[aria-expanded="true"] {
-  box-shadow:
-    0 1px 3px rgba(31, 35, 40, 0.14),
-    0 5px 13px rgba(31, 35, 40, 0.12);
+  background: var(--markweave-table-handle-hover);
+  color: var(--markweave-text);
 }
 
 .markweave-table-controls .markweave-table-edge-handle--row {
-  width: 14px;
-  height: 28px;
-  transform: translate(-50%, 8px);
+  cursor: grab;
 }
 
 .markweave-table-controls .markweave-table-edge-handle--column,
 .markweave-table-controls .markweave-table-edge-handle--selection {
-  width: 32px;
-  height: 14px;
-  transform: translate(5px, 4px);
+  cursor: grab;
 }
 
 .markweave-table-controls .markweave-table-edge-handle--selection {
-  border-color: #bfc9dd;
-  color: #8797b4;
+  border-radius: 4px;
+  background: var(--markweave-table-handle-surface);
+  color: var(--markweave-table-handle-text);
+  cursor: pointer;
 }
 
-.markweave-table-controls .markweave-table-edge-handle--row span {
-  font-size: 0;
+.markweave-table-controls .markweave-table-edge-handle--column>svg {
+  transform: rotate(90deg);
 }
 
-.markweave-table-controls .markweave-table-edge-handle span {
+.markweave-table-controls .markweave-table-extend-button {
   position: absolute;
-  inset: 0;
-  display: block;
-  overflow: hidden;
-  color: inherit;
-  font-size: 0;
-  line-height: 0;
+  z-index: 10;
+  border-radius: 6px;
+  background: var(--markweave-table-handle-surface);
+  color: var(--markweave-table-handle-text);
 }
 
-.markweave-table-controls .markweave-table-edge-handle span::before {
+.markweave-table-controls .markweave-table-extend-button:hover {
+  background: var(--markweave-table-handle-hover);
+  color: var(--markweave-text);
+}
+
+.markweave-table-controls .markweave-table-extend-button::before {
+  position: absolute;
+  background: transparent;
   content: "";
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 3px;
-  height: 3px;
-  border-radius: 999px;
-  background: currentColor;
-  transform: translate(-50%, -50%);
+  pointer-events: auto;
 }
 
-.markweave-table-controls .markweave-table-edge-handle--row span::before {
-  box-shadow:
-    0 -6px 0 currentColor,
-    0 6px 0 currentColor;
+.markweave-table-controls .markweave-table-extend-button--row::before {
+  top: -9px;
+  right: 0;
+  left: 0;
+  height: 9px;
 }
 
-.markweave-table-controls .markweave-table-edge-handle--column span::before,
-.markweave-table-controls .markweave-table-edge-handle--selection span::before {
-  box-shadow:
-    -6px 0 0 currentColor,
-    6px 0 0 currentColor;
+.markweave-table-controls .markweave-table-extend-button--column::before {
+  top: 0;
+  bottom: 0;
+  left: -9px;
+  width: 9px;
+}
+
+.markweave-table-controls .markweave-table-extend-button--column {
+  cursor: col-resize;
+}
+
+.markweave-table-controls .markweave-table-extend-button--row {
+  cursor: row-resize;
 }
 
 .markweave-table-menu {
   position: absolute;
-  display: grid;
+  display: flex;
+  flex-direction: column;
   z-index: 12;
-  min-width: 204px;
-  border: 1px solid #d9dee7;
-  border-radius: 6px;
-  background: rgba(255, 255, 255, 0.98);
+  width: 232px;
+  border: 1px solid rgba(37, 39, 45, 0.08);
+  border-radius: 10px;
+  background: var(--markweave-surface);
   box-shadow:
-    0 1px 2px rgba(31, 35, 40, 0.08),
-    0 12px 30px rgba(31, 35, 40, 0.14);
-  padding: 4px 0;
+    0 2px 3px rgba(17, 24, 39, 0.08),
+    0 6px 8px rgba(17, 24, 39, 0.06),
+    0 12px 24px rgba(17, 24, 39, 0.06),
+    0 16px 48px rgba(17, 24, 39, 0.04);
+  padding: 5px;
   pointer-events: auto;
   transition:
     left 80ms cubic-bezier(0.2, 0, 0, 1),
@@ -3169,15 +3196,20 @@
 }
 
 .markweave-table-menu button {
+  display: flex;
+  align-items: center;
   justify-content: flex-start;
+  gap: 8px;
   width: 100%;
-  height: 36px;
+  height: 30px;
+  flex: 0 0 30px;
   border: 0;
-  border-radius: 0;
+  border-radius: 6px;
+  background: transparent;
   box-shadow: none;
-  padding: 0 14px;
-  color: #252a31;
-  font-family: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
+  padding: 0 9px;
+  color: rgba(36, 39, 46, 0.78);
+  font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   font-size: 14px;
   font-weight: 400;
   letter-spacing: 0;
@@ -3185,15 +3217,107 @@
 }
 
 .markweave-table-menu button[data-starts-group="true"] {
-  border-top: 1px solid #e1e4ea;
+  height: 30px;
+  flex-basis: 30px;
+  margin-top: 7px;
+  border-top: 0;
+  border-radius: 6px;
+  padding-top: 0;
+}
+
+.markweave-table-menu button[data-starts-group="true"]::before {
+  position: absolute;
+  top: -4px;
+  right: 0;
+  left: 0;
+  height: 1px;
+  background: rgba(37, 39, 45, 0.1);
+  content: "";
+  pointer-events: none;
 }
 
 .markweave-table-menu button:hover:not(:disabled) {
-  background: #f5f6f8;
+  background: var(--markweave-surface-muted);
+  color: rgba(29, 30, 32, 0.98);
 }
 
 .markweave-table-menu button:disabled {
   color: #a3abb7;
+}
+
+.markweave-table-menu-item-icon {
+  display: inline-flex;
+  flex: 0 0 18px;
+  align-items: center;
+  justify-content: center;
+}
+
+.markweave-table-menu-item-label {
+  min-width: 0;
+  flex: 1;
+}
+
+.markweave-table-menu-chevron {
+  margin-left: auto;
+  flex: 0 0 auto;
+}
+
+.markweave-table-submenu {
+  position: absolute;
+  left: calc(100% + 6px);
+  top: 0;
+  z-index: 13;
+  display: flex;
+  width: 228px;
+  max-height: min(754px, calc(100vh - 32px));
+  overflow-y: auto;
+  flex-direction: column;
+  border: 1px solid rgba(37, 39, 45, 0.08);
+  border-radius: 10px;
+  background: var(--markweave-surface);
+  box-shadow:
+    0 2px 3px rgba(17, 24, 39, 0.08),
+    0 6px 8px rgba(17, 24, 39, 0.06),
+    0 12px 24px rgba(17, 24, 39, 0.06),
+    0 16px 48px rgba(17, 24, 39, 0.04);
+  padding: 5px;
+  scrollbar-width: thin;
+}
+
+.markweave-table-alignment-menu {
+  top: min(240px, calc(100% - 218px));
+}
+
+.markweave-table-submenu button {
+  height: 30px;
+  min-height: 30px;
+  flex-basis: 30px;
+}
+
+.markweave-table-submenu button[data-active="true"] {
+  background: var(--markweave-selection);
+  color: var(--markweave-focus);
+}
+
+.markweave-table-submenu-title {
+  padding: 7px 9px 5px;
+  color: rgba(29, 30, 32, 0.92);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.markweave-table-submenu-separator {
+  height: 1px;
+  margin: 5px 0;
+  background: rgba(37, 39, 45, 0.1);
+}
+
+.markweave-table-color-swatch {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 18px;
+  border: 1px solid #e5e7eb;
+  border-radius: 999px;
 }
 
 .markweave-codeblock-overlay {
@@ -3816,6 +3940,7 @@ body:has(.markweave-mermaid-fullscreen-layer, .markweave-image-preview-layer) .m
 .markweave-editor-frame[data-markweave-theme="dark"] .markweave-floating-toolbar-popover,
 .markweave-editor-frame[data-markweave-theme="dark"] .markweave-slash-menu,
 .markweave-editor-frame[data-markweave-theme="dark"] .markweave-table-menu,
+.markweave-editor-frame[data-markweave-theme="dark"] .markweave-table-submenu,
 .markweave-editor-frame[data-markweave-theme="dark"] .markweave-codeblock-controls,
 .markweave-editor-frame[data-markweave-theme="dark"] .markweave-codeblock-language-menu,
 .markweave-editor-frame[data-markweave-theme="dark"] .markweave-math-editor-popover,
@@ -3888,15 +4013,22 @@ body:has(.markweave-mermaid-fullscreen-layer, .markweave-image-preview-layer) .m
 
 .markweave-editor-frame[data-markweave-theme="dark"] .markweave-table-controls button {
   border-color: var(--markweave-border);
-  background: var(--markweave-surface);
-  color: var(--markweave-text-muted);
+  background: var(--markweave-table-handle-surface);
+  color: var(--markweave-table-handle-text);
 }
 
 .markweave-editor-frame[data-markweave-theme="dark"] .markweave-table-controls button:hover,
 .markweave-editor-frame[data-markweave-theme="dark"] .markweave-table-controls button[aria-expanded="true"],
 .markweave-editor-frame[data-markweave-theme="dark"] .markweave-table-controls button:disabled:hover {
   border-color: var(--markweave-border-strong);
-  background: var(--markweave-surface-raised);
+  background: var(--markweave-table-handle-hover);
+  color: var(--markweave-text);
+}
+
+.markweave-editor-frame[data-markweave-theme="dark"] .markweave-table-controls .markweave-table-edge-handle:hover,
+.markweave-editor-frame[data-markweave-theme="dark"] .markweave-table-controls .markweave-table-edge-handle[aria-expanded="true"],
+.markweave-editor-frame[data-markweave-theme="dark"] .markweave-table-controls .markweave-table-edge-handle--selection {
+  background: var(--markweave-table-handle-hover);
   color: var(--markweave-text);
 }
 
@@ -3905,8 +4037,8 @@ body:has(.markweave-mermaid-fullscreen-layer, .markweave-image-preview-layer) .m
   color: var(--markweave-text-muted);
 }
 
-.markweave-editor-frame[data-markweave-theme="dark"] .markweave-table-menu button[data-starts-group="true"] {
-  border-top-color: var(--markweave-border);
+.markweave-editor-frame[data-markweave-theme="dark"] .markweave-table-menu button[data-starts-group="true"]::before {
+  background: var(--markweave-border);
 }
 
 .markweave-editor-frame[data-markweave-theme="dark"] .markweave-table-menu button:hover:not(:disabled) {
@@ -3914,9 +4046,17 @@ body:has(.markweave-mermaid-fullscreen-layer, .markweave-image-preview-layer) .m
   color: var(--markweave-text);
 }
 
-.markweave-editor-frame[data-markweave-theme="dark"] .markweave-editor-surface :is(.selectedCell, .markweave-active-cell, .markweave-selection-cell),
-.markweave-editor-frame[data-markweave-theme="dark"] .markweave-table-selection-overlay {
+.markweave-editor-frame[data-markweave-theme="dark"] .markweave-table-submenu-title {
+  color: var(--markweave-text);
+}
+
+.markweave-editor-frame[data-markweave-theme="dark"] .markweave-table-submenu-separator {
+  background: var(--markweave-border);
+}
+
+.markweave-editor-frame[data-markweave-theme="dark"] .markweave-table-submenu button[data-active="true"] {
   background: var(--markweave-selection);
+  color: var(--markweave-focus);
 }
 
 .markweave-editor-frame[data-markweave-theme="dark"] .markweave-editor-surface :is(code, pre, pre.markweave-code-block) {

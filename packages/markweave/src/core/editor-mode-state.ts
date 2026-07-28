@@ -41,9 +41,14 @@ export function setMarkweaveEditorModeState(editor: Editor, state: MarkweaveEdit
     mode: normalizeMarkweaveEditorMode(state.mode),
     editable: state.editable,
   };
+  const hasExplicitState = editorModeStates.has(editor);
   const previousState = getMarkweaveEditorModeState(editor);
 
-  if (previousState.mode === nextState.mode && previousState.editable === nextState.editable) {
+  if (
+    hasExplicitState &&
+    previousState.mode === nextState.mode &&
+    previousState.editable === nextState.editable
+  ) {
     return;
   }
 

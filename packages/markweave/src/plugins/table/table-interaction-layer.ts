@@ -837,7 +837,10 @@ export const MarkweaveTableInteractionLayer = Extension.create({
               );
               return false;
             },
-            mouseleave: (view) => {
+            mouseleave: (view, event) => {
+              if (event.relatedTarget instanceof Element && event.relatedTarget.closest(".markweave-table-controls")) {
+                return false;
+              }
               view.dispatch(view.state.tr.setMeta(tableInteractionPluginKey, { type: "clear-hover" } satisfies TableInteractionMeta));
               return false;
             },

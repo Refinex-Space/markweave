@@ -70,4 +70,23 @@ describe("lossless Markdown fallbacks", () => {
     expect(markdown).toContain("| Name");
     expect(markdown).not.toContain("<table>");
   });
+
+  it("round-trips styled table cells through the HTML fallback", () => {
+    const editor = createEditor(
+      '<table><tbody><tr><th style="color: #327da9; background-color: #fef9c3; text-align: center; vertical-align: top"><p>Name</p></th></tr><tr><td><p>Markweave</p></td></tr></tbody></table>',
+      "html",
+    );
+    const markdown = getMarkdown(editor);
+
+    expect(markdown).toContain('<th style="color: rgb(50, 125, 169); background-color: rgb(254, 249, 195); text-align: center; vertical-align: top">');
+
+    const reloaded = createEditor(markdown, "markdown");
+    const cell = (reloaded.getJSON() as JSONContent).content?.find((node) => node.type === "table")?.content?.[0]?.content?.[0];
+    expect(cell?.attrs).toMatchObject({
+      textColor: "rgb(50, 125, 169)",
+      backgroundColor: "rgb(254, 249, 195)",
+      textAlign: "center",
+      verticalAlign: "top",
+    });
+  });
 });

@@ -1,13 +1,16 @@
 // @vitest-environment jsdom
 
 import { Editor } from "@tiptap/core";
+import { CellSelection } from "@tiptap/pm/tables";
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createMarkweaveEditorExtensions } from "../src/editor-core/create-editor-extensions";
 import { getMarkweaveMessages, type MarkweaveMessages } from "../src/i18n";
 import { getTableFocusState } from "../src/plugins/table/table-focus-state";
+import { initialTableInteractionState, type TableInteractionState } from "../src/plugins/table/table-interaction-layer";
 import { TableControls } from "../../markweave-react/src/ui/table/TableControls";
+import { getTableAxisDropIndexAtPoint } from "../src/plugins/table/table-ui-model";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -125,6 +128,7 @@ async function renderTableControls(
     readonly onCopyPayload?: Parameters<typeof TableControls>[0]["onCopyPayload"];
     readonly onCommandResult?: Parameters<typeof TableControls>[0]["onCommandResult"];
     readonly onEditWithAi?: Parameters<typeof TableControls>[0]["onEditWithAi"];
+    readonly interactionState?: (editor: Editor) => TableInteractionState;
   } = {},
 ) {
   const { editor, frame } = createEditor();
@@ -133,7 +137,7 @@ async function renderTableControls(
   activeRoot = createRoot(host);
 
   await act(async () => {
-    activeRoot?.render(createElement(TableControls, { active: true, editor, messages, onCopyPayload: options.onCopyPayload, onCommandResult: options.onCommandResult, onEditWithAi: options.onEditWithAi }));
+    activeRoot?.render(createElement(TableControls, { active: true, editor, interactionState: options.interactionState?.(editor), messages, onCopyPayload: options.onCopyPayload, onCommandResult: options.onCommandResult, onEditWithAi: options.onEditWithAi }));
   });
   await flushReact();
 
@@ -185,7 +189,9 @@ describe("table controls DOM i18n", () => {
     expect(menu.getAttribute("data-positioned")).toBe("true");
     expect(menu.textContent).not.toContain("使用 AI 编辑");
     expect(menu.textContent).toContain("插入上方行");
-    expect(menu.textContent).toContain("复制表格");
+    expect(menu.textContent).toContain("行排序 A-Z");
+    expect(menu.textContent).toContain("颜色");
+    expect(menu.textContent).toContain("复制行");
     expect(menu.textContent).toContain("删除行");
     expect(document.querySelector('[data-testid="markweave-table-menu-command-edit-with-ai"]')).toBeNull();
   });
@@ -202,9 +208,10 @@ describe("table controls DOM i18n", () => {
     const menu = getByTestId("markweave-table-menu");
     expect(menu.getAttribute("aria-label")).toBe("Row actions");
     expect(menu.textContent).not.toContain("Edit with AI");
-    expect(menu.textContent).toContain("Insert Row Above");
-    expect(menu.textContent).toContain("Copy Table");
-    expect(menu.textContent).toContain("Delete Row");
+    expect(menu.textContent).toContain("Insert row above");
+    expect(menu.textContent).toContain("Sort row A-Z");
+    expect(menu.textContent).toContain("Duplicate row");
+    expect(menu.textContent).toContain("Delete row");
   });
 
   it("keeps the React AI menu item hidden even when a handler is provided", async () => {
@@ -223,13 +230,109 @@ describe("table controls DOM i18n", () => {
     const commandResult = vi.fn();
     await renderTableControls(undefined, { onCopyPayload: copyPayload, onCommandResult: commandResult });
 
-    await click(getByTestId("markweave-table-hover-row-handle"));
+    await click(getByTestId("markweave-table-cell-handle"));
     await click(getByTestId("markweave-table-menu-command-copy-table"));
 
     expect(copyPayload).toHaveBeenCalledTimes(1);
-    expect(commandResult).toHaveBeenCalledWith(expect.objectContaining({ commandId: "copy-table", menu: "row", copyPayload: expect.objectContaining({ kind: "table" }) }));
+    expect(commandResult).toHaveBeenCalledWith(expect.objectContaining({ commandId: "copy-table", menu: "selection", copyPayload: expect.objectContaining({ kind: "table" }) }));
     const feedback = getByTestId("markweave-table-copy-feedback");
     expect(feedback.getAttribute("data-copy-kind")).toBe("table");
     expect(feedback.textContent).toContain("表格已复制到剪贴板");
+  });
+
+  it("opens localized color and alignment submenus and applies formatting", async () => {
+    const editor = await renderTableControls();
+    await click(getByTestId("markweave-table-hover-column-handle"));
+    await click(getByTestId("markweave-table-menu-submenu-color"));
+
+    const colorMenu = getByTestId("markweave-table-color-menu");
+    expect(colorMenu.textContent).toContain("文字颜色");
+    expect(colorMenu.textContent).toContain("黄色背景");
+    const defaultTextColor = getByTestId("markweave-table-text-color-default");
+    const grayTextColor = getByTestId("markweave-table-text-color-gray");
+    const defaultTextSwatch = defaultTextColor.querySelector<HTMLElement>(".markweave-table-text-color-swatch");
+    const grayTextSwatch = grayTextColor.querySelector<HTMLElement>(".markweave-table-text-color-swatch");
+
+    expect(defaultTextColor.querySelector("svg")).toBeNull();
+    expect(defaultTextSwatch?.style.backgroundColor).toBe("var(--markweave-text)");
+    expect(grayTextColor.querySelector("svg")).toBeNull();
+    expect(grayTextSwatch?.style.backgroundColor).toBe("rgb(120, 118, 115)");
+    await click(getByTestId("markweave-table-background-color-yellow"));
+
+    const selectedCell = editor.state.doc.nodeAt(getTableFocusState(editor.state).activeCellPos ?? -1);
+    expect(selectedCell?.attrs.backgroundColor).toBe("#fef9c3");
+
+    await click(getByTestId("markweave-table-menu-submenu-alignment"));
+    expect(getByTestId("markweave-table-alignment-menu").textContent).toContain("顶部对齐");
+    await click(getByTestId("markweave-table-alignment-center"));
+    expect(editor.state.doc.nodeAt(getTableFocusState(editor.state).activeCellPos ?? -1)?.attrs.textAlign).toBe("center");
+  });
+
+  it("moves keyboard focus through menu items and submenu radio items", async () => {
+    await renderTableControls();
+    await click(getByTestId("markweave-table-hover-row-handle"));
+
+    const menu = getByTestId("markweave-table-menu");
+    const firstCommand = getByTestId<HTMLButtonElement>("markweave-table-menu-command-move-row-up");
+    const nextCommand = getByTestId<HTMLButtonElement>("markweave-table-menu-command-add-row-before");
+    firstCommand.focus();
+    menu.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, cancelable: true, key: "ArrowDown" }));
+    expect(document.activeElement).toBe(nextCommand);
+
+    await click(getByTestId("markweave-table-menu-submenu-color"));
+    const colorMenu = getByTestId("markweave-table-color-menu");
+    const defaultText = getByTestId<HTMLButtonElement>("markweave-table-text-color-default");
+    const grayText = getByTestId<HTMLButtonElement>("markweave-table-text-color-gray");
+    defaultText.focus();
+    colorMenu.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, cancelable: true, key: "ArrowDown" }));
+    expect(document.activeElement).toBe(grayText);
+  });
+
+  it("renders full-width and full-height add strips at the last row and column", async () => {
+    const editor = await renderTableControls(undefined, {
+      interactionState: (editor) => {
+        expect(editor.commands.setTextSelection(textPosition(editor, "Modeled"))).toBe(true);
+        const cellPos = getTableFocusState(editor.state).activeCellPos;
+        expect(cellPos).not.toBeNull();
+        return {
+          ...initialTableInteractionState,
+          hoverCellPos: cellPos,
+          hoverVisualRowIndex: 1,
+          hoverVisualColumnIndex: 2,
+        };
+      },
+    });
+
+    const addRow = getByTestId<HTMLButtonElement>("markweave-table-add-row");
+    const addColumn = getByTestId<HTMLButtonElement>("markweave-table-add-column");
+    expect(addRow.getAttribute("aria-label")).toBe("新增行");
+    expect(addColumn.getAttribute("aria-label")).toBe("新增列");
+    expect(addRow.style.width).toBe("720px");
+    expect(addColumn.style.height).toBe("120px");
+
+    await click(addRow);
+    expect(editor.view.dom.querySelectorAll("tr")).toHaveLength(3);
+    expect(editor.state.selection).not.toBeInstanceOf(CellSelection);
+    expect(getTableFocusState(editor.state)).toMatchObject({ mode: "cell-cursor", selectedCellCount: 1 });
+
+    await click(getByTestId("markweave-table-add-column"));
+    expect(Array.from(editor.view.dom.querySelectorAll("tr"), (row) => row.querySelectorAll("th, td").length)).toEqual([4, 4, 4]);
+    expect(editor.state.selection).not.toBeInstanceOf(CellSelection);
+    expect(getTableFocusState(editor.state)).toMatchObject({ mode: "cell-cursor", selectedCellCount: 1 });
+  });
+
+  it("resolves row and column drag targets from the pointer position", async () => {
+    const editor = await renderTableControls();
+    const table = editor.view.dom.querySelector("table");
+    expect(table).toBeTruthy();
+    Array.from(table?.rows ?? []).forEach((row, rowIndex) => {
+      row.getBoundingClientRect = () => createRect(120, 120 + rowIndex * 48, 720, 48);
+      Array.from(row.cells).forEach((cell, columnIndex) => {
+        cell.getBoundingClientRect = () => createRect(120 + columnIndex * 240, 120 + rowIndex * 48, 240, 48);
+      });
+    });
+
+    expect(getTableAxisDropIndexAtPoint(editor, "row", 360, 120 + 48 + 24)).toBe(1);
+    expect(getTableAxisDropIndexAtPoint(editor, "column", 120 + 2 * 240 + 120, 180)).toBe(2);
   });
 });

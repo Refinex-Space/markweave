@@ -4,6 +4,98 @@ type LucideIconAttrs = Readonly<Record<string, string>>;
 type LucideIconNode = readonly (readonly [tag: string, attrs: LucideIconAttrs])[];
 
 const lucideIcons = {
+  "AlignVerticalJustifyCenter": {
+    iconName: "align-vertical-justify-center",
+    node: [
+      ["rect", { width: "14", height: "6", x: "5", y: "16", rx: "2", key: "1i8z2d" }],
+      ["rect", { width: "10", height: "6", x: "7", y: "2", rx: "2", key: "ypihtt" }],
+      ["path", { d: "M2 12h20", key: "9i4pu4" }],
+    ],
+  },
+  "AlignVerticalJustifyEnd": {
+    iconName: "align-vertical-justify-end",
+    node: [
+      ["rect", { width: "14", height: "6", x: "5", y: "12", rx: "2", key: "4l4tp2" }],
+      ["rect", { width: "10", height: "6", x: "7", y: "2", rx: "2", key: "ypihtt" }],
+      ["path", { d: "M2 22h20", key: "272qi7" }],
+    ],
+  },
+  "AlignVerticalJustifyStart": {
+    iconName: "align-vertical-justify-start",
+    node: [
+      ["rect", { width: "14", height: "6", x: "5", y: "16", rx: "2", key: "1i8z2d" }],
+      ["rect", { width: "10", height: "6", x: "7", y: "6", rx: "2", key: "13squh" }],
+      ["path", { d: "M2 2h20", key: "1ennik" }],
+    ],
+  },
+  "ArrowDown": {
+    iconName: "arrow-down",
+    node: [["path", { d: "M12 5v14", key: "s699le" }], ["path", { d: "m19 12-7 7-7-7", key: "1idqje" }]],
+  },
+  "ArrowDownAZ": {
+    iconName: "arrow-down-a-z",
+    node: [["path", { d: "m3 16 4 4 4-4", key: "1co6wj" }], ["path", { d: "M7 20V4", key: "1yoxec" }], ["path", { d: "M20 8h-5", key: "1vsyxs" }], ["path", { d: "M15 10V6.5a2.5 2.5 0 0 1 5 0V10", key: "ag13bf" }], ["path", { d: "M15 14h5l-5 6h5", key: "ur5jdg" }]],
+  },
+  "ArrowLeft": {
+    iconName: "arrow-left",
+    node: [["path", { d: "m12 19-7-7 7-7", key: "1l729n" }], ["path", { d: "M19 12H5", key: "x3x0zl" }]],
+  },
+  "ArrowRight": {
+    iconName: "arrow-right",
+    node: [["path", { d: "M5 12h14", key: "1ays0h" }], ["path", { d: "m12 5 7 7-7 7", key: "xquz4c" }]],
+  },
+  "ArrowUp": {
+    iconName: "arrow-up",
+    node: [["path", { d: "m5 12 7-7 7 7", key: "hav0vg" }], ["path", { d: "M12 19V5", key: "x0mq9r" }]],
+  },
+  "ArrowUpZA": {
+    iconName: "arrow-up-z-a",
+    node: [["path", { d: "m3 8 4-4 4 4", key: "11wl7u" }], ["path", { d: "M7 4v16", key: "1glfcx" }], ["path", { d: "M15 4h5l-5 6h5", key: "8asdl1" }], ["path", { d: "M15 20v-3.5a2.5 2.5 0 0 1 5 0V20", key: "r6l5cz" }], ["path", { d: "M20 18h-5", key: "18j1r2" }]],
+  },
+  "BetweenHorizontalEnd": {
+    iconName: "between-horizontal-end",
+    node: [["rect", { width: "13", height: "7", x: "3", y: "3", rx: "1", key: "11xb64" }], ["path", { d: "m22 15-3-3 3-3", key: "26chmm" }], ["rect", { width: "13", height: "7", x: "3", y: "14", rx: "1", key: "k6ky7n" }]],
+  },
+  "BetweenHorizontalStart": {
+    iconName: "between-horizontal-start",
+    node: [["rect", { width: "13", height: "7", x: "8", y: "3", rx: "1", key: "pkso9a" }], ["path", { d: "m2 9 3 3-3 3", key: "1agib5" }], ["rect", { width: "13", height: "7", x: "8", y: "14", rx: "1", key: "1q5fc1" }]],
+  },
+  "BetweenVerticalEnd": {
+    iconName: "between-vertical-end",
+    node: [["rect", { width: "7", height: "13", x: "3", y: "3", rx: "1", key: "1fdu0f" }], ["path", { d: "m9 22 3-3 3 3", key: "17z65a" }], ["rect", { width: "7", height: "13", x: "14", y: "3", rx: "1", key: "1squn4" }]],
+  },
+  "BetweenVerticalStart": {
+    iconName: "between-vertical-start",
+    node: [["rect", { width: "7", height: "13", x: "3", y: "8", rx: "1", key: "1fjrkv" }], ["path", { d: "m15 2-3 3-3-3", key: "1uh6eb" }], ["rect", { width: "7", height: "13", x: "14", y: "8", rx: "1", key: "w3fjg8" }]],
+  },
+  "ChevronRight": {
+    iconName: "chevron-right",
+    node: [["path", { d: "m9 18 6-6-6-6", key: "mthhwq" }]],
+  },
+  "Copy": {
+    iconName: "copy",
+    node: [["rect", { width: "14", height: "14", x: "8", y: "8", rx: "2", ry: "2", key: "17jyea" }], ["path", { d: "M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2", key: "zix9uf" }]],
+  },
+  "PaintBucket": {
+    iconName: "paint-bucket",
+    node: [["path", { d: "m19 11-8-8-8.6 8.6a2 2 0 0 0 0 2.8l5.2 5.2c.8.8 2 .8 2.8 0L19 11Z", key: "irua1i" }], ["path", { d: "m5 2 5 5", key: "1lls2c" }], ["path", { d: "M2 13h15", key: "1hkzvu" }], ["path", { d: "M22 20a2 2 0 1 1-4 0c0-1.6 1.7-2.4 2-4 .3 1.6 2 2.4 2 4Z", key: "xk76lq" }]],
+  },
+  "Plus": {
+    iconName: "plus",
+    node: [["path", { d: "M5 12h14", key: "1ays0h" }], ["path", { d: "M12 5v14", key: "s699le" }]],
+  },
+  "SquareX": {
+    iconName: "square-x",
+    node: [["rect", { width: "18", height: "18", x: "3", y: "3", rx: "2", ry: "2", key: "1m3agn" }], ["path", { d: "m15 9-6 6", key: "1uzhvr" }], ["path", { d: "m9 9 6 6", key: "z0biqf" }]],
+  },
+  "TableCellsMerge": {
+    iconName: "table-cells-merge",
+    node: [["path", { d: "M12 21v-6", key: "lihzve" }], ["path", { d: "M12 9V3", key: "da5inc" }], ["path", { d: "M3 15h18", key: "5xshup" }], ["path", { d: "M3 9h18", key: "1pudct" }], ["rect", { width: "18", height: "18", x: "3", y: "3", rx: "2", key: "afitv7" }]],
+  },
+  "TableCellsSplit": {
+    iconName: "table-cells-split",
+    node: [["path", { d: "M12 15V9", key: "8c7uyn" }], ["path", { d: "M3 15h18", key: "5xshup" }], ["path", { d: "M3 9h18", key: "1pudct" }], ["rect", { width: "18", height: "18", x: "3", y: "3", rx: "2", key: "afitv7" }]],
+  },
   "AlignCenter": {
     iconName: "text-align-center",
     node: [
@@ -526,16 +618,31 @@ export const AlignCenter = createIconComponent("AlignCenter");
 export const AlignJustify = createIconComponent("AlignJustify");
 export const AlignLeft = createIconComponent("AlignLeft");
 export const AlignRight = createIconComponent("AlignRight");
+export const AlignVerticalJustifyCenter = createIconComponent("AlignVerticalJustifyCenter");
+export const AlignVerticalJustifyEnd = createIconComponent("AlignVerticalJustifyEnd");
+export const AlignVerticalJustifyStart = createIconComponent("AlignVerticalJustifyStart");
 export const AlertTriangle = createIconComponent("AlertTriangle");
+export const ArrowDown = createIconComponent("ArrowDown");
+export const ArrowDownAZ = createIconComponent("ArrowDownAZ");
+export const ArrowLeft = createIconComponent("ArrowLeft");
+export const ArrowRight = createIconComponent("ArrowRight");
+export const ArrowUp = createIconComponent("ArrowUp");
+export const ArrowUpZA = createIconComponent("ArrowUpZA");
+export const BetweenHorizontalEnd = createIconComponent("BetweenHorizontalEnd");
+export const BetweenHorizontalStart = createIconComponent("BetweenHorizontalStart");
+export const BetweenVerticalEnd = createIconComponent("BetweenVerticalEnd");
+export const BetweenVerticalStart = createIconComponent("BetweenVerticalStart");
 export const Bold = createIconComponent("Bold");
 export const Braces = createIconComponent("Braces");
 export const Captions = createIconComponent("Captions");
 export const CheckCircle2 = createIconComponent("CheckCircle2");
 export const ChevronDown = createIconComponent("ChevronDown");
+export const ChevronRight = createIconComponent("ChevronRight");
 export const ChevronUp = createIconComponent("ChevronUp");
 export const CircleX = createIconComponent("CircleX");
 export const Code2 = createIconComponent("Code2");
 export const CornerDownLeft = createIconComponent("CornerDownLeft");
+export const Copy = createIconComponent("Copy");
 export const Download = createIconComponent("Download");
 export const Eye = createIconComponent("Eye");
 export const ExternalLink = createIconComponent("ExternalLink");
@@ -555,16 +662,21 @@ export const ListChecks = createIconComponent("ListChecks");
 export const ListOrdered = createIconComponent("ListOrdered");
 export const Minus = createIconComponent("Minus");
 export const MoreVertical = createIconComponent("MoreVertical");
+export const PaintBucket = createIconComponent("PaintBucket");
 export const Paperclip = createIconComponent("Paperclip");
 export const PencilLine = createIconComponent("PencilLine");
+export const Plus = createIconComponent("Plus");
 export const Quote = createIconComponent("Quote");
 export const Replace = createIconComponent("Replace");
 export const Sigma = createIconComponent("Sigma");
 export const SmilePlus = createIconComponent("SmilePlus");
+export const SquareX = createIconComponent("SquareX");
 export const Strikethrough = createIconComponent("Strikethrough");
 export const Subscript = createIconComponent("Subscript");
 export const Superscript = createIconComponent("Superscript");
 export const Table2 = createIconComponent("Table2");
+export const TableCellsMerge = createIconComponent("TableCellsMerge");
+export const TableCellsSplit = createIconComponent("TableCellsSplit");
 export const Text = createIconComponent("Text");
 export const Trash2 = createIconComponent("Trash2");
 export const Type = createIconComponent("Type");

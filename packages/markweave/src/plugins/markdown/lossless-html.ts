@@ -3,6 +3,7 @@ import { normalizeMarkdownLinkHref } from "./markdown-input";
 
 const cssColorPattern = /^(?:#[0-9a-f]{3,8}|(?:rgb|hsl)a?\([0-9.%\s,/-]+\)|[a-z]+)$/i;
 const textAlignmentValues = new Set(["left", "center", "right", "justify"]);
+const tableVerticalAlignmentValues = new Set(["top", "middle", "bottom"]);
 
 function escapeHtml(value: string) {
   return value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\"/g, "&quot;").replace(/'/g, "&#39;");
@@ -58,6 +59,22 @@ function renderTextAlignment(attributes: Record<string, unknown> = {}) {
   return textAlignmentValues.has(alignment) && alignment !== "left" ? ` style="text-align: ${alignment}"` : "";
 }
 
+function renderTableCellAttributes(attributes: Record<string, unknown> = {}) {
+  const styles: string[] = [];
+  const textColor = normalizeMarkweaveHtmlColor(attributes.textColor);
+  const backgroundColor = normalizeMarkweaveHtmlColor(attributes.backgroundColor);
+  const textAlign = typeof attributes.textAlign === "string" && textAlignmentValues.has(attributes.textAlign) ? attributes.textAlign : "left";
+  const verticalAlign = typeof attributes.verticalAlign === "string" && tableVerticalAlignmentValues.has(attributes.verticalAlign) ? attributes.verticalAlign : "middle";
+
+  if (textColor) styles.push(`color: ${textColor}`);
+  if (backgroundColor) styles.push(`background-color: ${backgroundColor}`);
+  if (textAlign !== "left") styles.push(`text-align: ${textAlign}`);
+  if (verticalAlign !== "middle") styles.push(`vertical-align: ${verticalAlign}`);
+
+  const spanAttributes = renderHtmlAttributes(attributes, ["colspan", "rowspan"]);
+  return styles.length > 0 ? `${spanAttributes} style="${styles.map(escapeHtml).join("; ")}"` : spanAttributes;
+}
+
 export function renderMarkweaveHtmlFallback(node: JSONContent): string {
   const children = () => (node.content ?? []).map(renderMarkweaveHtmlFallback).join("");
 
@@ -73,8 +90,8 @@ export function renderMarkweaveHtmlFallback(node: JSONContent): string {
   if (node.type === "listItem") return `<li>${children()}</li>`;
   if (node.type === "table") return `<table><tbody>${children()}</tbody></table>`;
   if (node.type === "tableRow") return `<tr>${children()}</tr>`;
-  if (node.type === "tableHeader") return `<th${renderHtmlAttributes(node.attrs ?? {}, ["colspan", "rowspan"])}>${children()}</th>`;
-  if (node.type === "tableCell") return `<td${renderHtmlAttributes(node.attrs ?? {}, ["colspan", "rowspan"])}>${children()}</td>`;
+  if (node.type === "tableHeader") return `<th${renderTableCellAttributes(node.attrs)}>${children()}</th>`;
+  if (node.type === "tableCell") return `<td${renderTableCellAttributes(node.attrs)}>${children()}</td>`;
 
   return children();
 }
@@ -84,9 +101,19 @@ export function needsMarkweaveTableHtmlFallback(node: JSONContent) {
   const visit = (current: JSONContent) => {
     if (requiresFallback) return;
 
-    if ((current.type === "tableCell" || current.type === "tableHeader") && ((Number(current.attrs?.colspan) || 1) > 1 || (Number(current.attrs?.rowspan) || 1) > 1)) {
-      requiresFallback = true;
-      return;
+    if (current.type === "tableCell" || current.type === "tableHeader") {
+      const attrs = current.attrs ?? {};
+      const hasSpans = (Number(attrs.colspan) || 1) > 1 || (Number(attrs.rowspan) || 1) > 1;
+      const hasCellStyle =
+        Boolean(normalizeMarkweaveHtmlColor(attrs.textColor)) ||
+        Boolean(normalizeMarkweaveHtmlColor(attrs.backgroundColor)) ||
+        (typeof attrs.textAlign === "string" && textAlignmentValues.has(attrs.textAlign) && attrs.textAlign !== "left") ||
+        (typeof attrs.verticalAlign === "string" && tableVerticalAlignmentValues.has(attrs.verticalAlign) && attrs.verticalAlign !== "middle");
+
+      if (hasSpans || hasCellStyle) {
+        requiresFallback = true;
+        return;
+      }
     }
 
     current.content?.forEach(visit);

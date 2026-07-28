@@ -1,6 +1,7 @@
 import type { SlashCommandSpec } from "./plugins/slash-command/command-spec";
 import type { TableMenuCopyKind } from "./plugins/table/table-clipboard";
 import type { TableCommandId } from "./plugins/table/table-command-spec";
+import type { TableAlignmentId, TableColorId } from "./plugins/table/table-formatting";
 
 export type MarkweaveLang = "zh" | "en";
 
@@ -52,6 +53,7 @@ export interface MarkweaveMessages {
   };
   readonly slash: {
     readonly ariaLabel: string;
+    readonly emptyLinePlaceholder: string;
     readonly filterPlaceholder: string;
     readonly noResults: string;
     readonly emojiTitle: string;
@@ -110,6 +112,16 @@ export interface MarkweaveMessages {
     readonly selectionActions: string;
     readonly activeRowActions: string;
     readonly activeColumnActions: string;
+    readonly addRow: string;
+    readonly addColumn: string;
+    readonly submenus: {
+      readonly color: string;
+      readonly alignment: string;
+      readonly textColor: string;
+      readonly backgroundColor: string;
+    };
+    readonly colors: Record<TableColorId, { readonly text: string; readonly background: string }>;
+    readonly alignments: Record<TableAlignmentId, string>;
     readonly commands: Record<TableCommandId | "edit-with-ai", string>;
     readonly copyFeedback: Record<TableMenuCopyKind, string>;
   };
@@ -657,6 +669,7 @@ const messagesByLang: Record<MarkweaveLang, MarkweaveMessages> = {
     },
     slash: {
       ariaLabel: "Slash 命令",
+      emptyLinePlaceholder: "输入 / 唤起快捷操作",
       filterPlaceholder: "筛选...",
       noResults: "无结果",
       emojiTitle: "表情",
@@ -725,16 +738,52 @@ const messagesByLang: Record<MarkweaveLang, MarkweaveMessages> = {
       selectionActions: "选区操作",
       activeRowActions: "当前行操作",
       activeColumnActions: "当前列操作",
+      addRow: "新增行",
+      addColumn: "新增列",
+      submenus: {
+        color: "颜色",
+        alignment: "对齐方式",
+        textColor: "文字颜色",
+        backgroundColor: "背景颜色",
+      },
+      colors: {
+        default: { text: "默认文字", background: "默认背景" },
+        gray: { text: "灰色文字", background: "灰色背景" },
+        brown: { text: "棕色文字", background: "棕色背景" },
+        orange: { text: "橙色文字", background: "橙色背景" },
+        yellow: { text: "黄色文字", background: "黄色背景" },
+        green: { text: "绿色文字", background: "绿色背景" },
+        blue: { text: "蓝色文字", background: "蓝色背景" },
+        purple: { text: "紫色文字", background: "紫色背景" },
+        pink: { text: "粉色文字", background: "粉色背景" },
+        red: { text: "红色文字", background: "红色背景" },
+      },
+      alignments: {
+        left: "左对齐",
+        center: "居中对齐",
+        right: "右对齐",
+        top: "顶部对齐",
+        middle: "垂直居中",
+        bottom: "底部对齐",
+      },
       commands: {
         "edit-with-ai": "使用 AI 编辑",
         "add-row-before": "插入上方行",
         "add-row-after": "插入下方行",
         "move-row-up": "上移行",
         "move-row-down": "下移行",
+        "sort-row-asc": "行排序 A-Z",
+        "sort-row-desc": "行排序 Z-A",
+        "clear-row": "清空行内容",
+        "duplicate-row": "复制行",
         "add-column-before": "插入左侧列",
         "add-column-after": "插入右侧列",
         "move-column-left": "左移列",
         "move-column-right": "右移列",
+        "sort-column-asc": "列排序 A-Z",
+        "sort-column-desc": "列排序 Z-A",
+        "clear-column": "清空列内容",
+        "duplicate-column": "复制列",
         "copy-row": "复制行",
         "copy-column": "复制列",
         "copy-table": "复制表格",
@@ -867,6 +916,7 @@ const messagesByLang: Record<MarkweaveLang, MarkweaveMessages> = {
     },
     slash: {
       ariaLabel: "Slash commands",
+      emptyLinePlaceholder: "Press / for quick actions",
       filterPlaceholder: "Filter...",
       noResults: "No results",
       emojiTitle: "Emoji",
@@ -935,24 +985,60 @@ const messagesByLang: Record<MarkweaveLang, MarkweaveMessages> = {
       selectionActions: "Selection actions",
       activeRowActions: "Active row actions",
       activeColumnActions: "Active column actions",
+      addRow: "Add row",
+      addColumn: "Add column",
+      submenus: {
+        color: "Color",
+        alignment: "Alignment",
+        textColor: "Text color",
+        backgroundColor: "Background color",
+      },
+      colors: {
+        default: { text: "Default text", background: "Default background" },
+        gray: { text: "Gray text", background: "Gray background" },
+        brown: { text: "Brown text", background: "Brown background" },
+        orange: { text: "Orange text", background: "Orange background" },
+        yellow: { text: "Yellow text", background: "Yellow background" },
+        green: { text: "Green text", background: "Green background" },
+        blue: { text: "Blue text", background: "Blue background" },
+        purple: { text: "Purple text", background: "Purple background" },
+        pink: { text: "Pink text", background: "Pink background" },
+        red: { text: "Red text", background: "Red background" },
+      },
+      alignments: {
+        left: "Align left",
+        center: "Align center",
+        right: "Align right",
+        top: "Align top",
+        middle: "Align middle",
+        bottom: "Align bottom",
+      },
       commands: {
         "edit-with-ai": "Edit with AI",
-        "add-row-before": "Insert Row Above",
-        "add-row-after": "Insert Row Below",
-        "move-row-up": "Move Row Up",
-        "move-row-down": "Move Row Down",
-        "add-column-before": "Insert Column Left",
-        "add-column-after": "Insert Column Right",
-        "move-column-left": "Move Column Left",
-        "move-column-right": "Move Column Right",
-        "copy-row": "Copy Row",
-        "copy-column": "Copy Column",
-        "copy-table": "Copy Table",
-        "delete-row": "Delete Row",
-        "delete-column": "Delete Column",
+        "add-row-before": "Insert row above",
+        "add-row-after": "Insert row below",
+        "move-row-up": "Move row up",
+        "move-row-down": "Move row down",
+        "sort-row-asc": "Sort row A-Z",
+        "sort-row-desc": "Sort row Z-A",
+        "clear-row": "Clear row contents",
+        "duplicate-row": "Duplicate row",
+        "add-column-before": "Insert column left",
+        "add-column-after": "Insert column right",
+        "move-column-left": "Move column left",
+        "move-column-right": "Move column right",
+        "sort-column-asc": "Sort column A-Z",
+        "sort-column-desc": "Sort column Z-A",
+        "clear-column": "Clear column contents",
+        "duplicate-column": "Duplicate column",
+        "copy-row": "Copy row",
+        "copy-column": "Copy column",
+        "copy-table": "Copy table",
+        "delete-row": "Delete row",
+        "delete-column": "Delete column",
         "merge-cells": "Merge",
         "split-cell": "Split",
-        "delete-table": "Delete Table",
+        "delete-table": "Delete table",
       },
       copyFeedback: {
         row: "Row copied to clipboard",

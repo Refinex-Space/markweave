@@ -11,6 +11,7 @@ import {
   largeTextPerformanceFixture,
   largeValidMediaPerformanceFixture,
   mergedTablePlaygroundDocument,
+  resolvePlaygroundMediaSource,
   stressDocumentPerformanceFixture,
 } from "@markweave/playground-fixtures";
 
@@ -105,5 +106,29 @@ describe("playground fixtures", () => {
     expect(missingReferences).toHaveLength(426);
     expect(new Set(validReferences.map((match) => match[1])).size).toBe(421);
     expect(new Set(missingReferences.map((match) => match[1])).size).toBe(421);
+  });
+
+  it("resolves fixture assets, passes through browser image URLs, and preserves missing asset semantics", () => {
+    const signal = new AbortController().signal;
+    const remoteSources = [
+      "https://images.unsplash.com/photo-1508739773434-c26b3d09e071?w=900",
+      "http://127.0.0.1:5173/image.png",
+      "data:image/png;base64,AA==",
+      "blob:http://127.0.0.1:5173/image-id",
+    ];
+
+    expect(resolvePlaygroundMediaSource({ src: "fixture-asset://asset-1", signal })).toMatchObject({
+      width: 64,
+      height: 36,
+    });
+    for (const src of remoteSources) {
+      expect(resolvePlaygroundMediaSource({ src, signal })).toEqual({ src });
+    }
+    expect(resolvePlaygroundMediaSource({ src: "missing-asset://asset-1", signal })).toBeNull();
+    expect(resolvePlaygroundMediaSource({ src: "javascript:alert(1)", signal })).toBeNull();
+
+    const controller = new AbortController();
+    controller.abort();
+    expect(resolvePlaygroundMediaSource({ src: remoteSources[0]!, signal: controller.signal })).toBeNull();
   });
 });

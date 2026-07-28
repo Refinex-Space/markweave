@@ -1,19 +1,55 @@
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type DragEvent, type KeyboardEvent as ReactKeyboardEvent } from "react";
 import type { Editor } from "@tiptap/react";
+import {
+  AlignCenter,
+  AlignLeft,
+  AlignRight,
+  AlignVerticalJustifyCenter,
+  AlignVerticalJustifyEnd,
+  AlignVerticalJustifyStart,
+  ArrowDown,
+  ArrowDownAZ,
+  ArrowLeft,
+  ArrowRight,
+  ArrowUp,
+  ArrowUpZA,
+  BetweenHorizontalEnd,
+  BetweenHorizontalStart,
+  BetweenVerticalEnd,
+  BetweenVerticalStart,
+  ChevronRight,
+  Copy,
+  MoreVertical,
+  PaintBucket,
+  Plus,
+  SquareX,
+  TableCellsMerge,
+  TableCellsSplit,
+  Trash2,
+  Type as TypeIcon,
+  type LucideIcon,
+} from "lucide-react";
 import {
   setMarkweaveTableMenuAxisTarget,
   type MarkweaveMenuCopyPayload,
 } from "markweave/internal/plugins/table/table-clipboard";
-import { type TableCommandId } from "markweave/internal/plugins/table/table-command-spec";
+import {
+  type TableCommandId,
+  type TableMenuIconId,
+  type TableMenuSubmenuId,
+} from "markweave/internal/plugins/table/table-command-spec";
 import { getTableFocusState } from "markweave/internal/plugins/table/table-focus-state";
 import {
   initialTableInteractionState,
+  tableInteractionPluginKey,
   type TableInteractionState,
 } from "markweave/internal/plugins/table/table-interaction-layer";
 import {
   calculateAnchoredTableMenuPosition,
+  calculateTableAxisHandleLayout,
   calculateTableControlsPosition,
   calculateTableEdgeHandlePosition,
+  calculateTableExtendButtonLayout,
   calculateTableMenuPosition,
   canRunTableCommand,
   executeTableMenuCommand,
@@ -21,6 +57,8 @@ import {
   getActiveTableElement,
   getAvailableCellMenuCommandSpecs,
   getTableAxisTargetRect,
+  getTableAxisFormattingState,
+  getTableAxisDropIndexAtPoint,
   getTableAxisSelectionModel,
   getTableControlAxisSelectionModel,
   getTableCommandSnapshot,
@@ -30,13 +68,23 @@ import {
   getTableMenuItemLabel,
   getTableMenuItems,
   getTableSelectionTargetRect,
+  applyTableAxisAlignment,
+  applyTableAxisBackgroundColor,
+  applyTableAxisTextColor,
+  moveTargetedTableAxis,
   runTableCommand,
   selectTableAxisFromCell,
+  targetTableAxisFromCell,
   tableCopyFeedbackTimeoutMs,
   tableMenuLabel,
+  tableColorOptions,
+  tableHorizontalAlignmentOptions,
+  tableVerticalAlignmentOptions,
   writeMarkweaveMenuPayloadToClipboard,
   type TableCopyFeedbackSnapshot,
-  type TableEdgeHandlePosition,
+  type TableAlignmentId,
+  type TableAxisHandleLayout,
+  type TableColorId,
   type TableMenuAnchor,
   type TableMenuKind,
   type TableMenuPosition,
@@ -72,6 +120,36 @@ interface TableControlsProps {
 
 const defaultTableMessages = getMarkweaveMessages("zh");
 
+const tableMenuIcons: Readonly<Record<TableMenuIconId, LucideIcon>> = {
+  "move-left": ArrowLeft,
+  "move-right": ArrowRight,
+  "move-up": ArrowUp,
+  "move-down": ArrowDown,
+  "insert-left": BetweenVerticalStart,
+  "insert-right": BetweenVerticalEnd,
+  "insert-above": BetweenHorizontalStart,
+  "insert-below": BetweenHorizontalEnd,
+  "sort-asc": ArrowDownAZ,
+  "sort-desc": ArrowUpZA,
+  color: PaintBucket,
+  alignment: AlignLeft,
+  clear: SquareX,
+  duplicate: Copy,
+  copy: Copy,
+  merge: TableCellsMerge,
+  split: TableCellsSplit,
+  delete: Trash2,
+};
+
+const tableAlignmentIcons: Readonly<Record<TableAlignmentId, LucideIcon>> = {
+  left: AlignLeft,
+  center: AlignCenter,
+  right: AlignRight,
+  top: AlignVerticalJustifyStart,
+  middle: AlignVerticalJustifyCenter,
+  bottom: AlignVerticalJustifyEnd,
+};
+
 export function TableControls({
   active,
   editor,
@@ -82,11 +160,17 @@ export function TableControls({
   onEditWithAi,
 }: TableControlsProps) {
   const [openMenu, setOpenMenu] = useState<TableMenuKind | null>(null);
+  const [openSubmenu, setOpenSubmenu] = useState<TableMenuSubmenuId | null>(null);
   const [menuAnchor, setMenuAnchor] = useState<TableMenuAnchor>("row-edge");
   const [menuPosition, setMenuPosition] = useState<TableMenuPosition | null>(null);
-  const [rowEdgePosition, setRowEdgePosition] = useState<TableEdgeHandlePosition | null>(null);
-  const [columnEdgePosition, setColumnEdgePosition] = useState<TableEdgeHandlePosition | null>(null);
-  const [selectionEdgePosition, setSelectionEdgePosition] = useState<TableEdgeHandlePosition | null>(null);
+  const [rowEdgePosition, setRowEdgePosition] = useState<TableAxisHandleLayout | null>(null);
+  const [columnEdgePosition, setColumnEdgePosition] = useState<TableAxisHandleLayout | null>(null);
+  const [selectionEdgePosition, setSelectionEdgePosition] = useState<TableAxisHandleLayout | null>(null);
+  const [rowExtendPosition, setRowExtendPosition] = useState<TableAxisHandleLayout | null>(null);
+  const [columnExtendPosition, setColumnExtendPosition] = useState<TableAxisHandleLayout | null>(null);
+  const [, setFormatRevision] = useState(0);
+  const dragOriginRef = useRef<{ readonly axis: "row" | "column"; readonly index: number } | null>(null);
+  const dragTargetRef = useRef<number | null>(null);
   const [copyFeedback, setCopyFeedback] = useState<TableCopyFeedbackSnapshot | null>(null);
   const controlsRef = useRef<HTMLDivElement | null>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
@@ -109,11 +193,42 @@ export function TableControls({
     };
   }, [copyFeedback]);
 
+  useEffect(() => {
+    const handleAxisDragOver = (event: globalThis.DragEvent) => {
+      const origin = dragOriginRef.current;
+      if (!origin) return;
+      const target = getTableAxisDropIndexAtPoint(editor, origin.axis, event.clientX, event.clientY);
+      if (target === null) return;
+      event.preventDefault();
+      dragTargetRef.current = target;
+      if (event.dataTransfer) event.dataTransfer.dropEffect = "move";
+    };
+
+    const handleAxisDrop = (event: globalThis.DragEvent) => {
+      const origin = dragOriginRef.current;
+      if (!origin) return;
+      const target = getTableAxisDropIndexAtPoint(editor, origin.axis, event.clientX, event.clientY) ?? dragTargetRef.current;
+      event.preventDefault();
+      dragOriginRef.current = null;
+      dragTargetRef.current = null;
+      if (target !== null) moveTargetedTableAxis(editor, origin.axis, origin.index, target);
+    };
+
+    document.addEventListener("dragover", handleAxisDragOver);
+    document.addEventListener("drop", handleAxisDrop);
+    return () => {
+      document.removeEventListener("dragover", handleAxisDragOver);
+      document.removeEventListener("drop", handleAxisDrop);
+    };
+  }, [editor]);
+
   useLayoutEffect(() => {
     if (!active) {
       setRowEdgePosition(null);
       setColumnEdgePosition(null);
       setSelectionEdgePosition(null);
+      setRowExtendPosition(null);
+      setColumnExtendPosition(null);
       setCopyFeedback(null);
       return undefined;
     }
@@ -124,12 +239,15 @@ export function TableControls({
       const columnAxisModel = getTableControlAxisSelectionModel(editor, interactionState, "column", focusState?.activeCellPos ?? null);
       const rowAxisRect = rowAxisModel ? getTableAxisTargetRect(editor, rowAxisModel) : null;
       const columnAxisRect = columnAxisModel ? getTableAxisTargetRect(editor, columnAxisModel) : null;
-      const selectionRect = getAvailableCellMenuCommandSpecs(editor).length > 0 ? getTableSelectionTargetRect(editor) : null;
+      const selectionRect = getTableMenuItems(editor, "selection").length > 0 ? getTableSelectionTargetRect(editor) : null;
+      const tableRect = getActiveTableElement(editor)?.getBoundingClientRect() ?? null;
 
       if (!frameElement) {
         setRowEdgePosition(null);
         setColumnEdgePosition(null);
         setSelectionEdgePosition(null);
+        setRowExtendPosition(null);
+        setColumnExtendPosition(null);
         return;
       }
 
@@ -137,7 +255,7 @@ export function TableControls({
 
       if (rowAxisRect) {
         setRowEdgePosition(
-          calculateTableEdgeHandlePosition({
+          calculateTableAxisHandleLayout({
             targetRect: rowAxisRect,
             frameRect,
             kind: "row",
@@ -149,7 +267,7 @@ export function TableControls({
 
       if (columnAxisRect) {
         setColumnEdgePosition(
-          calculateTableEdgeHandlePosition({
+          calculateTableAxisHandleLayout({
             targetRect: columnAxisRect,
             frameRect,
             kind: "column",
@@ -161,7 +279,7 @@ export function TableControls({
 
       if (selectionRect) {
         setSelectionEdgePosition(
-          calculateTableEdgeHandlePosition({
+          calculateTableAxisHandleLayout({
             targetRect: selectionRect,
             frameRect,
             kind: "selection",
@@ -170,6 +288,20 @@ export function TableControls({
       } else if (!(openMenu === "selection" && menuAnchor === "selection-edge")) {
         setSelectionEdgePosition(null);
       }
+
+      const hoveringLastRow = interactionState.hoverCellPos !== null && Boolean(rowAxisModel && rowAxisModel.index === rowAxisModel.visualHeight - 1);
+      const hoveringLastColumn = interactionState.hoverCellPos !== null && Boolean(columnAxisModel && columnAxisModel.index === columnAxisModel.visualWidth - 1);
+
+      setRowExtendPosition(
+        tableRect && hoveringLastRow
+          ? calculateTableExtendButtonLayout({ tableRect, frameRect, kind: "row" })
+          : null,
+      );
+      setColumnExtendPosition(
+        tableRect && hoveringLastColumn
+          ? calculateTableExtendButtonLayout({ tableRect, frameRect, kind: "column" })
+          : null,
+      );
     };
 
     updateEdgePositions();
@@ -226,8 +358,8 @@ export function TableControls({
         anchorRect,
         frameRect,
         menuSize: {
-          width: menuRect.width || 204,
-          height: menuRect.height || 220,
+          width: menuRect.width || 254,
+          height: menuRect.height || 410,
         },
         kind: openMenu,
       });
@@ -255,7 +387,13 @@ export function TableControls({
         return;
       }
 
+      if (openSubmenu) {
+        setOpenSubmenu(null);
+        return;
+      }
+
       setOpenMenu(null);
+      setOpenSubmenu(null);
       editor.view.focus();
     };
 
@@ -265,6 +403,7 @@ export function TableControls({
       }
 
       setOpenMenu(null);
+      setOpenSubmenu(null);
     };
 
     document.addEventListener("keydown", closeOnEscape);
@@ -274,7 +413,7 @@ export function TableControls({
       document.removeEventListener("keydown", closeOnEscape);
       document.removeEventListener("mousedown", closeOnOutsidePointer);
     };
-  }, [active, editor, openMenu]);
+  }, [active, editor, openMenu, openSubmenu]);
 
   if (!active) {
     return null;
@@ -284,6 +423,7 @@ export function TableControls({
     const shouldClose = openMenu === menu && menuAnchor === anchor;
     setMenuAnchor(anchor);
     setOpenMenu(shouldClose ? null : menu);
+    setOpenSubmenu(null);
   };
 
   const clearMenuAxisTarget = () => {
@@ -308,8 +448,7 @@ export function TableControls({
 
   const rowAxisModel = getTableControlAxisSelectionModel(editor, interactionState, "row", focusState?.activeCellPos ?? null);
   const columnAxisModel = getTableControlAxisSelectionModel(editor, interactionState, "column", focusState?.activeCellPos ?? null);
-  const cellMenuCommands = getAvailableCellMenuCommandSpecs(editor);
-  const hasCellMenuCommands = cellMenuCommands.length > 0;
+  const hasCellMenuCommands = getTableMenuItems(editor, "selection").length > 0;
   const menuItems = openMenu ? getTableMenuItems(editor, openMenu) : [];
   const runMenuCommand = async (commandId: TableCommandId, menuOverride?: TableMenuKind) => {
     const result = await executeTableMenuCommand({
@@ -340,8 +479,59 @@ export function TableControls({
     }
 
     setOpenMenu(null);
+    setOpenSubmenu(null);
     editor.view.focus();
   };
+
+  const runAxisFormatting = (callback: (axis: "row" | "column") => boolean) => {
+    if (openMenu !== "row" && openMenu !== "column") {
+      return;
+    }
+
+    if (callback(openMenu)) {
+      setFormatRevision((revision) => revision + 1);
+    }
+  };
+
+  const runExtendCommand = (axis: "row" | "column") => {
+    const model = axis === "row" ? rowAxisModel : columnAxisModel;
+    const targetCellPos = interactionState.hoverCellPos ?? focusState?.activeCellPos ?? null;
+
+    if (!model || targetCellPos === null) {
+      return;
+    }
+
+    if (targetTableAxisFromCell(editor, targetCellPos, axis, { visualIndex: model.index })) {
+      void runMenuCommand(axis === "row" ? "add-row-after" : "add-column-after", axis);
+    }
+  };
+
+  const startAxisDrag = (axis: "row" | "column", index: number, event: DragEvent<HTMLButtonElement>) => {
+    dragOriginRef.current = { axis, index };
+    dragTargetRef.current = index;
+    event.dataTransfer.effectAllowed = "move";
+    event.dataTransfer.setData("application/x-markweave-table-axis", `${axis}:${index}`);
+  };
+
+  const handleMenuKeyDown = (event: ReactKeyboardEvent<HTMLElement>) => {
+    const menu = event.currentTarget;
+    const items = Array.from(
+      menu.querySelectorAll<HTMLButtonElement>(
+        ':scope > button[role="menuitem"]:not(:disabled), :scope > button[role="menuitemradio"]:not(:disabled)',
+      ),
+    );
+    const currentIndex = items.indexOf(document.activeElement as HTMLButtonElement);
+
+    if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+      event.preventDefault();
+      event.stopPropagation();
+      const delta = event.key === "ArrowDown" ? 1 : -1;
+      const nextIndex = currentIndex < 0 ? 0 : Math.min(items.length - 1, Math.max(0, currentIndex + delta));
+      items[nextIndex]?.focus();
+    }
+  };
+
+  const formattingState = openMenu === "row" || openMenu === "column" ? getTableAxisFormattingState(editor, openMenu) : null;
 
   return (
     <div
@@ -351,6 +541,9 @@ export function TableControls({
       aria-label={messages.table.controlsAriaLabel}
       data-open-menu={openMenu ?? "none"}
       data-positioned={rowEdgePosition || columnEdgePosition || selectionEdgePosition ? "true" : "false"}
+      onMouseLeave={() => {
+        editor.view.dispatch(editor.state.tr.setMeta(tableInteractionPluginKey, { type: "clear-hover" }));
+      }}
     >
       {copyFeedback ? (
         <div
@@ -379,13 +572,18 @@ export function TableControls({
           data-axis-selected-cells={rowAxisModel?.selectedCellCount ?? ""}
           data-axis-visual-cells={rowAxisModel?.visualCellCount ?? ""}
           data-axis-visual-size={rowAxisModel?.visualHeight ?? ""}
-          style={{ left: rowEdgePosition.left, top: rowEdgePosition.top }}
-          onMouseDown={(event) => event.preventDefault()}
+          style={{ left: rowEdgePosition.left, top: rowEdgePosition.top, width: rowEdgePosition.width, height: rowEdgePosition.height }}
+          draggable
+          onDragStart={(event) => startAxisDrag("row", rowAxisModel?.index ?? 0, event)}
+          onDragEnd={() => {
+            dragOriginRef.current = null;
+            dragTargetRef.current = null;
+          }}
           onClick={() => {
             openAxisMenuFromEdge("row", "row-edge");
           }}
         >
-          <span aria-hidden="true">...</span>
+          <MoreVertical aria-hidden="true" size={14} />
         </button>
       ) : null}
       {columnEdgePosition ? (
@@ -402,13 +600,46 @@ export function TableControls({
           data-axis-selected-cells={columnAxisModel?.selectedCellCount ?? ""}
           data-axis-visual-cells={columnAxisModel?.visualCellCount ?? ""}
           data-axis-visual-size={columnAxisModel?.visualWidth ?? ""}
-          style={{ left: columnEdgePosition.left, top: columnEdgePosition.top }}
-          onMouseDown={(event) => event.preventDefault()}
+          style={{ left: columnEdgePosition.left, top: columnEdgePosition.top, width: columnEdgePosition.width, height: columnEdgePosition.height }}
+          draggable
+          onDragStart={(event) => startAxisDrag("column", columnAxisModel?.index ?? 0, event)}
+          onDragEnd={() => {
+            dragOriginRef.current = null;
+            dragTargetRef.current = null;
+          }}
           onClick={() => {
             openAxisMenuFromEdge("column", "column-edge");
           }}
         >
-          <span aria-hidden="true">...</span>
+          <MoreVertical aria-hidden="true" size={14} />
+        </button>
+      ) : null}
+      {rowExtendPosition ? (
+        <button
+          type="button"
+          className="markweave-table-extend-button markweave-table-extend-button--row"
+          aria-label={messages.table.addRow}
+          title={messages.table.addRow}
+          data-testid="markweave-table-add-row"
+          style={{ left: rowExtendPosition.left, top: rowExtendPosition.top, width: rowExtendPosition.width, height: rowExtendPosition.height }}
+          onMouseDown={(event) => event.preventDefault()}
+          onClick={() => runExtendCommand("row")}
+        >
+          <Plus aria-hidden="true" size={16} />
+        </button>
+      ) : null}
+      {columnExtendPosition ? (
+        <button
+          type="button"
+          className="markweave-table-extend-button markweave-table-extend-button--column"
+          aria-label={messages.table.addColumn}
+          title={messages.table.addColumn}
+          data-testid="markweave-table-add-column"
+          style={{ left: columnExtendPosition.left, top: columnExtendPosition.top, width: columnExtendPosition.width, height: columnExtendPosition.height }}
+          onMouseDown={(event) => event.preventDefault()}
+          onClick={() => runExtendCommand("column")}
+        >
+          <Plus aria-hidden="true" size={16} />
         </button>
       ) : null}
       {hasCellMenuCommands && selectionEdgePosition ? (
@@ -421,11 +652,11 @@ export function TableControls({
           aria-haspopup="menu"
           title={messages.table.selectionActions}
           data-testid="markweave-table-cell-handle"
-          style={{ left: selectionEdgePosition.left, top: selectionEdgePosition.top }}
+          style={{ left: selectionEdgePosition.left, top: selectionEdgePosition.top, width: selectionEdgePosition.width, height: selectionEdgePosition.height }}
           onMouseDown={(event) => event.preventDefault()}
           onClick={openSelectionMenuFromEdge}
         >
-          <span aria-hidden="true">...</span>
+          <MoreVertical aria-hidden="true" size={14} />
         </button>
       ) : null}
       {openMenu ? (
@@ -436,14 +667,17 @@ export function TableControls({
           aria-label={tableMenuLabel(openMenu, messages)}
           data-testid="markweave-table-menu"
           data-positioned={menuPosition ? "true" : "false"}
+          data-submenu={openSubmenu ?? "none"}
           style={menuPosition ? { left: menuPosition.left, top: menuPosition.top } : undefined}
+          onKeyDown={handleMenuKeyDown}
         >
           {menuItems.map((item, index) => {
             const group = getTableMenuItemGroup(item);
             const previousGroup = index === 0 ? group : getTableMenuItemGroup(menuItems[index - 1]);
             const startsGroup = index > 0 && previousGroup !== group;
-            const enabled = item.commandId === null ? Boolean(onEditWithAi) : canRunTableCommand(editor, item.commandId);
+            const enabled = item.submenuId ? true : item.commandId === null ? Boolean(onEditWithAi) : canRunTableCommand(editor, item.commandId);
             const label = getTableMenuItemLabel(item, messages);
+            const ItemIcon = tableMenuIcons[item.icon];
 
             return (
               <button
@@ -452,18 +686,29 @@ export function TableControls({
                 role="menuitem"
                 aria-label={label}
                 aria-disabled={!enabled}
+                aria-haspopup={item.submenuId ? "menu" : undefined}
+                aria-expanded={item.submenuId ? openSubmenu === item.submenuId : undefined}
                 disabled={!enabled}
                 data-menu-group={group}
                 data-starts-group={startsGroup ? "true" : "false"}
                 data-command-enabled={enabled ? "true" : "false"}
+                data-submenu-trigger={item.submenuId ?? undefined}
                 data-testid={
                   item.commandId
                     ? `markweave-table-menu-command-${item.commandId}`
-                    : `markweave-table-menu-command-edit-with-ai`
+                    : item.submenuId
+                      ? `markweave-table-menu-submenu-${item.submenuId}`
+                      : `markweave-table-menu-command-edit-with-ai`
                 }
                 onMouseDown={(event) => event.preventDefault()}
+                onMouseEnter={() => setOpenSubmenu(item.submenuId)}
                 onClick={() => {
                   if (!enabled) {
+                    return;
+                  }
+
+                  if (item.submenuId) {
+                    setOpenSubmenu(item.submenuId);
                     return;
                   }
 
@@ -472,13 +717,116 @@ export function TableControls({
                     return;
                   }
 
-                  void runMenuCommand(item.commandId).finally(() => setOpenMenu(null));
+                  void runMenuCommand(item.commandId).finally(() => {
+                    setOpenMenu(null);
+                    setOpenSubmenu(null);
+                  });
                 }}
               >
-                {label}
+                <span className="markweave-table-menu-item-icon" aria-hidden="true">
+                  <ItemIcon size={18} strokeWidth={1.8} />
+                </span>
+                <span className="markweave-table-menu-item-label">{label}</span>
+                {item.submenuId ? <ChevronRight className="markweave-table-menu-chevron" aria-hidden="true" size={16} /> : null}
               </button>
             );
           })}
+          {openSubmenu === "color" && (openMenu === "row" || openMenu === "column") ? (
+            <div
+              className="markweave-table-submenu markweave-table-color-menu"
+              role="menu"
+              aria-label={messages.table.submenus.color}
+              data-testid="markweave-table-color-menu"
+              onKeyDown={handleMenuKeyDown}
+            >
+              <div className="markweave-table-submenu-title">{messages.table.submenus.textColor}</div>
+              {tableColorOptions.map((option) => (
+                <button
+                  key={`text-${option.id}`}
+                  type="button"
+                  role="menuitemradio"
+                  aria-checked={formattingState?.textColorId === option.id}
+                  data-active={formattingState?.textColorId === option.id ? "true" : "false"}
+                  data-testid={`markweave-table-text-color-${option.id}`}
+                  onMouseDown={(event) => event.preventDefault()}
+                  onClick={() => runAxisFormatting((axis) => applyTableAxisTextColor(editor, axis, option.id as TableColorId))}
+                >
+                  <span
+                    className="markweave-table-color-swatch markweave-table-text-color-swatch"
+                    aria-hidden="true"
+                    style={{ backgroundColor: option.textColor ?? "var(--markweave-text)" }}
+                  />
+                  <span>{messages.table.colors[option.id].text}</span>
+                </button>
+              ))}
+              <div className="markweave-table-submenu-separator" />
+              <div className="markweave-table-submenu-title">{messages.table.submenus.backgroundColor}</div>
+              {tableColorOptions.map((option) => (
+                <button
+                  key={`background-${option.id}`}
+                  type="button"
+                  role="menuitemradio"
+                  aria-checked={formattingState?.backgroundColorId === option.id}
+                  data-active={formattingState?.backgroundColorId === option.id ? "true" : "false"}
+                  data-testid={`markweave-table-background-color-${option.id}`}
+                  onMouseDown={(event) => event.preventDefault()}
+                  onClick={() => runAxisFormatting((axis) => applyTableAxisBackgroundColor(editor, axis, option.id as TableColorId))}
+                >
+                  <span className="markweave-table-color-swatch" aria-hidden="true" style={{ backgroundColor: option.backgroundColor }} />
+                  <span>{messages.table.colors[option.id].background}</span>
+                </button>
+              ))}
+            </div>
+          ) : null}
+          {openSubmenu === "alignment" && (openMenu === "row" || openMenu === "column") ? (
+            <div
+              className="markweave-table-submenu markweave-table-alignment-menu"
+              role="menu"
+              aria-label={messages.table.submenus.alignment}
+              data-testid="markweave-table-alignment-menu"
+              onKeyDown={handleMenuKeyDown}
+            >
+              {tableHorizontalAlignmentOptions.map((alignment) => {
+                const AlignmentIcon = tableAlignmentIcons[alignment];
+                const activeAlignment = formattingState?.textAlign === alignment;
+                return (
+                  <button
+                    key={alignment}
+                    type="button"
+                    role="menuitemradio"
+                    aria-checked={activeAlignment}
+                    data-active={activeAlignment ? "true" : "false"}
+                    data-testid={`markweave-table-alignment-${alignment}`}
+                    onMouseDown={(event) => event.preventDefault()}
+                    onClick={() => runAxisFormatting((axis) => applyTableAxisAlignment(editor, axis, alignment))}
+                  >
+                    <AlignmentIcon aria-hidden="true" size={18} strokeWidth={1.8} />
+                    <span>{messages.table.alignments[alignment]}</span>
+                  </button>
+                );
+              })}
+              <div className="markweave-table-submenu-separator" />
+              {tableVerticalAlignmentOptions.map((alignment) => {
+                const AlignmentIcon = tableAlignmentIcons[alignment];
+                const activeAlignment = formattingState?.verticalAlign === alignment;
+                return (
+                  <button
+                    key={alignment}
+                    type="button"
+                    role="menuitemradio"
+                    aria-checked={activeAlignment}
+                    data-active={activeAlignment ? "true" : "false"}
+                    data-testid={`markweave-table-alignment-${alignment}`}
+                    onMouseDown={(event) => event.preventDefault()}
+                    onClick={() => runAxisFormatting((axis) => applyTableAxisAlignment(editor, axis, alignment))}
+                  >
+                    <AlignmentIcon aria-hidden="true" size={18} strokeWidth={1.8} />
+                    <span>{messages.table.alignments[alignment]}</span>
+                  </button>
+                );
+              })}
+            </div>
+          ) : null}
         </div>
       ) : null}
     </div>

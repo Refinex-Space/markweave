@@ -3,12 +3,19 @@ import { NodeSelection } from "@tiptap/pm/state";
 import type { NodeView } from "@tiptap/pm/view";
 import type { MarkweaveMessages } from "../../i18n";
 import {
+  getMarkweaveEditorModeState,
+  isMarkweaveEditorLiveEditable,
+  subscribeToMarkweaveEditorMode,
+} from "../../core/editor-mode-state";
+import {
   attrsFromMarkweaveImageUploadResult,
+  clampMarkweaveImageWidth,
   createMarkweaveImageUploadRequest,
   downloadMarkweaveImage,
   normalizeMarkweaveCoreImageAlign,
   numberAttribute,
   stringAttribute,
+  type MarkweaveCoreImageAlign,
 } from "./core-media-nodes";
 import { openMarkweaveImagePreview } from "./image-preview";
 import {
@@ -20,6 +27,71 @@ import {
   resolveMarkweaveUploadResult,
   type MarkweaveSlashCommandUploadHandler,
 } from "../slash-command/upload";
+
+type LightweightImageToolbarIcon =
+  | "alignCenter"
+  | "alignLeft"
+  | "alignRight"
+  | "caption"
+  | "delete"
+  | "download"
+  | "preview"
+  | "replace";
+
+type LightweightImageToolbarIconNode = readonly [
+  "circle" | "path" | "rect",
+  Readonly<Record<string, string>>,
+];
+
+const lightweightImageToolbarIcons = {
+  alignCenter: [
+    ["path", { d: "M21 5H3" }],
+    ["path", { d: "M17 12H7" }],
+    ["path", { d: "M19 19H5" }],
+  ],
+  alignLeft: [
+    ["path", { d: "M21 5H3" }],
+    ["path", { d: "M15 12H3" }],
+    ["path", { d: "M17 19H3" }],
+  ],
+  alignRight: [
+    ["path", { d: "M21 5H3" }],
+    ["path", { d: "M21 12H9" }],
+    ["path", { d: "M21 19H7" }],
+  ],
+  caption: [
+    ["rect", { height: "14", rx: "2", ry: "2", width: "18", x: "3", y: "5" }],
+    ["path", { d: "M7 15h4M15 15h2M7 11h2M13 11h4" }],
+  ],
+  delete: [
+    ["path", { d: "M10 11v6" }],
+    ["path", { d: "M14 11v6" }],
+    ["path", { d: "M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" }],
+    ["path", { d: "M3 6h18" }],
+    ["path", { d: "M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" }],
+  ],
+  download: [
+    ["path", { d: "M12 15V3" }],
+    ["path", { d: "M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" }],
+    ["path", { d: "m7 10 5 5 5-5" }],
+  ],
+  preview: [
+    ["path", { d: "M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0" }],
+    ["circle", { cx: "12", cy: "12", r: "3" }],
+  ],
+  replace: [
+    ["path", { d: "M14 4a1 1 0 0 1 1-1" }],
+    ["path", { d: "M15 10a1 1 0 0 1-1-1" }],
+    ["path", { d: "M21 4a1 1 0 0 0-1-1" }],
+    ["path", { d: "M21 9a1 1 0 0 1-1 1" }],
+    ["path", { d: "m3 7 3 3 3-3" }],
+    ["path", { d: "M6 10V5a2 2 0 0 1 2-2h2" }],
+    ["rect", { height: "7", rx: "1", width: "7", x: "3", y: "14" }],
+  ],
+} satisfies Record<
+  LightweightImageToolbarIcon,
+  readonly LightweightImageToolbarIconNode[]
+>;
 
 export interface MarkweaveLightweightImageNodeViewOptions {
   readonly messages: MarkweaveMessages;
@@ -43,10 +115,20 @@ class MarkweaveLightweightImageNodeView implements NodeView {
   private readonly image: HTMLImageElement;
   private readonly placeholder: HTMLDivElement;
   private readonly caption: HTMLElement;
+  private readonly unsubscribeMode: () => void;
   private observer: IntersectionObserver | null = null;
   private resolveController: AbortController | null = null;
   private resolvedSrc: string | null = null;
+  private previewTrigger: HTMLButtonElement | null = null;
   private toolbar: HTMLElement | null = null;
+  private captionInput: HTMLInputElement | null = null;
+  private captionButton: HTMLButtonElement | null = null;
+  private captionOpen = false;
+  private alignButtons: Partial<
+    Record<MarkweaveCoreImageAlign, HTMLButtonElement>
+  > = {};
+  private resizeHandles: HTMLButtonElement[] = [];
+  private stopResize: (() => void) | null = null;
   private destroyed = false;
 
   constructor(
@@ -73,13 +155,19 @@ class MarkweaveLightweightImageNodeView implements NodeView {
     this.placeholder.setAttribute("aria-hidden", "true");
     this.caption = document.createElement("figcaption");
     this.caption.className = "markweave-image-caption";
+    this.caption.dataset.testid = "markweave-image-caption";
     this.box.append(this.image, this.placeholder);
     this.dom.append(this.box, this.caption);
 
     this.dom.addEventListener("mousedown", this.handleMouseDown);
     this.dom.addEventListener("dblclick", this.handleDoubleClick);
     this.image.addEventListener("error", this.handleImageError);
+    this.unsubscribeMode = subscribeToMarkweaveEditorMode(
+      this.props.editor,
+      () => this.syncPreviewTrigger(),
+    );
     this.renderNodeAttributes();
+    this.captionOpen = Boolean(stringAttribute(this.node.attrs.caption));
     this.observeProximity();
   }
 
@@ -106,19 +194,19 @@ class MarkweaveLightweightImageNodeView implements NodeView {
 
   selectNode() {
     this.dom.dataset.selected = "true";
-    this.mountToolbar();
+    this.mountEditingControls();
     this.resolveSource("visible");
   }
 
   deselectNode() {
     this.dom.dataset.selected = "false";
-    this.unmountToolbar();
+    this.unmountEditingControls();
   }
 
   stopEvent(event: Event) {
-    return Boolean(
-      event.target instanceof Node &&
-        this.toolbar?.contains(event.target),
+    return (
+      event.target instanceof Element &&
+      Boolean(event.target.closest('[data-markweave-image-ui="true"]'))
     );
   }
 
@@ -130,7 +218,10 @@ class MarkweaveLightweightImageNodeView implements NodeView {
     this.destroyed = true;
     this.resolveController?.abort();
     this.observer?.disconnect();
-    this.unmountToolbar();
+    this.unsubscribeMode();
+    this.unmountEditingControls();
+    this.previewTrigger?.remove();
+    this.previewTrigger = null;
     this.dom.removeEventListener("mousedown", this.handleMouseDown);
     this.dom.removeEventListener("dblclick", this.handleDoubleClick);
     this.image.removeEventListener("error", this.handleImageError);
@@ -149,7 +240,17 @@ class MarkweaveLightweightImageNodeView implements NodeView {
     this.image.alt = stringAttribute(this.node.attrs.alt) ?? "";
     this.image.title = stringAttribute(this.node.attrs.title) ?? "";
     this.caption.textContent = caption ?? "";
-    this.caption.hidden = !caption;
+    this.caption.hidden = !caption || Boolean(this.captionInput);
+    if (this.captionInput && this.captionInput.value !== (caption ?? "")) {
+      this.captionInput.value = caption ?? "";
+    }
+    for (const [buttonAlign, button] of Object.entries(this.alignButtons)) {
+      button.dataset.active = buttonAlign === align ? "true" : "false";
+    }
+    if (this.captionButton) {
+      this.captionButton.dataset.active =
+        this.captionOpen || Boolean(caption) ? "true" : "false";
+    }
   }
 
   private observeProximity() {
@@ -223,10 +324,45 @@ class MarkweaveLightweightImageNodeView implements NodeView {
     const resolved = state === "resolved";
     this.image.hidden = !resolved;
     this.placeholder.hidden = resolved;
+    this.syncPreviewTrigger();
+  }
+
+  private syncPreviewTrigger() {
+    const modeState = getMarkweaveEditorModeState(this.props.editor);
+    const shouldMount =
+      this.dom.dataset.mediaState === "resolved" &&
+      Boolean(this.resolvedSrc) &&
+      !isMarkweaveEditorLiveEditable(modeState);
+
+    if (!shouldMount) {
+      this.previewTrigger?.remove();
+      this.previewTrigger = null;
+      return;
+    }
+
+    if (this.previewTrigger) {
+      return;
+    }
+
+    const messages = this.options.messages.image;
+    const previewTrigger = this.createButton(
+      messages.preview,
+      "preview",
+      "markweave-image-preview",
+      () => this.handleDoubleClick(),
+    );
+    previewTrigger.className = "markweave-image-preview-trigger";
+    this.box.append(previewTrigger);
+    this.previewTrigger = previewTrigger;
   }
 
   private readonly handleMouseDown = (event: MouseEvent) => {
-    if (!this.props.editor.isEditable || event.button !== 0 || this.toolbar?.contains(event.target as Node)) {
+    if (
+      !this.props.editor.isEditable ||
+      event.button !== 0 ||
+      (event.target instanceof Element &&
+        Boolean(event.target.closest('[data-markweave-image-ui="true"]')))
+    ) {
       return;
     }
     const pos = this.props.getPos();
@@ -264,30 +400,97 @@ class MarkweaveLightweightImageNodeView implements NodeView {
     this.setMediaState("unreadable");
   };
 
+  private mountEditingControls() {
+    this.mountToolbar();
+    this.mountResizeHandles();
+    if (this.captionOpen || stringAttribute(this.node.attrs.caption)) {
+      this.mountCaptionInput();
+    }
+  }
+
+  private unmountEditingControls() {
+    this.stopResize?.();
+    this.toolbar?.remove();
+    this.toolbar = null;
+    this.captionButton = null;
+    this.alignButtons = {};
+    this.resizeHandles.forEach((handle) => handle.remove());
+    this.resizeHandles = [];
+    this.unmountCaptionInput();
+  }
+
   private mountToolbar() {
     if (this.toolbar || !this.props.editor.isEditable) {
       return;
     }
 
     const messages = this.options.messages.image;
-    const toolbar = document.createElement("div");
+    const toolbar = this.dom.ownerDocument.createElement("div");
     toolbar.className = "markweave-image-toolbar";
+    toolbar.dataset.testid = "markweave-image-toolbar";
     toolbar.dataset.markweaveImageUi = "true";
     toolbar.setAttribute("role", "toolbar");
     toolbar.setAttribute("aria-label", messages.toolsAriaLabel);
+    const align = normalizeMarkweaveCoreImageAlign(this.node.attrs.align);
+    const alignLeft = this.createButton(
+      messages.alignLeft,
+      "alignLeft",
+      "markweave-image-align-left",
+      () => this.updateAttributes({ align: "left" }),
+      align === "left",
+    );
+    const alignCenter = this.createButton(
+      messages.alignCenter,
+      "alignCenter",
+      "markweave-image-align-center",
+      () => this.updateAttributes({ align: "center" }),
+      align === "center",
+    );
+    const alignRight = this.createButton(
+      messages.alignRight,
+      "alignRight",
+      "markweave-image-align-right",
+      () => this.updateAttributes({ align: "right" }),
+      align === "right",
+    );
+    this.alignButtons = {
+      center: alignCenter,
+      left: alignLeft,
+      right: alignRight,
+    };
+    const caption = stringAttribute(this.node.attrs.caption);
+    this.captionButton = this.createButton(
+      messages.caption,
+      "caption",
+      "markweave-image-caption",
+      () => this.toggleCaption(),
+      this.captionOpen || Boolean(caption),
+    );
     toolbar.append(
-      this.createButton(messages.alignLeft, "←", () => this.updateAttributes({ align: "left" })),
-      this.createButton(messages.alignCenter, "↔", () => this.updateAttributes({ align: "center" })),
-      this.createButton(messages.alignRight, "→", () => this.updateAttributes({ align: "right" })),
-      this.createButton(messages.preview, "↗", () => this.handleDoubleClick()),
-      this.createButton(messages.download, "↓", () => {
-        if (this.resolvedSrc) {
-          downloadMarkweaveImage(this.resolvedSrc, this.dom.ownerDocument);
-        }
-      }),
+      alignLeft,
+      alignCenter,
+      alignRight,
+      this.createToolbarDivider(),
+      this.captionButton,
+      this.createButton(
+        messages.preview,
+        "preview",
+        "markweave-image-preview",
+        () => this.handleDoubleClick(),
+      ),
+      this.createButton(
+        messages.download,
+        "download",
+        "markweave-image-download",
+        () => {
+          if (this.resolvedSrc) {
+            downloadMarkweaveImage(this.resolvedSrc, this.dom.ownerDocument);
+          }
+        },
+      ),
     );
 
-    const fileInput = document.createElement("input");
+    const fileInput = this.dom.ownerDocument.createElement("input");
     fileInput.type = "file";
     fileInput.accept = "image/*";
     fileInput.hidden = true;
@@ -299,29 +502,197 @@ class MarkweaveLightweightImageNodeView implements NodeView {
       }
     });
     toolbar.append(
-      this.createButton(messages.replace, "⇄", () => fileInput.click()),
-      this.createButton(messages.delete, "×", () => this.deleteNode()),
+      this.createButton(
+        messages.replace,
+        "replace",
+        "markweave-image-replace",
+        () => fileInput.click(),
+      ),
+      this.createToolbarDivider(),
+      this.createButton(
+        messages.delete,
+        "delete",
+        "markweave-image-delete",
+        () => this.deleteNode(),
+      ),
       fileInput,
     );
     this.toolbar = toolbar;
     this.dom.prepend(toolbar);
   }
 
-  private unmountToolbar() {
-    this.toolbar?.remove();
-    this.toolbar = null;
+  private createToolbarDivider() {
+    const divider = this.dom.ownerDocument.createElement("span");
+    divider.className = "markweave-image-toolbar-divider";
+    divider.setAttribute("aria-hidden", "true");
+    return divider;
   }
 
-  private createButton(label: string, text: string, action: () => void) {
-    const button = document.createElement("button");
+  private createButton(
+    label: string,
+    icon: LightweightImageToolbarIcon,
+    testId: string,
+    action: () => void,
+    active = false,
+  ) {
+    const button = this.dom.ownerDocument.createElement("button");
     button.type = "button";
     button.dataset.markweaveImageUi = "true";
+    button.dataset.testid = testId;
+    button.dataset.active = active ? "true" : "false";
     button.setAttribute("aria-label", label);
     button.title = label;
-    button.textContent = text;
+    button.append(this.createToolbarIcon(icon));
+    const tooltip = this.dom.ownerDocument.createElement("span");
+    tooltip.className = "markweave-image-tooltip";
+    tooltip.setAttribute("role", "tooltip");
+    tooltip.textContent = label;
+    button.append(tooltip);
     button.addEventListener("mousedown", (event) => event.preventDefault());
     button.addEventListener("click", action);
     return button;
+  }
+
+  private createToolbarIcon(icon: LightweightImageToolbarIcon) {
+    const namespace = "http://www.w3.org/2000/svg";
+    const svg = this.dom.ownerDocument.createElementNS(namespace, "svg");
+    svg.setAttribute("viewBox", "0 0 24 24");
+    svg.setAttribute("width", "20");
+    svg.setAttribute("height", "20");
+    svg.setAttribute("fill", "none");
+    svg.setAttribute("stroke", "currentColor");
+    svg.setAttribute("stroke-width", "1.8");
+    svg.setAttribute("stroke-linecap", "round");
+    svg.setAttribute("stroke-linejoin", "round");
+    svg.setAttribute("aria-hidden", "true");
+    lightweightImageToolbarIcons[icon].forEach(([tagName, attributes]) => {
+      const child = this.dom.ownerDocument.createElementNS(namespace, tagName);
+      Object.entries(attributes).forEach(([name, value]) => {
+        child.setAttribute(name, value);
+      });
+      svg.append(child);
+    });
+    return svg;
+  }
+
+  private toggleCaption() {
+    if (this.captionInput) {
+      this.captionOpen = false;
+      this.unmountCaptionInput();
+      return;
+    }
+
+    this.captionOpen = true;
+    this.mountCaptionInput();
+  }
+
+  private mountCaptionInput() {
+    if (this.captionInput || !this.props.editor.isEditable) {
+      return;
+    }
+
+    const messages = this.options.messages.image;
+    const input = this.dom.ownerDocument.createElement("input");
+    input.className = "markweave-image-caption-input";
+    input.dataset.testid = "markweave-image-caption-input";
+    input.dataset.markweaveImageUi = "true";
+    input.value = stringAttribute(this.node.attrs.caption) ?? "";
+    input.placeholder = messages.captionPlaceholder;
+    input.setAttribute("aria-label", messages.captionAriaLabel);
+    input.addEventListener("input", () => {
+      this.updateAttributes({ caption: input.value.trim() ? input.value : null });
+    });
+    input.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        this.captionOpen = false;
+        this.unmountCaptionInput();
+      }
+    });
+    this.captionInput = input;
+    this.caption.hidden = true;
+    this.dom.insertBefore(input, this.caption);
+    if (this.captionButton) {
+      this.captionButton.dataset.active = "true";
+    }
+  }
+
+  private unmountCaptionInput() {
+    this.captionInput?.remove();
+    this.captionInput = null;
+    const caption = stringAttribute(this.node.attrs.caption);
+    this.caption.hidden = !caption;
+    if (this.captionButton) {
+      this.captionButton.dataset.active =
+        this.captionOpen || Boolean(caption) ? "true" : "false";
+    }
+  }
+
+  private mountResizeHandles() {
+    if (this.resizeHandles.length || !this.props.editor.isEditable) {
+      return;
+    }
+
+    this.resizeHandles = (["left", "right"] as const).map((side) => {
+      const handle = this.dom.ownerDocument.createElement("button");
+      handle.type = "button";
+      handle.className = "markweave-image-resize-handle";
+      handle.dataset.testid = `markweave-image-resize-${side}`;
+      handle.dataset.side = side;
+      handle.dataset.markweaveImageUi = "true";
+      handle.setAttribute(
+        "aria-label",
+        side === "left"
+          ? this.options.messages.image.resizeLeft
+          : this.options.messages.image.resizeRight,
+      );
+      handle.addEventListener("pointerdown", (event) => {
+        this.beginResize(side, event);
+      });
+      this.box.append(handle);
+      return handle;
+    });
+  }
+
+  private beginResize(side: "left" | "right", event: PointerEvent) {
+    event.preventDefault();
+    event.stopPropagation();
+    const ownerWindow = this.dom.ownerDocument.defaultView;
+    if (!ownerWindow) {
+      return;
+    }
+
+    this.stopResize?.();
+    const startX = event.clientX;
+    const startWidth =
+      this.box.getBoundingClientRect().width ||
+      numberAttribute(this.node.attrs.width) ||
+      320;
+    const surfaceWidth =
+      this.box
+        .closest(".markweave-editor-surface")
+        ?.getBoundingClientRect().width ??
+      this.box.parentElement?.getBoundingClientRect().width ??
+      startWidth;
+    const move = (moveEvent: PointerEvent) => {
+      const delta =
+        side === "right"
+          ? moveEvent.clientX - startX
+          : startX - moveEvent.clientX;
+      this.updateAttributes({
+        width: clampMarkweaveImageWidth(startWidth + delta, surfaceWidth),
+      });
+    };
+    const stop = () => {
+      ownerWindow.removeEventListener("pointermove", move);
+      ownerWindow.removeEventListener("pointerup", stop);
+      if (this.stopResize === stop) {
+        this.stopResize = null;
+      }
+    };
+    this.stopResize = stop;
+    ownerWindow.addEventListener("pointermove", move);
+    ownerWindow.addEventListener("pointerup", stop, { once: true });
   }
 
   private updateAttributes(attributes: Record<string, unknown>) {

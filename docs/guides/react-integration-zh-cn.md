@@ -1,6 +1,6 @@
 ---
 owner: refinex
-updated: 2026-07-21
+updated: 2026-07-27
 status: active
 referenced_by: docs/README.md#knowledge-map
 ---
@@ -242,6 +242,8 @@ interface MarkweaveUploadResult {
 - `onRewriteSelection` 和 `onExtractToNote` 接收浮动工具栏中的选中文本和 HTML。
 - `onTableCopyPayload` 接收复制行、列或整表时的文本与 HTML。
 - `onTableCommandResult` 接收表格命令执行结果和 before/after 快照。
+
+内置表格控制采用 Notion-like 的行、列与选区句柄。行列菜单覆盖移动、插入、排序、颜色、对齐、清空、复制与删除；选区菜单继续保留合并、拆分、复制与删除。Hover 最后一行或最后一列会显示整边快捷新增控件，拖拽行列句柄可直接调整顺序；全部菜单名称跟随 `lang`（`zh` 或 `en`）。
 
 ## 外部超链接卡片
 

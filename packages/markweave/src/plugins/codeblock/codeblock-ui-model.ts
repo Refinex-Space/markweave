@@ -290,7 +290,7 @@ export function getCodeBlockPositionForElement(editor: Editor, codeBlockElement:
 }
 
 export function getCodeBlockPositionFromEventTarget(editor: Editor, target: EventTarget | null) {
-  if (!(target instanceof HTMLElement)) {
+  if (!(target instanceof Element)) {
     return null;
   }
 
