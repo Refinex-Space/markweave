@@ -46,6 +46,7 @@ import {
 } from "markweave/internal/plugins/table/table-interaction-layer";
 import {
   calculateAnchoredTableMenuPosition,
+  calculateAnchoredTableSubmenuPosition,
   calculateTableAxisHandleLayout,
   calculateTableControlsPosition,
   calculateTableEdgeHandlePosition,
@@ -67,6 +68,7 @@ import {
   getTableMenuItemGroup,
   getTableMenuItemLabel,
   getTableMenuItems,
+  getTableMenuBoundaryRect,
   getTableSelectionTargetRect,
   applyTableAxisAlignment,
   applyTableAxisBackgroundColor,
@@ -87,7 +89,8 @@ import {
   type TableColorId,
   type TableMenuAnchor,
   type TableMenuKind,
-  type TableMenuPosition,
+  type TableFloatingMenuPosition,
+  type TableSubmenuPosition,
 } from "markweave/internal/plugins/table/table-ui-model";
 import { getMarkweaveMessages, type MarkweaveMessages } from "markweave/internal/i18n";
 import type { TableCommandResult, TableEditWithAiRequest } from "markweave/internal/core/public-types";
@@ -162,7 +165,8 @@ export function TableControls({
   const [openMenu, setOpenMenu] = useState<TableMenuKind | null>(null);
   const [openSubmenu, setOpenSubmenu] = useState<TableMenuSubmenuId | null>(null);
   const [menuAnchor, setMenuAnchor] = useState<TableMenuAnchor>("row-edge");
-  const [menuPosition, setMenuPosition] = useState<TableMenuPosition | null>(null);
+  const [menuPosition, setMenuPosition] = useState<TableFloatingMenuPosition | null>(null);
+  const [submenuPosition, setSubmenuPosition] = useState<TableSubmenuPosition | null>(null);
   const [rowEdgePosition, setRowEdgePosition] = useState<TableAxisHandleLayout | null>(null);
   const [columnEdgePosition, setColumnEdgePosition] = useState<TableAxisHandleLayout | null>(null);
   const [selectionEdgePosition, setSelectionEdgePosition] = useState<TableAxisHandleLayout | null>(null);
@@ -174,6 +178,8 @@ export function TableControls({
   const [copyFeedback, setCopyFeedback] = useState<TableCopyFeedbackSnapshot | null>(null);
   const controlsRef = useRef<HTMLDivElement | null>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
+  const menuScrollRef = useRef<HTMLDivElement | null>(null);
+  const submenuRef = useRef<HTMLDivElement | null>(null);
   const rowEdgeRef = useRef<HTMLButtonElement | null>(null);
   const columnEdgeRef = useRef<HTMLButtonElement | null>(null);
   const selectionEdgeRef = useRef<HTMLButtonElement | null>(null);
@@ -354,12 +360,15 @@ export function TableControls({
         : rawAnchorRect;
       const frameRect = frameElement.getBoundingClientRect();
       const menuRect = menuElement.getBoundingClientRect();
+      const scrollHeight = menuScrollRef.current?.scrollHeight ?? 0;
+      const naturalMenuHeight = scrollHeight > 0 ? scrollHeight + 12 : 0;
       const anchorMenuPosition = calculateAnchoredTableMenuPosition({
         anchorRect,
         frameRect,
+        boundaryRect: getTableMenuBoundaryRect(frameElement),
         menuSize: {
           width: menuRect.width || 254,
-          height: menuRect.height || 410,
+          height: naturalMenuHeight || menuRect.height || 410,
         },
         kind: openMenu,
       });
@@ -376,6 +385,51 @@ export function TableControls({
       window.removeEventListener("scroll", updateMenuPosition, true);
     };
   }, [active, editor, menuAnchor, openMenu, rowEdgePosition, columnEdgePosition, selectionEdgePosition]);
+
+  useLayoutEffect(() => {
+    if (!active || !openMenu || !openSubmenu || !menuPosition) {
+      setSubmenuPosition(null);
+      return undefined;
+    }
+
+    const updateSubmenuPosition = () => {
+      const frameElement = editor.view.dom.closest<HTMLElement>(".markweave-editor-frame") ?? editor.view.dom.parentElement;
+      const menuElement = menuRef.current;
+      const submenuElement = submenuRef.current;
+      const triggerElement = menuElement?.querySelector<HTMLElement>(`[data-submenu-trigger="${openSubmenu}"]`);
+
+      if (!frameElement || !menuElement || !submenuElement || !triggerElement) {
+        setSubmenuPosition(null);
+        return;
+      }
+
+      const submenuRect = submenuElement.getBoundingClientRect();
+      const naturalSubmenuHeight = Math.max(submenuElement.scrollHeight + 2, submenuRect.height);
+      setSubmenuPosition(
+        calculateAnchoredTableSubmenuPosition({
+          triggerRect: triggerElement.getBoundingClientRect(),
+          parentMenuRect: menuElement.getBoundingClientRect(),
+          boundaryRect: getTableMenuBoundaryRect(frameElement),
+          submenuSize: {
+            width: submenuRect.width || 238,
+            height: naturalSubmenuHeight || 410,
+          },
+        }),
+      );
+    };
+
+    updateSubmenuPosition();
+    const scrollElement = menuScrollRef.current;
+    scrollElement?.addEventListener("scroll", updateSubmenuPosition);
+    window.addEventListener("resize", updateSubmenuPosition);
+    window.addEventListener("scroll", updateSubmenuPosition, true);
+
+    return () => {
+      scrollElement?.removeEventListener("scroll", updateSubmenuPosition);
+      window.removeEventListener("resize", updateSubmenuPosition);
+      window.removeEventListener("scroll", updateSubmenuPosition, true);
+    };
+  }, [active, editor, menuPosition, openMenu, openSubmenu]);
 
   useEffect(() => {
     if (!active || !openMenu) {
@@ -515,8 +569,11 @@ export function TableControls({
 
   const handleMenuKeyDown = (event: ReactKeyboardEvent<HTMLElement>) => {
     const menu = event.currentTarget;
+    const itemRoot = menu.classList.contains("markweave-table-menu")
+      ? menu.querySelector<HTMLElement>(":scope > .markweave-table-menu-scroll") ?? menu
+      : menu;
     const items = Array.from(
-      menu.querySelectorAll<HTMLButtonElement>(
+      itemRoot.querySelectorAll<HTMLButtonElement>(
         ':scope > button[role="menuitem"]:not(:disabled), :scope > button[role="menuitemradio"]:not(:disabled)',
       ),
     );
@@ -667,11 +724,17 @@ export function TableControls({
           aria-label={tableMenuLabel(openMenu, messages)}
           data-testid="markweave-table-menu"
           data-positioned={menuPosition ? "true" : "false"}
+          data-placement={menuPosition?.placement}
           data-submenu={openSubmenu ?? "none"}
           style={menuPosition ? { left: menuPosition.left, top: menuPosition.top } : undefined}
           onKeyDown={handleMenuKeyDown}
         >
-          {menuItems.map((item, index) => {
+          <div
+            ref={menuScrollRef}
+            className="markweave-table-menu-scroll"
+            style={menuPosition ? { maxHeight: Math.max(1, menuPosition.maxHeight - 12) } : undefined}
+          >
+            {menuItems.map((item, index) => {
             const group = getTableMenuItemGroup(item);
             const previousGroup = index === 0 ? group : getTableMenuItemGroup(menuItems[index - 1]);
             const startsGroup = index > 0 && previousGroup !== group;
@@ -730,13 +793,22 @@ export function TableControls({
                 {item.submenuId ? <ChevronRight className="markweave-table-menu-chevron" aria-hidden="true" size={16} /> : null}
               </button>
             );
-          })}
+            })}
+          </div>
           {openSubmenu === "color" && (openMenu === "row" || openMenu === "column") ? (
             <div
+              ref={submenuRef}
               className="markweave-table-submenu markweave-table-color-menu"
               role="menu"
               aria-label={messages.table.submenus.color}
               data-testid="markweave-table-color-menu"
+              data-positioned={submenuPosition ? "true" : "false"}
+              data-placement={submenuPosition?.placement}
+              style={
+                submenuPosition
+                  ? { left: submenuPosition.left, top: submenuPosition.top, maxHeight: submenuPosition.maxHeight }
+                  : undefined
+              }
               onKeyDown={handleMenuKeyDown}
             >
               <div className="markweave-table-submenu-title">{messages.table.submenus.textColor}</div>
@@ -780,10 +852,18 @@ export function TableControls({
           ) : null}
           {openSubmenu === "alignment" && (openMenu === "row" || openMenu === "column") ? (
             <div
+              ref={submenuRef}
               className="markweave-table-submenu markweave-table-alignment-menu"
               role="menu"
               aria-label={messages.table.submenus.alignment}
               data-testid="markweave-table-alignment-menu"
+              data-positioned={submenuPosition ? "true" : "false"}
+              data-placement={submenuPosition?.placement}
+              style={
+                submenuPosition
+                  ? { left: submenuPosition.left, top: submenuPosition.top, maxHeight: submenuPosition.maxHeight }
+                  : undefined
+              }
               onKeyDown={handleMenuKeyDown}
             >
               {tableHorizontalAlignmentOptions.map((alignment) => {

@@ -19,6 +19,8 @@ export const requiredTableBehaviors = [
   "hover-row-column-highlight",
   "cell-focus-outline",
   "selection-overlay",
+  "viewport-aware-command-menu",
+  "axis-selection-through-spanning-cells",
   "empty-cell",
   "multi-line-cell-content",
   "nested-inline-formatting",

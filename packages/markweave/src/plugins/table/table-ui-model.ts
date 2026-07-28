@@ -55,6 +55,18 @@ export interface TableMenuPosition {
   readonly top: number;
 }
 
+export type TableFloatingMenuPlacement = "top" | "right" | "bottom" | "left";
+
+export interface TableFloatingMenuPosition extends TableMenuPosition {
+  readonly placement: TableFloatingMenuPlacement;
+  readonly maxHeight: number;
+}
+
+export interface TableSubmenuPosition extends TableMenuPosition {
+  readonly placement: "left" | "right";
+  readonly maxHeight: number;
+}
+
 export interface TableEdgeHandlePosition {
   readonly left: number;
   readonly top: number;
@@ -86,6 +98,7 @@ export interface TableCopyFeedbackSnapshot {
 }
 
 export interface TableSelectionOverlayRect {
+  readonly axisTarget: "row" | "column" | null;
   readonly left: number;
   readonly top: number;
   readonly width: number;
@@ -118,6 +131,109 @@ export const tableCopyFeedbackTimeoutMs = 5000;
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
+}
+
+function getRectRight(rect: TableControlsRect) {
+  return rect.left + rect.width;
+}
+
+function getRectBottom(rect: TableControlsRect) {
+  return rect.top + rect.height;
+}
+
+function intersectTableControlRects(first: TableControlsRect, second: TableControlsRect): TableControlsRect {
+  const left = Math.max(first.left, second.left);
+  const top = Math.max(first.top, second.top);
+  const right = Math.max(left, Math.min(getRectRight(first), getRectRight(second)));
+  const bottom = Math.max(top, Math.min(getRectBottom(first), getRectBottom(second)));
+
+  return {
+    left,
+    top,
+    width: right - left,
+    height: bottom - top,
+  };
+}
+
+function insetTableControlRect(rect: TableControlsRect, padding: number): TableControlsRect {
+  const horizontalPadding = Math.min(padding, rect.width / 2);
+  const verticalPadding = Math.min(padding, rect.height / 2);
+
+  return {
+    left: rect.left + horizontalPadding,
+    top: rect.top + verticalPadding,
+    width: Math.max(0, rect.width - horizontalPadding * 2),
+    height: Math.max(0, rect.height - verticalPadding * 2),
+  };
+}
+
+function getPositioningBoundary(
+  frameRect: TableControlsRect,
+  boundaryRect: TableControlsRect | undefined,
+  boundaryPadding: number,
+) {
+  return insetTableControlRect(intersectTableControlRects(frameRect, boundaryRect ?? frameRect), boundaryPadding);
+}
+
+function clipsOverflow(value: string) {
+  return /^(auto|clip|hidden|overlay|scroll)$/.test(value);
+}
+
+/**
+ * Returns the part of the editor frame that is visible through the viewport and
+ * every clipping ancestor. All values stay in viewport coordinates so adapters
+ * can share the same positioning calculations.
+ */
+export function getTableMenuBoundaryRect(frameElement: HTMLElement): TableControlsRect {
+  const frameRect = frameElement.getBoundingClientRect();
+  let boundary: TableControlsRect = {
+    left: frameRect.left,
+    top: frameRect.top,
+    width: frameRect.width,
+    height: frameRect.height,
+  };
+
+  const view = frameElement.ownerDocument.defaultView;
+  if (!view) {
+    return boundary;
+  }
+
+  boundary = intersectTableControlRects(boundary, {
+    left: 0,
+    top: 0,
+    width: view.innerWidth,
+    height: view.innerHeight,
+  });
+
+  let ancestor = frameElement.parentElement;
+  while (ancestor) {
+    const style = view.getComputedStyle(ancestor);
+    const clipsX =
+      clipsOverflow(style.overflowX) ||
+      clipsOverflow(style.overflow) ||
+      clipsOverflow(ancestor.style.overflowX) ||
+      clipsOverflow(ancestor.style.overflow);
+    const clipsY =
+      clipsOverflow(style.overflowY) ||
+      clipsOverflow(style.overflow) ||
+      clipsOverflow(ancestor.style.overflowY) ||
+      clipsOverflow(ancestor.style.overflow);
+
+    if (clipsX || clipsY) {
+      const ancestorRect = ancestor.getBoundingClientRect();
+      const constrainedRect: TableControlsRect = {
+        left: clipsX ? ancestorRect.left : boundary.left,
+        top: clipsY ? ancestorRect.top : boundary.top,
+        width: clipsX ? ancestorRect.width : boundary.width,
+        height: clipsY ? ancestorRect.height : boundary.height,
+      };
+      boundary = intersectTableControlRects(boundary, constrainedRect);
+    }
+
+    ancestor = ancestor.parentElement;
+  }
+
+  return boundary;
 }
 
 export function calculateTableControlsPosition(input: {
@@ -169,33 +285,99 @@ export function calculateTableMenuPosition(input: {
 export function calculateAnchoredTableMenuPosition(input: {
   readonly anchorRect: TableControlsRect;
   readonly frameRect: TableControlsRect;
+  readonly boundaryRect?: TableControlsRect;
   readonly menuSize: { readonly width: number; readonly height: number };
   readonly kind: "row" | "column" | "selection";
   readonly offset?: number;
   readonly boundaryPadding?: number;
-}): TableMenuPosition {
+}): TableFloatingMenuPosition {
   const offset = input.offset ?? 6;
   const boundaryPadding = input.boundaryPadding ?? 8;
-  const anchorLeft = input.anchorRect.left - input.frameRect.left;
-  const anchorTop = input.anchorRect.top - input.frameRect.top;
-  const maxLeft = Math.max(boundaryPadding, input.frameRect.width - input.menuSize.width - boundaryPadding);
-  const maxTop = Math.max(boundaryPadding, input.frameRect.height - input.menuSize.height - boundaryPadding);
-  const rawLeft =
-    input.kind === "row"
-      ? anchorLeft + input.anchorRect.width + offset
-      : anchorLeft + input.anchorRect.width / 2 - Math.min(24, input.menuSize.width / 2);
-  let rawTop = input.kind === "row" ? anchorTop - 2 : anchorTop + input.anchorRect.height + offset;
+  const boundary = getPositioningBoundary(input.frameRect, input.boundaryRect, boundaryPadding);
+  const anchorRight = getRectRight(input.anchorRect);
+  const anchorBottom = getRectBottom(input.anchorRect);
+  const availableByPlacement: Readonly<Record<TableFloatingMenuPlacement, number>> = {
+    top: Math.max(0, input.anchorRect.top - offset - boundary.top),
+    right: Math.max(0, getRectRight(boundary) - anchorRight - offset),
+    bottom: Math.max(0, getRectBottom(boundary) - anchorBottom - offset),
+    left: Math.max(0, input.anchorRect.left - offset - boundary.left),
+  };
+  const preferredPlacements: readonly TableFloatingMenuPlacement[] =
+    input.kind === "row" ? ["right", "left", "bottom", "top"] : ["bottom", "top", "right", "left"];
+  const requiredByPlacement = (placement: TableFloatingMenuPlacement) =>
+    placement === "left" || placement === "right" ? input.menuSize.width : input.menuSize.height;
+  const placement =
+    preferredPlacements.find((candidate) => availableByPlacement[candidate] >= requiredByPlacement(candidate)) ??
+    preferredPlacements.reduce((best, candidate) => {
+      const candidateVisibleRatio = Math.min(1, availableByPlacement[candidate] / Math.max(1, requiredByPlacement(candidate)));
+      const bestVisibleRatio = Math.min(1, availableByPlacement[best] / Math.max(1, requiredByPlacement(best)));
+      return candidateVisibleRatio > bestVisibleRatio ? candidate : best;
+    });
+  const maxHeight = Math.max(
+    1,
+    Math.min(
+      input.menuSize.height,
+      placement === "top" || placement === "bottom" ? availableByPlacement[placement] : boundary.height,
+    ),
+  );
+  const renderedWidth = Math.min(input.menuSize.width, boundary.width);
+  const renderedHeight = Math.min(input.menuSize.height, maxHeight, boundary.height);
+  const centeredLeft = input.anchorRect.left + input.anchorRect.width / 2 - Math.min(24, renderedWidth / 2);
+  let rawLeft = centeredLeft;
+  let rawTop = input.anchorRect.top - 2;
 
-  if (rawTop + input.menuSize.height > input.frameRect.height - boundaryPadding) {
-    rawTop =
-      input.kind === "row"
-        ? anchorTop + input.anchorRect.height - input.menuSize.height
-        : anchorTop - input.menuSize.height - offset;
+  if (placement === "right") {
+    rawLeft = anchorRight + offset;
+  } else if (placement === "left") {
+    rawLeft = input.anchorRect.left - renderedWidth - offset;
+  } else if (placement === "bottom") {
+    rawTop = anchorBottom + offset;
+  } else {
+    rawTop = input.anchorRect.top - renderedHeight - offset;
   }
 
+  const maxLeft = Math.max(boundary.left, getRectRight(boundary) - renderedWidth);
+  const maxTop = Math.max(boundary.top, getRectBottom(boundary) - renderedHeight);
+
   return {
-    left: Math.round(clamp(rawLeft, boundaryPadding, maxLeft)),
-    top: Math.round(clamp(rawTop, boundaryPadding, maxTop)),
+    left: Math.round(clamp(rawLeft, boundary.left, maxLeft) - input.frameRect.left),
+    top: Math.round(clamp(rawTop, boundary.top, maxTop) - input.frameRect.top),
+    placement,
+    maxHeight: Math.round(maxHeight),
+  };
+}
+
+export function calculateAnchoredTableSubmenuPosition(input: {
+  readonly triggerRect: TableControlsRect;
+  readonly parentMenuRect: TableControlsRect;
+  readonly boundaryRect: TableControlsRect;
+  readonly submenuSize: { readonly width: number; readonly height: number };
+  readonly offset?: number;
+  readonly boundaryPadding?: number;
+}): TableSubmenuPosition {
+  const offset = input.offset ?? 6;
+  const boundaryPadding = input.boundaryPadding ?? 8;
+  const boundary = insetTableControlRect(input.boundaryRect, boundaryPadding);
+  const availableRight = Math.max(0, getRectRight(boundary) - getRectRight(input.parentMenuRect) - offset);
+  const availableLeft = Math.max(0, input.parentMenuRect.left - offset - boundary.left);
+  const placement: "left" | "right" =
+    availableRight >= input.submenuSize.width || availableRight >= availableLeft ? "right" : "left";
+  const maxHeight = Math.max(1, Math.min(input.submenuSize.height, boundary.height));
+  const renderedWidth = Math.min(input.submenuSize.width, boundary.width);
+  const renderedHeight = Math.min(input.submenuSize.height, maxHeight);
+  const rawLeft =
+    placement === "right"
+      ? getRectRight(input.parentMenuRect) + offset
+      : input.parentMenuRect.left - renderedWidth - offset;
+  const rawTop = input.triggerRect.top - 5;
+  const maxLeft = Math.max(boundary.left, getRectRight(boundary) - renderedWidth);
+  const maxTop = Math.max(boundary.top, getRectBottom(boundary) - renderedHeight);
+
+  return {
+    left: Math.round(clamp(rawLeft, boundary.left, maxLeft) - input.parentMenuRect.left),
+    top: Math.round(clamp(rawTop, boundary.top, maxTop) - input.parentMenuRect.top),
+    placement,
+    maxHeight: Math.round(maxHeight),
   };
 }
 
@@ -961,7 +1143,7 @@ export function measureTableSelectionOverlay(editor: Editor, overlayState: Table
   }
 
   const overlayVisualRect = overlayState.rect;
-  const cellRects = overlayState.cellPositions
+  const cellRects = overlayState.visualCellPositions
     .map((cellPos) => getCellOverlaySlice(editor, cellPos, overlayVisualRect))
     .filter((rect): rect is RectSlice => Boolean(rect));
 
@@ -976,6 +1158,7 @@ export function measureTableSelectionOverlay(editor: Editor, overlayState: Table
   const bottom = Math.max(...cellRects.map((rect) => rect.bottom));
 
   return {
+    axisTarget: overlayState.axisTarget,
     left: Math.round(left - frameRect.left),
     top: Math.round(top - frameRect.top),
     width: Math.round(right - left),

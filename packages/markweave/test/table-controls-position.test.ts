@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
+  calculateAnchoredTableMenuPosition,
+  calculateAnchoredTableSubmenuPosition,
   calculateTableControlsPosition,
   calculateTableAxisHandleLayout,
   calculateTableEdgeHandlePosition,
@@ -62,6 +64,50 @@ describe("table controls positioning", () => {
         menuSize: { width: 180, height: 180 },
       }),
     ).toEqual({ left: 4, top: 4 });
+  });
+
+  it("keeps anchored menus inside the visible frame and exposes an internal scroll height", () => {
+    expect(
+      calculateAnchoredTableMenuPosition({
+        anchorRect: { left: 170, top: 420, width: 160, height: 12 },
+        frameRect: { left: 100, top: 80, width: 300, height: 760 },
+        boundaryRect: { left: 100, top: 80, width: 300, height: 480 },
+        menuSize: { width: 232, height: 520 },
+        kind: "column",
+      }),
+    ).toEqual({ left: 60, top: 8, placement: "top", maxHeight: 326 });
+  });
+
+  it("flips row menus to the left when the right edge has insufficient room", () => {
+    expect(
+      calculateAnchoredTableMenuPosition({
+        anchorRect: { left: 786, top: 220, width: 12, height: 120 },
+        frameRect: { left: 100, top: 80, width: 720, height: 600 },
+        boundaryRect: { left: 100, top: 80, width: 720, height: 600 },
+        menuSize: { width: 232, height: 360 },
+        kind: "row",
+      }),
+    ).toEqual({ left: 448, top: 138, placement: "left", maxHeight: 360 });
+  });
+
+  it("places submenus on the visible side and clamps them vertically", () => {
+    expect(
+      calculateAnchoredTableSubmenuPosition({
+        triggerRect: { left: 650, top: 410, width: 220, height: 30 },
+        parentMenuRect: { left: 640, top: 180, width: 232, height: 300 },
+        boundaryRect: { left: 80, top: 60, width: 840, height: 440 },
+        submenuSize: { width: 228, height: 620 },
+      }),
+    ).toEqual({ left: -234, top: -112, placement: "left", maxHeight: 424 });
+
+    expect(
+      calculateAnchoredTableSubmenuPosition({
+        triggerRect: { left: 250, top: 120, width: 220, height: 30 },
+        parentMenuRect: { left: 240, top: 100, width: 232, height: 300 },
+        boundaryRect: { left: 80, top: 60, width: 840, height: 440 },
+        submenuSize: { width: 228, height: 180 },
+      }),
+    ).toEqual({ left: 238, top: 15, placement: "right", maxHeight: 180 });
   });
 
   it("positions hover row and column edge handles inside the editor frame", () => {

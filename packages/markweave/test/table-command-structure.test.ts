@@ -91,6 +91,31 @@ const rowspannedBodyFixture = `
 </table>
 `;
 
+const bottomColspanFixture = `
+<table>
+  <tbody>
+    <tr>
+      <th><p>H1</p></th>
+      <th><p>H2</p></th>
+      <th><p>H3</p></th>
+    </tr>
+    <tr>
+      <td><p>A</p></td>
+      <td><p>B</p></td>
+      <td><p>C</p></td>
+    </tr>
+    <tr>
+      <td><p>D</p></td>
+      <td><p>E</p></td>
+      <td><p>F</p></td>
+    </tr>
+    <tr>
+      <td colspan="3"><p>Full width footer</p></td>
+    </tr>
+  </tbody>
+</table>
+`;
+
 const mixedSpanFixture = `
 <table>
   <tbody>
@@ -1127,6 +1152,62 @@ describe("table command structure", () => {
     expect(editor.getHTML()).toContain("background-color: rgb(254, 249, 195)");
     expect(editor.getHTML()).toContain("text-align: center");
     expect(editor.getHTML()).toContain("vertical-align: top");
+  });
+
+  it("keeps column copy and formatting scoped with a full-width footer cell", () => {
+    const editor = createTableEditor(bottomColspanFixture);
+    expect(selectTableAxisFromCell(editor, cellByText(editor, "H1").pos, "column", { visualIndex: 0 })).toBe(true);
+
+    expect(getMarkweaveMenuCopyPayloadFromState(editor.state, "column")?.text).toBe("H1\nA\nD\nFull width footer");
+    expect(applyTableAxisTextColor(editor, "column", "blue")).toBe(true);
+    expect(applyTableAxisBackgroundColor(editor, "column", "yellow")).toBe(true);
+    expect(applyTableAxisAlignment(editor, "column", "center")).toBe(true);
+    expect(applyTableAxisAlignment(editor, "column", "top")).toBe(true);
+
+    ["H1", "A", "D", "Full width footer"].forEach((text) => {
+      expect(editor.state.doc.nodeAt(cellByText(editor, text).pos)?.attrs).toMatchObject({
+        textColor: "#327da9",
+        backgroundColor: "#fef9c3",
+        textAlign: "center",
+        verticalAlign: "top",
+      });
+    });
+    ["H2", "H3", "B", "C", "E", "F"].forEach((text) => {
+      expect(editor.state.doc.nodeAt(cellByText(editor, text).pos)?.attrs).toMatchObject({
+        textColor: null,
+        backgroundColor: null,
+        textAlign: "left",
+        verticalAlign: "middle",
+      });
+    });
+  });
+
+  it("inserts a targeted column while expanding the full-width footer colspan", () => {
+    const editor = createTableEditor(bottomColspanFixture);
+    expect(selectTableAxisFromCell(editor, cellByText(editor, "H1").pos, "column", { visualIndex: 0 })).toBe(true);
+
+    expect(runTableCommand(editor, "add-column-after")).toBe(true);
+    expect(tableShape(editor)).toEqual({ rows: 4, columns: 4, rowWidths: [4, 4, 4, 1] });
+    expect(cellByText(editor, "Full width footer").colspan).toBe(4);
+    expect(editor.commands.undo()).toBe(true);
+    expect(cellByText(editor, "Full width footer").colspan).toBe(3);
+  });
+
+  it("deletes only the targeted column while shrinking the full-width footer colspan", () => {
+    const editor = createTableEditor(bottomColspanFixture);
+    expect(selectTableAxisFromCell(editor, cellByText(editor, "H1").pos, "column", { visualIndex: 0 })).toBe(true);
+
+    expect(runTableCommand(editor, "delete-column")).toBe(true);
+    expect(tableShape(editor)).toEqual({ rows: 4, columns: 2, rowWidths: [2, 2, 2, 1] });
+    expect(tableTextRows(editor)).toEqual([
+      ["H2", "H3"],
+      ["B", "C"],
+      ["E", "F"],
+      ["Full width footer"],
+    ]);
+    expect(cellByText(editor, "Full width footer").colspan).toBe(2);
+    expect(editor.commands.undo()).toBe(true);
+    expect(tableTextRows(editor)[0]).toEqual(["H1", "H2", "H3"]);
   });
 
   it("disables sort and duplicate operations that would cross merged cells", () => {

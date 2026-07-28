@@ -53,6 +53,7 @@ export function TableSelectionOverlay({ editor, focusState }: TableSelectionOver
     <div
       aria-hidden="true"
       className="markweave-table-selection-overlay"
+      data-axis-target={overlayRect.axisTarget ?? "none"}
       data-anchor-cell-pos={overlayRect.anchorCellPos ?? ""}
       data-head-cell-pos={overlayRect.headCellPos ?? ""}
       data-selected-cells={overlayRect.selectedCellCount}

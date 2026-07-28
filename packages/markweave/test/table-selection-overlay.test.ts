@@ -129,11 +129,12 @@ describe("table selection overlay measurement", () => {
     editor.view.dispatch(setMarkweaveTableMenuAxisTarget(editor.state.tr, { kind: "row", index: 2 }));
 
     expect(measureTableSelectionOverlay(editor, getTableSelectionOverlayState(editor.state))).toMatchObject({
+      axisTarget: "row",
       left: 10,
       top: 100,
       width: 300,
       height: 40,
-      selectedCellCount: 7,
+      selectedCellCount: 2,
       visualColumnCount: 3,
       visualRowCount: 1,
       visualSlotCount: 3,
@@ -147,11 +148,12 @@ describe("table selection overlay measurement", () => {
     editor.view.dispatch(setMarkweaveTableMenuAxisTarget(editor.state.tr, { kind: "column", index: 1 }));
 
     expect(measureTableSelectionOverlay(editor, getTableSelectionOverlayState(editor.state))).toMatchObject({
+      axisTarget: "column",
       left: 110,
       top: 20,
       width: 100,
       height: 120,
-      selectedCellCount: 7,
+      selectedCellCount: 2,
       visualColumnCount: 1,
       visualRowCount: 3,
       visualSlotCount: 3,

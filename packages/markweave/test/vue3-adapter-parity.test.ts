@@ -12,6 +12,16 @@ function expectSourceContract(source: string, selectors: readonly string[]) {
 }
 
 describe("Vue3 adapter parity source contract", () => {
+  it("exposes table axis selection overlays consistently across adapters", () => {
+    [
+      "packages/markweave-react/src/ui/table/TableSelectionOverlay.tsx",
+      "packages/markweave-vue2/src/MarkweaveEditor.ts",
+      "packages/markweave-vue3/src/MarkweaveEditor.ts",
+    ].forEach((path) => {
+      expectSourceContract(readWorkspaceFile(path), ["markweave-table-selection-overlay", "data-axis-target"]);
+    });
+  });
+
   it("passes image uploads into the shared core clipboard behavior", () => {
     const source = readWorkspaceFile("packages/markweave-vue3/src/create-editor-extensions.ts");
 

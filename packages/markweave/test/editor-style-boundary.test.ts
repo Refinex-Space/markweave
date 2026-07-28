@@ -90,6 +90,24 @@ describe("editor style boundary", () => {
     expect(overlayRule).not.toContain("var(--markweave-selection);");
   });
 
+  it("lets axis overlays own merged-cell selection paint and suppresses expanded native selected cells", () => {
+    const axisSelectionFillValues = [
+      ...editorCss.matchAll(/--markweave-table-axis-selection-fill:\s*rgba\([^;]+,\s*(0?\.\d+)\);/g),
+    ];
+
+    expect(editorCss).toContain(".selectedCell.markweave-axis-selection-cell");
+    expect(editorCss).toContain(".selectedCell.markweave-selection-excluded-cell");
+    expect(editorCss).toContain('.markweave-table-selection-overlay[data-axis-target="row"]');
+    expect(editorCss).toContain('.markweave-table-selection-overlay[data-axis-target="column"]');
+    expect(editorCss).toContain("background-color: var(--markweave-table-axis-selection-fill);");
+    expect(editorCss).not.toContain("background-color: var(--markweave-selection);");
+    expect(axisSelectionFillValues).toHaveLength(2);
+    axisSelectionFillValues.forEach((match) => {
+      expect(Number(match[1])).toBeGreaterThan(0);
+      expect(Number(match[1])).toBeLessThan(0.5);
+    });
+  });
+
   it("keeps an open table menu above the inner table of contents and below the floating toolbar", () => {
     const innerTocZIndex = Number(editorCss.match(/\.markweave-inner-toc\s*\{[^}]*z-index:\s*(\d+);/s)?.[1]);
     const openTableMenuZIndex = Number(
@@ -217,6 +235,9 @@ describe("editor style boundary", () => {
       /\.markweave-table-controls \.markweave-table-edge-handle--selection \{[^}]*background: var\(--markweave-table-handle-surface\);/s,
     );
     expect(editorCss).toMatch(/\.markweave-table-menu button \{[^}]*background: transparent;/s);
+    expect(editorCss).toMatch(/\.markweave-table-menu-scroll \{[^}]*overflow-y: auto;[^}]*overscroll-behavior: contain;/s);
+    expect(editorCss).toContain('.markweave-table-submenu[data-positioned="false"]');
+    expect(editorCss).not.toContain(".markweave-table-alignment-menu {");
     expect(editorCss).toContain('.markweave-table-menu button[data-starts-group="true"]::before');
     expect(editorCss).toMatch(
       /\.markweave-table-submenu button\[data-active="true"\] \{[^}]*color: var\(--markweave-focus\);/s,

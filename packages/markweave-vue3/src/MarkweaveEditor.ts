@@ -249,6 +249,7 @@ import {
 } from "markweave/internal/plugins/table/table-interaction-layer";
 import {
   calculateAnchoredTableMenuPosition,
+  calculateAnchoredTableSubmenuPosition,
   calculateTableAxisHandleLayout,
   calculateTableExtendButtonLayout,
   applyTableAxisAlignment,
@@ -267,6 +268,7 @@ import {
   getTableMenuItemGroup,
   getTableMenuItemLabel,
   getTableMenuItems,
+  getTableMenuBoundaryRect,
   getTableSelectionTargetRect,
   measureTableSelectionOverlay,
   moveTargetedTableAxis,
@@ -283,7 +285,8 @@ import {
   type TableCopyFeedbackSnapshot,
   type TableMenuAnchor,
   type TableMenuKind,
-  type TableMenuPosition,
+  type TableFloatingMenuPosition,
+  type TableSubmenuPosition,
   type TableSelectionOverlayRect,
 } from "markweave/internal/plugins/table/table-ui-model";
 import { createMarkweaveVue3EditorExtensions } from "./create-editor-extensions";
@@ -1367,13 +1370,16 @@ const VueTableControls = defineComponent({
     const formatRevision = ref(0);
     let dragOrigin: { readonly axis: "row" | "column"; readonly index: number } | null = null;
     let dragTarget: number | null = null;
-    const menuPosition = ref<TableMenuPosition | null>(null);
+    const menuPosition = ref<TableFloatingMenuPosition | null>(null);
+    const submenuPosition = ref<TableSubmenuPosition | null>(null);
     const copyFeedback = ref<TableCopyFeedbackSnapshot | null>(null);
     const controlsRef = ref<HTMLElement | null>(null);
     const rowEdgeRef = ref<HTMLElement | null>(null);
     const columnEdgeRef = ref<HTMLElement | null>(null);
     const selectionEdgeRef = ref<HTMLElement | null>(null);
     const menuRef = ref<HTMLElement | null>(null);
+    const menuScrollRef = ref<HTMLElement | null>(null);
+    const submenuRef = ref<HTMLElement | null>(null);
     let copyFeedbackTimeout: number | null = null;
 
     const focusState = computed(() => (props.active ? getTableFocusState(props.editor.state) : outsideTableFocusState));
@@ -1480,20 +1486,51 @@ const VueTableControls = defineComponent({
         : rawAnchorRect;
       const frameRect = frameElement.getBoundingClientRect();
       const menuRect = menuRef.value.getBoundingClientRect();
+      const scrollHeight = menuScrollRef.value?.scrollHeight ?? 0;
+      const naturalMenuHeight = scrollHeight > 0 ? scrollHeight + 12 : 0;
       menuPosition.value = calculateAnchoredTableMenuPosition({
         anchorRect,
         frameRect,
+        boundaryRect: getTableMenuBoundaryRect(frameElement),
         menuSize: {
           width: menuRect.width || 254,
-          height: menuRect.height || 410,
+          height: naturalMenuHeight || menuRect.height || 410,
         },
         kind: openMenu.value,
+      });
+    };
+
+    const updateSubmenuPosition = () => {
+      if (!props.active || !openMenu.value || !openSubmenu.value || !menuPosition.value) {
+        submenuPosition.value = null;
+        return;
+      }
+
+      const frameElement = props.editor.view.dom.closest<HTMLElement>(".markweave-editor-frame") ?? props.editor.view.dom.parentElement;
+      const triggerElement = menuRef.value?.querySelector<HTMLElement>(`[data-submenu-trigger="${openSubmenu.value}"]`);
+
+      if (!frameElement || !menuRef.value || !submenuRef.value || !triggerElement) {
+        submenuPosition.value = null;
+        return;
+      }
+
+      const submenuRect = submenuRef.value.getBoundingClientRect();
+      const naturalSubmenuHeight = Math.max(submenuRef.value.scrollHeight + 2, submenuRect.height);
+      submenuPosition.value = calculateAnchoredTableSubmenuPosition({
+        triggerRect: triggerElement.getBoundingClientRect(),
+        parentMenuRect: menuRef.value.getBoundingClientRect(),
+        boundaryRect: getTableMenuBoundaryRect(frameElement),
+        submenuSize: {
+          width: submenuRect.width || 238,
+          height: naturalSubmenuHeight || 410,
+        },
       });
     };
 
     const updatePositions = () => {
       updateEdgePositions();
       updateMenuPosition();
+      updateSubmenuPosition();
     };
 
     const scheduleUpdatePositions = () => {
@@ -1505,6 +1542,7 @@ const VueTableControls = defineComponent({
       menuAnchor.value = anchor;
       openMenu.value = shouldClose ? null : menu;
       openSubmenu.value = null;
+      submenuPosition.value = null;
       scheduleUpdatePositions();
     };
 
@@ -1532,6 +1570,7 @@ const VueTableControls = defineComponent({
       openMenu.value = null;
       openSubmenu.value = null;
       menuPosition.value = null;
+      submenuPosition.value = null;
       if (focusEditor) {
         props.editor.view.focus();
       }
@@ -1640,9 +1679,12 @@ const VueTableControls = defineComponent({
       if (!(menu instanceof HTMLElement)) {
         return;
       }
+      const itemRoot = menu.classList.contains("markweave-table-menu")
+        ? menu.querySelector<HTMLElement>(":scope > .markweave-table-menu-scroll") ?? menu
+        : menu;
 
       const items = Array.from(
-        menu.querySelectorAll<HTMLButtonElement>(
+        itemRoot.querySelectorAll<HTMLButtonElement>(
           ':scope > button[role="menuitem"]:not(:disabled), :scope > button[role="menuitemradio"]:not(:disabled)',
         ),
       );
@@ -1695,6 +1737,7 @@ const VueTableControls = defineComponent({
         props.interactionState.hoverVisualColumnIndex,
         props.interactionState.hoverVisualRowIndex,
         openMenu.value,
+        openSubmenu.value,
         menuAnchor.value,
       ],
       scheduleUpdatePositions,
@@ -1706,7 +1749,7 @@ const VueTableControls = defineComponent({
         return null;
       }
 
-      const menuChildren = menuItems.value.map((item, index) => {
+      const menuItemChildren = menuItems.value.map((item, index) => {
         const group = getTableMenuItemGroup(item);
         const previousGroup = index === 0 ? group : getTableMenuItemGroup(menuItems.value[index - 1]);
         const startsGroup = index > 0 && previousGroup !== group;
@@ -1758,10 +1801,21 @@ const VueTableControls = defineComponent({
           ],
         );
       });
+      const menuChildren = [
+        h(
+          "div",
+          {
+            ref: menuScrollRef,
+            class: "markweave-table-menu-scroll",
+            style: menuPosition.value ? { maxHeight: `${Math.max(1, menuPosition.value.maxHeight - 12)}px` } : undefined,
+          },
+          menuItemChildren,
+        ),
+      ];
 
       if (openSubmenu.value === "color" && (openMenu.value === "row" || openMenu.value === "column")) {
         menuChildren.push(
-          h("div", { class: "markweave-table-submenu markweave-table-color-menu", role: "menu", "aria-label": props.messages.table.submenus.color, "data-testid": "markweave-table-color-menu", onKeydown: onMenuKeydown }, [
+          h("div", { ref: submenuRef, class: "markweave-table-submenu markweave-table-color-menu", role: "menu", "aria-label": props.messages.table.submenus.color, "data-testid": "markweave-table-color-menu", "data-positioned": submenuPosition.value ? "true" : "false", "data-placement": submenuPosition.value?.placement, style: submenuPosition.value ? { left: `${submenuPosition.value.left}px`, top: `${submenuPosition.value.top}px`, maxHeight: `${submenuPosition.value.maxHeight}px` } : undefined, onKeydown: onMenuKeydown }, [
             h("div", { class: "markweave-table-submenu-title" }, props.messages.table.submenus.textColor),
             ...tableColorOptions.map((option) =>
               h("button", {
@@ -1814,7 +1868,7 @@ const VueTableControls = defineComponent({
           }, [h(AlignmentIcon, { size: 18, strokeWidth: 1.8, "aria-hidden": "true" }), h("span", null, props.messages.table.alignments[alignment])]);
         };
         menuChildren.push(
-          h("div", { class: "markweave-table-submenu markweave-table-alignment-menu", role: "menu", "aria-label": props.messages.table.submenus.alignment, "data-testid": "markweave-table-alignment-menu", onKeydown: onMenuKeydown }, [
+          h("div", { ref: submenuRef, class: "markweave-table-submenu markweave-table-alignment-menu", role: "menu", "aria-label": props.messages.table.submenus.alignment, "data-testid": "markweave-table-alignment-menu", "data-positioned": submenuPosition.value ? "true" : "false", "data-placement": submenuPosition.value?.placement, style: submenuPosition.value ? { left: `${submenuPosition.value.left}px`, top: `${submenuPosition.value.top}px`, maxHeight: `${submenuPosition.value.maxHeight}px` } : undefined, onKeydown: onMenuKeydown }, [
             ...tableHorizontalAlignmentOptions.map((alignment) => alignmentButton(alignment, formattingState.value?.textAlign === alignment)),
             h("div", { class: "markweave-table-submenu-separator" }),
             ...tableVerticalAlignmentOptions.map((alignment) => alignmentButton(alignment, formattingState.value?.verticalAlign === alignment)),
@@ -1831,6 +1885,7 @@ const VueTableControls = defineComponent({
           "aria-label": tableMenuLabel(openMenu.value, props.messages),
           "data-testid": "markweave-table-menu",
           "data-positioned": menuPosition.value ? "true" : "false",
+          "data-placement": menuPosition.value?.placement,
           "data-submenu": openSubmenu.value ?? "none",
           style: menuPosition.value ? { left: `${menuPosition.value.left}px`, top: `${menuPosition.value.top}px` } : undefined,
           onKeydown: onMenuKeydown,
@@ -1918,6 +1973,7 @@ const VueTableSelectionOverlay = defineComponent({
       return h("div", {
         "aria-hidden": "true",
         class: "markweave-table-selection-overlay",
+        "data-axis-target": rect.axisTarget ?? "none",
         "data-anchor-cell-pos": rect.anchorCellPos ?? "",
         "data-head-cell-pos": rect.headCellPos ?? "",
         "data-selected-cells": rect.selectedCellCount,

@@ -18,10 +18,12 @@ export interface TableInteractionState {
 
 export interface TableSelectionOverlayState {
   readonly active: boolean;
+  readonly axisTarget: "row" | "column" | null;
   readonly anchorCellPos: number | null;
   readonly headCellPos: number | null;
   readonly selectedCellCount: number;
   readonly cellPositions: readonly number[];
+  readonly visualCellPositions: readonly number[];
   readonly rect: {
     readonly left: number;
     readonly right: number;
@@ -31,6 +33,18 @@ export interface TableSelectionOverlayState {
     readonly height: number;
     readonly slotCount: number;
   } | null;
+}
+
+interface TableAxisSelectionSnapshot {
+  readonly kind: "row" | "column";
+  readonly cellPositions: readonly number[];
+  readonly visualCellPositions: readonly number[];
+  readonly rect: {
+    readonly left: number;
+    readonly right: number;
+    readonly top: number;
+    readonly bottom: number;
+  };
 }
 
 export type TableInteractionMeta =
@@ -142,6 +156,49 @@ function addFocusedAxisClasses(state: EditorState, classMap: Map<number, Set<str
   });
 }
 
+function getTableAxisSelectionSnapshot(state: EditorState, selection: CellSelection): TableAxisSelectionSnapshot | null {
+  const axisTarget = getMarkweaveTableMenuAxisTarget(state);
+
+  if (!axisTarget) {
+    return null;
+  }
+
+  const selectionRect = selectedRect(state);
+  const { map } = selectionRect;
+  const isValidIndex =
+    axisTarget.kind === "row"
+      ? axisTarget.index >= 0 && axisTarget.index < map.height
+      : axisTarget.index >= 0 && axisTarget.index < map.width;
+
+  if (!isValidIndex) {
+    return null;
+  }
+
+  const rect =
+    axisTarget.kind === "row"
+      ? { left: 0, right: map.width, top: axisTarget.index, bottom: axisTarget.index + 1 }
+      : { left: axisTarget.index, right: axisTarget.index + 1, top: 0, bottom: map.height };
+  const tableStart = selection.$anchorCell.start(-1);
+  const cellPositions = [...new Set(map.cellsInRect(rect).map((relativePos) => tableStart + relativePos))].sort(
+    (left, right) => left - right,
+  );
+  const visualRelativePositions =
+    axisTarget.kind === "row"
+      ? Array.from({ length: map.width }, (_value, columnIndex) => map.map[axisTarget.index * map.width + columnIndex])
+      : Array.from({ length: map.height }, (_value, rowIndex) => map.map[rowIndex * map.width + axisTarget.index]);
+  const visualCellPositions = [...new Set(visualRelativePositions)]
+    .filter((relativePos): relativePos is number => relativePos !== undefined)
+    .map((relativePos) => tableStart + relativePos)
+    .sort((left, right) => left - right);
+
+  return {
+    kind: axisTarget.kind,
+    cellPositions,
+    visualCellPositions,
+    rect,
+  };
+}
+
 function addSelectedCellClasses(state: EditorState, classMap: Map<number, Set<string>>) {
   const { selection } = state;
 
@@ -149,34 +206,49 @@ function addSelectedCellClasses(state: EditorState, classMap: Map<number, Set<st
     return;
   }
 
-  const selectionRect = selectedRect(state);
+  const axisSelection = getTableAxisSelectionSnapshot(state, selection);
+  const selectionRect = axisSelection?.rect ?? selectedRect(state);
+  const targetPositions = axisSelection ? new Set(axisSelection.cellPositions) : null;
+  const anchorCellPos = axisSelection?.cellPositions[0] ?? selection.$anchorCell.pos;
+  const headCellPos = axisSelection
+    ? (axisSelection.cellPositions[axisSelection.cellPositions.length - 1] ?? selection.$headCell.pos)
+    : selection.$headCell.pos;
 
   selection.forEachCell((_node, pos) => {
+    if (targetPositions && !targetPositions.has(pos)) {
+      addClass(classMap, pos, "markweave-selection-excluded-cell");
+      return;
+    }
+
     addClass(classMap, pos, "markweave-selection-cell");
 
-    if (pos === selection.$anchorCell.pos) {
+    if (axisSelection) {
+      addClass(classMap, pos, "markweave-axis-selection-cell");
+    }
+
+    if (pos === anchorCellPos) {
       addClass(classMap, pos, "markweave-selection-anchor-cell");
     }
 
-    if (pos === selection.$headCell.pos) {
+    if (pos === headCellPos) {
       addClass(classMap, pos, "markweave-selection-head-cell");
     }
 
     const cellRect = findCell(state.doc.resolve(pos));
 
-    if (cellRect.top === selectionRect.top) {
+    if (cellRect.top <= selectionRect.top && cellRect.bottom > selectionRect.top) {
       addClass(classMap, pos, "markweave-selection-edge-top");
     }
 
-    if (cellRect.right === selectionRect.right) {
+    if (cellRect.left < selectionRect.right && cellRect.right >= selectionRect.right) {
       addClass(classMap, pos, "markweave-selection-edge-right");
     }
 
-    if (cellRect.bottom === selectionRect.bottom) {
+    if (cellRect.top < selectionRect.bottom && cellRect.bottom >= selectionRect.bottom) {
       addClass(classMap, pos, "markweave-selection-edge-bottom");
     }
 
-    if (cellRect.left === selectionRect.left) {
+    if (cellRect.left <= selectionRect.left && cellRect.right > selectionRect.left) {
       addClass(classMap, pos, "markweave-selection-edge-left");
     }
   });
@@ -248,44 +320,37 @@ export function getTableSelectionOverlayState(state: EditorState): TableSelectio
   if (!(selection instanceof CellSelection)) {
     return {
       active: false,
+      axisTarget: null,
       anchorCellPos: null,
       headCellPos: null,
       selectedCellCount: 0,
       cellPositions: [],
+      visualCellPositions: [],
       rect: null,
     };
   }
 
-  const cellPositions: number[] = [];
+  const selectedCellPositions: number[] = [];
   selection.forEachCell((_node, pos) => {
-    cellPositions.push(pos);
+    selectedCellPositions.push(pos);
   });
 
   const selectionRect = selectedRect(state);
-  const axisTarget = getMarkweaveTableMenuAxisTarget(state);
-  const overlayRect =
-    axisTarget?.kind === "row" && axisTarget.index >= 0 && axisTarget.index < selectionRect.map.height
-      ? {
-          left: 0,
-          right: selectionRect.map.width,
-          top: axisTarget.index,
-          bottom: axisTarget.index + 1,
-        }
-      : axisTarget?.kind === "column" && axisTarget.index >= 0 && axisTarget.index < selectionRect.map.width
-        ? {
-            left: axisTarget.index,
-            right: axisTarget.index + 1,
-            top: 0,
-            bottom: selectionRect.map.height,
-          }
-        : selectionRect;
+  const axisSelection = getTableAxisSelectionSnapshot(state, selection);
+  const cellPositions = axisSelection?.cellPositions ?? selectedCellPositions.sort((left, right) => left - right);
+  const visualCellPositions = axisSelection?.visualCellPositions ?? cellPositions;
+  const overlayRect = axisSelection?.rect ?? selectionRect;
 
   return {
     active: true,
-    anchorCellPos: selection.$anchorCell.pos,
-    headCellPos: selection.$headCell.pos,
+    axisTarget: axisSelection?.kind ?? null,
+    anchorCellPos: axisSelection?.cellPositions[0] ?? selection.$anchorCell.pos,
+    headCellPos: axisSelection
+      ? (axisSelection.cellPositions[axisSelection.cellPositions.length - 1] ?? selection.$headCell.pos)
+      : selection.$headCell.pos,
     selectedCellCount: cellPositions.length,
-    cellPositions: cellPositions.sort((left, right) => left - right),
+    cellPositions,
+    visualCellPositions,
     rect: {
       left: overlayRect.left,
       right: overlayRect.right,
