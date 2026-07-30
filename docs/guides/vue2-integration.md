@@ -1,6 +1,6 @@
 ---
 owner: refinex
-updated: 2026-07-27
+updated: 2026-07-28
 status: active
 referenced_by: docs/README.md#knowledge-map
 ---
@@ -319,6 +319,7 @@ Vue 2 receives the complete Markweave UI: floating toolbar, link popover, slash 
 - Inline emphasis remains visible for CJK fallback fonts even when the host system has no native italic face.
 - Keep `vue` and `vue-template-compiler` versions identical.
 - Keep `transpileDependencies` for modern ESM dependencies when using Vue CLI 4 / Webpack 4.
+- Markweave 0.3.5 avoids CSS query-container fixed-position drift and actively probes pending first-screen images after mount, including when Electron 21 / Chromium 106 delays the initial `IntersectionObserver` callback.
 - Keep uploads authenticated and validate file size, MIME type, and returned URLs on your server.
 - Do not allow arbitrary iframe hosts. Markweave only handles direct video plus supported YouTube/Bilibili embed forms.
 - Markweave is browser-oriented. In SSR setups, render the editor on the client side.

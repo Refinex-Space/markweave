@@ -137,10 +137,23 @@ describe("Markweave inner TOC DOM", () => {
       throw new Error("Expected Markweave editor frame and inner TOC.");
     }
 
-    vi.spyOn(frame, "getBoundingClientRect").mockReturnValue({ right: window.innerWidth - 100 } as DOMRect);
+    const getFrameBounds = vi.spyOn(frame, "getBoundingClientRect").mockReturnValue({
+      right: window.innerWidth - 100,
+      width: 800,
+    } as DOMRect);
     window.dispatchEvent(new Event("resize"));
     await flushReact();
 
     expect(toc.style.getPropertyValue("--markweave-inner-toc-right")).toBe("128px");
+    expect(frame.dataset.markweaveInnerTocCompact).toBe("true");
+
+    getFrameBounds.mockReturnValue({
+      right: window.innerWidth - 100,
+      width: 1200,
+    } as DOMRect);
+    window.dispatchEvent(new Event("resize"));
+    await flushReact();
+
+    expect(frame.dataset.markweaveInnerTocCompact).toBe("false");
   });
 });

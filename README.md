@@ -163,6 +163,8 @@ The composer keeps actions compact: copy address, embed, copy Markdown, and remo
 
 `innerToc` defaults to `true` and renders the built-in right-side document outline from Markdown headings. `innerTocPlacement` defaults to `"container"`: it keeps the outline vertically centered in the visual viewport and centers the writing column with symmetric TOC gutters. When the actual editor container is narrow, the built-in outline hides automatically so the writing column remains readable. Set `innerTocPlacement="viewport"` only when a fixed viewport-side outline is required; set `innerToc={false}` to hide the default UI while still receiving outline data through `onTocChange` and `onRuntimeStateChange`.
 
+Markweave 0.3.5 keeps fixed outline positioning independent of CSS query containers and gives resolver-backed images an immediate pending placeholder plus a post-mount viewport probe. This preserves the same first-screen layout and media loading behavior in Electron 21 / Chromium 106 hosts and current browsers.
+
 ```tsx
 <MarkweaveEditor
   defaultContent={"# Product Spec\n\n## Goals"}

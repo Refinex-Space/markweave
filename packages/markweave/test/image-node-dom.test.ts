@@ -12,6 +12,7 @@ import type { MarkweaveSlashCommandUploadHandler } from "../src/plugins/slash-co
 
 let activeRoot: Root | null = null;
 let activeController: MarkweaveEditorController | null = null;
+let lightweightImageRect: DOMRect | null = null;
 
 function createRect(left: number, top: number, width: number, height: number): DOMRect {
   return {
@@ -35,6 +36,13 @@ function installLayoutMocks() {
 
     if (this.classList.contains("markweave-image-box")) {
       return createRect(0, 0, 400, 240);
+    }
+
+    if (
+      this.classList.contains("markweave-image-node") &&
+      lightweightImageRect
+    ) {
+      return lightweightImageRect;
     }
 
     return createRect(0, 0, 120, 40);
@@ -77,6 +85,32 @@ async function flushReact() {
   await act(async () => {
     await new Promise((resolve) => window.setTimeout(resolve, 0));
   });
+}
+
+function installStalledIntersectionObserver() {
+  const observe = vi.fn();
+  vi.stubGlobal("IntersectionObserver", class StalledIntersectionObserver {
+    readonly root = null;
+    readonly rootMargin = "300% 0px";
+    readonly thresholds = [0];
+    readonly disconnect = vi.fn();
+    readonly observe = observe;
+    readonly takeRecords = vi.fn(() => []);
+    readonly unobserve = vi.fn();
+  });
+  return observe;
+}
+
+async function completeLightweightImageLoad() {
+  const image = document.querySelector<HTMLImageElement>("img.markweave-image");
+  if (!image) {
+    throw new Error("Expected lightweight image.");
+  }
+  await act(async () => {
+    image.dispatchEvent(new Event("load"));
+  });
+  await flushReact();
+  return image;
 }
 
 async function renderEditor(defaultContent = "<p></p>", onUpload?: MarkweaveSlashCommandUploadHandler, lang?: MarkweaveLang, mode?: MarkweaveEditorMode, resolveMediaSource?: MarkweaveMediaSourceResolver) {
@@ -167,6 +201,8 @@ afterEach(() => {
   activeRoot = null;
   activeController?.editor?.destroy();
   activeController = null;
+  lightweightImageRect = null;
+  vi.unstubAllGlobals();
   vi.restoreAllMocks();
   document.body.replaceChildren();
 });
@@ -277,12 +313,13 @@ describe("image node view", () => {
     expect(getByTestId("markweave-image-caption").textContent).toBe("Read-only caption");
   });
 
-  it("resolves display-only image sources lazily without changing serialized content", async () => {
-    const resolveMediaSource = vi.fn<MarkweaveMediaSourceResolver>(() => ({
-      src: "asset://resolved/image.png",
-      width: 640,
-      height: 360,
-    }));
+  it("resolves a mounted first-screen image when Chromium 106 delays the initial observer callback", async () => {
+    const observe = installStalledIntersectionObserver();
+    let finishResolve!: (value: { src: string; width: number; height: number }) => void;
+    const deferredSource = new Promise<{ src: string; width: number; height: number }>((resolve) => {
+      finishResolve = resolve;
+    });
+    const resolveMediaSource = vi.fn<MarkweaveMediaSourceResolver>(() => deferredSource);
     const controller = await renderEditor(
       '<img src="madora-asset://hash" alt="Asset">',
       undefined,
@@ -293,8 +330,14 @@ describe("image node view", () => {
     await flushReact();
 
     const image = document.querySelector<HTMLImageElement>("img.markweave-image");
+    const imageNode = document.querySelector<HTMLElement>(
+      '[data-markweave-lightweight-image="true"]',
+    );
+    const placeholder = document.querySelector<HTMLElement>(
+      ".markweave-image-readonly-empty",
+    );
     expect(
-      document.querySelector('[data-markweave-lightweight-image="true"]'),
+      imageNode,
     ).not.toBeNull();
     expect(
       document.querySelector('[data-testid="markweave-image-upload-placeholder"]'),
@@ -306,12 +349,64 @@ describe("image node view", () => {
         src: "madora-asset://hash",
       }),
     );
+    expect(observe).toHaveBeenCalledWith(imageNode);
+    expect(imageNode?.dataset.mediaState).toBe("pending");
+    expect(imageNode?.getAttribute("aria-busy")).toBe("true");
+    expect(image?.hidden).toBe(true);
+    expect(placeholder?.hidden).toBe(false);
+    expect(image?.hasAttribute("src")).toBe(false);
+
+    finishResolve({
+      src: "asset://resolved/image.png",
+      width: 640,
+      height: 360,
+    });
+    await flushReact();
+
     expect(image?.src).toContain("asset://resolved/image.png");
+    expect(imageNode?.dataset.mediaState).toBe("pending");
+    expect(image?.hidden).toBe(true);
+    await completeLightweightImageLoad();
+    expect(imageNode?.dataset.mediaState).toBe("resolved");
+    expect(imageNode?.hasAttribute("aria-busy")).toBe(false);
+    expect(image?.hidden).toBe(false);
+    expect(placeholder?.hidden).toBe(true);
     expect(image?.getAttribute("loading")).toBe("lazy");
     expect(image?.getAttribute("decoding")).toBe("async");
     expect(image?.getAttribute("width")).toBe("640");
     expect(image?.getAttribute("height")).toBe("360");
     expect(controller.editor?.getHTML()).toContain('src="madora-asset://hash"');
+  });
+
+  it("rechecks an unresolved image when an Electron host window regains focus", async () => {
+    installStalledIntersectionObserver();
+    lightweightImageRect = createRect(0, window.innerHeight * 5, 400, 240);
+    const resolveMediaSource = vi.fn<MarkweaveMediaSourceResolver>(() => ({
+      src: "asset://resolved/focus.png",
+    }));
+
+    await renderEditor(
+      '<p>Before</p><img src="madora-asset://focus" alt="Focus recovery">',
+      undefined,
+      undefined,
+      "view",
+      resolveMediaSource,
+    );
+    await flushReact();
+    expect(resolveMediaSource).not.toHaveBeenCalled();
+
+    lightweightImageRect = createRect(0, 120, 400, 240);
+    await act(async () => {
+      window.dispatchEvent(new Event("focus"));
+    });
+    await flushReact();
+
+    expect(resolveMediaSource).toHaveBeenCalledWith(
+      expect.objectContaining({
+        priority: "visible",
+        src: "madora-asset://focus",
+      }),
+    );
   });
 
   it("opens resolved lightweight images from the View mode preview action", async () => {
@@ -328,6 +423,7 @@ describe("image node view", () => {
       resolveMediaSource,
     );
     await flushReact();
+    await completeLightweightImageLoad();
 
     expect(
       document.querySelector('[data-markweave-lightweight-image="true"]'),
@@ -357,6 +453,7 @@ describe("image node view", () => {
       resolveMediaSource,
     );
     await flushReact();
+    await completeLightweightImageLoad();
 
     expect(document.querySelector(".markweave-image-preview-trigger")).toBeNull();
 

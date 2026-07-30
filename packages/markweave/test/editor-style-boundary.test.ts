@@ -181,9 +181,13 @@ describe("editor style boundary", () => {
     expect(editorCss).toContain("--markweave-inner-toc-gutter: 232px");
     expect(editorCss).toContain("--markweave-inner-toc-panel-width: 184px");
     expect(editorCss).toContain("padding-inline: var(--markweave-inner-toc-gutter)");
-    expect(editorCss).toContain("@container (max-width: 900px)");
+    expect(editorCss).toContain('data-markweave-inner-toc-compact="true"');
+    expect(editorCss).not.toContain("@container (max-width: 900px)");
+    expect(editorCss).not.toContain("container-type: inline-size");
     expect(editorCss).toContain("position: fixed;");
     expect(editorCss).toContain("right: var(--markweave-inner-toc-right, 28px);");
+    expect(editorCss).toContain('.markweave-image-node[data-media-state="pending"]');
+    expect(editorCss).toContain("@keyframes markweave-image-loading");
     expect(editorCss).toContain("font-size: 16px");
     expect(editorCss).toContain("z-index: 58");
     expect(editorCss).toContain("scrollbar-color: #d7d7d7 transparent");

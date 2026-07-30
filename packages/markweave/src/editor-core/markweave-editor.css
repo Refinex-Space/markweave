@@ -133,7 +133,6 @@
 .markweave-editor-frame[data-markweave-inner-toc="true"][data-markweave-inner-toc-placement="container"] {
   --markweave-inner-toc-gutter: 232px;
   --markweave-inner-toc-panel-width: 184px;
-  container-type: inline-size;
 }
 
 .markweave-editor-frame[data-markweave-inner-toc="true"][data-markweave-inner-toc-placement="container"] .markweave-editor-surface {
@@ -290,14 +289,12 @@
   color: #4168c9;
 }
 
-@container (max-width: 900px) {
-  .markweave-editor-frame[data-markweave-inner-toc="true"][data-markweave-inner-toc-placement="container"] .markweave-editor-surface {
-    padding-inline: 16px;
-  }
+.markweave-editor-frame[data-markweave-inner-toc-compact="true"][data-markweave-inner-toc="true"][data-markweave-inner-toc-placement="container"] .markweave-editor-surface {
+  padding-inline: 16px;
+}
 
-  .markweave-editor-frame[data-markweave-inner-toc-placement="container"] .markweave-inner-toc {
-    display: none;
-  }
+.markweave-editor-frame[data-markweave-inner-toc-compact="true"][data-markweave-inner-toc-placement="container"] .markweave-inner-toc {
+  display: none;
 }
 
 .markweave-editor-surface>*:first-child {
@@ -580,6 +577,33 @@
   border: 1px dashed #d5d9e0;
   border-radius: 8px;
   background: #fafbfc;
+}
+
+.markweave-image-node[data-media-state="pending"] .markweave-image-readonly-empty {
+  position: relative;
+  overflow: hidden;
+  background: #f4f6f9;
+}
+
+.markweave-image-node[data-media-state="pending"] .markweave-image-readonly-empty::after {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(100deg, transparent 20%, rgb(255 255 255 / 72%) 50%, transparent 80%);
+  content: "";
+  transform: translateX(-100%);
+  animation: markweave-image-loading 1.2s ease-in-out infinite;
+}
+
+@keyframes markweave-image-loading {
+  to {
+    transform: translateX(100%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .markweave-image-node[data-media-state="pending"] .markweave-image-readonly-empty::after {
+    animation: none;
+  }
 }
 
 .markweave-image-resize-handle {

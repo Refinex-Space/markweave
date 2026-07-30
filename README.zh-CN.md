@@ -166,6 +166,8 @@ resolver 会收到已校验的 HTTP(S) URL、链接标题和 `AbortSignal`，并
 
 `innerToc` 默认是 `true`，会根据 Markdown 标题渲染内置右侧目录。`innerTocPlacement` 默认是 `"container"`：目录会相对视觉窗口垂直居中，正文以对称的目录留白保持居中；实际编辑器容器较窄时会自动隐藏内置目录，优先保证正文可读性。仅在确实需要固定到浏览器视口右侧时使用 `innerTocPlacement="viewport"`；传 `innerToc={false}` 或 `:inner-toc="false"` 可以隐藏内置 UI，同时继续通过 `onTocChange` 和 `onRuntimeStateChange` 获取目录数据。
 
+Markweave 0.3.5 让固定目录不再依赖 CSS 查询容器，并为需要 resolver 的图片增加即时 pending 占位和挂载后首屏探测，使 Electron 21 / Chromium 106 宿主与当前浏览器保持一致的目录定位和首次图片加载体验。
+
 ## 代码块语言
 
 Markweave 0.2.2 在 React、Vue 2 和 Vue 3 中共用同一套可搜索代码块语言目录。Markdown 围栏语言标识会原样保留，每个可选标识都对应独立的 Highlight.js 语法或明确的兼容语法。
