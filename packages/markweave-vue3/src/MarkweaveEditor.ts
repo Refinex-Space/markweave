@@ -25,6 +25,7 @@ import {
   Bold,
   Braces,
   Captions,
+  Check,
   CheckCircle2,
   ChevronDown,
   ChevronRight,
@@ -55,7 +56,10 @@ import {
   PencilLine,
   Plus,
   Quote,
+  RotateCcw,
   Sigma,
+  Sparkles,
+  Square,
   SquareX,
   SmilePlus,
   Strikethrough,
@@ -69,6 +73,7 @@ import {
   Type as TypeIcon,
   Underline,
   Video as VideoIcon,
+  X,
   type LucideIcon,
 } from "lucide-vue-next";
 import {
@@ -121,6 +126,8 @@ import { normalizeMarkweaveEditorMode, setMarkweaveEditorModeState, type Markwea
 import { normalizeMarkweaveCanvasColor, normalizeMarkweaveTheme, type MarkweaveTheme } from "markweave/internal/core/theme";
 import type {
   FloatingToolbarAssistantRequest,
+  MarkweaveAskAiConfig,
+  MarkweaveAskAiSelection,
   MarkweaveContentFormat,
   MarkweaveContentValue,
   MarkweaveEditorRuntimeSnapshot,
@@ -129,6 +136,25 @@ import type {
   TableCommandResult,
   TableEditWithAiRequest,
 } from "markweave/internal/core/public-types";
+import {
+  acceptMarkweaveAskAiResult,
+  calculateMarkweaveAskAiPanelPosition,
+  canStartMarkweaveAskAiTableTarget,
+  clearMarkweaveAskAiPreview,
+  clearMarkweaveAskAiTarget,
+  createMarkweaveAskAiRequest,
+  getMappedMarkweaveAskAiSelection,
+  getMarkweaveAskAiSurfaceRect,
+  getMarkweaveAskAiTarget,
+  getMarkweaveAskAiTargetRect,
+  isMarkweaveAskAiSelectionEligible,
+  MarkweaveAskAiError,
+  restoreMarkweaveAskAiTargetSelection,
+  runMarkweaveAskAiHandler,
+  setMarkweaveAskAiPreview,
+  startMarkweaveAskAiTableTarget,
+  startMarkweaveAskAiTarget,
+} from "markweave/internal/plugins/ask-ai/ask-ai-session";
 import {
   createMarkweaveTocState,
   emptyMarkweaveTocState,
@@ -315,8 +341,12 @@ export interface MarkweaveVue3EditorControllerOptions {
   readonly ariaLabel?: string;
   readonly autoFocusFirstTableBodyCell?: boolean;
   readonly onUpdate?: (payload: MarkweaveEditorUpdatePayload) => void;
+  /** @deprecated Compatibility callback for table AI actions; Ask AI v1 does not replace it. */
   readonly onEditWithAi?: (request: TableEditWithAiRequest) => void;
+  readonly askAi?: MarkweaveAskAiConfig;
+  /** @deprecated Use `askAi` for new text-selection AI integrations. */
   readonly onRewriteSelection?: (request: FloatingToolbarAssistantRequest) => void;
+  /** @deprecated Compatibility callback retained for existing integrations. */
   readonly onExtractToNote?: (request: FloatingToolbarAssistantRequest) => void;
   readonly onSlashCommandUpload?: MarkweaveSlashCommandUploadHandler;
   readonly onTableCopyPayload?: (payload: MarkweaveMenuCopyPayload) => void;
@@ -551,11 +581,24 @@ const VueFloatingToolbar = defineComponent({
   name: "MarkweaveVueFloatingToolbar",
   props: {
     editor: { type: Object as PropType<CoreEditor>, required: true },
+    lang: { type: String as PropType<MarkweaveLang>, required: true },
     messages: { type: Object as PropType<MarkweaveMessages>, required: true },
+    askAi: { type: Object as PropType<MarkweaveAskAiConfig | undefined>, default: undefined },
     onRewriteSelection: { type: Function as PropType<((request: FloatingToolbarAssistantRequest) => void) | undefined>, default: undefined },
   },
   setup(props) {
-    const openMenu = ref<"block-type" | "link" | "color" | "more" | null>(null);
+    const openMenu = ref<"ask-ai" | "block-type" | "link" | "color" | "more" | null>(null);
+    const askAiPhase = ref<"input" | "generating" | "result" | "error" | "conflict">("input");
+    const askAiPrompt = ref("");
+    const askAiLastPrompt = ref("");
+    const askAiMarkdown = ref("");
+    const askAiError = ref("");
+    const askAiSelection = shallowRef<MarkweaveAskAiSelection | null>(null);
+    const askAiAbortController = shallowRef<AbortController | null>(null);
+    const askAiRequestId = ref<string | null>(null);
+    const askAiInputRef = ref<HTMLTextAreaElement | null>(null);
+    let askAiPendingMarkdown = "";
+    const askAiEnabled = computed(() => props.askAi?.enabled === true && typeof props.askAi.handler === "function");
     const linkValue = ref("");
     const tooltipButtonId = ref<string | null>(null);
     const tooltipAnchorX = ref<number | null>(null);
@@ -598,12 +641,167 @@ const VueFloatingToolbar = defineComponent({
       }
     };
 
+    const askAiStreamScheduler = createMarkweaveFrameScheduler(() => {
+      setMarkweaveAskAiPreview(props.editor, askAiPendingMarkdown);
+      askAiMarkdown.value = askAiPendingMarkdown;
+    });
+
+    const closeAskAi = (restoreSelection = true) => {
+      askAiAbortController.value?.abort();
+      askAiStreamScheduler.cancel();
+      askAiPendingMarkdown = "";
+      askAiAbortController.value = null;
+      askAiRequestId.value = null;
+      if (restoreSelection) {
+        restoreMarkweaveAskAiTargetSelection(props.editor);
+      }
+      clearMarkweaveAskAiTarget(props.editor);
+      openMenu.value = null;
+      if (restoreSelection) {
+        props.editor.commands.focus();
+      }
+    };
+
+    const openAskAi = () => {
+      if (!askAiEnabled.value) {
+        return;
+      }
+      const selection = startMarkweaveAskAiTarget(props.editor);
+      if (!selection) {
+        return;
+      }
+      askAiSelection.value = selection;
+      askAiPhase.value = "input";
+      askAiMarkdown.value = "";
+      askAiError.value = "";
+      askAiLastPrompt.value = "";
+      openMenu.value = "ask-ai";
+      void nextTick(() => askAiInputRef.value?.focus());
+    };
+
+    const submitAskAi = async (promptOverride?: string) => {
+      if (!askAiEnabled.value || props.askAi?.enabled !== true || !askAiSelection.value) {
+        return;
+      }
+      const prompt = (promptOverride ?? askAiPrompt.value).trim();
+      if (!prompt) {
+        askAiError.value = props.messages.askAi.emptyPrompt;
+        askAiPhase.value = "error";
+        return;
+      }
+      const mappedSelection = getMappedMarkweaveAskAiSelection(props.editor, askAiSelection.value);
+      if (!mappedSelection) {
+        askAiPhase.value = "conflict";
+        return;
+      }
+      askAiSelection.value = mappedSelection;
+      askAiAbortController.value?.abort();
+      clearMarkweaveAskAiPreview(props.editor);
+      const controller = new AbortController();
+      const request = createMarkweaveAskAiRequest(
+        mappedSelection,
+        prompt,
+        props.lang,
+        controller.signal,
+        undefined,
+        getMarkweaveAskAiTarget(props.editor)?.target,
+      );
+      askAiAbortController.value = controller;
+      askAiRequestId.value = request.id;
+      askAiLastPrompt.value = prompt;
+      askAiStreamScheduler.cancel();
+      askAiPendingMarkdown = "";
+      askAiMarkdown.value = "";
+      askAiError.value = "";
+      askAiPhase.value = "generating";
+      try {
+        const markdown = await runMarkweaveAskAiHandler(props.askAi.handler, request, (nextMarkdown) => {
+          if (askAiRequestId.value === request.id && !controller.signal.aborted) {
+            askAiPendingMarkdown = nextMarkdown;
+            askAiStreamScheduler.schedule();
+          }
+        });
+        if (askAiRequestId.value !== request.id || controller.signal.aborted) {
+          return;
+        }
+        askAiStreamScheduler.cancel();
+        askAiPendingMarkdown = markdown;
+        if (!setMarkweaveAskAiPreview(props.editor, markdown)) {
+          throw new MarkweaveAskAiError("invalid-output", "Ask AI output is incompatible with the selected content.");
+        }
+        askAiMarkdown.value = markdown;
+        askAiPrompt.value = "";
+        askAiPhase.value = getMarkweaveAskAiTarget(props.editor)?.status === "target" ? "result" : "conflict";
+      } catch (error) {
+        if (askAiRequestId.value !== request.id) {
+          return;
+        }
+        askAiStreamScheduler.cancel();
+        if (controller.signal.aborted) {
+          clearMarkweaveAskAiPreview(props.editor);
+          askAiPhase.value = getMarkweaveAskAiTarget(props.editor)?.status === "conflict" ? "conflict" : "input";
+          return;
+        }
+        clearMarkweaveAskAiPreview(props.editor);
+        askAiError.value = error instanceof MarkweaveAskAiError
+          ? error.code === "empty-result" ? props.messages.askAi.emptyResult : props.messages.askAi.errorFallback
+          : error instanceof Error && error.message ? error.message : props.messages.askAi.errorFallback;
+        askAiPhase.value = "error";
+      }
+    };
+
+    const acceptAskAi = () => {
+      if (!acceptMarkweaveAskAiResult(props.editor, askAiMarkdown.value)) {
+        askAiPhase.value = getMarkweaveAskAiTarget(props.editor)?.status === "conflict" ? "conflict" : "error";
+        askAiError.value = props.messages.askAi.errorFallback;
+        return;
+      }
+      openMenu.value = null;
+      window.setTimeout(() => clearMarkweaveAskAiTarget(props.editor), 560);
+      props.editor.commands.focus();
+    };
+
     const updatePopoverPlacement = () => {
       const toolbarElement = toolbarRootRef.value;
       const popoverElement = popoverRef.value;
       const frameElement = props.editor.view.dom.closest<HTMLElement>(".markweave-editor-frame");
 
       if (!openMenu.value || !toolbarElement || !popoverElement) {
+        return;
+      }
+
+      if (openMenu.value === "ask-ai") {
+        const selectionRect = getMarkweaveAskAiTargetRect(props.editor);
+        const anchorRect = toolbarContentRef.value?.getBoundingClientRect();
+        if (!selectionRect || !anchorRect) {
+          return;
+        }
+        const positionInput = {
+          anchorRect,
+          selectionRect,
+          viewport: { width: window.innerWidth, height: window.innerHeight },
+          frameRect: frameElement?.getBoundingClientRect() ?? null,
+          surfaceRect: getMarkweaveAskAiSurfaceRect(props.editor.view.dom),
+        };
+        let position = calculateMarkweaveAskAiPanelPosition({
+          ...positionInput,
+          panelSize: popoverElement.getBoundingClientRect(),
+        });
+        const nextWidth = `${position.width}px`;
+        if (popoverElement.style.width !== nextWidth) {
+          popoverElement.style.width = nextWidth;
+          position = calculateMarkweaveAskAiPanelPosition({
+            ...positionInput,
+            panelSize: popoverElement.getBoundingClientRect(),
+          });
+        }
+        popoverElement.style.left = `${position.left}px`;
+        popoverElement.style.top = `${position.top}px`;
+        popoverElement.style.bottom = "auto";
+        popoverElement.style.maxWidth = `${position.maxWidth}px`;
+        popoverElement.style.maxHeight = `${Math.max(0, position.maxHeight)}px`;
+        popoverElement.dataset.positioned = "true";
+        popoverPlacement.value = position.placement;
         return;
       }
 
@@ -620,7 +818,41 @@ const VueFloatingToolbar = defineComponent({
 
     const popoverPlacementScheduler = createMarkweaveFrameScheduler(updatePopoverPlacement);
 
-    watch(openMenu, (menu) => {
+    const handleAskAiTransaction = () => {
+      const target = getMarkweaveAskAiTarget(props.editor);
+      if (target?.target.kind === "table" && target.status === "target" && openMenu.value !== "ask-ai") {
+        askAiSelection.value = target.selection;
+        askAiPhase.value = "input";
+        askAiPrompt.value = "";
+        askAiMarkdown.value = "";
+        askAiError.value = "";
+        askAiLastPrompt.value = "";
+        openMenu.value = "ask-ai";
+        void nextTick(() => askAiInputRef.value?.focus());
+        return;
+      }
+      if (openMenu.value === "ask-ai" && target?.status === "conflict") {
+        askAiAbortController.value?.abort();
+        askAiStreamScheduler.cancel();
+        askAiPhase.value = "conflict";
+      }
+    };
+
+    const handleAskAiEscape = (event: KeyboardEvent) => {
+      if (event.key !== "Escape" || openMenu.value !== "ask-ai") {
+        return;
+      }
+      event.preventDefault();
+      if (askAiPhase.value === "generating") {
+        askAiAbortController.value?.abort();
+        askAiStreamScheduler.cancel();
+        askAiPhase.value = "input";
+      } else {
+        closeAskAi(true);
+      }
+    };
+
+    watch([openMenu, askAiPhase, askAiMarkdown, askAiError], ([menu]) => {
       if (!menu) {
         return;
       }
@@ -631,12 +863,19 @@ const VueFloatingToolbar = defineComponent({
     onMounted(() => {
       window.addEventListener("resize", popoverPlacementScheduler.schedule);
       window.addEventListener("scroll", popoverPlacementScheduler.schedule, true);
+      props.editor.on("transaction", handleAskAiTransaction);
+      document.addEventListener("keydown", handleAskAiEscape, true);
     });
 
     onBeforeUnmount(() => {
       popoverPlacementScheduler.cancel();
+      askAiStreamScheduler.cancel();
       window.removeEventListener("resize", popoverPlacementScheduler.schedule);
       window.removeEventListener("scroll", popoverPlacementScheduler.schedule, true);
+      props.editor.off("transaction", handleAskAiTransaction);
+      document.removeEventListener("keydown", handleAskAiEscape, true);
+      askAiAbortController.value?.abort();
+      clearMarkweaveAskAiTarget(props.editor);
     });
 
     const getMainToolbarButtonActive = (id: string) => {
@@ -708,7 +947,7 @@ const VueFloatingToolbar = defineComponent({
           type: "button",
           class: `markweave-floating-toolbar-button markweave-floating-toolbar-button--${id}`,
           "aria-label": label,
-          "aria-expanded": ["block-type", "link", "color", "more"].includes(id) ? openMenu.value === id : undefined,
+          "aria-expanded": ["ask-ai", "block-type", "link", "color", "more"].includes(id) ? openMenu.value === id : undefined,
           "data-active": active || openMenu.value === id,
           "data-tooltip-active": tooltipButtonId.value === id ? "true" : "false",
           "data-testid": `markweave-floating-toolbar-button-${id}`,
@@ -719,7 +958,9 @@ const VueFloatingToolbar = defineComponent({
           onMouseleave: () => setAnchoredTooltip(null),
           onClick,
         },
-        id === "block-type"
+        id === "ask-ai"
+          ? [h("span", { class: "markweave-floating-toolbar-button-inner" }, [createIcon(iconComponent, label), h("span", null, glyph ?? label)])]
+          : id === "block-type"
           ? [
               h("span", { class: "markweave-floating-toolbar-button-inner" }, [
                 h("span", { class: "markweave-floating-toolbar-block-label" }, currentBlockType(props.editor, props.messages)),
@@ -767,6 +1008,81 @@ const VueFloatingToolbar = defineComponent({
       ]);
 
     const renderPopover = () => {
+      if (openMenu.value === "ask-ai") {
+        const actionButton = (label: string, onClick: () => void, className?: string, icon?: Component) => h(
+          "button",
+          { type: "button", class: className, onMousedown: preventVuePointerFocusLoss, onClick },
+          icon ? [createIcon(icon, label), h("span", null, label)] : label,
+        );
+        const showComposer = askAiPhase.value === "input" || askAiPhase.value === "result" || askAiPhase.value === "error";
+        const composer = showComposer
+          ? h("div", { class: "markweave-ask-ai-composer", "data-variant": askAiPhase.value === "result" ? "follow-up" : "prompt" }, [
+              h("textarea", {
+                ref: askAiInputRef,
+                class: "markweave-ask-ai-input",
+                value: askAiPrompt.value,
+                rows: 2,
+                placeholder: askAiPhase.value === "result" ? props.messages.askAi.followUpPlaceholder : props.messages.askAi.promptPlaceholder,
+                "aria-label": askAiPhase.value === "result" ? props.messages.askAi.followUpPlaceholder : props.messages.askAi.promptPlaceholder,
+                onInput: (event: Event) => { askAiPrompt.value = (event.target as HTMLTextAreaElement).value; },
+                onKeydown: (event: KeyboardEvent) => {
+                  if (event.key === "Enter" && !event.shiftKey && !event.isComposing) {
+                    event.preventDefault();
+                    void submitAskAi();
+                  }
+                },
+              }),
+              h("button", {
+                type: "button",
+                class: "markweave-ask-ai-send",
+                "aria-label": props.messages.askAi.send,
+                disabled: !askAiPrompt.value.trim(),
+                onMousedown: preventVuePointerFocusLoss,
+                onClick: () => { void submitAskAi(); },
+              }, [createIcon(ArrowUp, props.messages.askAi.send)]),
+            ])
+          : null;
+        return h("section", {
+          ref: popoverRef,
+          class: "markweave-floating-toolbar-popover markweave-ask-ai-popover",
+          "aria-label": props.messages.askAi.ariaLabel,
+          "data-phase": askAiPhase.value,
+          "data-testid": "markweave-ask-ai-popover",
+        }, [
+          composer,
+          askAiPhase.value === "generating"
+            ? h("div", { class: "markweave-ask-ai-progress markweave-ask-ai-generating", role: "status" }, [
+                h("span", { class: "markweave-ask-ai-sparkles", "aria-hidden": "true" }, [createIcon(Sparkles, "")]),
+                h("span", { class: "markweave-ask-ai-progress-label" }, askAiMarkdown.value ? props.messages.askAi.streaming : props.messages.askAi.generating),
+                h("button", { type: "button", class: "markweave-ask-ai-stop", "aria-label": props.messages.askAi.stop, onMousedown: preventVuePointerFocusLoss, onClick: () => {
+                  askAiAbortController.value?.abort();
+                  askAiStreamScheduler.cancel();
+                  clearMarkweaveAskAiPreview(props.editor);
+                  askAiPhase.value = "input";
+                } }, [createIcon(Square, props.messages.askAi.stop)]),
+              ])
+            : null,
+          askAiPhase.value === "result"
+            ? h("div", { class: "markweave-ask-ai-action-bar" }, [
+                actionButton(props.messages.askAi.retry, () => { void submitAskAi(askAiLastPrompt.value); }, "markweave-ask-ai-retry", RotateCcw),
+                h("span", { class: "markweave-ask-ai-action-spacer" }),
+                actionButton(props.messages.askAi.discard, () => closeAskAi(true), "markweave-ask-ai-discard", X),
+                actionButton(props.messages.askAi.accept, acceptAskAi, "markweave-ask-ai-accept", Check),
+              ])
+            : null,
+          askAiPhase.value === "error" || askAiPhase.value === "conflict"
+            ? h("div", { class: "markweave-ask-ai-error", role: "alert" }, [
+                askAiPhase.value === "conflict" ? props.messages.askAi.conflict : askAiError.value || props.messages.askAi.errorFallback,
+                h("div", { class: "markweave-ask-ai-action-bar" }, [
+                  askAiPhase.value === "error" ? actionButton(props.messages.askAi.retry, () => { void submitAskAi(askAiLastPrompt.value); }, "markweave-ask-ai-retry", RotateCcw) : null,
+                  h("span", { class: "markweave-ask-ai-action-spacer" }),
+                  actionButton(props.messages.askAi.discard, () => closeAskAi(true), "markweave-ask-ai-discard", X),
+                ]),
+              ])
+            : null,
+        ]);
+      }
+
       if (openMenu.value === "block-type") {
         return h("div", { ref: popoverRef, class: "markweave-floating-toolbar-popover markweave-floating-toolbar-turn-menu", "data-testid": "markweave-floating-toolbar-turn-menu" }, [
           h("div", { class: "markweave-floating-toolbar-menu-title" }, toolbarMessages.value.turnIntoTitle),
@@ -882,13 +1198,33 @@ const VueFloatingToolbar = defineComponent({
         BubbleMenu as unknown as Component,
         {
           editor: props.editor as unknown as VueEditor,
-          shouldShow: ({ editor }: { editor: CoreEditor }) => editor.isEditable && shouldShowFloatingToolbar(createSelectionSnapshot(editor)),
+          shouldShow: ({ editor }: { editor: CoreEditor }) => {
+            const target = getMarkweaveAskAiTarget(editor);
+            return editor.isEditable && (target?.target.kind === "table" && target.status === "target"
+              ? true
+              : shouldShowFloatingToolbar(createSelectionSnapshot(editor)));
+          },
+          getReferencedVirtualElement: () => {
+            const target = getMarkweaveAskAiTarget(props.editor);
+            const rect = target?.target.kind === "table" ? getMarkweaveAskAiTargetRect(props.editor) : null;
+            if (!rect) {
+              return null;
+            }
+            return {
+              getBoundingClientRect: () => new DOMRect(rect.left, rect.top, rect.width, rect.height),
+              getClientRects: () => [new DOMRect(rect.left, rect.top, rect.width, rect.height)],
+            };
+          },
           options: { placement: "top" },
         } as Record<string, unknown>,
         {
           default: () =>
-            h("div", { ref: toolbarRootRef, class: "markweave-floating-toolbar markweave-floating-toolbar--default markweave-floating-toolbar--motion-entered", "data-popover-placement": openMenu.value ? popoverPlacement.value : undefined, "data-testid": "markweave-floating-toolbar" }, [
+            h("div", { ref: toolbarRootRef, class: "markweave-floating-toolbar markweave-floating-toolbar--default markweave-floating-toolbar--motion-entered", "data-popover-placement": openMenu.value ? popoverPlacement.value : undefined, "data-ask-ai-session": openMenu.value === "ask-ai" ? "open" : "closed", "data-testid": "markweave-floating-toolbar" }, [
               h("div", { ref: toolbarContentRef, class: "markweave-floating-toolbar-content", "data-menu": openMenu.value ?? "none" }, [
+                askAiEnabled.value && isMarkweaveAskAiSelectionEligible(props.editor)
+                  ? toolbarButton("ask-ai", toolbarMessages.value.buttons["ask-ai"], Sparkles, openAskAi, openMenu.value === "ask-ai", toolbarMessages.value.buttons["ask-ai"])
+                  : null,
+                askAiEnabled.value && isMarkweaveAskAiSelectionEligible(props.editor) ? divider() : null,
                 toolbarButton("block-type", toolbarMessages.value.buttons["block-type"], TypeIcon, () => toggleMenu("block-type"), openMenu.value === "block-type"),
                 divider(),
                 toolbarButton("bold", toolbarMessages.value.buttons.bold, Bold, () => props.editor.chain().focus().toggleBold().run(), props.editor.isActive("bold")),
@@ -1318,6 +1654,7 @@ const VueSlashCommandMenu = defineComponent({
 });
 
 const tableMenuIcons: Readonly<Record<TableMenuIconId, LucideIcon>> = {
+  "ask-ai": Sparkles,
   "move-left": ArrowLeft,
   "move-right": ArrowRight,
   "move-up": ArrowUp,
@@ -1354,6 +1691,7 @@ const VueTableControls = defineComponent({
     active: { type: Boolean, required: true },
     interactionState: { type: Object as PropType<TableInteractionState>, required: true },
     messages: { type: Object as PropType<MarkweaveMessages>, required: true },
+    askAi: { type: Object as PropType<MarkweaveAskAiConfig | undefined>, default: undefined },
     onCopyPayload: { type: Function as PropType<((payload: MarkweaveMenuCopyPayload) => void) | undefined>, default: undefined },
     onCommandResult: { type: Function as PropType<((result: TableCommandResult) => void) | undefined>, default: undefined },
     onEditWithAi: { type: Function as PropType<((request: TableEditWithAiRequest) => void) | undefined>, default: undefined },
@@ -1381,12 +1719,13 @@ const VueTableControls = defineComponent({
     const menuScrollRef = ref<HTMLElement | null>(null);
     const submenuRef = ref<HTMLElement | null>(null);
     let copyFeedbackTimeout: number | null = null;
+    const askAiEnabled = computed(() => props.askAi?.enabled === true && typeof props.askAi.handler === "function");
 
     const focusState = computed(() => (props.active ? getTableFocusState(props.editor.state) : outsideTableFocusState));
     const rowAxisModel = computed(() => getTableControlAxisSelectionModel(props.editor, props.interactionState, "row", focusState.value.activeCellPos));
     const columnAxisModel = computed(() => getTableControlAxisSelectionModel(props.editor, props.interactionState, "column", focusState.value.activeCellPos));
-    const hasCellMenuCommands = computed(() => getTableMenuItems(props.editor, "selection").length > 0);
-    const menuItems = computed(() => (openMenu.value ? getTableMenuItems(props.editor, openMenu.value) : []));
+    const hasCellMenuCommands = computed(() => getTableMenuItems(props.editor, "selection", { askAiEnabled: askAiEnabled.value }).length > 0);
+    const menuItems = computed(() => (openMenu.value ? getTableMenuItems(props.editor, openMenu.value, { askAiEnabled: askAiEnabled.value }) : []));
 
     const clearCopyFeedbackTimeout = () => {
       if (copyFeedbackTimeout === null || typeof window === "undefined") {
@@ -1597,14 +1936,12 @@ const VueTableControls = defineComponent({
       return result.success;
     };
 
-    const runEditWithAi = (source: TableEditWithAiRequest["source"]) => {
-      const request = getTableEditWithAiRequest(props.editor, source);
-
-      if (request) {
-        props.onEditWithAi?.(request);
+    const runAskAi = (source: TableEditWithAiRequest["source"]) => {
+      if (!askAiEnabled.value) {
+        return;
       }
-
-      closeMenu(true);
+      startMarkweaveAskAiTableTarget(props.editor, source);
+      closeMenu(false);
     };
 
     const runAxisFormatting = (callback: (axis: "row" | "column") => boolean) => {
@@ -1753,7 +2090,12 @@ const VueTableControls = defineComponent({
         const group = getTableMenuItemGroup(item);
         const previousGroup = index === 0 ? group : getTableMenuItemGroup(menuItems.value[index - 1]);
         const startsGroup = index > 0 && previousGroup !== group;
-        const enabled = item.submenuId ? true : item.commandId === null ? Boolean(props.onEditWithAi) : canRunTableCommand(props.editor, item.commandId);
+        const askAiSource = openMenu.value === "row" || openMenu.value === "column" ? openMenu.value : "selection";
+        const enabled = item.submenuId
+          ? true
+          : item.commandId === null
+            ? askAiEnabled.value && canStartMarkweaveAskAiTableTarget(props.editor, askAiSource)
+            : canRunTableCommand(props.editor, item.commandId);
         const label = getTableMenuItemLabel(item, props.messages);
         const ItemIcon = tableMenuIcons[item.icon];
 
@@ -1768,6 +2110,7 @@ const VueTableControls = defineComponent({
             "aria-haspopup": item.submenuId ? "menu" : undefined,
             "aria-expanded": item.submenuId ? openSubmenu.value === item.submenuId : undefined,
             disabled: !enabled,
+            title: item.id === "edit-with-ai" && askAiEnabled.value && !enabled ? props.messages.askAi.tableMergedUnsupported : undefined,
             "data-menu-group": group,
             "data-starts-group": startsGroup ? "true" : "false",
             "data-command-enabled": enabled ? "true" : "false",
@@ -1777,18 +2120,25 @@ const VueTableControls = defineComponent({
               : item.submenuId
                 ? `markweave-table-menu-submenu-${item.submenuId}`
                 : "markweave-table-menu-command-edit-with-ai",
-            onMousedown: preventVuePointerFocusLoss,
+            onMousedown: (event: MouseEvent) => {
+              preventVuePointerFocusLoss(event);
+              if (enabled && item.id === "edit-with-ai") {
+                runAskAi(askAiSource);
+              }
+            },
             onMouseenter: () => {
               openSubmenu.value = item.submenuId;
             },
-            onClick: () => {
+            onClick: (event: MouseEvent) => {
               if (!enabled) return;
               if (item.submenuId) {
                 openSubmenu.value = item.submenuId;
                 return;
               }
               if (item.commandId === null) {
-                runEditWithAi(openMenu.value === "row" || openMenu.value === "column" ? openMenu.value : "selection");
+                if (event.detail === 0) {
+                  runAskAi(askAiSource);
+                }
                 return;
               }
               void runMenuCommand(item.commandId).finally(() => closeMenu());
@@ -3375,6 +3725,7 @@ export const MarkweaveEditor = defineComponent({
     className: { type: String, default: undefined },
     onUpdate: { type: Function as PropType<(payload: MarkweaveEditorUpdatePayload) => void>, default: undefined },
     onEditWithAi: { type: Function as PropType<(request: TableEditWithAiRequest) => void>, default: undefined },
+    askAi: { type: Object as PropType<MarkweaveAskAiConfig>, default: undefined },
     onRewriteSelection: { type: Function as PropType<(request: FloatingToolbarAssistantRequest) => void>, default: undefined },
     onExtractToNote: { type: Function as PropType<(request: FloatingToolbarAssistantRequest) => void>, default: undefined },
     onSlashCommandUpload: { type: Function as PropType<MarkweaveSlashCommandUploadHandler>, default: undefined },
@@ -3411,7 +3762,7 @@ export const MarkweaveEditor = defineComponent({
           onKeydownCapture: render.handleEditorKeyDown,
         },
         [
-          render.effectiveEditable.value ? h(VueFloatingToolbar, { editor, messages: render.messages }) : null,
+          render.effectiveEditable.value ? h(VueFloatingToolbar, { editor, lang: normalizeMarkweaveLang(props.lang), messages: render.messages, askAi: props.askAi }) : null,
           render.effectiveEditable.value
             ? h(VueSlashCommandMenu, {
                 commands: render.filteredSlashCommands.value,
@@ -3430,6 +3781,7 @@ export const MarkweaveEditor = defineComponent({
                 active: render.tableFocusState.value.active,
                 interactionState: render.tableInteractionState.value,
                 messages: render.messages,
+                askAi: props.askAi,
                 onCopyPayload: props.onTableCopyPayload,
                 onCommandResult: props.onTableCommandResult,
                 onEditWithAi: props.onEditWithAi,

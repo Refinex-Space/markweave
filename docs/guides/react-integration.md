@@ -1,6 +1,6 @@
 ---
 owner: refinex
-updated: 2026-07-27
+updated: 2026-07-30
 status: active
 referenced_by: docs/README.md#knowledge-map
 ---
@@ -216,7 +216,35 @@ interface MarkweaveUploadResult {
 
 Images render with preview, align, caption, resize, replace, download, and delete controls in Live mode. In View mode, hovering an image reveals a top-right preview action that opens the same fullscreen zoom and pan reader. Videos accept local upload, direct video URLs, YouTube embed URLs, Bilibili player URLs, and normal YouTube/Bilibili share links. Attachments render from existing attachment HTML fallback; the slash Attachment command is currently disabled in the default UI, but the upload type remains part of the public contract for host extensions.
 
-## Tables, AI, And Copy Callbacks
+## Ask AI
+
+Ask AI is fail-closed and invisible by default. Enable it explicitly and provide the host-owned handler:
+
+```tsx
+<MarkweaveEditor
+  askAi={{
+    enabled: true,
+    handler: async ({ signal, ...request }) => {
+      const response = await fetch("/api/markweave/ask-ai", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(request),
+        signal,
+      });
+      if (!response.ok) throw new Error("Ask AI failed");
+      return response.text(); // Markdown, or return AsyncIterable<string>
+    },
+  }}
+/>
+```
+
+The same handler serves text and table targets. `request.target` is `{ kind: "text" }` for ordinary selections, or a target-local table payload containing `scope`, exact `rows`/`columns`, Markdown, HTML, and cell metadata. The existing `selection` field remains a flat compatibility projection and the request never includes the surrounding document. A single-cell target expects a Markdown fragment; row, column, multi-cell, and whole-table targets expect an exact-shape GFM table.
+
+Generated Markdown stays in an ephemeral preview until the user accepts it. Acceptance replaces text or only the targeted table-cell contents in one undoable transaction; table node types, spans, widths, colors, and alignment attributes remain intact. Editing the target while generation is pending aborts the request and prevents overwrite. Code blocks, atom/media nodes, View mode, empty text selections, and multi-cell targets containing merged cells remain fail-closed. A single merged cell is supported.
+
+`onRewriteSelection` and `onExtractToNote` remain compatibility callbacks for existing integrations; new custom-prompt writing flows should use `askAi`.
+
+## Tables, Compatibility AI, And Copy Callbacks
 
 ```tsx
 <MarkweaveEditor
@@ -238,12 +266,12 @@ Images render with preview, align, caption, resize, replace, download, and delet
 />
 ```
 
-- `onEditWithAi` receives row, column, or selection context from table menus.
-- `onRewriteSelection` and `onExtractToNote` receive selected text and HTML from the floating toolbar.
+- `onEditWithAi` remains a deprecated compatibility prop but is no longer rendered by the built-in table menus. Use the shared `askAi` handler for new integrations.
+- `onRewriteSelection` and `onExtractToNote` are legacy compatibility callbacks.
 - `onTableCopyPayload` mirrors table copy actions for row, column, or table payloads.
 - `onTableCommandResult` reports table command outcomes and before/after snapshots.
 
-The built-in table controls use Notion-like row, column, and selection handles. Row and column menus cover moving, inserting, sorting, color, alignment, clearing, duplication, and deletion; selection controls retain merge, split, copy, and delete. Hovering the last row or column reveals a full-edge add control, while dragging a row or column handle reorders it. All labels follow `lang` (`zh` or `en`).
+The built-in table controls use Notion-like row, column, and selection handles. When `askAi` is enabled, `Ask AI` is the first item in row, column, cell/selection, and whole-table menus. Row and column menus also cover moving, inserting, sorting, color, alignment, clearing, duplication, and deletion; selection controls retain merge, split, copy, and delete. Hovering the last row or column reveals a full-edge add control, while dragging a row or column handle reorders it. All labels follow `lang` (`zh` or `en`).
 
 ## External Link Cards
 

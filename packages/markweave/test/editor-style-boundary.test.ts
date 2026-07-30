@@ -121,6 +121,34 @@ describe("editor style boundary", () => {
     expect(openTableMenuZIndex).toBeLessThan(floatingToolbarZIndex);
   });
 
+  it("keeps the Ask AI session compact and preserves primary-action contrast", () => {
+    const generatingRule = editorCss.match(/\.markweave-ask-ai-generating\s*\{([\s\S]*?)\n\}/)?.[1];
+    const generatingMinHeight = Number(generatingRule?.match(/min-height:\s*(\d+)px;/)?.[1]);
+    const acceptHoverRule = editorCss.match(
+      /\.markweave-ask-ai-popover \.markweave-ask-ai-accept:hover:not\(:disabled\)\s*\{([\s\S]*?)\n\}/,
+    )?.[1];
+
+    expect(generatingMinHeight).toBeGreaterThan(0);
+    expect(generatingMinHeight).toBeLessThanOrEqual(46);
+    expect(editorCss).toContain(".markweave-ask-ai-progress-label");
+    expect(editorCss).not.toContain(".markweave-ask-ai-progress-dots");
+    expect(acceptHoverRule).toContain("background: #17181a;");
+    expect(acceptHoverRule).toContain("color: #fff;");
+  });
+
+  it("keeps Ask AI review content compact without inheriting editor-only controls", () => {
+    expect(editorCss).toContain('.markweave-ask-ai-original[data-markweave-ask-ai-original="true"]');
+    expect(editorCss).toContain(".markweave-ask-ai-proposal-cell > :not(.markweave-ask-ai-proposal--table-cell)");
+    expect(editorCss).toContain(".markweave-ask-ai-proposal pre.markweave-code-block");
+    expect(editorCss).toContain('.markweave-ask-ai-proposal .tiptap-mathematics-render[data-type="block-math"]');
+    expect(editorCss).toContain(".markweave-ask-ai-preview table");
+    expect(editorCss).toContain(".markweave-ask-ai-preview th>p");
+    expect(editorCss).toContain(".markweave-ask-ai-preview td>p");
+    expect(editorCss).toContain(".markweave-ask-ai-preview pre.markweave-code-block");
+    expect(editorCss).toContain('.markweave-ask-ai-preview .tiptap-mathematics-render[data-type="block-math"]');
+    expect(editorCss).toContain('.markweave-editor-frame[data-markweave-theme="dark"] .markweave-ask-ai-preview table');
+  });
+
   it("keeps code block controls compact and Mermaid source readable in the core stylesheet", () => {
     expect(editorCss).toContain(".markweave-floating-toolbar");
     expect(editorCss).toContain("z-index: 40");

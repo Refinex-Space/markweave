@@ -7,6 +7,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { createMarkweaveEditorExtensions } from "../src/editor-core/create-editor-extensions";
 import { createSelectionSnapshot } from "../src/editor-core/selection-state";
 import { getMarkweaveMessages, type MarkweaveMessages } from "../src/i18n";
+import type { MarkweaveAskAiConfig, MarkweaveAskAiRequest } from "../src/core/public-types";
 import { FloatingToolbar, getFloatingToolbarSelectionDomRects } from "../../markweave-react/src/ui/floating-toolbar/FloatingToolbar";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -50,6 +51,10 @@ function installLayoutMocks(editor: Editor) {
   vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(function getBoundingClientRect(this: HTMLElement) {
     if (this.classList.contains("markweave-editor-frame")) {
       return createRect(100, 80, 920, 640);
+    }
+
+    if (this === editor.view.dom || this.classList.contains("markweave-editor-surface")) {
+      return createRect(120, 100, 880, 600);
     }
 
     if (this.dataset.testid === "markweave-floating-toolbar") {
@@ -165,7 +170,7 @@ async function flushReact() {
   });
 }
 
-async function renderFloatingToolbar(content: string, selectedText: string, messages?: MarkweaveMessages) {
+async function renderFloatingToolbar(content: string, selectedText: string, messages?: MarkweaveMessages, askAi?: MarkweaveAskAiConfig) {
   const { editor, frame } = createEditor(content);
   selectText(editor, selectedText);
 
@@ -174,7 +179,7 @@ async function renderFloatingToolbar(content: string, selectedText: string, mess
   activeRoot = createRoot(host);
 
   await act(async () => {
-    activeRoot?.render(createElement(FloatingToolbar, { editor, messages, selectionSnapshot: createSelectionSnapshot(editor) }));
+    activeRoot?.render(createElement(FloatingToolbar, { editor, lang: messages === getMarkweaveMessages("en") ? "en" : "zh", messages, askAi, selectionSnapshot: createSelectionSnapshot(editor) }));
   });
   await flushReact();
 
@@ -202,6 +207,16 @@ async function click(element: Element) {
 async function inputValue(input: HTMLInputElement, value: string) {
   const valueSetter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
 
+  await act(async () => {
+    valueSetter?.call(input, value);
+    input.dispatchEvent(new InputEvent("input", { bubbles: true, cancelable: true, data: value, inputType: "insertText" }));
+    input.dispatchEvent(new Event("change", { bubbles: true, cancelable: true }));
+  });
+  await flushReact();
+}
+
+async function textareaValue(input: HTMLTextAreaElement, value: string) {
+  const valueSetter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")?.set;
   await act(async () => {
     valueSetter?.call(input, value);
     input.dispatchEvent(new InputEvent("input", { bubbles: true, cancelable: true, data: value, inputType: "insertText" }));
@@ -327,5 +342,150 @@ describe("floating toolbar link popover", () => {
     await click(getByTestId("markweave-floating-toolbar-link-remove"));
     expect(editor.getHTML()).not.toContain('href="https://openai.com"');
     expect(document.querySelector('[data-testid="markweave-floating-toolbar-link-popover"]')).toBeNull();
+  });
+});
+
+describe("floating toolbar Ask AI", () => {
+  it("fails closed when the enabled configuration does not provide a handler", async () => {
+    await renderFloatingToolbar(
+      "<p>Original selected text</p>",
+      "selected",
+      getMarkweaveMessages("en"),
+      { enabled: true } as unknown as MarkweaveAskAiConfig,
+    );
+
+    expect(document.querySelector('[data-testid="markweave-floating-toolbar-button-ask-ai"]')).toBeNull();
+  });
+
+  it("stays hidden by default and exposes the review-before-accept flow when enabled", async () => {
+    await renderFloatingToolbar("<p>Original selected text</p>", "selected");
+    expect(document.querySelector('[data-testid="markweave-floating-toolbar-button-ask-ai"]')).toBeNull();
+
+    activeRoot?.unmount();
+    activeRoot = null;
+    activeEditor?.destroy();
+    activeEditor = null;
+    document.body.replaceChildren();
+
+    const handler = vi.fn(async (_request: MarkweaveAskAiRequest) => "**Improved text**");
+    const editor = await renderFloatingToolbar("<p>Original selected text</p>", "selected", getMarkweaveMessages("en"), { enabled: true, handler });
+    await click(getByTestId("markweave-floating-toolbar-button-ask-ai"));
+    expect(getByTestId("markweave-floating-toolbar").dataset.askAiSession).toBe("open");
+    const inputPopover = getByTestId("markweave-ask-ai-popover");
+    expect(inputPopover.querySelector(".markweave-ask-ai-composer")).not.toBeNull();
+    expect(inputPopover.querySelector(".markweave-ask-ai-submit-row")).toBeNull();
+    expect(inputPopover.style.width).toBe("880px");
+
+    const promptInput = inputPopover.querySelector<HTMLTextAreaElement>("textarea")!;
+    await textareaValue(promptInput, "Improve clarity");
+    await click(inputPopover.querySelector(".markweave-ask-ai-send")!);
+    await flushReact();
+    await flushReact();
+
+    expect(handler).toHaveBeenCalledTimes(1);
+    expect(handler.mock.calls[0]?.[0]).toMatchObject({ prompt: "Improve clarity" });
+    expect(editor.getText()).toContain("selected");
+    expect(document.querySelector('[data-markweave-ask-ai-proposal="text"]')?.textContent).toContain("Improved text");
+    expect(document.querySelector('[data-testid="markweave-ask-ai-preview"]')).toBeNull();
+    expect(getByTestId<HTMLInputElement>("markweave-ask-ai-popover").querySelector<HTMLTextAreaElement>("textarea")?.placeholder).toBe("Tell AI what else should change...");
+    expect(getByTestId("markweave-ask-ai-popover").querySelector(".markweave-ask-ai-action-bar")?.textContent).toBe("Try againDiscardApply");
+    await click(document.querySelector(".markweave-ask-ai-accept")!);
+    expect(editor.getHTML()).toContain("<strong>Improved text</strong>");
+  });
+
+  it("does not submit during IME or Shift+Enter and aborts generation on Escape", async () => {
+    const requestSignals: AbortSignal[] = [];
+    const handler = vi.fn((request: { readonly signal: AbortSignal }) => {
+      requestSignals.push(request.signal);
+      return new Promise<string>((_resolve, reject) => {
+        request.signal.addEventListener("abort", () => reject(new DOMException("Aborted", "AbortError")), { once: true });
+      });
+    });
+    await renderFloatingToolbar(
+      "<p>Original selected text</p>",
+      "selected",
+      getMarkweaveMessages("en"),
+      { enabled: true, handler },
+    );
+    await click(getByTestId("markweave-floating-toolbar-button-ask-ai"));
+    const popover = getByTestId("markweave-ask-ai-popover");
+    const promptInput = popover.querySelector<HTMLTextAreaElement>("textarea")!;
+    await textareaValue(promptInput, "Improve clarity");
+
+    promptInput.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", isComposing: true, bubbles: true, cancelable: true }));
+    promptInput.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", shiftKey: true, bubbles: true, cancelable: true }));
+    await flushReact();
+    expect(handler).not.toHaveBeenCalled();
+
+    promptInput.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }));
+    await flushReact();
+    expect(handler).toHaveBeenCalledTimes(1);
+    expect(getByTestId("markweave-ask-ai-popover").dataset.phase).toBe("generating");
+    expect(getByTestId("markweave-ask-ai-popover").querySelector(".markweave-ask-ai-progress-label")).not.toBeNull();
+    expect(getByTestId("markweave-ask-ai-popover").querySelector(".markweave-ask-ai-progress-dots")).toBeNull();
+
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }));
+    await flushReact();
+    expect(requestSignals[0]?.aborted).toBe(true);
+    expect(getByTestId("markweave-ask-ai-popover").dataset.phase).toBe("input");
+    expect(promptInput.value).toBe("Improve clarity");
+  });
+
+  it("ignores a late rejection from a superseded request", async () => {
+    let callCount = 0;
+    const handler = vi.fn((request: { readonly signal: AbortSignal }) => {
+      callCount += 1;
+      if (callCount === 1) {
+        return new Promise<string>((_resolve, reject) => {
+          request.signal.addEventListener("abort", () => {
+            window.setTimeout(() => reject(new DOMException("Late abort", "AbortError")), 20);
+          }, { once: true });
+        });
+      }
+      return Promise.resolve("**Newest result**");
+    });
+    await renderFloatingToolbar(
+      "<p>Original selected text</p>",
+      "selected",
+      getMarkweaveMessages("en"),
+      { enabled: true, handler },
+    );
+    await click(getByTestId("markweave-floating-toolbar-button-ask-ai"));
+    const promptInput = getByTestId("markweave-ask-ai-popover").querySelector<HTMLTextAreaElement>("textarea")!;
+    await textareaValue(promptInput, "Improve clarity");
+    promptInput.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }));
+    await flushReact();
+
+    await click(getByTestId("markweave-ask-ai-popover").querySelector(".markweave-ask-ai-progress button")!);
+    getByTestId("markweave-ask-ai-popover").querySelector<HTMLTextAreaElement>("textarea")!
+      .dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }));
+    await flushReact();
+    await act(async () => {
+      await new Promise((resolve) => window.setTimeout(resolve, 30));
+    });
+    await flushReact();
+
+    expect(handler).toHaveBeenCalledTimes(2);
+    expect(getByTestId("markweave-ask-ai-popover").dataset.phase).toBe("result");
+    expect(document.querySelector('[data-markweave-ask-ai-proposal="text"]')?.textContent).toContain("Newest result");
+    expect(document.querySelector('[data-testid="markweave-ask-ai-preview"]')).toBeNull();
+  });
+
+  it("localizes empty results instead of exposing an internal protocol error", async () => {
+    await renderFloatingToolbar(
+      "<p>Original selected text</p>",
+      "selected",
+      getMarkweaveMessages("zh"),
+      { enabled: true, handler: async () => "" },
+    );
+    await click(getByTestId("markweave-floating-toolbar-button-ask-ai"));
+    const promptInput = getByTestId("markweave-ask-ai-popover").querySelector<HTMLTextAreaElement>("textarea")!;
+    await textareaValue(promptInput, "润色");
+    promptInput.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }));
+    await flushReact();
+    await flushReact();
+
+    expect(getByTestId("markweave-ask-ai-popover").dataset.phase).toBe("error");
+    expect(getByTestId("markweave-ask-ai-popover").querySelector('[role="alert"]')?.textContent).toContain("AI 返回了空结果，请重试。");
   });
 });

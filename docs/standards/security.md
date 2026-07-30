@@ -1,6 +1,6 @@
 ---
 owner: refinex
-updated: 2026-07-15
+updated: 2026-07-29
 status: active
 referenced_by: AGENTS.md#knowledge-map
 ---
@@ -12,6 +12,8 @@ referenced_by: AGENTS.md#knowledge-map
 - Do not commit secrets, API keys, credentials, tokens, production config, or `.env*` contents.
 - No `.env*` file was present in the 2026-07-05 control-plane scan.
 - Do not paste credentials into docs, screenshots, tests, fixtures, logs, or examples.
+- The private playground OpenRouter integration reads `OPENROUTER_API_KEY` only from the workspace-root ignored `.env` inside dev-server middleware. Never expose provider credentials through `VITE_*`, `VUE_APP_*`, browser code, generated assets, or client logs.
+- `.env.example` may document variable names and placeholders only. Real provider credentials must remain in `.env` or the local process environment.
 
 ## Browser And Editor Data
 

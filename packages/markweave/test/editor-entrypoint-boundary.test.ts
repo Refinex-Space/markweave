@@ -150,16 +150,21 @@ describe("editor entrypoint boundary", () => {
     expect(indexSource).toContain("MarkweaveTocState");
     expect(indexSource).toContain("createMarkweaveSearchController");
     expect(indexSource).toContain("MarkweaveSearchController");
+    expect(indexSource).toContain("MarkweaveAskAiConfig");
+    expect(indexSource).not.toContain("runMarkweaveAskAiHandler");
     expect(reactShim).toContain('from "@markweave/react"');
     expect(vue2Shim).toContain('from "@markweave/vue2"');
     expect(vue3Shim).toContain('from "@markweave/vue3"');
     expect(reactIndexSource).toContain("MarkweaveEditor");
     expect(reactIndexSource).toContain("useMarkweaveEditorController");
     expect(reactIndexSource).toContain("MarkweaveSearchController");
+    expect(reactIndexSource).toContain("MarkweaveAskAiConfig");
     expect(vue2IndexSource).toContain("MarkweaveEditor");
     expect(vue2IndexSource).toContain("useMarkweaveEditorController");
+    expect(vue2IndexSource).toContain("MarkweaveAskAiConfig");
     expect(vue3IndexSource).toContain("MarkweaveEditor");
     expect(vue3IndexSource).toContain("useMarkweaveEditorController");
+    expect(vue3IndexSource).toContain("MarkweaveAskAiConfig");
 
     const defaultFormat: MarkweaveContentFormat = "markdown";
     const tocState: MarkweaveTocState = { activeId: null, items: [] };

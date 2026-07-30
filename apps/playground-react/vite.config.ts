@@ -1,9 +1,28 @@
 import { resolve } from "node:path";
+import { createRequire } from "node:module";
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
 
+const require = createRequire(import.meta.url);
+const { createOpenRouterDevMiddleware } = require("../playground-fixtures/openrouter-dev-proxy.cjs") as {
+  createOpenRouterDevMiddleware(options: { readonly workspaceRoot: string }): (
+    request: import("node:http").IncomingMessage,
+    response: import("node:http").ServerResponse,
+    next: () => void,
+  ) => void;
+};
+const workspaceRoot = resolve(__dirname, "../..");
+
 export default defineConfig({
-  plugins: [react()],
+  plugins: [
+    react(),
+    {
+      name: "markweave-openrouter-dev-proxy",
+      configureServer(server) {
+        server.middlewares.use(createOpenRouterDevMiddleware({ workspaceRoot }));
+      },
+    },
+  ],
   resolve: {
     alias: [
       {

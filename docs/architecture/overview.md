@@ -1,6 +1,6 @@
 ---
 owner: refinex
-updated: 2026-07-28
+updated: 2026-07-30
 status: active
 referenced_by: AGENTS.md#knowledge-map
 ---
@@ -46,8 +46,8 @@ The built-in document outline is enabled by default with `innerToc={true}`. A Pr
 - core editing: StarterKit, composition guard, mark boundary, indent, text style, color, underline, highlight, links, math, emoji
 - blocks and media: code blocks through lowlight, callouts, images, videos, attachments, horizontal rules, task lists
 - Markdown behavior: official Markdown parse/serialize support, Markdown input transforms, and markdown-table input
-- interaction layers: slash command runtime with a localized, non-serialized hint on the active eligible empty paragraph, table clipboard, table arrow navigation, table keyboard, table interaction state; row and column handle selections keep the handle target cells authoritative, while a translucent visual-axis overlay covers only the requested row or column slice through spanning cells, keeps cell content readable, and suppresses broader native ProseMirror `selectedCell` paint
-- previews and controls: Mermaid inline preview, floating toolbar, slash menu, table controls, table selection overlay, code block controls; table command menus share a framework-neutral visible-boundary model that intersects the editor frame, browser viewport, and clipping ancestors, chooses a best-fit side for main/submenus, and scrolls oversized menu content internally; the code-block language menu stays anchored to its trigger while scrolling, supports Arrow Up/Down navigation with automatic option scrolling, and selects the highlighted language with Enter; Mermaid SVG downloads use the system save picker when supported and otherwise fall back to the browser download flow
+- interaction layers: slash command runtime with a localized, non-serialized hint on the active eligible empty paragraph, Ask AI target mapping and review state, table clipboard, table arrow navigation, table keyboard, table interaction state; Ask AI stays inert unless the host explicitly supplies an enabled handler, maps text or table targets across unrelated edits, aborts on target conflicts, validates fragment versus exact-shape GFM table output, and applies accepted text or cell contents as one transaction without replacing table structure or attributes; row and column handle selections keep the handle target cells authoritative, while a translucent visual-axis overlay covers only the requested row or column slice through spanning cells, keeps cell content readable, and suppresses broader native ProseMirror `selectedCell` paint
+- previews and controls: Mermaid inline preview, floating toolbar, slash menu, table controls, table selection overlay, code block controls; Ask AI renders text, table-cell, code, and math results as target-local ephemeral proposals without changing the document before acceptance, keeps the review panel limited to follow-up input and actions, aligns it to the editor content box while remaining viewport-clamped, and keeps Mermaid output as source instead of executing generated diagrams; table command menus share a framework-neutral visible-boundary model that intersects the editor frame, browser viewport, and clipping ancestors, chooses a best-fit side for main/submenus, and scrolls oversized menu content internally; the code-block language menu stays anchored to its trigger while scrolling, supports Arrow Up/Down navigation with automatic option scrolling, and selects the highlighted language with Enter; Mermaid SVG downloads use the system save picker when supported and otherwise fall back to the browser download flow
 - link editing: the floating toolbar opens an inline link popover for selected text, with apply, open, and remove actions
 - math editing: inline and block math render through the shared mathematics extension, while Live mode adapters expose the shared in-place LaTeX editor and View mode remains read-only
 - image editing: the shared core clipboard extension inserts remote HTTP(S) images directly and routes pasted local image files through the host upload handler; without a media resolver the existing framework NodeViews remain compatible, while `resolveMediaSource` switches populated images to a framework-neutral lightweight DOM NodeView with a pending placeholder, lazy decoding, a post-mount viewport probe, IntersectionObserver-based nearby activation, focus/pageshow recovery for delayed embedded-browser callbacks, intrinsic sizing, and selected-only editing controls that preserve the framework NodeView's icon toolbar, alignment, caption, preview, download, replace, resize, and delete behavior; empty upload placeholders still use the adapter UI
@@ -63,6 +63,7 @@ Shared adapter behavior belongs in small framework-neutral helpers before it rea
 - `packages/markweave/src/editor-core/readonly-link.ts` owns safe View mode link-opening behavior.
 - `packages/markweave/src/editor-core/runtime-snapshot.ts` owns the runtime snapshot field contract.
 - `packages/markweave/src/plugins/search/search-controller.ts` owns document search state, decorations, navigation, replacement transactions, and the framework-neutral controller contract.
+- `packages/markweave/src/plugins/ask-ai/ask-ai-session.ts` owns Ask AI text/table target eligibility, target-local request projection, mapped target conflict detection, target/proposal-anchored editor-content-box placement, abortable Promise/stream orchestration, Markdown and exact-table-shape validation, ephemeral target-local text/table/code/math proposal decorations, static serialization helpers, and the single content-only acceptance transaction; adapters own only lifecycle and rendering.
 - `packages/markweave/src/plugins/media/media-extension-factory.ts` owns shared image/video extension configuration; `media-source.ts` defines the cancellable display-only resolver contract and `lightweight-image-node-view.ts` owns the cross-framework large-document image path.
 
 ## Large-document Scheduling
@@ -84,6 +85,7 @@ Behavior contract files list expected editor capabilities and should guide tests
 - `packages/markweave/src/plugins/markdown/behavior-contract.ts`
 - `packages/markweave/src/plugins/slash-command/behavior-contract.ts`
 - `packages/markweave/src/plugins/table/behavior-contract.ts`
+- `packages/markweave/src/plugins/ask-ai/behavior-contract.ts`
 - `packages/markweave-react/src/ui/floating-toolbar/behavior-contract.ts`
 
 ## Playground Contracts

@@ -11,6 +11,15 @@ export type {
 } from "./MarkweaveEditor";
 export type {
   FloatingToolbarAssistantRequest,
+  MarkweaveAskAiConfig,
+  MarkweaveAskAiHandler,
+  MarkweaveAskAiOutput,
+  MarkweaveAskAiRequest,
+  MarkweaveAskAiSelection,
+  MarkweaveAskAiTableCell,
+  MarkweaveAskAiTableTarget,
+  MarkweaveAskAiTarget,
+  MarkweaveAskAiTextTarget,
   MarkweaveContentFormat,
   MarkweaveContentValue,
   MarkweaveEditorRuntimeSnapshot,

@@ -1,6 +1,6 @@
 ---
 owner: refinex
-updated: 2026-07-27
+updated: 2026-07-30
 status: active
 referenced_by: docs/README.md#knowledge-map
 ---
@@ -216,7 +216,35 @@ interface MarkweaveUploadResult {
 
 图片在 Live 模式下支持预览、对齐、Caption、缩放、替换、下载和删除；View 模式下 Hover 图片右上角会出现预览入口，可打开支持缩放与拖拽平移的大图预览。视频支持本地上传、直接视频 URL、YouTube embed URL、Bilibili player URL、普通 YouTube/Bilibili 分享链接。附件节点可以渲染已有 attachment HTML fallback；默认 slash Attachment 入口目前是禁用状态，但 `attachment` 仍保留在公开上传协议中，方便宿主后续扩展。
 
-## 表格、AI 与复制回调
+## Ask AI
+
+Ask AI 默认关闭并采用 fail-closed 策略：只有接入方显式启用且提供有效 handler，选中文本工具条才显示入口。
+
+```tsx
+<MarkweaveEditor
+  askAi={{
+    enabled: true,
+    handler: async ({ signal, ...request }) => {
+      const response = await fetch("/api/markweave/ask-ai", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(request),
+        signal,
+      });
+      if (!response.ok) throw new Error("Ask AI failed");
+      return response.text(); // Markdown，也可返回 AsyncIterable<string>
+    },
+  }}
+/>
+```
+
+同一个 handler 同时处理文本与表格目标。普通文本请求的 `request.target` 为 `{ kind: "text" }`；表格请求只携带当前目标的 `scope`、精确 `rows`/`columns`、Markdown、HTML 与单元格元数据。原有 `selection` 字段继续作为扁平兼容投影，请求不会包含整篇文档或目标外上下文。单单元格目标返回 Markdown 片段；行、列、多单元格选区与整表目标返回精确等形的 GFM 表格。
+
+生成内容在用户接受前只进入临时预览；接受后用一次可撤销事务替换文本或目标单元格内容，表格节点类型、合并关系、列宽、颜色与对齐属性保持不变。等待期间如果目标内容被修改，请求会中止并阻止覆盖。代码块、原子/媒体节点、View 模式、空文本选区和包含合并单元格的多单元格目标保持 fail-closed；单个合并单元格仍可使用。
+
+`onRewriteSelection` 和 `onExtractToNote` 作为兼容性旧回调继续保留；新的自定义 Prompt 写作流程应使用 `askAi`。
+
+## 表格、兼容 AI 回调与复制回调
 
 ```tsx
 <MarkweaveEditor
@@ -238,12 +266,12 @@ interface MarkweaveUploadResult {
 />
 ```
 
-- `onEditWithAi` 接收表格行、列或选区上下文。
-- `onRewriteSelection` 和 `onExtractToNote` 接收浮动工具栏中的选中文本和 HTML。
+- `onEditWithAi` 作为废弃兼容属性继续保留，但内置表格菜单不再渲染该旧入口；新接入统一使用 `askAi` handler。
+- `onRewriteSelection` 和 `onExtractToNote` 是兼容性旧回调。
 - `onTableCopyPayload` 接收复制行、列或整表时的文本与 HTML。
 - `onTableCommandResult` 接收表格命令执行结果和 before/after 快照。
 
-内置表格控制采用 Notion-like 的行、列与选区句柄。行列菜单覆盖移动、插入、排序、颜色、对齐、清空、复制与删除；选区菜单继续保留合并、拆分、复制与删除。Hover 最后一行或最后一列会显示整边快捷新增控件，拖拽行列句柄可直接调整顺序；全部菜单名称跟随 `lang`（`zh` 或 `en`）。
+内置表格控制采用 Notion-like 的行、列与选区句柄。启用 `askAi` 后，`Ask AI` 会成为行、列、单元格/选区与整表菜单的首项。行列菜单同时覆盖移动、插入、排序、颜色、对齐、清空、复制与删除；选区菜单继续保留合并、拆分、复制与删除。Hover 最后一行或最后一列会显示整边快捷新增控件，拖拽行列句柄可直接调整顺序；全部菜单名称跟随 `lang`（`zh` 或 `en`）。
 
 ## 外部超链接卡片
 

@@ -26,6 +26,7 @@
     </div>
 
     <MarkweaveEditor
+      :ask-ai="playgroundAskAiConfig"
       :key="fixtureRevision"
       aria-label="Markweave Vue3 editor playground"
       auto-focus-first-table-body-cell
@@ -115,6 +116,7 @@ import {
   largeTextPerformanceFixture,
   largeValidMediaPerformanceFixture,
   mergedTablePlaygroundDocument,
+  playgroundAskAiConfig,
   resolvePlaygroundLinkCard,
   resolvePlaygroundMediaSource,
   stressDocumentPerformanceFixture,

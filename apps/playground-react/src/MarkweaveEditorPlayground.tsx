@@ -21,6 +21,7 @@ import {
   largeTextPerformanceFixture,
   largeValidMediaPerformanceFixture,
   mergedTablePlaygroundDocument,
+  playgroundAskAiConfig,
   resolvePlaygroundLinkCard,
   resolvePlaygroundMediaSource,
   stressDocumentPerformanceFixture,
@@ -100,6 +101,7 @@ export function MarkweaveEditorPlayground() {
         </button>
       </div>
       <MarkweaveEditor
+        askAi={playgroundAskAiConfig}
         key={fixtureRevision}
         ariaLabel="Markweave editor playground"
         autoFocusFirstTableBodyCell={!benchmarkMode}

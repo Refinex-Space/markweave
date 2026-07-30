@@ -18,6 +18,12 @@ const readmeSources = {
 };
 
 const runbookSource = readFileSync(resolve(workspaceRoot, "docs/guides/runbook.md"), "utf8");
+const envExampleSource = readFileSync(resolve(workspaceRoot, ".env.example"), "utf8");
+const playgroundConfigSources = {
+  react: readFileSync(resolve(workspaceRoot, "apps/playground-react/vite.config.ts"), "utf8"),
+  vue2: readFileSync(resolve(workspaceRoot, "apps/playground-vue2/vue.config.js"), "utf8"),
+  vue3: readFileSync(resolve(workspaceRoot, "apps/playground-vue3/vite.config.ts"), "utf8"),
+};
 const rootPackageJson = JSON.parse(readFileSync(resolve(workspaceRoot, "package.json"), "utf8")) as {
   scripts?: Record<string, string>;
 };
@@ -75,6 +81,19 @@ describe("playground integration contract", () => {
     expect(playgroundSources.vue2).toContain("<script>");
     expect(playgroundSources.vue3).toContain("<template>");
     expect(playgroundSources.vue3).toContain('<script setup lang="ts">');
+  });
+
+  it("routes Ask AI through the shared server-side OpenRouter proxy", () => {
+    for (const source of Object.values(playgroundSources)) {
+      expect(source).toContain("playgroundAskAiConfig");
+    }
+    for (const source of Object.values(playgroundConfigSources)) {
+      expect(source).toContain("createOpenRouterDevMiddleware");
+    }
+    expect(envExampleSource).toContain("OPENROUTER_API_KEY=replace-with-your-local-key");
+    expect(envExampleSource).toContain("OPENROUTER_MODEL=openrouter/free");
+    expect(envExampleSource).not.toContain("VITE_OPENROUTER");
+    expect(envExampleSource).not.toContain("VUE_APP_OPENROUTER");
   });
 
   it("keeps debug surfaces discoverable across all playgrounds", () => {

@@ -1,6 +1,6 @@
 ---
 owner: refinex
-updated: 2026-07-28
+updated: 2026-07-30
 status: active
 referenced_by: AGENTS.md#knowledge-map
 ---
@@ -11,8 +11,13 @@ referenced_by: AGENTS.md#knowledge-map
 
 ```sh
 pnpm install
+cp .env.example .env
 pnpm dev
 ```
+
+To exercise real text or table Ask AI output, edit the ignored workspace-root `.env` and set `OPENROUTER_API_KEY`. The default `OPENROUTER_MODEL` is `openrouter/free`. Never use a `VITE_*` or `VUE_APP_*` variable for this credential: all playground browsers call the same-origin `/api/markweave/ask-ai` route and the dev server adds authorization upstream. For table checks, use any row/column/selection handle menu; the local proxy constrains the response to a single-cell fragment or an exact-shape GFM table.
+
+If the key is missing, Ask AI remains visible but returns a localized error/retry flow through the existing editor UI. This fail-closed behavior is intentional and does not fall back silently to deterministic mock output.
 
 Open the React playground:
 
@@ -62,6 +67,7 @@ For adapter or playground parity work, useful focused checks are:
 pnpm exec vitest run packages/markweave/test/floating-toolbar-model.test.ts packages/markweave/test/playground-contract.test.ts
 pnpm exec vitest run packages/markweave/test/vue2-adapter-parity.test.ts packages/markweave/test/vue3-adapter-parity.test.ts
 pnpm exec vitest run apps/playground-react/test/playground-mode-toggle.test.ts apps/playground-vue3/test/playground-vue3-mode-toggle.test.ts
+pnpm exec vitest run apps/playground-react/test/playground-openrouter.test.ts
 ```
 
 ## Full Verification

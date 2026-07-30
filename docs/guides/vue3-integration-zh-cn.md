@@ -1,6 +1,6 @@
 ---
 owner: refinex
-updated: 2026-07-27
+updated: 2026-07-30
 status: active
 referenced_by: docs/README.md#knowledge-map
 ---
@@ -234,7 +234,19 @@ interface MarkweaveUploadResult {
 
 图片在 Live 模式下支持预览、对齐、Caption、缩放、替换、下载和删除；View 模式下 Hover 图片右上角会出现预览入口，可打开支持缩放与拖拽平移的大图预览。视频支持本地上传、直接视频 URL、YouTube embed URL、Bilibili player URL、普通 YouTube/Bilibili 分享链接。附件节点可以渲染已有 attachment HTML fallback；默认 slash Attachment 入口目前是禁用状态，但 `attachment` 仍保留在公开上传协议中，方便宿主后续扩展。
 
-## 表格、AI 与复制回调
+## Ask AI
+
+Ask AI 默认关闭。Vue 模板通过 `:ask-ai` 显式开启：
+
+```vue
+<MarkweaveEditor :ask-ai="{ enabled: true, handler: handleAskAi }" />
+```
+
+`handleAskAi(request)` 返回 Markdown 或 `AsyncIterable<string>`。同一个 handler 通过 `request.target` 接收普通文本目标，以及表格单元格、行、列、选区或整表目标；旧 `selection` 字段继续作为扁平兼容投影。请求只包含目标局部内容。单单元格返回 Markdown 片段，多单元格目标返回精确等形的 GFM 表格。Markweave 先预览而不修改文档，只在接受时用一次可撤销事务替换目标单元格内容，并保留表格结构和属性。包含合并单元格的多单元格目标与 View 模式保持 fail-closed。
+
+`on-rewrite-selection` 和 `on-extract-to-note` 继续作为兼容性旧回调保留。
+
+## 表格、兼容 AI 回调与复制回调
 
 ```vue
 <template>
@@ -248,12 +260,12 @@ interface MarkweaveUploadResult {
 </template>
 ```
 
-- `on-edit-with-ai` 接收表格行、列或选区上下文。
-- `on-rewrite-selection` 和 `on-extract-to-note` 接收浮动工具栏中的选中文本和 HTML。
+- `on-edit-with-ai` 作为废弃兼容属性继续保留，但内置菜单不再渲染该旧入口；新接入使用 `ask-ai`。
+- `on-rewrite-selection` 和 `on-extract-to-note` 是兼容性旧回调。
 - `on-table-copy-payload` 接收复制行、列或整表时的文本与 HTML。
 - `on-table-command-result` 接收表格命令执行结果和 before/after 快照。
 
-内置表格控制采用 Notion-like 的行、列与选区句柄。行列菜单覆盖移动、插入、排序、颜色、对齐、清空、复制与删除；选区菜单继续保留合并、拆分、复制与删除。Hover 最后一行或最后一列会显示整边快捷新增控件，拖拽行列句柄可直接调整顺序；全部菜单名称跟随 `lang`（`zh` 或 `en`）。
+内置表格控制采用 Notion-like 的行、列与选区句柄。启用 `ask-ai` 后，`Ask AI` 会成为所有表格句柄菜单的首项。行列菜单同时覆盖移动、插入、排序、颜色、对齐、清空、复制与删除；选区菜单继续保留合并、拆分、复制与删除。Hover 最后一行或最后一列会显示整边快捷新增控件，拖拽行列句柄可直接调整顺序；全部菜单名称跟随 `lang`（`zh` 或 `en`）。
 
 ## 外部超链接卡片
 

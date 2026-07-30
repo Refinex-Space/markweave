@@ -9,6 +9,7 @@ import { insertMarkweaveInlineMath } from "../plugins/math/math-ui-model";
 import type { FloatingToolbarVariant } from "./selection-state";
 
 export type FloatingToolbarButtonId =
+  | "ask-ai"
   | "improve"
   | "block-type"
   | "bold"
@@ -20,7 +21,7 @@ export type FloatingToolbarButtonId =
   | "color"
   | "more";
 export type FloatingToolbarButtonGroup = "assistant" | "block" | "inline" | "link" | "color" | "more";
-export type FloatingToolbarMenu = "block-type" | "link" | "color" | "more";
+export type FloatingToolbarMenu = "ask-ai" | "block-type" | "link" | "color" | "more";
 export type FloatingToolbarTextAlign = "left" | "center" | "right" | "justify";
 export type FloatingToolbarTurnIntoId =
   | "paragraph"
@@ -144,6 +145,15 @@ const tableCompactToolbarOrder: readonly FloatingToolbarButtonId[] = [
 ];
 
 const toolbarButtonSpecs: readonly ToolbarButtonSpec[] = [
+  {
+    id: "ask-ai",
+    label: "Ask AI",
+    glyph: "Ask AI",
+    group: "assistant",
+    active: () => false,
+    run: () => undefined,
+    variants: ["default"],
+  },
   {
     id: "improve",
     label: "Improve",
@@ -514,25 +524,26 @@ export function createFloatingToolbarAssistantRequest(editor: Editor, source: Fl
   };
 }
 
-export function getFloatingToolbarButtonCount(variant: FloatingToolbarVariant) {
-  return getFloatingToolbarButtonSpecs(variant).length;
+export function getFloatingToolbarButtonCount(variant: FloatingToolbarVariant, options: { readonly askAiEnabled?: boolean } = {}) {
+  return getFloatingToolbarButtonSpecs(variant, options).length;
 }
 
 export function getFloatingToolbarButtonModels(
   editor: Editor,
   variant: FloatingToolbarVariant,
   messages: MarkweaveMessages = defaultMarkweaveMessages,
+  options: { readonly askAiEnabled?: boolean } = {},
 ): readonly FloatingToolbarButtonModel[] {
   const toolbarMessages = getFloatingToolbarMessageSet(messages);
 
-  return getFloatingToolbarButtonSpecs(variant).map((button) => {
+  return getFloatingToolbarButtonSpecs(variant, options).map((button) => {
     const blockType = button.id === "block-type" ? getCurrentFloatingToolbarBlockType(editor, messages) : null;
     const label = toolbarMessages.buttons[button.id] ?? button.label;
 
     return {
       id: button.id,
       label,
-      glyph: blockType?.glyph ?? (button.id === "improve" ? label : button.glyph),
+      glyph: blockType?.glyph ?? (button.id === "improve" || button.id === "ask-ai" ? label : button.glyph),
       active: button.active(editor),
       group: button.group,
       run: () => button.run(editor),
@@ -556,8 +567,14 @@ export function preventFloatingToolbarPointerFocusLoss(event: Pick<Event, "preve
   event.preventDefault();
 }
 
-export function getFloatingToolbarButtonSpecs(variant: FloatingToolbarVariant) {
-  const order = variant === "default" ? defaultToolbarOrder : variant === "table-compact" ? tableCompactToolbarOrder : [];
+export function getFloatingToolbarButtonSpecs(variant: FloatingToolbarVariant, options: { readonly askAiEnabled?: boolean } = {}) {
+  const order = variant === "default"
+    ? options.askAiEnabled
+      ? (["ask-ai", ...defaultToolbarOrder] as const)
+      : defaultToolbarOrder
+    : variant === "table-compact"
+      ? tableCompactToolbarOrder
+      : [];
   return order
     .map((id) => toolbarButtonSpecs.find((button) => button.id === id && button.variants.includes(variant)))
     .filter((button): button is ToolbarButtonSpec => Boolean(button));

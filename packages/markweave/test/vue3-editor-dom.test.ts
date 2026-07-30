@@ -64,7 +64,7 @@ function installLayoutMocks() {
     }
 
     if (this.classList.contains("markweave-editor-surface")) {
-      return createRect(0, 0, 800, 500);
+      return createRect(100, 80, 800, 500);
     }
 
     if (this.classList.contains("markweave-image-box")) {
@@ -492,6 +492,37 @@ describe("Markweave Vue3 editor", () => {
     await click(getByTestId(container, "markweave-table-hover-row-handle"));
 
     expect(container.querySelector('[data-testid="markweave-table-menu-command-edit-with-ai"]')).toBeNull();
+  });
+
+  it("opens the shared Ask AI composer from the Vue table row menu", async () => {
+    installLayoutMocks();
+    const handler = vi.fn(async () => "| A | B | C |\n| --- | --- | --- |");
+    const container = await mountVue(
+      defineComponent({
+        setup() {
+          return () =>
+            h(MarkweaveEditor, {
+              defaultContent: tableFixture,
+              defaultContentFormat: "html",
+              autoFocusFirstTableBodyCell: true,
+              askAi: { enabled: true, handler },
+            });
+        },
+      }),
+    );
+
+    await click(getByTestId(container, "markweave-table-hover-row-handle"));
+    const menu = getByTestId(container, "markweave-table-menu");
+    const askAiItem = menu.querySelector<HTMLButtonElement>('[data-testid="markweave-table-menu-command-edit-with-ai"]');
+    expect(askAiItem?.textContent).toBe("Ask AI");
+    expect(menu.querySelector('button[role="menuitem"]')).toBe(askAiItem);
+
+    await click(askAiItem!);
+    await new Promise((resolve) => window.setTimeout(resolve, 300));
+    await flushVue();
+    expect(container.querySelector('[data-testid="markweave-table-menu"]')).toBeNull();
+    expect(getByTestId(container, "markweave-floating-toolbar").getAttribute("data-ask-ai-session")).toBe("open");
+    expect(getByTestId(container, "markweave-ask-ai-popover").style.width).toBe("800px");
   });
 
   it("emits Vue table copy payloads, copy feedback, and command results", async () => {

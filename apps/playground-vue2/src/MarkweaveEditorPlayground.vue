@@ -90,6 +90,7 @@
     </div>
 
     <MarkweaveEditor
+      :ask-ai="playgroundAskAiConfig"
       aria-label="Markweave Vue2 editor playground"
       auto-focus-first-table-body-cell
       :content="fixtureContent"
@@ -164,6 +165,7 @@ import {
   largeTextPerformanceFixture,
   largeValidMediaPerformanceFixture,
   mergedTablePlaygroundDocument,
+  playgroundAskAiConfig,
   resolvePlaygroundLinkCard,
   resolvePlaygroundMediaSource,
   stressDocumentPerformanceFixture,

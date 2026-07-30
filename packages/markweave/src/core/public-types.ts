@@ -10,9 +10,72 @@ import type { TableFocusState } from "../plugins/table/table-focus-state";
 import type { TableInteractionState } from "../plugins/table/table-interaction-layer";
 import type { MarkweaveEditorMode } from "./editor-mode-state";
 import type { MarkweaveTocState } from "./toc-state";
+import type { MarkweaveLang } from "../i18n";
 
 export type MarkweaveContentFormat = "markdown" | "html" | "json";
 export type MarkweaveContentValue = string | JSONContent;
+
+export interface MarkweaveAskAiSelection {
+  readonly from: number;
+  readonly to: number;
+  readonly text: string;
+  readonly html: string;
+}
+
+export interface MarkweaveAskAiTextTarget {
+  readonly kind: "text";
+}
+
+export interface MarkweaveAskAiTableCell {
+  readonly position: number;
+  readonly row: number;
+  readonly column: number;
+  readonly rowSpan: number;
+  readonly columnSpan: number;
+  readonly text: string;
+  readonly html: string;
+}
+
+export interface MarkweaveAskAiTableTarget {
+  readonly kind: "table";
+  readonly scope: "cell" | "row" | "column" | "selection" | "table";
+  readonly tablePos: number;
+  readonly axisIndex: number | null;
+  readonly cellPositions: readonly number[];
+  readonly rows: number;
+  readonly columns: number;
+  readonly text: string;
+  readonly html: string;
+  readonly markdown: string;
+  readonly resultShape: "fragment" | "table";
+  readonly cells: readonly MarkweaveAskAiTableCell[];
+}
+
+export type MarkweaveAskAiTarget = MarkweaveAskAiTextTarget | MarkweaveAskAiTableTarget;
+
+export interface MarkweaveAskAiRequest {
+  readonly id: string;
+  readonly prompt: string;
+  readonly lang: MarkweaveLang;
+  readonly selection: MarkweaveAskAiSelection;
+  /** Omitted by pre-table integrations; absence is equivalent to `{ kind: "text" }`. */
+  readonly target?: MarkweaveAskAiTarget;
+  readonly outputFormat: "markdown";
+  readonly signal: AbortSignal;
+}
+
+export type MarkweaveAskAiOutput = string | AsyncIterable<string>;
+
+export type MarkweaveAskAiHandler = (
+  request: MarkweaveAskAiRequest,
+) => MarkweaveAskAiOutput | Promise<MarkweaveAskAiOutput>;
+
+export type MarkweaveAskAiConfig =
+  | { readonly enabled?: false }
+  | {
+      readonly enabled: true;
+      readonly handler: MarkweaveAskAiHandler;
+    };
 
 export interface MarkweaveEditorUpdatePayload {
   readonly editor: Editor;

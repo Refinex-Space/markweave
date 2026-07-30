@@ -7,10 +7,12 @@ import {
   AlignJustify,
   AlignLeft,
   AlignRight,
+  ArrowUp,
   Bold,
   Braces,
   ChevronDown,
   ChevronUp,
+  Check,
   Code2,
   CornerDownLeft,
   ExternalLink,
@@ -23,14 +25,17 @@ import {
   ListOrdered,
   MoreVertical,
   Quote,
+  RotateCcw,
   Sigma,
   Sparkles,
+  Square,
   Strikethrough,
   Subscript,
   Superscript,
   Trash2,
   Type as TypeIcon,
   Underline,
+  X,
   type LucideIcon,
 } from "lucide-react";
 import {
@@ -75,6 +80,23 @@ import {
   type FloatingToolbarTurnIntoOption,
 } from "markweave/internal/editor-core/floating-toolbar-model";
 import type { FloatingToolbarAssistantRequest, FloatingToolbarAssistantSource } from "markweave/internal/core/public-types";
+import type { MarkweaveAskAiConfig, MarkweaveAskAiSelection } from "markweave/internal/core/public-types";
+import {
+  acceptMarkweaveAskAiResult,
+  calculateMarkweaveAskAiPanelPosition,
+  clearMarkweaveAskAiPreview,
+  clearMarkweaveAskAiTarget,
+  createMarkweaveAskAiRequest,
+  getMappedMarkweaveAskAiSelection,
+  getMarkweaveAskAiSurfaceRect,
+  getMarkweaveAskAiTarget,
+  getMarkweaveAskAiTargetRect,
+  MarkweaveAskAiError,
+  runMarkweaveAskAiHandler,
+  restoreMarkweaveAskAiTargetSelection,
+  setMarkweaveAskAiPreview,
+  startMarkweaveAskAiTarget,
+} from "markweave/internal/plugins/ask-ai/ask-ai-session";
 import { normalizeMarkdownLinkHref } from "markweave/internal/plugins/markdown/markdown-input";
 import { getMarkweaveMessages, type MarkweaveMessages } from "markweave/internal/i18n";
 
@@ -126,8 +148,10 @@ export type {
 
 interface FloatingToolbarProps {
   readonly editor: Editor;
+  readonly lang?: "zh" | "en";
   readonly messages?: MarkweaveMessages;
   readonly selectionSnapshot: EditorSelectionSnapshot | null;
+  readonly askAi?: MarkweaveAskAiConfig;
   readonly onRewriteSelection?: (request: FloatingToolbarAssistantRequest) => void;
   readonly onExtractToNote?: (request: FloatingToolbarAssistantRequest) => void;
 }
@@ -345,7 +369,7 @@ function getFloatingToolbarSelectionVirtualElement(editor: Editor) {
 }
 
 function isMenuButton(id: FloatingToolbarButtonId): id is FloatingToolbarMenu {
-  return id === "block-type" || id === "link" || id === "color" || id === "more";
+  return id === "ask-ai" || id === "block-type" || id === "link" || id === "color" || id === "more";
 }
 
 function runAssistantAction(
@@ -357,13 +381,21 @@ function runAssistantAction(
   editor.commands.focus();
 }
 
-export function FloatingToolbar({ editor, messages = defaultMarkweaveMessages, selectionSnapshot, onRewriteSelection }: FloatingToolbarProps) {
+type AskAiUiPhase = "input" | "generating" | "result" | "error" | "conflict";
+const floatingToolbarPluginKey = "markweave-floating-toolbar";
+
+export function FloatingToolbar({ editor, lang = "zh", messages = defaultMarkweaveMessages, selectionSnapshot, askAi, onRewriteSelection }: FloatingToolbarProps) {
   const moreActions = useMemo(() => getFloatingToolbarMoreActions(messages), [messages]);
   const stableToolbarState = getFloatingToolbarState(selectionSnapshot, { editable: editor.isEditable });
   const [toolbarState, setToolbarState] = useState(stableToolbarState);
   const [tooltipButtonId, setTooltipButtonId] = useState<FloatingToolbarButtonId | FloatingToolbarMoreActionId | null>(null);
   const [tooltipAnchorX, setTooltipAnchorX] = useState<number | null>(null);
   const [openMenu, setOpenMenu] = useState<FloatingToolbarMenu | null>(null);
+  const [askAiPhase, setAskAiPhase] = useState<AskAiUiPhase>("input");
+  const [askAiPrompt, setAskAiPrompt] = useState("");
+  const [askAiLastPrompt, setAskAiLastPrompt] = useState("");
+  const [askAiMarkdown, setAskAiMarkdown] = useState("");
+  const [askAiError, setAskAiError] = useState("");
   const [linkInputValue, setLinkInputValue] = useState("");
   const [linkInitialHref, setLinkInitialHref] = useState("");
   const [linkSelectionRange, setLinkSelectionRange] = useState<{ readonly from: number; readonly to: number } | null>(null);
@@ -375,9 +407,33 @@ export function FloatingToolbar({ editor, messages = defaultMarkweaveMessages, s
   const toolbarContentRef = useRef<HTMLDivElement | null>(null);
   const popoverRef = useRef<HTMLElement | null>(null);
   const linkInputRef = useRef<HTMLInputElement | null>(null);
-  const visibleButtons = getFloatingToolbarButtonModels(editor, toolbarState.variant, messages);
+  const askAiInputRef = useRef<HTMLTextAreaElement | null>(null);
+  const askAiSelectionRef = useRef<MarkweaveAskAiSelection | null>(null);
+  const askAiAbortRef = useRef<AbortController | null>(null);
+  const askAiRequestIdRef = useRef<string | null>(null);
+  const askAiFrameRef = useRef<number | null>(null);
+  const askAiPendingMarkdownRef = useRef("");
+  const askAiEnabled = askAi?.enabled === true && typeof askAi.handler === "function";
+  const visibleButtons = getFloatingToolbarButtonModels(editor, toolbarState.variant, messages, { askAiEnabled });
   const tooltipModel = getFloatingToolbarTooltipModel(visibleButtons.find((button) => button.id === tooltipButtonId) ?? null);
   const normalizedLinkInputHref = normalizeMarkdownLinkHref(linkInputValue);
+  const cancelAskAiFrame = useCallback(() => {
+    if (askAiFrameRef.current !== null) {
+      window.cancelAnimationFrame(askAiFrameRef.current);
+      askAiFrameRef.current = null;
+    }
+  }, []);
+  const closeAskAi = useCallback((restoreSelection = true) => {
+    askAiAbortRef.current?.abort();
+    askAiAbortRef.current = null;
+    askAiRequestIdRef.current = null;
+    cancelAskAiFrame();
+    if (restoreSelection) {
+      restoreMarkweaveAskAiTargetSelection(editor);
+    }
+    clearMarkweaveAskAiTarget(editor);
+    setOpenMenu(null);
+  }, [cancelAskAiFrame, editor]);
   const applyFrameGeometryClamp = useCallback(() => {
     const toolbarElement = toolbarRootRef.current;
     const frameElement = editor.view.dom.closest(".markweave-editor-frame");
@@ -436,9 +492,27 @@ export function FloatingToolbar({ editor, messages = defaultMarkweaveMessages, s
   const markToolbarPositionReady = useCallback(() => {
     applyFrameGeometryClamp();
   }, [applyFrameGeometryClamp]);
-  const getReferencedVirtualElement = useCallback(() => getFloatingToolbarSelectionVirtualElement(editor), [editor]);
+  const getReferencedVirtualElement = useCallback(() => {
+    const target = getMarkweaveAskAiTarget(editor);
+    if (target?.target.kind === "table") {
+      return {
+        getBoundingClientRect: () => {
+          const rect = getMarkweaveAskAiTargetRect(editor);
+          return rect ? createToolbarDomRect(rect.left, rect.top, rect.width, rect.height) : createToolbarDomRect(0, 0, 0, 0);
+        },
+        getClientRects: () => {
+          const rect = getMarkweaveAskAiTargetRect(editor);
+          return rect ? [createToolbarDomRect(rect.left, rect.top, rect.width, rect.height)] : [];
+        },
+      };
+    }
+    return getFloatingToolbarSelectionVirtualElement(editor);
+  }, [editor]);
   const setPopoverRef = useCallback((element: HTMLElement | null) => {
     popoverRef.current = element;
+    if (element?.classList.contains("markweave-ask-ai-popover")) {
+      element.dataset.positioned = "false";
+    }
   }, []);
   const updatePopoverPlacement = useCallback(() => {
     const toolbarElement = toolbarRootRef.current;
@@ -452,6 +526,38 @@ export function FloatingToolbar({ editor, messages = defaultMarkweaveMessages, s
     const toolbarRect = toolbarElement.getBoundingClientRect();
     const popoverRect = popoverElement.getBoundingClientRect();
     const frameRect = frameElement?.getBoundingClientRect() ?? null;
+    if (openMenu === "ask-ai") {
+      const selectionRect = getMarkweaveAskAiTargetRect(editor);
+      const anchorRect = toolbarContentRef.current?.getBoundingClientRect();
+      if (!selectionRect || !anchorRect) {
+        return;
+      }
+      const positionInput = {
+        anchorRect,
+        selectionRect,
+        viewport: { width: window.innerWidth, height: window.innerHeight },
+        frameRect,
+        surfaceRect: getMarkweaveAskAiSurfaceRect(editor.view.dom),
+        boundaryPadding: toolbarState.boundaryPadding,
+      };
+      let position = calculateMarkweaveAskAiPanelPosition({ ...positionInput, panelSize: popoverRect });
+      const nextWidth = `${position.width}px`;
+      if (popoverElement.style.width !== nextWidth) {
+        popoverElement.style.width = nextWidth;
+        position = calculateMarkweaveAskAiPanelPosition({
+          ...positionInput,
+          panelSize: popoverElement.getBoundingClientRect(),
+        });
+      }
+      popoverElement.style.left = `${position.left}px`;
+      popoverElement.style.top = `${position.top}px`;
+      popoverElement.style.bottom = "auto";
+      popoverElement.style.maxWidth = `${position.maxWidth}px`;
+      popoverElement.style.maxHeight = `${Math.max(0, position.maxHeight)}px`;
+      popoverElement.dataset.positioned = "true";
+      setPopoverPlacement((current) => (current === position.placement ? current : position.placement));
+      return;
+    }
     const position = calculateFloatingToolbarPopoverPlacement({
       toolbarRect,
       popoverSize: popoverRect,
@@ -462,7 +568,7 @@ export function FloatingToolbar({ editor, messages = defaultMarkweaveMessages, s
     });
 
     setPopoverPlacement((current) => (current === position.placement ? current : position.placement));
-  }, [editor.view.dom, openMenu, toolbarState.boundaryPadding]);
+  }, [editor, openMenu, toolbarState.boundaryPadding]);
   const floatingOptions = useMemo(
     () => ({
       ...getFloatingToolbarFloatingOptions(toolbarState, { topBoundaryPadding: topBoundaryPaddingPx }),
@@ -552,7 +658,7 @@ export function FloatingToolbar({ editor, messages = defaultMarkweaveMessages, s
       window.removeEventListener("resize", scheduler.schedule);
       window.removeEventListener("scroll", scheduler.schedule, true);
     };
-  }, [openMenu, updatePopoverPlacement]);
+  }, [askAiError, askAiMarkdown, askAiPhase, openMenu, updatePopoverPlacement]);
 
   useEffect(() => {
     if (openMenu === "more" && moreActions.some((action) => action.id === tooltipButtonId)) {
@@ -575,13 +681,27 @@ export function FloatingToolbar({ editor, messages = defaultMarkweaveMessages, s
         return;
       }
 
-      setOpenMenu(null);
+      if (openMenu === "ask-ai") {
+        closeAskAi(true);
+      } else {
+        setOpenMenu(null);
+      }
     };
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         event.preventDefault();
-        setOpenMenu(null);
-        editor.commands.focus();
+        if (openMenu === "ask-ai") {
+          if (askAiPhase === "generating") {
+            askAiAbortRef.current?.abort();
+            cancelAskAiFrame();
+            setAskAiPhase("input");
+          } else {
+            closeAskAi(true);
+          }
+        } else {
+          setOpenMenu(null);
+          editor.commands.focus();
+        }
       }
     };
 
@@ -591,24 +711,106 @@ export function FloatingToolbar({ editor, messages = defaultMarkweaveMessages, s
       document.removeEventListener("pointerdown", onPointerDown, true);
       document.removeEventListener("keydown", onKeyDown, true);
     };
-  }, [editor, openMenu]);
+  }, [askAiPhase, cancelAskAiFrame, closeAskAi, editor, openMenu]);
 
   useEffect(() => {
-    if (openMenu !== "link") {
+    const onTransaction = () => {
+      const target = getMarkweaveAskAiTarget(editor);
+      if (target?.target.kind === "table" && target.status === "target" && openMenu !== "ask-ai") {
+        askAiSelectionRef.current = target.selection;
+        setAskAiPhase("input");
+        setAskAiPrompt("");
+        setAskAiMarkdown("");
+        setAskAiError("");
+        setAskAiLastPrompt("");
+        setToolbarState((previous) => ({
+          ...previous,
+          visibility: "visible",
+          variant: "default",
+          hiddenReason: null,
+          motionPhase: "visible",
+          motionStartedAtMs: null,
+        }));
+        setOpenMenu("ask-ai");
+        return;
+      }
+      if (openMenu === "ask-ai" && target?.status === "conflict") {
+        askAiAbortRef.current?.abort();
+        cancelAskAiFrame();
+        setAskAiPhase("conflict");
+      }
+    };
+    editor.on("transaction", onTransaction);
+    return () => {
+      editor.off("transaction", onTransaction);
+    };
+  }, [cancelAskAiFrame, editor, openMenu]);
+
+  useEffect(() => {
+    return () => {
+      askAiAbortRef.current?.abort();
+      cancelAskAiFrame();
+      clearMarkweaveAskAiTarget(editor);
+    };
+  }, [cancelAskAiFrame, editor]);
+
+  useEffect(() => {
+    if (openMenu !== "link" && openMenu !== "ask-ai") {
       return undefined;
     }
 
     const animationFrame = window.requestAnimationFrame(() => {
-      linkInputRef.current?.focus();
-      linkInputRef.current?.select();
+      if (openMenu === "ask-ai") {
+        askAiInputRef.current?.focus();
+      } else {
+        linkInputRef.current?.focus();
+        linkInputRef.current?.select();
+      }
     });
 
     return () => window.cancelAnimationFrame(animationFrame);
   }, [openMenu]);
 
+  useEffect(() => {
+    if (openMenu !== "ask-ai" || editor.isDestroyed) {
+      return;
+    }
+
+    editor.view.dispatch(
+      editor.state.tr
+        .setMeta(floatingToolbarPluginKey, "show")
+        .setMeta("addToHistory", false),
+    );
+  }, [editor, openMenu]);
+
   const runButton = (button: FloatingToolbarButtonModel) => {
     if (isMenuButton(button.id)) {
       const menuId = button.id;
+      if (openMenu === menuId) {
+        if (menuId === "ask-ai") {
+          closeAskAi(true);
+        } else {
+          setOpenMenu(null);
+        }
+        return;
+      }
+      if (openMenu === "ask-ai") {
+        closeAskAi(false);
+      }
+      if (menuId === "ask-ai") {
+        if (!askAiEnabled) {
+          return;
+        }
+        const selection = startMarkweaveAskAiTarget(editor);
+        if (!selection) {
+          return;
+        }
+        askAiSelectionRef.current = selection;
+        setAskAiPhase("input");
+        setAskAiMarkdown("");
+        setAskAiError("");
+        setAskAiLastPrompt("");
+      }
       if (menuId === "link") {
         const href = getFloatingToolbarLinkHref(editor);
         setLinkInputValue(href);
@@ -618,7 +820,7 @@ export function FloatingToolbar({ editor, messages = defaultMarkweaveMessages, s
           to: Math.max(editor.state.selection.from, editor.state.selection.to),
         });
       }
-      setOpenMenu((current) => (current === menuId ? null : menuId));
+      setOpenMenu(menuId);
       return;
     }
 
@@ -632,6 +834,96 @@ export function FloatingToolbar({ editor, messages = defaultMarkweaveMessages, s
     button.run();
     editor.commands.focus();
   };
+
+  const submitAskAi = useCallback(async (promptOverride?: string) => {
+    if (!askAiEnabled || askAi?.enabled !== true || !askAiSelectionRef.current) {
+      return;
+    }
+    const prompt = (promptOverride ?? askAiPrompt).trim();
+    if (!prompt) {
+      setAskAiError(messages.askAi.emptyPrompt);
+      setAskAiPhase("error");
+      return;
+    }
+    const mappedSelection = getMappedMarkweaveAskAiSelection(editor, askAiSelectionRef.current);
+    if (!mappedSelection) {
+      setAskAiPhase("conflict");
+      return;
+    }
+    askAiSelectionRef.current = mappedSelection;
+    askAiAbortRef.current?.abort();
+    cancelAskAiFrame();
+    clearMarkweaveAskAiPreview(editor);
+    const controller = new AbortController();
+    const request = createMarkweaveAskAiRequest(
+      mappedSelection,
+      prompt,
+      lang,
+      controller.signal,
+      undefined,
+      getMarkweaveAskAiTarget(editor)?.target,
+    );
+    askAiAbortRef.current = controller;
+    askAiRequestIdRef.current = request.id;
+    setAskAiLastPrompt(prompt);
+    setAskAiError("");
+    setAskAiMarkdown("");
+    setAskAiPhase("generating");
+    try {
+      const markdown = await runMarkweaveAskAiHandler(askAi.handler, request, (nextMarkdown) => {
+        if (askAiRequestIdRef.current !== request.id || controller.signal.aborted) {
+          return;
+        }
+        askAiPendingMarkdownRef.current = nextMarkdown;
+        if (askAiFrameRef.current === null) {
+          askAiFrameRef.current = window.requestAnimationFrame(() => {
+            askAiFrameRef.current = null;
+            setMarkweaveAskAiPreview(editor, askAiPendingMarkdownRef.current);
+            setAskAiMarkdown(askAiPendingMarkdownRef.current);
+          });
+        }
+      });
+      if (askAiRequestIdRef.current !== request.id || controller.signal.aborted) {
+        return;
+      }
+      if (!setMarkweaveAskAiPreview(editor, markdown)) {
+        throw new MarkweaveAskAiError("invalid-output", "Ask AI output is incompatible with the selected content.");
+      }
+      cancelAskAiFrame();
+      setAskAiMarkdown(markdown);
+      setAskAiPrompt("");
+      setAskAiPhase(getMarkweaveAskAiTarget(editor)?.status === "target" ? "result" : "conflict");
+    } catch (error) {
+      if (askAiRequestIdRef.current !== request.id) {
+        return;
+      }
+      cancelAskAiFrame();
+      if (controller.signal.aborted) {
+        clearMarkweaveAskAiPreview(editor);
+        setAskAiPhase(getMarkweaveAskAiTarget(editor)?.status === "conflict" ? "conflict" : "input");
+        return;
+      }
+      clearMarkweaveAskAiPreview(editor);
+      setAskAiError(
+        error instanceof MarkweaveAskAiError
+          ? error.code === "empty-result" ? messages.askAi.emptyResult : messages.askAi.errorFallback
+          : error instanceof Error && error.message ? error.message : messages.askAi.errorFallback,
+      );
+      setAskAiPhase("error");
+    }
+  }, [askAi, askAiEnabled, askAiPrompt, cancelAskAiFrame, editor, lang, messages]);
+
+  const acceptAskAi = useCallback(() => {
+    if (!acceptMarkweaveAskAiResult(editor, askAiMarkdown)) {
+      setAskAiPhase(getMarkweaveAskAiTarget(editor)?.status === "conflict" ? "conflict" : "error");
+      setAskAiError(messages.askAi.errorFallback);
+      return;
+    }
+    setOpenMenu(null);
+    askAiRequestIdRef.current = null;
+    window.setTimeout(() => clearMarkweaveAskAiTarget(editor), 560);
+    editor.commands.focus();
+  }, [askAiMarkdown, editor, messages.askAi.errorFallback]);
 
   const closeLinkPopover = () => {
     setOpenMenu(null);
@@ -686,18 +978,24 @@ export function FloatingToolbar({ editor, messages = defaultMarkweaveMessages, s
     <BubbleMenu
       ref={toolbarRootRef}
       editor={editor}
+      pluginKey={floatingToolbarPluginKey}
       className={`markweave-floating-toolbar markweave-floating-toolbar--${toolbarState.variant} markweave-floating-toolbar--motion-${toolbarState.motionPhase}`}
       data-motion={toolbarState.motionPhase}
       data-position-strategy={floatingOptions.strategy}
       data-boundary-padding={toolbarState.boundaryPadding}
       data-popover-placement={openMenu ? popoverPlacement : undefined}
+      data-ask-ai-session={openMenu === "ask-ai" ? "open" : "closed"}
       data-testid="markweave-floating-toolbar"
       style={getToolbarStyle(toolbarState, frameShiftPx)}
       updateDelay={0}
       getReferencedVirtualElement={getReferencedVirtualElement}
       options={floatingOptions}
       shouldShow={({ editor: activeEditor }) => {
-        return activeEditor.isEditable && shouldShowFloatingToolbar(createSelectionSnapshot(activeEditor));
+        const target = getMarkweaveAskAiTarget(activeEditor);
+        return activeEditor.isEditable && (
+          (target?.target.kind === "table" && target.status === "target") ||
+          shouldShowFloatingToolbar(createSelectionSnapshot(activeEditor))
+        );
       }}
     >
       <div ref={toolbarContentRef} className="markweave-floating-toolbar-content" data-menu={openMenu ?? "none"}>
@@ -714,6 +1012,28 @@ export function FloatingToolbar({ editor, messages = defaultMarkweaveMessages, s
           />
         ))}
         {openMenu === "block-type" ? <TurnIntoMenu editor={editor} messages={messages} onPopoverRef={setPopoverRef} onClose={() => setOpenMenu(null)} /> : null}
+        {openMenu === "ask-ai" ? (
+          <AskAiPopover
+            inputRef={askAiInputRef}
+            messages={messages}
+            phase={askAiPhase}
+            prompt={askAiPrompt}
+            hasStreamedContent={Boolean(askAiMarkdown)}
+            error={askAiError}
+            onPromptChange={setAskAiPrompt}
+            onSubmit={submitAskAi}
+            onStop={() => {
+              askAiAbortRef.current?.abort();
+              cancelAskAiFrame();
+              clearMarkweaveAskAiPreview(editor);
+              setAskAiPhase("input");
+            }}
+            onAccept={acceptAskAi}
+            onRetry={() => submitAskAi(askAiLastPrompt)}
+            onDiscard={() => closeAskAi(true)}
+            onPopoverRef={setPopoverRef}
+          />
+        ) : null}
         {openMenu === "link" ? (
           <LinkPopover
             inputRef={linkInputRef}
@@ -831,6 +1151,103 @@ function LinkPopover({
   );
 }
 
+function AskAiPopover({
+  inputRef,
+  messages,
+  phase,
+  prompt,
+  hasStreamedContent,
+  error,
+  onPromptChange,
+  onSubmit,
+  onStop,
+  onAccept,
+  onRetry,
+  onDiscard,
+  onPopoverRef,
+}: {
+  readonly inputRef: RefObject<HTMLTextAreaElement | null>;
+  readonly messages: MarkweaveMessages;
+  readonly phase: AskAiUiPhase;
+  readonly prompt: string;
+  readonly hasStreamedContent: boolean;
+  readonly error: string;
+  readonly onPromptChange: (value: string) => void;
+  readonly onSubmit: () => void;
+  readonly onStop: () => void;
+  readonly onAccept: () => void;
+  readonly onRetry: () => void;
+  readonly onDiscard: () => void;
+  readonly onPopoverRef: (element: HTMLElement | null) => void;
+}) {
+  const showComposer = phase === "input" || phase === "result" || phase === "error";
+
+  return (
+    <section
+      ref={onPopoverRef}
+      className="markweave-floating-toolbar-popover markweave-ask-ai-popover"
+      aria-label={messages.askAi.ariaLabel}
+      data-phase={phase}
+      data-testid="markweave-ask-ai-popover"
+    >
+      {showComposer ? (
+        <div className="markweave-ask-ai-composer" data-variant={phase === "result" ? "follow-up" : "prompt"}>
+          <textarea
+            ref={inputRef}
+            className="markweave-ask-ai-input"
+            aria-label={phase === "result" ? messages.askAi.followUpPlaceholder : messages.askAi.promptPlaceholder}
+            placeholder={phase === "result" ? messages.askAi.followUpPlaceholder : messages.askAi.promptPlaceholder}
+            value={prompt}
+            rows={2}
+            onChange={(event) => onPromptChange(event.currentTarget.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) {
+                event.preventDefault();
+                onSubmit();
+              }
+            }}
+          />
+          <button
+            type="button"
+            className="markweave-ask-ai-send"
+            aria-label={messages.askAi.send}
+            disabled={!prompt.trim()}
+            onMouseDown={preventFloatingToolbarPointerFocusLoss}
+            onClick={() => onSubmit()}
+          >
+            <Icon name="arrow-up" />
+          </button>
+        </div>
+      ) : null}
+      {phase === "generating" ? (
+        <div className="markweave-ask-ai-progress markweave-ask-ai-generating" role="status">
+          <span className="markweave-ask-ai-sparkles" aria-hidden="true"><Icon name="sparkles" /></span>
+          <span className="markweave-ask-ai-progress-label">{hasStreamedContent ? messages.askAi.streaming : messages.askAi.generating}</span>
+          <button type="button" className="markweave-ask-ai-stop" aria-label={messages.askAi.stop} onMouseDown={preventFloatingToolbarPointerFocusLoss} onClick={onStop}><Icon name="square" /></button>
+        </div>
+      ) : null}
+      {phase === "result" ? (
+        <div className="markweave-ask-ai-action-bar">
+          <button type="button" className="markweave-ask-ai-retry" onMouseDown={preventFloatingToolbarPointerFocusLoss} onClick={onRetry}><Icon name="rotate-ccw" />{messages.askAi.retry}</button>
+          <span className="markweave-ask-ai-action-spacer" />
+          <button type="button" className="markweave-ask-ai-discard" onMouseDown={preventFloatingToolbarPointerFocusLoss} onClick={onDiscard}><Icon name="x" />{messages.askAi.discard}</button>
+          <button type="button" className="markweave-ask-ai-accept" onMouseDown={preventFloatingToolbarPointerFocusLoss} onClick={onAccept}><Icon name="check" />{messages.askAi.accept}</button>
+        </div>
+      ) : null}
+      {phase === "error" || phase === "conflict" ? (
+        <div className="markweave-ask-ai-error" role="alert">
+          {phase === "conflict" ? messages.askAi.conflict : error || messages.askAi.errorFallback}
+          <div className="markweave-ask-ai-action-bar">
+            {phase === "error" ? <button type="button" className="markweave-ask-ai-retry" onMouseDown={preventFloatingToolbarPointerFocusLoss} onClick={onRetry}><Icon name="rotate-ccw" />{messages.askAi.retry}</button> : null}
+            <span className="markweave-ask-ai-action-spacer" />
+            <button type="button" className="markweave-ask-ai-discard" onMouseDown={preventFloatingToolbarPointerFocusLoss} onClick={onDiscard}><Icon name="x" />{messages.askAi.discard}</button>
+          </div>
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
 function FloatingToolbarButton({
   button,
   expanded,
@@ -873,7 +1290,7 @@ function FloatingToolbarButton({
 }
 
 function FloatingToolbarButtonIcon({ button, expanded }: { readonly button: FloatingToolbarButtonModel; readonly expanded: boolean }) {
-  if (button.id === "improve") {
+  if (button.id === "improve" || button.id === "ask-ai") {
     return (
       <span className="markweave-floating-toolbar-button-inner">
         <Icon name="sparkles" />
@@ -1141,6 +1558,8 @@ function MoreActionIcon({ id }: { readonly id: FloatingToolbarMoreActionId }) {
 
 type FloatingToolbarIconName =
   | "sparkles"
+  | "arrow-up"
+  | "check"
   | "chevron-down"
   | "chevron-up"
   | "corner-down-left"
@@ -1167,10 +1586,15 @@ type FloatingToolbarIconName =
   | "align-justify"
   | "decrease-indent"
   | "increase-indent"
-  | "trash";
+  | "trash"
+  | "rotate-ccw"
+  | "square"
+  | "x";
 
 const floatingToolbarIconMap: Record<FloatingToolbarIconName, LucideIcon> = {
   sparkles: Sparkles,
+  "arrow-up": ArrowUp,
+  check: Check,
   "chevron-down": ChevronDown,
   "chevron-up": ChevronUp,
   "corner-down-left": CornerDownLeft,
@@ -1198,6 +1622,9 @@ const floatingToolbarIconMap: Record<FloatingToolbarIconName, LucideIcon> = {
   "decrease-indent": IndentDecrease,
   "increase-indent": IndentIncrease,
   trash: Trash2,
+  "rotate-ccw": RotateCcw,
+  square: Square,
+  x: X,
 };
 
 function Icon({ name }: { readonly name: FloatingToolbarIconName }) {

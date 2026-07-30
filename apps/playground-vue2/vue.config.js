@@ -1,4 +1,5 @@
 const path = require("node:path");
+const { createOpenRouterDevMiddleware } = require("../playground-fixtures/openrouter-dev-proxy.cjs");
 
 const workspaceRoot = path.resolve(__dirname, "../..");
 const markweaveRoot = path.resolve(workspaceRoot, "packages/markweave");
@@ -106,5 +107,8 @@ module.exports = {
   devServer: {
     host: "127.0.0.1",
     port: 5175,
+    before(app) {
+      app.use(createOpenRouterDevMiddleware({ workspaceRoot }));
+    },
   },
 };

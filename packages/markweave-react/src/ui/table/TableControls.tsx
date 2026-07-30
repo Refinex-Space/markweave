@@ -23,6 +23,7 @@ import {
   PaintBucket,
   Plus,
   SquareX,
+  Sparkles,
   TableCellsMerge,
   TableCellsSplit,
   Trash2,
@@ -94,6 +95,11 @@ import {
 } from "markweave/internal/plugins/table/table-ui-model";
 import { getMarkweaveMessages, type MarkweaveMessages } from "markweave/internal/i18n";
 import type { TableCommandResult, TableEditWithAiRequest } from "markweave/internal/core/public-types";
+import type { MarkweaveAskAiConfig } from "markweave/internal/core/public-types";
+import {
+  canStartMarkweaveAskAiTableTarget,
+  startMarkweaveAskAiTableTarget,
+} from "markweave/internal/plugins/ask-ai/ask-ai-session";
 
 export {
   calculateTableControlsPosition,
@@ -119,6 +125,7 @@ interface TableControlsProps {
   readonly onCopyPayload?: (payload: MarkweaveMenuCopyPayload) => void;
   readonly onCommandResult?: (result: TableCommandResult) => void;
   readonly onEditWithAi?: (request: TableEditWithAiRequest) => void;
+  readonly askAi?: MarkweaveAskAiConfig;
 }
 
 const defaultTableMessages = getMarkweaveMessages("zh");
@@ -141,6 +148,7 @@ const tableMenuIcons: Readonly<Record<TableMenuIconId, LucideIcon>> = {
   copy: Copy,
   merge: TableCellsMerge,
   split: TableCellsSplit,
+  "ask-ai": Sparkles,
   delete: Trash2,
 };
 
@@ -160,7 +168,7 @@ export function TableControls({
   messages = defaultTableMessages,
   onCopyPayload,
   onCommandResult,
-  onEditWithAi,
+  askAi,
 }: TableControlsProps) {
   const [openMenu, setOpenMenu] = useState<TableMenuKind | null>(null);
   const [openSubmenu, setOpenSubmenu] = useState<TableMenuSubmenuId | null>(null);
@@ -502,8 +510,9 @@ export function TableControls({
 
   const rowAxisModel = getTableControlAxisSelectionModel(editor, interactionState, "row", focusState?.activeCellPos ?? null);
   const columnAxisModel = getTableControlAxisSelectionModel(editor, interactionState, "column", focusState?.activeCellPos ?? null);
-  const hasCellMenuCommands = getTableMenuItems(editor, "selection").length > 0;
-  const menuItems = openMenu ? getTableMenuItems(editor, openMenu) : [];
+  const askAiEnabled = askAi?.enabled === true && typeof askAi.handler === "function";
+  const hasCellMenuCommands = getTableMenuItems(editor, "selection", { askAiEnabled }).length > 0;
+  const menuItems = openMenu ? getTableMenuItems(editor, openMenu, { askAiEnabled }) : [];
   const runMenuCommand = async (commandId: TableCommandId, menuOverride?: TableMenuKind) => {
     const result = await executeTableMenuCommand({
       editor,
@@ -525,16 +534,12 @@ export function TableControls({
     return result.success;
   };
 
-  const runEditWithAi = (source: TableEditWithAiRequest["source"]) => {
-    const request = getTableEditWithAiRequest(editor, source);
-
-    if (request) {
-      onEditWithAi?.(request);
+  const runAskAi = (source: TableEditWithAiRequest["source"]) => {
+    if (!askAiEnabled || !startMarkweaveAskAiTableTarget(editor, source)) {
+      return;
     }
-
     setOpenMenu(null);
     setOpenSubmenu(null);
-    editor.view.focus();
   };
 
   const runAxisFormatting = (callback: (axis: "row" | "column") => boolean) => {
@@ -738,7 +743,14 @@ export function TableControls({
             const group = getTableMenuItemGroup(item);
             const previousGroup = index === 0 ? group : getTableMenuItemGroup(menuItems[index - 1]);
             const startsGroup = index > 0 && previousGroup !== group;
-            const enabled = item.submenuId ? true : item.commandId === null ? Boolean(onEditWithAi) : canRunTableCommand(editor, item.commandId);
+            const source = openMenu === "row" || openMenu === "column" ? openMenu : "selection";
+            const enabled = item.submenuId
+              ? true
+              : item.id === "edit-with-ai"
+                ? askAiEnabled && canStartMarkweaveAskAiTableTarget(editor, source)
+                : item.commandId === null
+                  ? false
+                  : canRunTableCommand(editor, item.commandId);
             const label = getTableMenuItemLabel(item, messages);
             const ItemIcon = tableMenuIcons[item.icon];
 
@@ -752,6 +764,7 @@ export function TableControls({
                 aria-haspopup={item.submenuId ? "menu" : undefined}
                 aria-expanded={item.submenuId ? openSubmenu === item.submenuId : undefined}
                 disabled={!enabled}
+                title={item.id === "edit-with-ai" && askAiEnabled && !enabled ? messages.askAi.tableMergedUnsupported : undefined}
                 data-menu-group={group}
                 data-starts-group={startsGroup ? "true" : "false"}
                 data-command-enabled={enabled ? "true" : "false"}
@@ -763,9 +776,14 @@ export function TableControls({
                       ? `markweave-table-menu-submenu-${item.submenuId}`
                       : `markweave-table-menu-command-edit-with-ai`
                 }
-                onMouseDown={(event) => event.preventDefault()}
+                onMouseDown={(event) => {
+                  event.preventDefault();
+                  if (enabled && item.id === "edit-with-ai") {
+                    runAskAi(source);
+                  }
+                }}
                 onMouseEnter={() => setOpenSubmenu(item.submenuId)}
-                onClick={() => {
+                onClick={(event) => {
                   if (!enabled) {
                     return;
                   }
@@ -776,7 +794,9 @@ export function TableControls({
                   }
 
                   if (item.commandId === null) {
-                    runEditWithAi(openMenu === "row" || openMenu === "column" ? openMenu : "selection");
+                    if (event.detail === 0) {
+                      runAskAi(source);
+                    }
                     return;
                   }
 

@@ -66,6 +66,7 @@ import { normalizeMarkweaveEditorMode, setMarkweaveEditorModeState, type Markwea
 import { normalizeMarkweaveCanvasColor, normalizeMarkweaveTheme, type MarkweaveTheme } from "markweave/internal/core/theme";
 import type {
   FloatingToolbarAssistantRequest,
+  MarkweaveAskAiConfig,
   MarkweaveContentFormat,
   MarkweaveContentValue,
   MarkweaveEditorRuntimeSnapshot,
@@ -144,8 +145,12 @@ export interface MarkweaveEditorControllerOptions {
   readonly ariaLabel?: string;
   readonly autoFocusFirstTableBodyCell?: boolean;
   readonly onUpdate?: (payload: MarkweaveEditorUpdatePayload) => void;
+  /** @deprecated Compatibility callback for table AI actions; Ask AI v1 does not replace it. */
   readonly onEditWithAi?: (request: TableEditWithAiRequest) => void;
+  readonly askAi?: MarkweaveAskAiConfig;
+  /** @deprecated Use `askAi` for new text-selection AI integrations. */
   readonly onRewriteSelection?: (request: FloatingToolbarAssistantRequest) => void;
+  /** @deprecated Compatibility callback retained for existing integrations. */
   readonly onExtractToNote?: (request: FloatingToolbarAssistantRequest) => void;
   readonly onSlashCommandUpload?: MarkweaveSlashCommandUploadHandler;
   readonly onTableCopyPayload?: (payload: MarkweaveMenuCopyPayload) => void;
@@ -227,6 +232,7 @@ function cancelAnimationFrameSafe(id: number) {
 }
 
 export function useMarkweaveEditorController({
+  askAi,
   ariaLabel,
   autoFocusFirstTableBodyCell = false,
   autofocus = false,
@@ -925,8 +931,10 @@ export function useMarkweaveEditorController({
       floatingToolbar: editor && effectiveEditable
         ? {
             editor,
+            lang: resolvedLang,
             messages,
             selectionSnapshot,
+            askAi,
             onRewriteSelection,
             onExtractToNote,
           }
@@ -953,6 +961,7 @@ export function useMarkweaveEditorController({
             onCopyPayload: onTableCopyPayload,
             onCommandResult: onTableCommandResult,
             onEditWithAi,
+            askAi,
           }
         : null,
       tableSelectionOverlay: editor && effectiveEditable
@@ -990,6 +999,7 @@ export function useMarkweaveEditorController({
     }),
     [
       effectiveEditable,
+      askAi,
       editor,
       filteredSlashCommands,
       innerToc,

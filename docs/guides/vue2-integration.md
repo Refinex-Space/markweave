@@ -1,6 +1,6 @@
 ---
 owner: refinex
-updated: 2026-07-28
+updated: 2026-07-30
 status: active
 referenced_by: docs/README.md#knowledge-map
 ---
@@ -280,7 +280,19 @@ interface MarkweaveUploadResult {
 
 Images render with preview, align, caption, resize, replace, download, and delete controls in Live mode. In View mode, hovering an image reveals a top-right preview action that opens the same fullscreen zoom and pan reader. Videos accept local upload, direct video URLs, YouTube embed URLs, Bilibili player URLs, and normal YouTube/Bilibili share links. Attachments render from existing attachment HTML fallback; the slash Attachment command is currently disabled in the default UI, but the upload type remains part of the public contract for host extensions.
 
-## Tables, AI, And Copy Callbacks
+## Ask AI
+
+Ask AI is disabled by default. Vue templates enable it with `:ask-ai`:
+
+```vue
+<MarkweaveEditor :ask-ai="{ enabled: true, handler: handleAskAi }" />
+```
+
+`handleAskAi(request)` returns Markdown or `AsyncIterable<string>`. The same handler receives ordinary text targets and table cell, row, column, selection, or whole-table targets through `request.target`; the legacy `selection` field remains a flat compatibility projection. Only target-local content is sent. Single cells expect a Markdown fragment, while multi-cell targets expect an exact-shape GFM table. Markweave previews without changing the document and applies only accepted cell contents in one undoable transaction while preserving table structure and attributes. Multi-cell targets containing merged cells and View mode remain fail-closed.
+
+`on-rewrite-selection` and `on-extract-to-note` remain legacy compatibility callbacks.
+
+## Tables, Compatibility AI, And Copy Callbacks
 
 ```vue
 <template>
@@ -294,12 +306,12 @@ Images render with preview, align, caption, resize, replace, download, and delet
 </template>
 ```
 
-- `on-edit-with-ai` receives row, column, or selection context from table menus.
-- `on-rewrite-selection` and `on-extract-to-note` receive selected text and HTML from the floating toolbar.
+- `on-edit-with-ai` remains a deprecated compatibility prop but is no longer rendered by the built-in menus; use `ask-ai` for new integrations.
+- `on-rewrite-selection` and `on-extract-to-note` are legacy compatibility callbacks.
 - `on-table-copy-payload` mirrors table copy actions for row, column, or table payloads.
 - `on-table-command-result` reports table command outcomes and before/after snapshots.
 
-The built-in table controls use Notion-like row, column, and selection handles. Row and column menus cover moving, inserting, sorting, color, alignment, clearing, duplication, and deletion; selection controls retain merge, split, copy, and delete. Hovering the last row or column reveals a full-edge add control, while dragging a row or column handle reorders it. All labels follow `lang` (`zh` or `en`).
+The built-in table controls use Notion-like row, column, and selection handles. With `ask-ai` enabled, `Ask AI` is the first item in every table handle menu. Row and column menus also cover moving, inserting, sorting, color, alignment, clearing, duplication, and deletion; selection controls retain merge, split, copy, and delete. Hovering the last row or column reveals a full-edge add control, while dragging a row or column handle reorders it. All labels follow `lang` (`zh` or `en`).
 
 ## External Link Cards
 
