@@ -143,6 +143,12 @@ const searchRef = useRef<MarkweaveSearchController | null>(null);
 
 The controller exposes `setQuery`, `setOptions`, `findNext`, `findPrevious`, `replaceCurrent`, `replaceAll`, `clear`, `getState`, and `subscribe`. Matching supports case sensitivity, Unicode whole words, and regular expressions. ProseMirror decorations highlight every result and distinguish the active result. View mode can search and navigate, while replacement methods safely return failure.
 
+## Host-Driven AI Edit Review
+
+Markweave 0.3.6 adds `createMarkweaveAiEditController` and each adapter's `onAiEditControllerChange` callback. A host can capture one supported text selection, call any AI service itself, and submit complete or cumulative-stream Markdown for in-place review. Markweave makes no provider request and receives no credentials. The proposal stays outside the document and undo history until the user accepts it; discard and target conflicts leave the original document unchanged.
+
+The controller callback is lifecycle-bound: adapters provide it after editor creation and send `null` before teardown or recreation. Streaming updates contain the currently accumulated Markdown, not individual tokens. See the React, Vue 3, or Vue 2 integration guide for selection limits, default and headless controls, cancellation, state/error handling, and decision events.
+
 ## External Link Cards
 
 A paragraph containing exactly one HTTP(S) link can be embedded as a link card in Live mode. Mixed text links, inline links, and `markweave:` document links remain ordinary links. Markweave never fetches a URL itself: pass an optional `linkCardResolver` when the host has a controlled metadata service.
@@ -203,6 +209,7 @@ Plain text remains available without token coloring. Mermaid code blocks default
 | Math editing/rendering | Yes | Yes | Yes |
 | Inner TOC | Yes | Yes | Yes |
 | Upload and AI callbacks | Yes | Yes | Yes |
+| Host-driven AI edit review | Yes | Yes | Yes |
 
 ## Package Boundary
 
@@ -210,7 +217,7 @@ Plain text remains available without token coloring. Mermaid code blocks default
 - `packages/markweave-react` contains `@markweave/react`.
 - `packages/markweave-vue2` contains `@markweave/vue2`.
 - `packages/markweave-vue3` contains `@markweave/vue3`.
-- `markweave` exports framework-neutral types and helpers.
+- `markweave` exports framework-neutral types and helpers, including the AI edit controller factory.
 - `@markweave/react` exports the React editor component, hook, React extension factory, and `@markweave/react/styles.css`.
 - `@markweave/vue2` exports the Vue 2 editor component, controller helper, Vue 2 extension factory, and `@markweave/vue2/styles.css`.
 - `@markweave/vue3` exports the Vue 3 editor component, composable, Vue 3 extension factory, and `@markweave/vue3/styles.css`.

@@ -1,6 +1,6 @@
 ---
 owner: refinex
-updated: 2026-07-15
+updated: 2026-07-30
 status: active
 referenced_by: AGENTS.md#knowledge-map
 ---
@@ -12,10 +12,17 @@ referenced_by: AGENTS.md#knowledge-map
 - Do not commit secrets, API keys, credentials, tokens, production config, or `.env*` contents.
 - No `.env*` file was present in the 2026-07-05 control-plane scan.
 - Do not paste credentials into docs, screenshots, tests, fixtures, logs, or examples.
+- The private playground OpenRouter integration reads `OPENROUTER_API_KEY` only from the workspace-root ignored `.env` inside dev-server middleware. Never expose provider credentials through `VITE_*`, `VUE_APP_*`, browser code, generated assets, or client logs.
+- `.env.example` may document variable names and placeholders only. Real provider credentials must remain in `.env` or the local process environment.
 
 ## Browser And Editor Data
 
 Markweave is a browser-side editor package. Treat editor content, Markdown source, HTML fallbacks, JSON documents, pasted HTML/Markdown, links, media nodes, and Mermaid source as untrusted input unless a specific caller has already validated it.
+
+- `MarkweaveAiEditController.captureSelection()` exposes only the active supported selection. It never includes the surrounding document, sends a request, chooses a provider, stores credentials, or persists the captured context.
+- The host owns user consent, authorization, redaction, provider policy, network transport, retention, logging, rate limits, and deletion for any selected content it sends to an AI service. Do not place API keys in Markweave props, browser bundles, metadata, or playground source.
+- AI edit metadata is host-defined in-memory context. Treat it as untrusted application data: avoid secrets and do not render metadata as HTML.
+- Proposal Markdown is parsed through the current editor schema and shown with ProseMirror Decorations before acceptance. It must not bypass the existing link/media/Mermaid safety boundaries, and only a complete compatible proposal may enter the document.
 
 ## Uploads And Media
 

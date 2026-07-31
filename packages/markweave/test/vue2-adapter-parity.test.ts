@@ -59,6 +59,32 @@ describe("Vue2 adapter parity source contract", () => {
       "getMarkweaveTocItems",
       "getActiveMarkweaveTocId",
       "markweave-floating-toolbar-tooltip",
+      "MarkweaveAskAiConfig",
+      "MarkweaveAiEditController",
+      "createMarkweaveAiEditController",
+      "onAiEditControllerChange",
+      "startMarkweaveAskAiTarget",
+      "startMarkweaveAskAiTableTarget",
+      "canStartMarkweaveAskAiTableTarget",
+      "restoreMarkweaveAskAiTargetSelection",
+      "getMappedMarkweaveAskAiSelection",
+      "runMarkweaveAskAiHandler",
+      "MarkweaveAskAiError",
+      "askAiStreamScheduler",
+      "acceptMarkweaveAskAiResult",
+      "calculateMarkweaveAskAiPanelPosition",
+      "surfaceRect: getMarkweaveAskAiSurfaceRect(props.editor.view.dom)",
+      "popoverElement.style.width = nextWidth",
+      "getMarkweaveAskAiTargetRect",
+      "markweave-ask-ai-popover",
+      "markweave-ask-ai-composer",
+      "markweave-ask-ai-generating",
+      "markweave-ask-ai-progress-label",
+      "markweave-ask-ai-action-bar",
+      "askAiLastPrompt",
+      "data-ask-ai-session",
+      "ask-ai",
+      "askAiEnabled",
       "markweave-slash-layer",
       "markweave-slash-menu",
       "markweave-table-controls",
@@ -80,6 +106,7 @@ describe("Vue2 adapter parity source contract", () => {
       "setMarkweaveMermaidTheme",
       "data-testid\": \"markweave-editor-frame\"",
     ]);
+    expect(source).not.toContain("markweave-ask-ai-progress-dots");
     expect(source).not.toContain("@tiptap/vue-3");
     expect(source).not.toContain("lucide-vue-next");
     expect(source).not.toContain("useEditor");
@@ -98,7 +125,16 @@ describe("Vue2 adapter parity source contract", () => {
       "isVNodeLike",
       "return [children]",
     ]);
-    expectSourceContract(iconsSource, ["const lucideIcons", "iconName", "renderIconNode", "name: `MarkweaveVue2Icon${name}`"]);
+    expectSourceContract(iconsSource, [
+      "const lucideIcons",
+      "iconName",
+      "renderIconNode",
+      "name: `MarkweaveVue2Icon${name}`",
+      "export const Check",
+      "export const RotateCcw",
+      "export const Square",
+      "export const X",
+    ]);
     expect(iconsSource).not.toContain("pathForIcon");
     expect(iconsSource).not.toContain("name.includes");
   });

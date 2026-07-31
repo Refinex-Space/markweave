@@ -10,9 +10,166 @@ import type { TableFocusState } from "../plugins/table/table-focus-state";
 import type { TableInteractionState } from "../plugins/table/table-interaction-layer";
 import type { MarkweaveEditorMode } from "./editor-mode-state";
 import type { MarkweaveTocState } from "./toc-state";
+import type { MarkweaveLang } from "../i18n";
 
 export type MarkweaveContentFormat = "markdown" | "html" | "json";
 export type MarkweaveContentValue = string | JSONContent;
+
+export interface MarkweaveAskAiSelection {
+  readonly from: number;
+  readonly to: number;
+  readonly text: string;
+  readonly html: string;
+}
+
+export interface MarkweaveAskAiTextTarget {
+  readonly kind: "text";
+}
+
+export interface MarkweaveAskAiTableCell {
+  readonly position: number;
+  readonly row: number;
+  readonly column: number;
+  readonly rowSpan: number;
+  readonly columnSpan: number;
+  readonly text: string;
+  readonly html: string;
+}
+
+export interface MarkweaveAskAiTableTarget {
+  readonly kind: "table";
+  readonly scope: "cell" | "row" | "column" | "selection" | "table";
+  readonly tablePos: number;
+  readonly axisIndex: number | null;
+  readonly cellPositions: readonly number[];
+  readonly rows: number;
+  readonly columns: number;
+  readonly text: string;
+  readonly html: string;
+  readonly markdown: string;
+  readonly resultShape: "fragment" | "table";
+  readonly cells: readonly MarkweaveAskAiTableCell[];
+}
+
+export type MarkweaveAskAiTarget = MarkweaveAskAiTextTarget | MarkweaveAskAiTableTarget;
+
+export interface MarkweaveAskAiRequest {
+  readonly id: string;
+  readonly prompt: string;
+  readonly lang: MarkweaveLang;
+  readonly selection: MarkweaveAskAiSelection;
+  /** Omitted by pre-table integrations; absence is equivalent to `{ kind: "text" }`. */
+  readonly target?: MarkweaveAskAiTarget;
+  readonly outputFormat: "markdown";
+  readonly signal: AbortSignal;
+}
+
+export type MarkweaveAskAiOutput = string | AsyncIterable<string>;
+
+export type MarkweaveAskAiHandler = (
+  request: MarkweaveAskAiRequest,
+) => MarkweaveAskAiOutput | Promise<MarkweaveAskAiOutput>;
+
+export type MarkweaveAskAiConfig =
+  | { readonly enabled?: false }
+  | {
+      readonly enabled: true;
+      readonly handler: MarkweaveAskAiHandler;
+    };
+
+export interface MarkweaveAiEditSelection {
+  readonly from: number;
+  readonly to: number;
+  readonly text: string;
+  readonly html: string;
+  readonly markdown: string;
+}
+
+export interface MarkweaveAiEditContext {
+  readonly id: string;
+  readonly lang: MarkweaveLang;
+  readonly selection: MarkweaveAiEditSelection;
+  readonly signal: AbortSignal;
+  readonly metadata?: Readonly<Record<string, unknown>>;
+}
+
+export type MarkweaveAiEditPhase =
+  | "idle"
+  | "captured"
+  | "streaming"
+  | "review"
+  | "error"
+  | "conflict";
+
+export type MarkweaveAiEditErrorCode =
+  | "readonly"
+  | "no-selection"
+  | "unsupported-selection"
+  | "active-review"
+  | "stale-context"
+  | "invalid-markdown"
+  | "schema-incompatible"
+  | "incomplete-proposal"
+  | "conflict";
+
+export type MarkweaveAiEditResult<T> =
+  | { readonly ok: true; readonly value: T }
+  | {
+      readonly ok: false;
+      readonly code: MarkweaveAiEditErrorCode;
+      readonly message: string;
+    };
+
+export interface MarkweaveAiEditProposal {
+  readonly contextId: string;
+  /** Streaming integrations pass the complete accumulated Markdown, not an individual token. */
+  readonly markdown: string;
+  readonly status: "streaming" | "complete";
+}
+
+export interface MarkweaveAiEditState {
+  readonly phase: MarkweaveAiEditPhase;
+  readonly context: MarkweaveAiEditContext | null;
+  readonly proposal: MarkweaveAiEditProposal | null;
+  readonly error: string | null;
+}
+
+export interface MarkweaveAiEditDecision {
+  readonly contextId: string;
+  readonly decision: "accepted" | "discarded" | "conflict";
+  readonly original: MarkweaveAiEditSelection;
+  readonly proposedMarkdown: string | null;
+  readonly metadata?: Readonly<Record<string, unknown>>;
+  readonly appliedRange?: { readonly from: number; readonly to: number };
+}
+
+export interface MarkweaveAiEditController {
+  readonly captureSelection: (options?: {
+    readonly metadata?: Readonly<Record<string, unknown>>;
+    /** Inline review remains visible; this option controls only Markweave's built-in action bar. */
+    readonly controls?: "default" | "none";
+  }) => MarkweaveAiEditResult<MarkweaveAiEditContext>;
+  readonly updateProposal: (
+    proposal: MarkweaveAiEditProposal,
+  ) => MarkweaveAiEditResult<MarkweaveAiEditState>;
+  readonly failProposal: (
+    contextId: string,
+    message?: string,
+  ) => MarkweaveAiEditResult<MarkweaveAiEditState>;
+  readonly accept: (
+    contextId: string,
+  ) => MarkweaveAiEditResult<MarkweaveAiEditDecision>;
+  readonly discard: (
+    contextId: string,
+  ) => MarkweaveAiEditResult<MarkweaveAiEditDecision>;
+  readonly getState: () => MarkweaveAiEditState;
+  readonly subscribe: (
+    listener: (state: MarkweaveAiEditState) => void,
+  ) => () => void;
+  readonly onDecision: (
+    listener: (event: MarkweaveAiEditDecision) => void,
+  ) => () => void;
+}
 
 export interface MarkweaveEditorUpdatePayload {
   readonly editor: Editor;

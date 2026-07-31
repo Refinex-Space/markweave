@@ -1,6 +1,6 @@
 ---
 owner: refinex
-updated: 2026-07-27
+updated: 2026-07-31
 status: active
 referenced_by: docs/README.md#knowledge-map
 ---
@@ -216,7 +216,164 @@ interface MarkweaveUploadResult {
 
 图片在 Live 模式下支持预览、对齐、Caption、缩放、替换、下载和删除；View 模式下 Hover 图片右上角会出现预览入口，可打开支持缩放与拖拽平移的大图预览。视频支持本地上传、直接视频 URL、YouTube embed URL、Bilibili player URL、普通 YouTube/Bilibili 分享链接。附件节点可以渲染已有 attachment HTML fallback；默认 slash Attachment 入口目前是禁用状态，但 `attachment` 仍保留在公开上传协议中，方便宿主后续扩展。
 
-## 表格、AI 与复制回调
+## Ask AI
+
+Ask AI 默认关闭并采用 fail-closed 策略：只有接入方显式启用且提供有效 handler，选中文本工具条才显示入口。
+
+```tsx
+<MarkweaveEditor
+  askAi={{
+    enabled: true,
+    handler: async ({ signal, ...request }) => {
+      const response = await fetch("/api/markweave/ask-ai", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(request),
+        signal,
+      });
+      if (!response.ok) throw new Error("Ask AI failed");
+      return response.text(); // Markdown，也可返回 AsyncIterable<string>
+    },
+  }}
+/>
+```
+
+同一个 handler 同时处理文本与表格目标。普通文本请求的 `request.target` 为 `{ kind: "text" }`；表格请求只携带当前目标的 `scope`、精确 `rows`/`columns`、Markdown、HTML 与单元格元数据。原有 `selection` 字段继续作为扁平兼容投影，请求不会包含整篇文档或目标外上下文。单单元格目标返回 Markdown 片段；行、列、多单元格选区与整表目标返回精确等形的 GFM 表格。
+
+生成内容在用户接受前只进入临时预览；接受后用一次可撤销事务替换文本或目标单元格内容，表格节点类型、合并关系、列宽、颜色与对齐属性保持不变。等待期间如果目标内容被修改，请求会中止并阻止覆盖。代码块、原子/媒体节点、View 模式、空文本选区和包含合并单元格的多单元格目标保持 fail-closed；单个合并单元格仍可使用。
+
+`onRewriteSelection` 和 `onExtractToNote` 作为兼容性旧回调继续保留；新的自定义 Prompt 写作流程应使用 `askAi`。
+
+## 宿主驱动 AI 预编辑协议
+
+当宿主已经有自己的 AI 入口、Agent 或对话面板时，使用 `MarkweaveAiEditController`，无需启用内置 `askAi`。宿主读取受支持的选区、自行调用任意供应商并返回 Markdown；Markweave 只负责目标映射、原位审阅、接受、舍弃与冲突保护，不会发送模型请求或接收供应商密钥。
+
+### 控制器生命周期与完整响应
+
+编辑器创建后，`onAiEditControllerChange` 会传入控制器；编辑器销毁或重建前会传入 `null`。每次回调都应替换宿主保存的引用，收到 `null` 后不得继续复用旧控制器。
+
+```tsx
+import { useState } from "react";
+import {
+  MarkweaveEditor,
+  type MarkweaveAiEditController,
+  type MarkweaveAiEditContext,
+} from "@markweave/react";
+
+export function AiDocumentEditor() {
+  const [aiEdit, setAiEdit] = useState<MarkweaveAiEditController | null>(null);
+
+  async function reviseSelection() {
+    const controller = aiEdit;
+    if (!controller) return;
+
+    const captured = controller.captureSelection({ metadata: { action: "revise" } });
+    if (!captured.ok) {
+      console.warn(captured.code, captured.message);
+      return;
+    }
+    const { id, lang, selection, signal } = captured.value;
+
+    try {
+      const response = await fetch("/api/document-ai", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ id, lang, selection, instruction: "改写得更清晰" }),
+        signal,
+      });
+      if (!response.ok) throw new Error("AI edit failed");
+      const markdown = await response.text();
+
+      const completed = controller.updateProposal({ contextId: id, markdown, status: "complete" });
+      if (!completed.ok) console.warn(completed.code, completed.message);
+    } catch (error) {
+      if (!signal.aborted) {
+        controller.failProposal(id, error instanceof Error ? error.message : undefined);
+      }
+    }
+  }
+
+  return <MarkweaveEditor onAiEditControllerChange={setAiEdit} />;
+}
+```
+
+`selection` 只包含目标选区的 `from`、`to`、`text`、`html` 和 `markdown`。数字位置属于捕获瞬间的 ProseMirror 快照，不要用它们自行修改文档；应调用 `accept(contextId)`，由 Markweave 在当前映射后的目标上执行一次可撤销事务。
+
+### 累计流式响应
+
+流式接入时，每次必须传入当前累计的完整 Markdown，而不是单个 token；结束时必须再提交一次 `complete`：
+
+```ts
+async function submitStream(
+  controller: MarkweaveAiEditController,
+  context: MarkweaveAiEditContext,
+  stream: AsyncIterable<string>,
+) {
+  let markdown = "";
+  try {
+    for await (const chunk of stream) {
+      if (context.signal.aborted) return;
+      markdown += chunk;
+      const updated = controller.updateProposal({
+        contextId: context.id,
+        markdown,
+        status: "streaming",
+      });
+      if (!updated.ok) return;
+    }
+    controller.updateProposal({ contextId: context.id, markdown, status: "complete" });
+  } catch (error) {
+    if (!context.signal.aborted) {
+      controller.failProposal(context.id, error instanceof Error ? error.message : undefined);
+    }
+  }
+}
+```
+
+流式中暂时无法解析的片段会保留上一次有效预览。最终 `complete` Markdown 必须能被解析并满足当前 schema；否则 `updateProposal` 返回 `invalid-markdown` 或 `schema-incompatible`，原文保持不变。
+
+### 默认操作条与 headless 模式
+
+`captureSelection()` 默认使用 `controls: "default"`，Markweave 会在原位差异旁渲染紧凑的状态/操作条。“停止”和“舍弃”都会取消当前上下文。`captureSelection({ controls: "none" })` 只隐藏该操作条；有效提案仍在原位置显示。
+
+自定义操作界面应先调用 `getState()` 读取初始快照，再通过 `subscribe()` 接收后续变化；`subscribe()` 不会主动回放当前状态。宿主界面卸载时必须注销状态和决策监听：
+
+```ts
+const captured = controller.captureSelection({ controls: "none" });
+if (captured.ok) {
+  renderAiEditState(controller.getState());
+  const unsubscribeState = controller.subscribe(renderAiEditState);
+  const unsubscribeDecision = controller.onDecision((decision) => {
+    console.log(decision.decision, decision.appliedRange, decision.metadata);
+  });
+
+  // 宿主界面卸载时：
+  // unsubscribeState();
+  // unsubscribeDecision();
+}
+```
+
+只有 phase 为 `review` 时才能调用 `accept(contextId)`；任意活动 phase 均可调用 `discard(contextId)`。`failProposal` 只进入 `error`，不会替换文档，宿主可以使用同一 context 重试或舍弃。
+
+### 状态、错误码与安全规则
+
+phase 包括 `idle`、`captured`、`streaming`、`review`、`error` 和 `conflict`。每个编辑器同时只允许一个活动上下文：
+
+| 错误码 | 含义 |
+| --- | --- |
+| `readonly` | 编辑器不处于可编辑的 Live 模式。 |
+| `no-selection` | 当前选区为空。 |
+| `unsupported-selection` | 目标为代码块、表格/单元格、媒体/原子节点、`NodeSelection` 或 `CellSelection`。 |
+| `active-review` | 已存在 captured、streaming、review 或 error 上下文，必须先接受或舍弃。 |
+| `stale-context` | 上下文已舍弃、接受、替换或销毁，迟到结果必须忽略。 |
+| `invalid-markdown` | 完整结果无法解析为 Markdown。 |
+| `schema-incompatible` | 解析结果不能由当前编辑器 schema 表示。 |
+| `incomplete-proposal` | 完整结果为空，或尚未进入 review 就请求接受。 |
+| `conflict` | 宿主处理期间目标选区内容发生变化。 |
+
+目标外编辑会映射活动范围；目标内部编辑、切换到 View、停止/舍弃或销毁编辑器都会中止上下文的 `AbortSignal`。宿主应把该 signal 传给网络请求并忽略迟到任务。`onDecision` 报告 `accepted`、`discarded` 或 `conflict`，回传只读 metadata，并只在接受后可能提供 `appliedRange`。预览、错误、冲突和舍弃都不会改变 Markdown/HTML/JSON 或撤销历史；接受只产生一次事务和一次 Undo。虽然 V1 不允许把代码块、表格或媒体作为捕获目标，提案仍可包含当前 schema 支持的段落、列表、代码块和数学公式。
+
+## 表格、兼容 AI 回调与复制回调
 
 ```tsx
 <MarkweaveEditor
@@ -238,12 +395,12 @@ interface MarkweaveUploadResult {
 />
 ```
 
-- `onEditWithAi` 接收表格行、列或选区上下文。
-- `onRewriteSelection` 和 `onExtractToNote` 接收浮动工具栏中的选中文本和 HTML。
+- `onEditWithAi` 作为废弃兼容属性继续保留，但内置表格菜单不再渲染该旧入口；新接入统一使用 `askAi` handler。
+- `onRewriteSelection` 和 `onExtractToNote` 是兼容性旧回调。
 - `onTableCopyPayload` 接收复制行、列或整表时的文本与 HTML。
 - `onTableCommandResult` 接收表格命令执行结果和 before/after 快照。
 
-内置表格控制采用 Notion-like 的行、列与选区句柄。行列菜单覆盖移动、插入、排序、颜色、对齐、清空、复制与删除；选区菜单继续保留合并、拆分、复制与删除。Hover 最后一行或最后一列会显示整边快捷新增控件，拖拽行列句柄可直接调整顺序；全部菜单名称跟随 `lang`（`zh` 或 `en`）。
+内置表格控制采用 Notion-like 的行、列与选区句柄。启用 `askAi` 后，`Ask AI` 会成为行、列、单元格/选区与整表菜单的首项。行列菜单同时覆盖移动、插入、排序、颜色、对齐、清空、复制与删除；选区菜单继续保留合并、拆分、复制与删除。Hover 最后一行或最后一列会显示整边快捷新增控件，拖拽行列句柄可直接调整顺序；全部菜单名称跟随 `lang`（`zh` 或 `en`）。
 
 ## 外部超链接卡片
 

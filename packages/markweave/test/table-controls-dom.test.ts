@@ -2,7 +2,7 @@
 
 import { Editor } from "@tiptap/core";
 import { CellSelection } from "@tiptap/pm/tables";
-import { act, createElement } from "react";
+import { act, createElement, Fragment } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createMarkweaveEditorExtensions } from "../src/editor-core/create-editor-extensions";
@@ -10,7 +10,10 @@ import { getMarkweaveMessages, type MarkweaveMessages } from "../src/i18n";
 import { getTableFocusState } from "../src/plugins/table/table-focus-state";
 import { initialTableInteractionState, type TableInteractionState } from "../src/plugins/table/table-interaction-layer";
 import { TableControls } from "../../markweave-react/src/ui/table/TableControls";
+import { FloatingToolbar } from "../../markweave-react/src/ui/floating-toolbar/FloatingToolbar";
+import { createSelectionSnapshot } from "../src/editor-core/selection-state";
 import { getTableAxisDropIndexAtPoint, getTableMenuBoundaryRect } from "../src/plugins/table/table-ui-model";
+import { getMarkweaveAskAiTarget } from "../src/plugins/ask-ai/ask-ai-session";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -128,6 +131,7 @@ async function renderTableControls(
     readonly onCopyPayload?: Parameters<typeof TableControls>[0]["onCopyPayload"];
     readonly onCommandResult?: Parameters<typeof TableControls>[0]["onCommandResult"];
     readonly onEditWithAi?: Parameters<typeof TableControls>[0]["onEditWithAi"];
+    readonly askAi?: Parameters<typeof TableControls>[0]["askAi"];
     readonly interactionState?: (editor: Editor) => TableInteractionState;
   } = {},
 ) {
@@ -137,7 +141,7 @@ async function renderTableControls(
   activeRoot = createRoot(host);
 
   await act(async () => {
-    activeRoot?.render(createElement(TableControls, { active: true, editor, interactionState: options.interactionState?.(editor), messages, onCopyPayload: options.onCopyPayload, onCommandResult: options.onCommandResult, onEditWithAi: options.onEditWithAi }));
+    activeRoot?.render(createElement(TableControls, { active: true, editor, interactionState: options.interactionState?.(editor), messages, onCopyPayload: options.onCopyPayload, onCommandResult: options.onCommandResult, onEditWithAi: options.onEditWithAi, askAi: options.askAi }));
   });
   await flushReact();
 
@@ -238,6 +242,65 @@ describe("table controls DOM i18n", () => {
     await click(getByTestId("markweave-table-hover-row-handle"));
 
     expect(document.querySelector('[data-testid="markweave-table-menu-command-edit-with-ai"]')).toBeNull();
+  });
+
+  it("shows Ask AI first when explicitly enabled and starts the row target", async () => {
+    await renderTableControls(undefined, {
+      askAi: { enabled: true, handler: async () => "| A | B | C |\n| --- | --- | --- |" },
+    });
+    await click(getByTestId("markweave-table-hover-row-handle"));
+
+    const menu = getByTestId("markweave-table-menu");
+    const firstItem = menu.querySelector<HTMLButtonElement>('button[role="menuitem"]');
+    expect(firstItem?.textContent).toBe("Ask AI");
+    expect(firstItem?.dataset.menuGroup).toBe("assistant");
+
+    await click(firstItem!);
+    expect(getMarkweaveAskAiTarget(activeEditor!)?.target).toMatchObject({
+      kind: "table",
+      scope: "row",
+      rows: 1,
+      columns: 3,
+    });
+  });
+
+  it("opens the shared React Ask AI composer from the table row menu", async () => {
+    const { editor, frame } = createEditor();
+    const host = document.createElement("div");
+    frame.appendChild(host);
+    activeRoot = createRoot(host);
+    const askAi = {
+      enabled: true as const,
+      handler: async () => "| A | B | C |\n| --- | --- | --- |",
+    };
+
+    await act(async () => {
+      activeRoot?.render(createElement(Fragment, null,
+        createElement(FloatingToolbar, {
+          editor,
+          askAi,
+          selectionSnapshot: createSelectionSnapshot(editor),
+        }),
+        createElement(TableControls, {
+          active: true,
+          editor,
+          askAi,
+        }),
+      ));
+    });
+    await flushReact();
+
+    await click(getByTestId("markweave-table-hover-row-handle"));
+    await act(async () => {
+      getByTestId("markweave-table-menu-command-edit-with-ai").dispatchEvent(
+        new MouseEvent("mousedown", { bubbles: true, button: 0, cancelable: true }),
+      );
+    });
+    await flushReact();
+
+    expect(document.querySelector('[data-testid="markweave-table-menu"]')).toBeNull();
+    expect(getByTestId("markweave-floating-toolbar").dataset.askAiSession).toBe("open");
+    expect(getByTestId("markweave-ask-ai-popover").querySelector("textarea")).not.toBeNull();
   });
 
   it("emits React table copy payloads, copy feedback, and command results", async () => {

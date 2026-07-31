@@ -1,6 +1,6 @@
 ---
 owner: refinex
-updated: 2026-07-28
+updated: 2026-07-29
 status: active
 referenced_by: product-design:image-to-code
 ---
@@ -85,5 +85,39 @@ The supplied reference screenshot and the local implementation screenshot use di
 - The task targets desktop authoring. Touch-specific drag reordering was not added.
 - The live Tiptap reference URL did not complete a fresh navigation during the final pass, so the final comparison uses the user-provided reference capture plus the measurements already taken from the live reference during implementation.
 - Existing playground bundle-size warnings are unrelated to the table controls.
+
+final result: passed
+
+## Ask AI Review Flow QA (2026-07-29)
+
+### Source truth and implementation evidence
+
+- Input reference: `/var/folders/0w/8y5fmh897_gc458bn5q2s7240000gp/T/codex-clipboard-10cf8509-adf7-41c4-b4c6-c9231a5460f1.png` (1368 x 514)
+- Generating reference: `/var/folders/0w/8y5fmh897_gc458bn5q2s7240000gp/T/codex-clipboard-194a2740-9cff-4e08-9ef2-5c0bd08cc9fa.png` (1312 x 394)
+- Result reference: `/var/folders/0w/8y5fmh897_gc458bn5q2s7240000gp/T/codex-clipboard-3ca977a1-0288-4b72-b9a6-7b1faf8e9050.png` (1306 x 376)
+- Input implementation: `.playwright-cli/ask-ai-input.png` (1060 x 360)
+- Generating implementation: `.playwright-cli/ask-ai-generating.png` (1060 x 320)
+- Result implementation: `.playwright-cli/ask-ai-result.png` (1060 x 570)
+- Browser viewport: 1603 x 1261 CSS px at device pixel ratio 2; captures are focused CSS-pixel crops.
+- State: React playground production stylesheet, light theme, selected text retained, with input, generating, and result/review states captured separately.
+
+The implementation states were rendered through an isolated browser visual fixture using the production Ask AI DOM classes and shared stylesheet. The fixture was removed after capture. Real component lifecycle, Promise/stream transitions, retry, discard, apply, focus, and adapter parity are covered by the focused DOM and session tests.
+
+### Same-state comparison
+
+- Input: selected text remains visible above the panel; the composer is a single integrated surface with no nested card outline; the send button sits inside the lower-right corner.
+- Generating: the compact status surface uses neutral Sparkles/dot motion and a right-aligned stop control without purple accents.
+- Result: generated Markdown preview, follow-up composer, and the retry/discard/apply action row remain within one review surface; Apply is the only high-emphasis action and uses charcoal rather than purple.
+- Typography and spacing: controls use the existing system font and Lucide icon language; text is vertically centered, spacing is compact, and the panel keeps a 10 px visual gap from the mapped selection.
+- Colors: the target decoration is the existing low-opacity blue-gray selection treatment; cards, borders, labels, and controls use neutral white/gray/charcoal tokens.
+- Responsive and theme coverage: placement is clamped to the editor frame and viewport, can flip above when lower space is insufficient, and retains the shared narrow-screen and dark-theme rules.
+- Intentional difference from the references: Tone and other preset actions are omitted because Ask AI v1 explicitly supports only custom prompts.
+
+### Repair history
+
+- Initial implementation rendered a separate textarea card beneath the floating toolbar and could drift away from the selected content.
+- First repair anchored the panel to the mapped target selection and introduced the integrated input, generating, and review states.
+- Visual comparison exposed a double outline in the input state; the final repair removed the outer card chrome for that phase and retained the composer as the single visible surface.
+- No actionable P0, P1, or P2 visual findings remain in the approved scope.
 
 final result: passed

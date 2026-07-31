@@ -5,6 +5,8 @@ Private Vite/Vue 3 playground for checking the `@markweave/vue3` adapter against
 ## Run
 
 ```sh
+cp .env.example .env
+# Edit .env and set OPENROUTER_API_KEY locally.
 pnpm --filter @markweave/playground-vue3 dev
 ```
 
@@ -16,6 +18,7 @@ Open `http://127.0.0.1:5174/`.
 - Live/View mode switching.
 - Floating toolbar, slash commands, tables, media, code blocks, Mermaid, math, and inner TOC.
 - Upload mock, table callbacks, and AI callback debug surfaces.
+- Real text and table Ask AI streaming through the local `/api/markweave/ask-ai` development proxy, including exact-shape GFM table prompts. The API key stays in the root `.env` and is never exposed through Vite client variables.
 
 ## Integration Shape
 

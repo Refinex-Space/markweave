@@ -2,7 +2,13 @@
 
 import { createApp, defineComponent, h, nextTick, ref, type App } from "vue";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { MarkweaveEditor, type MarkweaveEditorMode, type MarkweaveEditorRuntimeSnapshot, type TableCommandResult } from "@markweave/vue3";
+import {
+  MarkweaveEditor,
+  type MarkweaveAiEditController,
+  type MarkweaveEditorMode,
+  type MarkweaveEditorRuntimeSnapshot,
+  type TableCommandResult,
+} from "@markweave/vue3";
 
 let activeApp: App<Element> | null = null;
 let activeContainer: HTMLDivElement | null = null;
@@ -64,7 +70,7 @@ function installLayoutMocks() {
     }
 
     if (this.classList.contains("markweave-editor-surface")) {
-      return createRect(0, 0, 800, 500);
+      return createRect(100, 80, 800, 500);
     }
 
     if (this.classList.contains("markweave-image-box")) {
@@ -215,6 +221,25 @@ function getByTestId<T extends HTMLElement = HTMLElement>(container: HTMLElement
 }
 
 describe("Markweave Vue3 editor", () => {
+  it("exposes the AI edit controller and clears the bridge on unmount", async () => {
+    const controllers: (MarkweaveAiEditController | null)[] = [];
+    await mountVue(
+      defineComponent({
+        setup() {
+          return () => h(MarkweaveEditor, {
+            defaultContent: "Selectable content",
+            onAiEditControllerChange: (controller: MarkweaveAiEditController | null) => controllers.push(controller),
+          });
+        },
+      }),
+    );
+
+    expect(controllers.find((controller) => controller !== null)?.getState().phase).toBe("idle");
+    activeApp?.unmount();
+    activeApp = null;
+    expect(controllers.at(-1)).toBeNull();
+  });
+
   it("renders Markdown content and exposes runtime state", async () => {
     const snapshots: MarkweaveEditorRuntimeSnapshot[] = [];
     const container = await mountVue(
@@ -492,6 +517,37 @@ describe("Markweave Vue3 editor", () => {
     await click(getByTestId(container, "markweave-table-hover-row-handle"));
 
     expect(container.querySelector('[data-testid="markweave-table-menu-command-edit-with-ai"]')).toBeNull();
+  });
+
+  it("opens the shared Ask AI composer from the Vue table row menu", async () => {
+    installLayoutMocks();
+    const handler = vi.fn(async () => "| A | B | C |\n| --- | --- | --- |");
+    const container = await mountVue(
+      defineComponent({
+        setup() {
+          return () =>
+            h(MarkweaveEditor, {
+              defaultContent: tableFixture,
+              defaultContentFormat: "html",
+              autoFocusFirstTableBodyCell: true,
+              askAi: { enabled: true, handler },
+            });
+        },
+      }),
+    );
+
+    await click(getByTestId(container, "markweave-table-hover-row-handle"));
+    const menu = getByTestId(container, "markweave-table-menu");
+    const askAiItem = menu.querySelector<HTMLButtonElement>('[data-testid="markweave-table-menu-command-edit-with-ai"]');
+    expect(askAiItem?.textContent).toBe("Ask AI");
+    expect(menu.querySelector('button[role="menuitem"]')).toBe(askAiItem);
+
+    await click(askAiItem!);
+    await new Promise((resolve) => window.setTimeout(resolve, 300));
+    await flushVue();
+    expect(container.querySelector('[data-testid="markweave-table-menu"]')).toBeNull();
+    expect(getByTestId(container, "markweave-floating-toolbar").getAttribute("data-ask-ai-session")).toBe("open");
+    expect(getByTestId(container, "markweave-ask-ai-popover").style.width).toBe("800px");
   });
 
   it("emits Vue table copy payloads, copy feedback, and command results", async () => {

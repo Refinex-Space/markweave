@@ -153,6 +153,19 @@ describe("floating toolbar button model", () => {
     ]);
   });
 
+  it("adds Ask AI as the first default-toolbar item only when explicitly enabled", () => {
+    const editor = createEditor("<p>plain</p>");
+    selectText(editor, "plain");
+
+    expect(getFloatingToolbarButtonModels(editor, "default")[0]?.id).toBe("block-type");
+    expect(getFloatingToolbarButtonModels(editor, "default", getMarkweaveMessages("zh"), { askAiEnabled: true })[0]).toMatchObject({
+      id: "ask-ai",
+      label: "Ask AI",
+      group: "assistant",
+    });
+    expect(getFloatingToolbarButtonModels(editor, "table-compact", getMarkweaveMessages("zh"), { askAiEnabled: true }).some((button) => button.id === "ask-ai")).toBe(false);
+  });
+
   it("tracks active inline marks for default toolbar selections", () => {
     const editor = createEditor('<p><strong>bold</strong> <a href="https://openai.com">link</a> plain</p>');
 

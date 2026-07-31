@@ -28,6 +28,7 @@ export {
 } from "./table-formatting";
 import {
   getExecutableTableMenuCommandSpecs,
+  askAiTableMenuItem,
   tableCommandSpecs,
   tableMenuSpecs,
   type TableCommandId,
@@ -900,6 +901,7 @@ function getSelectionMenuItems(editor: Editor): readonly TableMenuItemSpec[] {
   ];
 
   return [
+    askAiTableMenuItem("row"),
     ...commandSpecs.map((command) => ({
       id: command.id,
       label: command.label,
@@ -925,12 +927,13 @@ function getSelectionMenuItems(editor: Editor): readonly TableMenuItemSpec[] {
   ];
 }
 
-export function getTableMenuItems(editor: Editor, menu: TableMenuKind): readonly TableMenuItemSpec[] {
-  if (menu === "selection") {
-    return getSelectionMenuItems(editor);
-  }
-
-  return getAxisMenuItems(menu);
+export function getTableMenuItems(
+  editor: Editor,
+  menu: TableMenuKind,
+  options: { readonly askAiEnabled?: boolean } = {},
+): readonly TableMenuItemSpec[] {
+  const items = menu === "selection" ? getSelectionMenuItems(editor) : getAxisMenuItems(menu);
+  return options.askAiEnabled ? items : items.filter((item) => item.id !== "edit-with-ai");
 }
 
 export function getTableMenuItemGroup(item: TableMenuItemSpec) {

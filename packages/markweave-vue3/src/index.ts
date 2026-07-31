@@ -1,4 +1,5 @@
 export { createMarkweaveVue3EditorExtensions, createMarkweaveEditorExtensions } from "./create-editor-extensions";
+export { createMarkweaveAiEditController } from "markweave";
 export type { CreateMarkweaveVue3EditorExtensionsOptions } from "./create-editor-extensions";
 export { MarkweaveEditor, useMarkweaveEditorController } from "./MarkweaveEditor";
 export type {
@@ -9,6 +10,24 @@ export type {
 } from "./MarkweaveEditor";
 export type {
   FloatingToolbarAssistantRequest,
+  MarkweaveAiEditContext,
+  MarkweaveAiEditController,
+  MarkweaveAiEditDecision,
+  MarkweaveAiEditErrorCode,
+  MarkweaveAiEditPhase,
+  MarkweaveAiEditProposal,
+  MarkweaveAiEditResult,
+  MarkweaveAiEditSelection,
+  MarkweaveAiEditState,
+  MarkweaveAskAiConfig,
+  MarkweaveAskAiHandler,
+  MarkweaveAskAiOutput,
+  MarkweaveAskAiRequest,
+  MarkweaveAskAiSelection,
+  MarkweaveAskAiTableCell,
+  MarkweaveAskAiTableTarget,
+  MarkweaveAskAiTarget,
+  MarkweaveAskAiTextTarget,
   MarkweaveContentFormat,
   MarkweaveContentValue,
   MarkweaveEditorRuntimeSnapshot,

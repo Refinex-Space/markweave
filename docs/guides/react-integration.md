@@ -1,6 +1,6 @@
 ---
 owner: refinex
-updated: 2026-07-27
+updated: 2026-07-31
 status: active
 referenced_by: docs/README.md#knowledge-map
 ---
@@ -216,7 +216,164 @@ interface MarkweaveUploadResult {
 
 Images render with preview, align, caption, resize, replace, download, and delete controls in Live mode. In View mode, hovering an image reveals a top-right preview action that opens the same fullscreen zoom and pan reader. Videos accept local upload, direct video URLs, YouTube embed URLs, Bilibili player URLs, and normal YouTube/Bilibili share links. Attachments render from existing attachment HTML fallback; the slash Attachment command is currently disabled in the default UI, but the upload type remains part of the public contract for host extensions.
 
-## Tables, AI, And Copy Callbacks
+## Ask AI
+
+Ask AI is fail-closed and invisible by default. Enable it explicitly and provide the host-owned handler:
+
+```tsx
+<MarkweaveEditor
+  askAi={{
+    enabled: true,
+    handler: async ({ signal, ...request }) => {
+      const response = await fetch("/api/markweave/ask-ai", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(request),
+        signal,
+      });
+      if (!response.ok) throw new Error("Ask AI failed");
+      return response.text(); // Markdown, or return AsyncIterable<string>
+    },
+  }}
+/>
+```
+
+The same handler serves text and table targets. `request.target` is `{ kind: "text" }` for ordinary selections, or a target-local table payload containing `scope`, exact `rows`/`columns`, Markdown, HTML, and cell metadata. The existing `selection` field remains a flat compatibility projection and the request never includes the surrounding document. A single-cell target expects a Markdown fragment; row, column, multi-cell, and whole-table targets expect an exact-shape GFM table.
+
+Generated Markdown stays in an ephemeral preview until the user accepts it. Acceptance replaces text or only the targeted table-cell contents in one undoable transaction; table node types, spans, widths, colors, and alignment attributes remain intact. Editing the target while generation is pending aborts the request and prevents overwrite. Code blocks, atom/media nodes, View mode, empty text selections, and multi-cell targets containing merged cells remain fail-closed. A single merged cell is supported.
+
+`onRewriteSelection` and `onExtractToNote` remain compatibility callbacks for existing integrations; new custom-prompt writing flows should use `askAi`.
+
+## Host-Driven AI Edit Review
+
+When the host already owns an AI command, agent, or chat surface, use `MarkweaveAiEditController` without enabling built-in `askAi`. The host reads a supported selection, calls any provider, and returns Markdown; Markweave owns only target mapping, in-place review, acceptance, discard, and conflict protection. It never sends a request or receives provider credentials.
+
+### Controller lifecycle and complete response
+
+`onAiEditControllerChange` receives one controller after the editor is created and `null` before that editor is destroyed or recreated. Replace the stored reference on every callback and never reuse a controller after `null`.
+
+```tsx
+import { useState } from "react";
+import {
+  MarkweaveEditor,
+  type MarkweaveAiEditController,
+  type MarkweaveAiEditContext,
+} from "@markweave/react";
+
+export function AiDocumentEditor() {
+  const [aiEdit, setAiEdit] = useState<MarkweaveAiEditController | null>(null);
+
+  async function reviseSelection() {
+    const controller = aiEdit;
+    if (!controller) return;
+
+    const captured = controller.captureSelection({ metadata: { action: "revise" } });
+    if (!captured.ok) {
+      console.warn(captured.code, captured.message);
+      return;
+    }
+    const { id, lang, selection, signal } = captured.value;
+
+    try {
+      const response = await fetch("/api/document-ai", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ id, lang, selection, instruction: "Make this clearer" }),
+        signal,
+      });
+      if (!response.ok) throw new Error("AI edit failed");
+      const markdown = await response.text();
+
+      const completed = controller.updateProposal({ contextId: id, markdown, status: "complete" });
+      if (!completed.ok) console.warn(completed.code, completed.message);
+    } catch (error) {
+      if (!signal.aborted) {
+        controller.failProposal(id, error instanceof Error ? error.message : undefined);
+      }
+    }
+  }
+
+  return <MarkweaveEditor onAiEditControllerChange={setAiEdit} />;
+}
+```
+
+`selection` contains only `from`, `to`, `text`, `html`, and `markdown` for the captured target. The numeric positions identify the original ProseMirror snapshot; do not use them to patch the document yourself. Call `accept(contextId)` so Markweave applies the currently mapped target as one undoable transaction.
+
+### Cumulative streaming
+
+For streaming integrations, pass the complete accumulated Markdown on every update, not an individual token. A `complete` update is mandatory before acceptance:
+
+```ts
+async function submitStream(
+  controller: MarkweaveAiEditController,
+  context: MarkweaveAiEditContext,
+  stream: AsyncIterable<string>,
+) {
+  let markdown = "";
+  try {
+    for await (const chunk of stream) {
+      if (context.signal.aborted) return;
+      markdown += chunk;
+      const updated = controller.updateProposal({
+        contextId: context.id,
+        markdown,
+        status: "streaming",
+      });
+      if (!updated.ok) return;
+    }
+    controller.updateProposal({ contextId: context.id, markdown, status: "complete" });
+  } catch (error) {
+    if (!context.signal.aborted) {
+      controller.failProposal(context.id, error instanceof Error ? error.message : undefined);
+    }
+  }
+}
+```
+
+Streaming frames that are temporarily incomplete keep the last valid preview. The final `complete` Markdown must parse against the current schema; otherwise `updateProposal` returns `invalid-markdown` or `schema-incompatible` and the original document remains unchanged.
+
+### Default and headless controls
+
+`captureSelection()` uses `controls: "default"`: Markweave renders a compact status/action bar next to the in-place diff. Stop and discard both cancel the active context. `captureSelection({ controls: "none" })` hides only that bar; a valid proposal still renders in place.
+
+For a custom action surface, read the initial snapshot with `getState()` and then subscribe to later changes. `subscribe()` does not replay the current state. Unsubscribe both listeners when the host surface unmounts:
+
+```ts
+const captured = controller.captureSelection({ controls: "none" });
+if (captured.ok) {
+  renderAiEditState(controller.getState());
+  const unsubscribeState = controller.subscribe(renderAiEditState);
+  const unsubscribeDecision = controller.onDecision((decision) => {
+    console.log(decision.decision, decision.appliedRange, decision.metadata);
+  });
+
+  // On host-surface teardown:
+  // unsubscribeState();
+  // unsubscribeDecision();
+}
+```
+
+Call `accept(contextId)` only after phase `review`; call `discard(contextId)` from any active phase. `failProposal` enters `error` without replacing the document, so the host may retry with the same context or discard it.
+
+### State, errors, and safety rules
+
+Phases are `idle`, `captured`, `streaming`, `review`, `error`, and `conflict`. Only one context may be active per editor:
+
+| Error code | Meaning |
+| --- | --- |
+| `readonly` | The editor is not in editable Live mode. |
+| `no-selection` | The selection is empty. |
+| `unsupported-selection` | The target is a code block, table/cell, media/atom node, `NodeSelection`, or `CellSelection`. |
+| `active-review` | Another captured, streaming, review, or error context must be accepted or discarded first. |
+| `stale-context` | The context was discarded, accepted, replaced, or destroyed; ignore the late result. |
+| `invalid-markdown` | Complete output could not be parsed as Markdown. |
+| `schema-incompatible` | Parsed output cannot be represented by the current editor schema. |
+| `incomplete-proposal` | Complete output is empty, or acceptance was requested before review. |
+| `conflict` | The captured target changed while the host was working. |
+
+Edits outside the target remap its live range. Editing inside the target, switching to View mode, stopping/discarding, or destroying the editor aborts the context `AbortSignal`; pass that signal to the host request and ignore late work. `onDecision` reports `accepted`, `discarded`, or `conflict`, echoes immutable metadata, and includes `appliedRange` only when available after acceptance. Preview, error, conflict, and discard never change Markdown/HTML/JSON or undo history. Accepted output is one transaction and one undo step. Proposals may contain schema-supported paragraphs, lists, code blocks, and math even though those node types are not valid V1 capture targets.
+
+## Tables, Compatibility AI, And Copy Callbacks
 
 ```tsx
 <MarkweaveEditor
@@ -238,12 +395,12 @@ Images render with preview, align, caption, resize, replace, download, and delet
 />
 ```
 
-- `onEditWithAi` receives row, column, or selection context from table menus.
-- `onRewriteSelection` and `onExtractToNote` receive selected text and HTML from the floating toolbar.
+- `onEditWithAi` remains a deprecated compatibility prop but is no longer rendered by the built-in table menus. Use the shared `askAi` handler for new integrations.
+- `onRewriteSelection` and `onExtractToNote` are legacy compatibility callbacks.
 - `onTableCopyPayload` mirrors table copy actions for row, column, or table payloads.
 - `onTableCommandResult` reports table command outcomes and before/after snapshots.
 
-The built-in table controls use Notion-like row, column, and selection handles. Row and column menus cover moving, inserting, sorting, color, alignment, clearing, duplication, and deletion; selection controls retain merge, split, copy, and delete. Hovering the last row or column reveals a full-edge add control, while dragging a row or column handle reorders it. All labels follow `lang` (`zh` or `en`).
+The built-in table controls use Notion-like row, column, and selection handles. When `askAi` is enabled, `Ask AI` is the first item in row, column, cell/selection, and whole-table menus. Row and column menus also cover moving, inserting, sorting, color, alignment, clearing, duplication, and deletion; selection controls retain merge, split, copy, and delete. Hovering the last row or column reveals a full-edge add control, while dragging a row or column handle reorders it. All labels follow `lang` (`zh` or `en`).
 
 ## External Link Cards
 

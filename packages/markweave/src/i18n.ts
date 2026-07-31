@@ -35,6 +35,34 @@ export interface MarkweaveMessages {
     readonly openLink: string;
     readonly removeLink: string;
   };
+  readonly askAi: {
+    readonly ariaLabel: string;
+    readonly promptPlaceholder: string;
+    readonly followUpPlaceholder: string;
+    readonly generating: string;
+    readonly streaming: string;
+    readonly send: string;
+    readonly stop: string;
+    readonly accept: string;
+    readonly retry: string;
+    readonly discard: string;
+    readonly preview: string;
+    readonly conflict: string;
+    readonly emptyPrompt: string;
+    readonly emptyResult: string;
+    readonly errorFallback: string;
+    readonly tableMergedUnsupported: string;
+  };
+  readonly aiEdit: {
+    readonly ariaLabel: string;
+    readonly preparing: string;
+    readonly streaming: string;
+    readonly accept: string;
+    readonly discard: string;
+    readonly stop: string;
+    readonly conflict: string;
+    readonly errorFallback: string;
+  };
   readonly linkCard: {
     readonly titleLabel: string;
     readonly titlePlaceholder: string;
@@ -579,6 +607,7 @@ const messagesByLang: Record<MarkweaveLang, MarkweaveMessages> = {
     },
     floatingToolbar: {
       buttons: {
+        "ask-ai": "Ask AI",
         improve: "润色",
         "block-type": "块类型",
         bold: "加粗",
@@ -650,6 +679,34 @@ const messagesByLang: Record<MarkweaveLang, MarkweaveMessages> = {
       applyLink: "应用链接",
       openLink: "打开链接",
       removeLink: "移除链接",
+    },
+    askAi: {
+      ariaLabel: "Ask AI 写作助手",
+      promptPlaceholder: "告诉 AI 你希望如何处理所选内容...",
+      followUpPlaceholder: "告诉 AI 还需要如何调整...",
+      generating: "AI 正在生成...",
+      streaming: "正在生成预览...",
+      send: "发送",
+      stop: "停止",
+      accept: "应用",
+      retry: "重试",
+      discard: "舍弃",
+      preview: "结果预览",
+      conflict: "所选内容已发生变化，结果不会覆盖新内容。",
+      emptyPrompt: "请输入 Prompt。",
+      emptyResult: "AI 返回了空结果，请重试。",
+      errorFallback: "AI 处理失败，请重试。",
+      tableMergedUnsupported: "包含合并单元格的多单元格范围暂不支持 Ask AI。",
+    },
+    aiEdit: {
+      ariaLabel: "AI 预编辑审阅",
+      preparing: "AI 正在准备修改...",
+      streaming: "AI 正在修改...",
+      accept: "接受",
+      discard: "放弃",
+      stop: "停止",
+      conflict: "原内容已发生变化，无法应用这次修改。",
+      errorFallback: "AI 修改无法预览，请检查返回内容。",
     },
     linkCard: {
       titleLabel: "链接标题",
@@ -767,7 +824,7 @@ const messagesByLang: Record<MarkweaveLang, MarkweaveMessages> = {
         bottom: "底部对齐",
       },
       commands: {
-        "edit-with-ai": "使用 AI 编辑",
+        "edit-with-ai": "Ask AI",
         "add-row-before": "插入上方行",
         "add-row-after": "插入下方行",
         "move-row-up": "上移行",
@@ -826,6 +883,7 @@ const messagesByLang: Record<MarkweaveLang, MarkweaveMessages> = {
     },
     floatingToolbar: {
       buttons: {
+        "ask-ai": "Ask AI",
         improve: "Improve",
         "block-type": "Block type",
         bold: "Bold",
@@ -897,6 +955,34 @@ const messagesByLang: Record<MarkweaveLang, MarkweaveMessages> = {
       applyLink: "Apply link",
       openLink: "Open link",
       removeLink: "Remove link",
+    },
+    askAi: {
+      ariaLabel: "Ask AI writing assistant",
+      promptPlaceholder: "Ask AI what you want to do with the selection...",
+      followUpPlaceholder: "Tell AI what else should change...",
+      generating: "AI is generating...",
+      streaming: "Generating preview...",
+      send: "Send",
+      stop: "Stop",
+      accept: "Apply",
+      retry: "Try again",
+      discard: "Discard",
+      preview: "Result preview",
+      conflict: "The selected content changed. The result will not overwrite it.",
+      emptyPrompt: "Enter a prompt.",
+      emptyResult: "AI returned an empty result. Try again.",
+      errorFallback: "AI processing failed. Try again.",
+      tableMergedUnsupported: "Ask AI does not yet support multi-cell ranges containing merged cells.",
+    },
+    aiEdit: {
+      ariaLabel: "AI edit review",
+      preparing: "AI is preparing an edit...",
+      streaming: "AI is editing...",
+      accept: "Accept",
+      discard: "Discard",
+      stop: "Stop",
+      conflict: "The original content changed, so this edit cannot be applied.",
+      errorFallback: "The AI edit cannot be previewed. Check the returned content.",
     },
     linkCard: {
       titleLabel: "Link title",
@@ -1014,7 +1100,7 @@ const messagesByLang: Record<MarkweaveLang, MarkweaveMessages> = {
         bottom: "Align bottom",
       },
       commands: {
-        "edit-with-ai": "Edit with AI",
+        "edit-with-ai": "Ask AI",
         "add-row-before": "Insert row above",
         "add-row-after": "Insert row below",
         "move-row-up": "Move row up",

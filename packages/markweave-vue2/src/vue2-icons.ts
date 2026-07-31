@@ -84,6 +84,10 @@ const lucideIcons = {
     iconName: "plus",
     node: [["path", { d: "M5 12h14", key: "1ays0h" }], ["path", { d: "M12 5v14", key: "s699le" }]],
   },
+  "Square": {
+    iconName: "square",
+    node: [["rect", { width: "18", height: "18", x: "3", y: "3", rx: "2", key: "afitv7" }]],
+  },
   "SquareX": {
     iconName: "square-x",
     node: [["rect", { width: "18", height: "18", x: "3", y: "3", rx: "2", ry: "2", key: "1m3agn" }], ["path", { d: "m15 9-6 6", key: "1uzhvr" }], ["path", { d: "m9 9 6 6", key: "z0biqf" }]],
@@ -173,6 +177,10 @@ const lucideIcons = {
   ["rect", { width: "18", height: "14", x: "3", y: "5", rx: "2", ry: "2", key: "12ruh7" }],
   ["path", { d: "M7 15h4M15 15h2M7 11h2M13 11h4", key: "1ueiar" }]
 ],
+  },
+  "Check": {
+    iconName: "check",
+    node: [["path", { d: "M20 6 9 17l-5-5", key: "1gmf2c" }]],
   },
   "CheckCircle2": {
     iconName: "circle-check",
@@ -561,6 +569,20 @@ const lucideIcons = {
   ["path", { d: "M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4", key: "ih7n3h" }]
 ],
   },
+  "RotateCcw": {
+    iconName: "rotate-ccw",
+    node: [["path", { d: "M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8", key: "1357e3" }], ["path", { d: "M3 3v5h5", key: "1xhq8a" }]],
+  },
+  "Sparkles": {
+    iconName: "sparkles",
+    node: [
+      ["path", { d: "m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3Z", key: "nraa5p" }],
+      ["path", { d: "M5 3v4", key: "bklmnn" }],
+      ["path", { d: "M19 17v4", key: "iiml17" }],
+      ["path", { d: "M3 5h4", key: "nem4j1" }],
+      ["path", { d: "M17 19h4", key: "lbex7p" }],
+    ],
+  },
   "Video": {
     iconName: "video",
     node: [
@@ -572,7 +594,11 @@ const lucideIcons = {
     }
   ],
   ["rect", { x: "2", y: "6", width: "14", height: "12", rx: "2", key: "158x01" }]
-],
+  ],
+  },
+  "X": {
+    iconName: "x",
+    node: [["path", { d: "M18 6 6 18", key: "1bl5f8" }], ["path", { d: "m6 6 12 12", key: "d8bk6v" }]],
   },
 } as const satisfies Record<string, { readonly iconName: string; readonly node: LucideIconNode }>;
 
@@ -635,6 +661,7 @@ export const BetweenVerticalStart = createIconComponent("BetweenVerticalStart");
 export const Bold = createIconComponent("Bold");
 export const Braces = createIconComponent("Braces");
 export const Captions = createIconComponent("Captions");
+export const Check = createIconComponent("Check");
 export const CheckCircle2 = createIconComponent("CheckCircle2");
 export const ChevronDown = createIconComponent("ChevronDown");
 export const ChevronRight = createIconComponent("ChevronRight");
@@ -668,8 +695,11 @@ export const PencilLine = createIconComponent("PencilLine");
 export const Plus = createIconComponent("Plus");
 export const Quote = createIconComponent("Quote");
 export const Replace = createIconComponent("Replace");
+export const RotateCcw = createIconComponent("RotateCcw");
 export const Sigma = createIconComponent("Sigma");
 export const SmilePlus = createIconComponent("SmilePlus");
+export const Sparkles = createIconComponent("Sparkles");
+export const Square = createIconComponent("Square");
 export const SquareX = createIconComponent("SquareX");
 export const Strikethrough = createIconComponent("Strikethrough");
 export const Subscript = createIconComponent("Subscript");
@@ -683,3 +713,4 @@ export const Type = createIconComponent("Type");
 export const Underline = createIconComponent("Underline");
 export const Upload = createIconComponent("Upload");
 export const Video = createIconComponent("Video");
+export const X = createIconComponent("X");

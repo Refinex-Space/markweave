@@ -50,6 +50,7 @@ export type TableMenuIconId =
   | "copy"
   | "merge"
   | "split"
+  | "ask-ai"
   | "delete";
 export type TableMenuItemId = TableCommandId | TableMenuSubmenuId | "edit-with-ai";
 
@@ -60,7 +61,7 @@ export interface TableMenuItemSpec {
   readonly commandId: TableCommandId | null;
   readonly submenuId: TableMenuSubmenuId | null;
   readonly icon: TableMenuIconId;
-  readonly group: "move" | "insert" | "sort" | "format" | "duplicate" | "copy" | "cell" | "delete";
+  readonly group: "assistant" | "move" | "insert" | "sort" | "format" | "duplicate" | "copy" | "cell" | "delete";
   readonly availability: "external" | "available";
 }
 
@@ -257,7 +258,21 @@ function submenuMenuItem(menu: TableCommandMenuKind, submenuId: TableMenuSubmenu
   };
 }
 
+export function askAiTableMenuItem(menu: TableCommandMenuKind): TableMenuItemSpec {
+  return {
+    id: "edit-with-ai",
+    label: "Ask AI",
+    menu,
+    commandId: null,
+    submenuId: null,
+    icon: "ask-ai",
+    group: "assistant",
+    availability: "external",
+  };
+}
+
 export const tableMenuSpecs: readonly TableMenuItemSpec[] = [
+  askAiTableMenuItem("row"),
   executableMenuItem("row", "move-row-up"),
   executableMenuItem("row", "move-row-down"),
   executableMenuItem("row", "add-row-before"),
@@ -269,6 +284,7 @@ export const tableMenuSpecs: readonly TableMenuItemSpec[] = [
   executableMenuItem("row", "clear-row"),
   executableMenuItem("row", "duplicate-row"),
   executableMenuItem("row", "delete-row"),
+  askAiTableMenuItem("column"),
   executableMenuItem("column", "move-column-left"),
   executableMenuItem("column", "move-column-right"),
   executableMenuItem("column", "add-column-before"),

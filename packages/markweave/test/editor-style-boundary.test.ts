@@ -7,6 +7,7 @@ const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const readProjectFile = (path: string) => readFileSync(resolve(repoRoot, path), "utf8");
 
 const editorCss = readProjectFile("src/editor-core/markweave-editor.css");
+const escapeRegExp = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 const packageJson = JSON.parse(readProjectFile("package.json")) as {
   style?: string;
   exports?: Record<string, string | { import?: string; types?: string }>;
@@ -119,6 +120,34 @@ describe("editor style boundary", () => {
 
     expect(openTableMenuZIndex).toBeGreaterThan(innerTocZIndex);
     expect(openTableMenuZIndex).toBeLessThan(floatingToolbarZIndex);
+  });
+
+  it("keeps the Ask AI session compact and preserves primary-action contrast", () => {
+    const generatingRule = editorCss.match(/\.markweave-ask-ai-generating\s*\{([\s\S]*?)\n\}/)?.[1];
+    const generatingMinHeight = Number(generatingRule?.match(/min-height:\s*(\d+)px;/)?.[1]);
+    const acceptHoverRule = editorCss.match(
+      /\.markweave-ask-ai-popover \.markweave-ask-ai-accept:hover:not\(:disabled\)\s*\{([\s\S]*?)\n\}/,
+    )?.[1];
+
+    expect(generatingMinHeight).toBeGreaterThan(0);
+    expect(generatingMinHeight).toBeLessThanOrEqual(46);
+    expect(editorCss).toContain(".markweave-ask-ai-progress-label");
+    expect(editorCss).not.toContain(".markweave-ask-ai-progress-dots");
+    expect(acceptHoverRule).toContain("background: #17181a;");
+    expect(acceptHoverRule).toContain("color: #fff;");
+  });
+
+  it("keeps Ask AI review content compact without inheriting editor-only controls", () => {
+    expect(editorCss).toContain('.markweave-ask-ai-original[data-markweave-ask-ai-original="true"]');
+    expect(editorCss).toContain(".markweave-ask-ai-proposal-cell > :not(.markweave-ask-ai-proposal--table-cell)");
+    expect(editorCss).toContain(".markweave-ask-ai-proposal pre.markweave-code-block");
+    expect(editorCss).toContain('.markweave-ask-ai-proposal .tiptap-mathematics-render[data-type="block-math"]');
+    expect(editorCss).toContain(".markweave-ask-ai-preview table");
+    expect(editorCss).toContain(".markweave-ask-ai-preview th>p");
+    expect(editorCss).toContain(".markweave-ask-ai-preview td>p");
+    expect(editorCss).toContain(".markweave-ask-ai-preview pre.markweave-code-block");
+    expect(editorCss).toContain('.markweave-ask-ai-preview .tiptap-mathematics-render[data-type="block-math"]');
+    expect(editorCss).toContain('.markweave-editor-frame[data-markweave-theme="dark"] .markweave-ask-ai-preview table');
   });
 
   it("keeps code block controls compact and Mermaid source readable in the core stylesheet", () => {
@@ -254,6 +283,37 @@ describe("editor style boundary", () => {
     );
     expect(editorCss).toMatch(
       /\.markweave-table-controls \.markweave-table-extend-button--column::before \{[^}]*left: -9px;[^}]*width: 9px;/s,
+    );
+  });
+
+  it("keeps primary editor overlays flat in light and dark themes", () => {
+    const flatOverlaySelectors = [
+      ".markweave-ask-ai-popover[data-phase=\"input\"] .markweave-ask-ai-composer",
+      ".markweave-table-menu",
+      ".markweave-table-submenu",
+      ".markweave-floating-toolbar",
+      ".markweave-floating-toolbar-popover",
+      ".markweave-slash-menu",
+      ".markweave-inner-toc-panel",
+      ".markweave-codeblock-controls",
+      ".markweave-codeblock-language-menu",
+      ".markweave-image-toolbar",
+    ];
+
+    for (const selector of flatOverlaySelectors) {
+      expect(editorCss, `${selector} should not use elevation shadow`).toMatch(
+        new RegExp(`${escapeRegExp(selector)}\\s*\\{[^}]*box-shadow:\\s*none;`, "s"),
+      );
+    }
+
+    expect(editorCss).toMatch(
+      /\.markweave-editor-frame\[data-markweave-theme="dark"\]\s+:is\([^)]*\.markweave-inner-toc-panel[^)]*\.markweave-codeblock-language-menu[^)]*\)\s*\{[^}]*box-shadow:\s*none;/s,
+    );
+    expect(editorCss).toMatch(
+      /\.markweave-ask-ai-composer:focus-within\s*\{[^}]*box-shadow:\s*none;[^}]*outline:/s,
+    );
+    expect(editorCss).toMatch(
+      /\.markweave-editor-frame\[data-markweave-theme="dark"\] \.markweave-ask-ai-composer:focus-within\s*\{[^}]*outline-color:\s*rgba\(255, 255, 255, 0\.16\);/s,
     );
   });
 

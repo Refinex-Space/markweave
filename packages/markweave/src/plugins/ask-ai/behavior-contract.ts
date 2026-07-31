@@ -1,0 +1,15 @@
+export const markweaveAskAiBehaviorContract = {
+  defaultEnabled: false,
+  supportedTargets: ["live-nonempty-text", "table-cell", "table-row", "table-column", "table-selection", "table"],
+  excludedSelections: ["code-block", "partial-merged-table-range", "atom", "media", "view-mode"],
+  outputFormat: "markdown",
+  responseModes: ["promise", "async-iterable"],
+  applyMode: "review-before-single-transaction-replace",
+  panelAnchor: "mapped-target-or-proposal-prefer-below",
+  panelWidth: "editor-content-box-clamped-to-viewport",
+  reviewPresentation: "in-place-ephemeral-proposal-with-compact-follow-up-actions",
+  reviewRendering: "target-local-text-table-code-math-proposal-mermaid-source-only",
+  conflictPolicy: "abort-on-target-change",
+  requestScope: "target-only",
+  tableApplyMode: "content-only-exact-shape-single-transaction",
+} as const;

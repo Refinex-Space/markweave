@@ -341,3 +341,152 @@ export function createPlaygroundUploadResult(request: {
 
   throw new Error("Unsupported upload source.");
 }
+
+export interface PlaygroundAskAiRequest {
+  readonly id: string;
+  readonly prompt: string;
+  readonly lang: "en" | "zh";
+  readonly selection: {
+    readonly from: number;
+    readonly to: number;
+    readonly text: string;
+    readonly html: string;
+  };
+  readonly target?:
+    | { readonly kind: "text" }
+    | {
+        readonly kind: "table";
+        readonly scope: "cell" | "row" | "column" | "selection" | "table";
+        readonly tablePos: number;
+        readonly axisIndex: number | null;
+        readonly cellPositions: readonly number[];
+        readonly rows: number;
+        readonly columns: number;
+        readonly text: string;
+        readonly html: string;
+        readonly markdown: string;
+        readonly resultShape: "fragment" | "table";
+        readonly cells: readonly {
+          readonly position: number;
+          readonly row: number;
+          readonly column: number;
+          readonly rowSpan: number;
+          readonly columnSpan: number;
+          readonly text: string;
+          readonly html: string;
+        }[];
+      };
+  readonly outputFormat: "markdown";
+  readonly signal: AbortSignal;
+}
+
+async function readPlaygroundAskAiError(response: Response) {
+  try {
+    const payload = await response.json() as { readonly error?: unknown };
+    if (typeof payload.error === "string" && payload.error.trim()) return payload.error;
+  } catch {
+    // The stable fallback avoids reflecting arbitrary proxy response bodies.
+  }
+  return `Ask AI request failed with status ${response.status}.`;
+}
+
+export async function* requestPlaygroundAskAi(
+  request: PlaygroundAskAiRequest,
+  fetchImpl: typeof fetch = globalThis.fetch,
+) {
+  const response = await fetchImpl("/api/markweave/ask-ai", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      id: request.id,
+      prompt: request.prompt,
+      lang: request.lang,
+      selection: request.selection,
+      target: request.target,
+      outputFormat: request.outputFormat,
+    }),
+    signal: request.signal,
+  });
+  if (!response.ok) throw new Error(await readPlaygroundAskAiError(response));
+  if (!response.body) throw new Error("Ask AI returned an empty response stream.");
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      const chunk = decoder.decode(value, { stream: !done });
+      if (chunk) yield chunk;
+      if (done) break;
+    }
+  } finally {
+    reader.releaseLock();
+  }
+}
+
+export const playgroundAskAiConfig = {
+  enabled: true as const,
+  handler: requestPlaygroundAskAi,
+};
+
+export interface PlaygroundAiEditContext {
+  readonly lang: "en" | "zh";
+  readonly selection: { readonly markdown: string };
+  readonly signal: AbortSignal;
+}
+
+function waitForPlaygroundAiEditFrame(signal: AbortSignal, delay = 90) {
+  return new Promise<void>((resolve, reject) => {
+    if (signal.aborted) {
+      reject(new DOMException("The playground AI edit was aborted.", "AbortError"));
+      return;
+    }
+    const timeout = globalThis.setTimeout(() => {
+      signal.removeEventListener("abort", handleAbort);
+      resolve();
+    }, delay);
+    const handleAbort = () => {
+      globalThis.clearTimeout(timeout);
+      reject(new DOMException("The playground AI edit was aborted.", "AbortError"));
+    };
+    signal.addEventListener("abort", handleAbort, { once: true });
+  });
+}
+
+/** Deterministic host-side cumulative stream used to exercise the public AI edit protocol. */
+export async function* streamPlaygroundAiEditProposal(context: PlaygroundAiEditContext) {
+  const suffix = context.lang === "zh"
+    ? "\n\n_由宿主通过公共 API 提交的 AI 预编辑示例。_"
+    : "\n\n_Host-provided AI edit preview submitted through the public API._";
+  const completeMarkdown = `${context.selection.markdown.trimEnd()}${suffix}`;
+  const boundaries = [
+    Math.max(1, Math.floor(completeMarkdown.length / 3)),
+    Math.max(1, Math.floor(completeMarkdown.length * 2 / 3)),
+    completeMarkdown.length,
+  ];
+  for (const boundary of [...new Set(boundaries)]) {
+    await waitForPlaygroundAiEditFrame(context.signal);
+    yield completeMarkdown.slice(0, boundary);
+  }
+}
+
+/** Vue 2 compatible cumulative stream without requiring `for await...of` in the host bundle. */
+export async function runPlaygroundAiEditProposal(
+  context: PlaygroundAiEditContext,
+  onMarkdown: (markdown: string) => void,
+) {
+  const suffix = context.lang === "zh"
+    ? "\n\n_由宿主通过公共 API 提交的 AI 预编辑示例。_"
+    : "\n\n_Host-provided AI edit preview submitted through the public API._";
+  const completeMarkdown = `${context.selection.markdown.trimEnd()}${suffix}`;
+  const boundaries = [
+    Math.max(1, Math.floor(completeMarkdown.length / 3)),
+    Math.max(1, Math.floor(completeMarkdown.length * 2 / 3)),
+    completeMarkdown.length,
+  ];
+  for (const boundary of [...new Set(boundaries)]) {
+    await waitForPlaygroundAiEditFrame(context.signal);
+    onMarkdown(completeMarkdown.slice(0, boundary));
+  }
+  return completeMarkdown;
+}

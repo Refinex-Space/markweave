@@ -1,6 +1,6 @@
 ---
 owner: refinex
-updated: 2026-07-28
+updated: 2026-07-30
 status: active
 referenced_by: AGENTS.md#knowledge-map
 ---
@@ -84,6 +84,19 @@ The preferred public adapter package exports are:
 | `@markweave/vue3/styles.css` | `packages/markweave-vue3/styles.css`, importing `markweave/styles.css` |
 
 ## Playground
+
+All three private playgrounds expose the same development-only Ask AI endpoint at `/api/markweave/ask-ai`. Their dev-server middleware reads the workspace-root `.env` and streams OpenRouter output back as plain UTF-8 text. The browser-side shared fixture implements the public `MarkweaveAskAiHandler` contract, forwards the optional text/table target discriminator, and never receives the provider credential. Table prompts require either a single-cell Markdown fragment or an exact-shape GFM table; the proxy does not send document content outside the selected target.
+
+Supported local variables are documented in `.env.example`:
+
+| Variable | Required | Default | Purpose |
+| --- | --- | --- | --- |
+| `OPENROUTER_API_KEY` | yes | none | Server-side OpenRouter credential used only by playground dev middleware. |
+| `OPENROUTER_MODEL` | no | `openrouter/free` | Model or router identifier sent to OpenRouter. |
+| `OPENROUTER_APP_URL` | no | none | Optional OpenRouter attribution URL. |
+| `OPENROUTER_APP_NAME` | no | none | Optional OpenRouter attribution name. |
+
+Do not rename `OPENROUTER_API_KEY` to a `VITE_*` or `VUE_APP_*` variable: those prefixes make the value available to browser bundles. Production integrations must implement `askAi.handler` through their own authenticated backend; the playground proxy is not a published package API or deployment surface.
 
 `apps/playground-react` is private. Its Vite config aliases:
 

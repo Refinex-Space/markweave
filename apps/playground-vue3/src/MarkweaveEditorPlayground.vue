@@ -3,6 +3,16 @@
     <div class="markweave-playground-toolbar" aria-label="Playground controls">
       <button
         type="button"
+        class="markweave-playground-ai-edit-toggle"
+        :disabled="!aiEditController || !isLiveMode"
+        aria-label="运行宿主 AI 预编辑（请先选择文本）"
+        title="运行宿主 AI 预编辑（请先选择文本）"
+        @click="runHostAiEdit"
+      >
+        <Sparkles :size="18" :stroke-width="1.8" aria-hidden="true" />
+      </button>
+      <button
+        type="button"
         class="markweave-playground-mode-toggle"
         data-testid="markweave-playground-mode-toggle"
         :data-mode="editorMode"
@@ -26,6 +36,7 @@
     </div>
 
     <MarkweaveEditor
+      :ask-ai="playgroundAskAiConfig"
       :key="fixtureRevision"
       aria-label="Markweave Vue3 editor playground"
       auto-focus-first-table-body-cell
@@ -42,6 +53,7 @@
       :on-slash-command-upload="handleSlashUpload"
       :on-table-command-result="handleTableCommandResult"
       :on-table-copy-payload="handleTableCopyPayload"
+      :on-ai-edit-controller-change="handleAiEditControllerChange"
     />
 
     <details class="markweave-debug-panel">
@@ -55,6 +67,8 @@
         <button type="button" @click="loadFixture(largeMissingMediaPerformanceFixture)">250k Missing Media Fixture</button>
         <button type="button" @click="loadFixture(stressDocumentPerformanceFixture)">1MB Stress Fixture</button>
       </div>
+
+      <div v-if="lastAiEditStatus" class="markweave-debug-ai">Host AI edit: {{ lastAiEditStatus }}</div>
 
       <div v-if="lastTableCopyPayload" class="markweave-debug-copy" data-testid="markweave-debug-copy">
         <div>Last table copy: {{ lastTableCopyPayload.kind }}</div>
@@ -93,9 +107,10 @@
 
 <script setup lang="ts">
 import { computed, ref } from "vue";
-import { Eye, Moon, PencilLine, Sun } from "lucide-vue-next";
+import { Eye, Moon, PencilLine, Sparkles, Sun } from "lucide-vue-next";
 import {
   MarkweaveEditor,
+  type MarkweaveAiEditController,
   type FloatingToolbarAssistantRequest,
   type MarkweaveContentFormat,
   type MarkweaveEditorMode,
@@ -115,8 +130,10 @@ import {
   largeTextPerformanceFixture,
   largeValidMediaPerformanceFixture,
   mergedTablePlaygroundDocument,
+  playgroundAskAiConfig,
   resolvePlaygroundLinkCard,
   resolvePlaygroundMediaSource,
+  streamPlaygroundAiEditProposal,
   stressDocumentPerformanceFixture,
 } from "@markweave/playground-fixtures";
 
@@ -131,6 +148,8 @@ const lastTableCommandResult = ref<TableCommandResult | null>(null);
 const lastTableEditWithAiRequest = ref<TableEditWithAiRequest | null>(null);
 const lastFloatingToolbarAssistantRequest = ref<FloatingToolbarAssistantRequest | null>(null);
 const lastSlashUploadRequest = ref<MarkweaveUploadRequest | null>(null);
+const aiEditController = ref<MarkweaveAiEditController | null>(null);
+const lastAiEditStatus = ref<string | null>(null);
 
 const isLiveMode = computed(() => editorMode.value === "live");
 const modeIcon = computed(() => (isLiveMode.value ? Eye : PencilLine));
@@ -160,6 +179,34 @@ function toggleMode() {
 
 function toggleTheme() {
   theme.value = theme.value === "light" ? "dark" : "light";
+}
+
+function handleAiEditControllerChange(controller: MarkweaveAiEditController | null) {
+  aiEditController.value = controller;
+}
+
+async function runHostAiEdit() {
+  const controller = aiEditController.value;
+  if (!controller) return;
+  const captured = controller.captureSelection({ metadata: { source: "playground-host" } });
+  if (!captured.ok) {
+    lastAiEditStatus.value = `${captured.code}: ${captured.message}`;
+    return;
+  }
+  let markdown = "";
+  try {
+    for await (markdown of streamPlaygroundAiEditProposal(captured.value)) {
+      controller.updateProposal({ contextId: captured.value.id, markdown, status: "streaming" });
+    }
+    const completed = controller.updateProposal({ contextId: captured.value.id, markdown, status: "complete" });
+    lastAiEditStatus.value = completed.ok ? "Host AI edit is ready for review." : `${completed.code}: ${completed.message}`;
+  } catch (error) {
+    if (!captured.value.signal.aborted) {
+      const message = error instanceof Error ? error.message : "Host AI edit failed.";
+      controller.failProposal(captured.value.id, message);
+      lastAiEditStatus.value = message;
+    }
+  }
 }
 
 function handleEditWithAi(request: TableEditWithAiRequest) {

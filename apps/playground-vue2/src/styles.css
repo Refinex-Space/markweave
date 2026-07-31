@@ -36,7 +36,8 @@ body {
   justify-content: flex-end;
 }
 
-.markweave-playground-mode-toggle {
+.markweave-playground-mode-toggle,
+.markweave-playground-ai-edit-toggle {
   display: grid;
   place-items: center;
   width: 34px;
@@ -61,7 +62,8 @@ body {
   font: 600 13px/1 ui-sans-serif, system-ui, sans-serif;
 }
 
-.markweave-playground-theme-toggle:hover {
+.markweave-playground-theme-toggle:hover,
+.markweave-playground-ai-edit-toggle:hover:not(:disabled) {
   background: #f5f6f8;
   color: #1f2328;
 }
@@ -70,13 +72,13 @@ body {
   background: #181a1f;
 }
 
-.markweave-playground[data-theme="dark"] :is(.markweave-playground-mode-toggle, .markweave-playground-theme-toggle) {
+.markweave-playground[data-theme="dark"] :is(.markweave-playground-mode-toggle, .markweave-playground-theme-toggle, .markweave-playground-ai-edit-toggle) {
   border-color: #4a5360;
   background: #292d34;
   color: #dce1e8;
 }
 
-.markweave-playground[data-theme="dark"] :is(.markweave-playground-mode-toggle:hover, .markweave-playground-theme-toggle:hover) {
+.markweave-playground[data-theme="dark"] :is(.markweave-playground-mode-toggle:hover, .markweave-playground-theme-toggle:hover, .markweave-playground-ai-edit-toggle:hover:not(:disabled)) {
   background: #363c46;
   color: #ffffff;
 }
@@ -86,8 +88,14 @@ body {
   color: #1f2328;
 }
 
+.markweave-playground-ai-edit-toggle:disabled {
+  cursor: not-allowed;
+  opacity: 0.42;
+}
+
 .markweave-playground-mode-toggle:focus-visible,
-.markweave-playground-theme-toggle:focus-visible {
+.markweave-playground-theme-toggle:focus-visible,
+.markweave-playground-ai-edit-toggle:focus-visible {
   outline: 2px solid #3f4650;
   outline-offset: 2px;
 }
