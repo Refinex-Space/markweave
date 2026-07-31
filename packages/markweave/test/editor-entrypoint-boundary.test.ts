@@ -9,6 +9,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   MarkweaveEditor,
   useMarkweaveEditorController,
+  type MarkweaveAiEditController,
   type MarkweaveContentFormat,
   type MarkweaveEditorController,
   type MarkweaveEditorMode,
@@ -92,7 +93,7 @@ describe("editor entrypoint boundary", () => {
         version?: string;
       };
 
-      expect(packageJson.version).toBe("0.3.5");
+      expect(packageJson.version).toBe("0.3.6");
       expect(packageJson.homepage).toBe(homepageUrl);
       expect(packageJson.bugs).toEqual({ url: bugsUrl });
       expect(packageJson.repository).toEqual({
@@ -150,6 +151,8 @@ describe("editor entrypoint boundary", () => {
     expect(indexSource).toContain("MarkweaveTocState");
     expect(indexSource).toContain("createMarkweaveSearchController");
     expect(indexSource).toContain("MarkweaveSearchController");
+    expect(indexSource).toContain("createMarkweaveAiEditController");
+    expect(indexSource).toContain("MarkweaveAiEditController");
     expect(indexSource).toContain("MarkweaveAskAiConfig");
     expect(indexSource).not.toContain("runMarkweaveAskAiHandler");
     expect(reactShim).toContain('from "@markweave/react"');
@@ -158,21 +161,29 @@ describe("editor entrypoint boundary", () => {
     expect(reactIndexSource).toContain("MarkweaveEditor");
     expect(reactIndexSource).toContain("useMarkweaveEditorController");
     expect(reactIndexSource).toContain("MarkweaveSearchController");
+    expect(reactIndexSource).toContain("createMarkweaveAiEditController");
+    expect(reactIndexSource).toContain("MarkweaveAiEditController");
     expect(reactIndexSource).toContain("MarkweaveAskAiConfig");
     expect(vue2IndexSource).toContain("MarkweaveEditor");
     expect(vue2IndexSource).toContain("useMarkweaveEditorController");
     expect(vue2IndexSource).toContain("MarkweaveAskAiConfig");
+    expect(vue2IndexSource).toContain("createMarkweaveAiEditController");
+    expect(vue2IndexSource).toContain("MarkweaveAiEditController");
     expect(vue3IndexSource).toContain("MarkweaveEditor");
     expect(vue3IndexSource).toContain("useMarkweaveEditorController");
     expect(vue3IndexSource).toContain("MarkweaveAskAiConfig");
+    expect(vue3IndexSource).toContain("createMarkweaveAiEditController");
+    expect(vue3IndexSource).toContain("MarkweaveAiEditController");
 
     const defaultFormat: MarkweaveContentFormat = "markdown";
     const tocState: MarkweaveTocState = { activeId: null, items: [] };
     const tocItem: MarkweaveTocItem | undefined = tocState.items[0];
     const searchController: MarkweaveSearchController | null = null;
+    const aiEditController: MarkweaveAiEditController | null = null;
     expect(defaultFormat).toBe("markdown");
     expect(tocItem).toBeUndefined();
     expect(searchController).toBeNull();
+    expect(aiEditController).toBeNull();
   });
 
   it("keeps playground code out of the publishable package", () => {

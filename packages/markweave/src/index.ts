@@ -25,6 +25,15 @@ export {
 export type {
   FloatingToolbarAssistantRequest,
   FloatingToolbarAssistantSource,
+  MarkweaveAiEditContext,
+  MarkweaveAiEditController,
+  MarkweaveAiEditDecision,
+  MarkweaveAiEditErrorCode,
+  MarkweaveAiEditPhase,
+  MarkweaveAiEditProposal,
+  MarkweaveAiEditResult,
+  MarkweaveAiEditSelection,
+  MarkweaveAiEditState,
   MarkweaveAskAiConfig,
   MarkweaveAskAiHandler,
   MarkweaveAskAiOutput,
@@ -43,6 +52,7 @@ export type {
   TableCommandSnapshot,
   TableEditWithAiRequest,
 } from "./core/public-types";
+export { createMarkweaveAiEditController } from "./plugins/ai-edit/ai-edit-controller";
 export type { MarkweaveUploadRequest, MarkweaveUploadResult, MarkweaveSlashCommandUploadHandler } from "./plugins/slash-command/upload";
 export type {
   MarkweaveMediaKind,

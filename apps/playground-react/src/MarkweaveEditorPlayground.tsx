@@ -1,7 +1,8 @@
 import { useState } from "react";
-import { Eye, Moon, PencilLine, Sun } from "lucide-react";
+import { Eye, Moon, PencilLine, Sparkles, Sun } from "lucide-react";
 import {
   MarkweaveEditor,
+  type MarkweaveAiEditController,
   type MarkweaveContentFormat,
   type FloatingToolbarAssistantRequest,
   type MarkweaveEditorMode,
@@ -24,6 +25,7 @@ import {
   playgroundAskAiConfig,
   resolvePlaygroundLinkCard,
   resolvePlaygroundMediaSource,
+  streamPlaygroundAiEditProposal,
   stressDocumentPerformanceFixture,
 } from "@markweave/playground-fixtures";
 
@@ -44,6 +46,8 @@ export function MarkweaveEditorPlayground() {
   const [lastTableEditWithAiRequest, setLastTableEditWithAiRequest] = useState<TableEditWithAiRequest | null>(null);
   const [lastFloatingToolbarAssistantRequest, setLastFloatingToolbarAssistantRequest] = useState<FloatingToolbarAssistantRequest | null>(null);
   const [lastSlashUploadRequest, setLastSlashUploadRequest] = useState<MarkweaveUploadRequest | null>(null);
+  const [aiEditController, setAiEditController] = useState<MarkweaveAiEditController | null>(null);
+  const [lastAiEditStatus, setLastAiEditStatus] = useState<string | null>(null);
 
   const resetDebugState = () => {
     setRuntimeSnapshot(null);
@@ -66,6 +70,33 @@ export function MarkweaveEditorPlayground() {
     return createPlaygroundUploadResult(request);
   };
 
+  const runHostAiEdit = async () => {
+    if (!aiEditController) return;
+    const captured = aiEditController.captureSelection({ metadata: { source: "playground-host" } });
+    if (!captured.ok) {
+      setLastAiEditStatus(`${captured.code}: ${captured.message}`);
+      return;
+    }
+    let markdown = "";
+    try {
+      for await (markdown of streamPlaygroundAiEditProposal(captured.value)) {
+        aiEditController.updateProposal({ contextId: captured.value.id, markdown, status: "streaming" });
+      }
+      const completed = aiEditController.updateProposal({
+        contextId: captured.value.id,
+        markdown,
+        status: "complete",
+      });
+      setLastAiEditStatus(completed.ok ? "Host AI edit is ready for review." : `${completed.code}: ${completed.message}`);
+    } catch (error) {
+      if (!captured.value.signal.aborted) {
+        const message = error instanceof Error ? error.message : "Host AI edit failed.";
+        aiEditController.failProposal(captured.value.id, message);
+        setLastAiEditStatus(message);
+      }
+    }
+  };
+
   const isLiveMode = editorMode === "live";
   const ModeIcon = isLiveMode ? Eye : PencilLine;
   const nextMode: MarkweaveEditorMode = isLiveMode ? "view" : "live";
@@ -77,6 +108,16 @@ export function MarkweaveEditorPlayground() {
   return (
     <main className="markweave-playground" data-theme={theme}>
       <div className="markweave-playground-toolbar" aria-label="Playground controls">
+        <button
+          type="button"
+          className="markweave-playground-ai-edit-toggle"
+          disabled={!aiEditController || !isLiveMode}
+          aria-label="运行宿主 AI 预编辑（请先选择文本）"
+          title="运行宿主 AI 预编辑（请先选择文本）"
+          onClick={() => void runHostAiEdit()}
+        >
+          <Sparkles size={18} strokeWidth={1.8} aria-hidden="true" />
+        </button>
         <button
           type="button"
           className="markweave-playground-mode-toggle"
@@ -118,6 +159,7 @@ export function MarkweaveEditorPlayground() {
         onSlashCommandUpload={handleSlashUpload}
         onTableCommandResult={setLastTableCommandResult}
         onTableCopyPayload={setLastTableCopyPayload}
+        onAiEditControllerChange={setAiEditController}
       />
       <details className="markweave-debug-panel">
         <summary>Debug</summary>
@@ -144,6 +186,7 @@ export function MarkweaveEditorPlayground() {
             1MB Stress Fixture
           </button>
         </div>
+        {lastAiEditStatus ? <div className="markweave-debug-ai">Host AI edit: {lastAiEditStatus}</div> : null}
         {lastTableCopyPayload ? (
           <div className="markweave-debug-copy" data-testid="markweave-debug-copy">
             <div>Last table copy: {lastTableCopyPayload.kind}</div>

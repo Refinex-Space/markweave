@@ -428,3 +428,65 @@ export const playgroundAskAiConfig = {
   enabled: true as const,
   handler: requestPlaygroundAskAi,
 };
+
+export interface PlaygroundAiEditContext {
+  readonly lang: "en" | "zh";
+  readonly selection: { readonly markdown: string };
+  readonly signal: AbortSignal;
+}
+
+function waitForPlaygroundAiEditFrame(signal: AbortSignal, delay = 90) {
+  return new Promise<void>((resolve, reject) => {
+    if (signal.aborted) {
+      reject(new DOMException("The playground AI edit was aborted.", "AbortError"));
+      return;
+    }
+    const timeout = globalThis.setTimeout(() => {
+      signal.removeEventListener("abort", handleAbort);
+      resolve();
+    }, delay);
+    const handleAbort = () => {
+      globalThis.clearTimeout(timeout);
+      reject(new DOMException("The playground AI edit was aborted.", "AbortError"));
+    };
+    signal.addEventListener("abort", handleAbort, { once: true });
+  });
+}
+
+/** Deterministic host-side cumulative stream used to exercise the public AI edit protocol. */
+export async function* streamPlaygroundAiEditProposal(context: PlaygroundAiEditContext) {
+  const suffix = context.lang === "zh"
+    ? "\n\n_由宿主通过公共 API 提交的 AI 预编辑示例。_"
+    : "\n\n_Host-provided AI edit preview submitted through the public API._";
+  const completeMarkdown = `${context.selection.markdown.trimEnd()}${suffix}`;
+  const boundaries = [
+    Math.max(1, Math.floor(completeMarkdown.length / 3)),
+    Math.max(1, Math.floor(completeMarkdown.length * 2 / 3)),
+    completeMarkdown.length,
+  ];
+  for (const boundary of [...new Set(boundaries)]) {
+    await waitForPlaygroundAiEditFrame(context.signal);
+    yield completeMarkdown.slice(0, boundary);
+  }
+}
+
+/** Vue 2 compatible cumulative stream without requiring `for await...of` in the host bundle. */
+export async function runPlaygroundAiEditProposal(
+  context: PlaygroundAiEditContext,
+  onMarkdown: (markdown: string) => void,
+) {
+  const suffix = context.lang === "zh"
+    ? "\n\n_由宿主通过公共 API 提交的 AI 预编辑示例。_"
+    : "\n\n_Host-provided AI edit preview submitted through the public API._";
+  const completeMarkdown = `${context.selection.markdown.trimEnd()}${suffix}`;
+  const boundaries = [
+    Math.max(1, Math.floor(completeMarkdown.length / 3)),
+    Math.max(1, Math.floor(completeMarkdown.length * 2 / 3)),
+    completeMarkdown.length,
+  ];
+  for (const boundary of [...new Set(boundaries)]) {
+    await waitForPlaygroundAiEditFrame(context.signal);
+    onMarkdown(completeMarkdown.slice(0, boundary));
+  }
+  return completeMarkdown;
+}

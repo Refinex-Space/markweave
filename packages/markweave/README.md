@@ -115,6 +115,12 @@ Since 0.3.5, fixed outline positioning no longer depends on CSS query containers
 
 Markweave 0.2.3 exports `createMarkweaveSearchController` and the shared `MarkweaveSearch` extension. The default extension bundle already registers it. Controllers support Unicode-aware literal and regex queries, case and whole-word options, cyclic navigation, ProseMirror result decorations, subscriptions, and editable-only replacement.
 
+## Host-Driven AI Edit Review
+
+Markweave 0.3.6 exports `createMarkweaveAiEditController` and `MarkweaveAiEditController`. A host can capture one supported text selection, call any AI service itself, and submit complete or cumulative-stream Markdown for in-place review. Preview and discard do not mutate the document or undo history; acceptance applies the live mapped target in one undoable transaction. Markweave never sends model requests or receives provider credentials.
+
+Framework adapters expose the controller through `onAiEditControllerChange` (React) or `:on-ai-edit-controller-change` (Vue). See the framework integration guides for controller lifecycle, supported targets, streaming, headless controls, cancellation, state/error codes, and decision events.
+
 Markweave 0.2.5 adds framework-neutral image clipboard handling. Local image files use the host upload callback, while HTTP(S) images from image-only HTML or standalone URLs with common image extensions are inserted directly without remote MIME detection.
 
 ## Code Block Languages
@@ -137,10 +143,11 @@ Every selectable language identifier is registered with either a dedicated Highl
 | Math editing/rendering | Yes | Yes | Yes |
 | Inner TOC | Yes | Yes | Yes |
 | Upload and AI callbacks | Yes | Yes | Yes |
+| Host-driven AI edit review | Yes | Yes | Yes |
 
 ## Exports
 
-- `markweave`: framework-neutral types and helpers, including content format, mode, lang, TOC, upload, and table payload types.
+- `markweave`: framework-neutral types and helpers, including content format, mode, lang, TOC, upload, table payloads, and the AI edit controller factory.
 - `@markweave/react`: React editor component, controller hook, React extension factory, and `@markweave/react/styles.css`.
 - `@markweave/vue2`: Vue 2 editor component, controller helper, Vue 2 extension factory, and `@markweave/vue2/styles.css`.
 - `@markweave/vue3`: Vue 3 editor component, composable, Vue 3 extension factory, and `@markweave/vue3/styles.css`.

@@ -1,6 +1,6 @@
 ---
 owner: refinex
-updated: 2026-07-30
+updated: 2026-07-31
 status: active
 referenced_by: docs/README.md#knowledge-map
 ---
@@ -245,6 +245,96 @@ Ask AI 默认关闭。Vue 模板通过 `:ask-ai` 显式开启：
 `handleAskAi(request)` 返回 Markdown 或 `AsyncIterable<string>`。同一个 handler 通过 `request.target` 接收普通文本目标，以及表格单元格、行、列、选区或整表目标；旧 `selection` 字段继续作为扁平兼容投影。请求只包含目标局部内容。单单元格返回 Markdown 片段，多单元格目标返回精确等形的 GFM 表格。Markweave 先预览而不修改文档，只在接受时用一次可撤销事务替换目标单元格内容，并保留表格结构和属性。包含合并单元格的多单元格目标与 View 模式保持 fail-closed。
 
 `on-rewrite-selection` 和 `on-extract-to-note` 继续作为兼容性旧回调保留。
+
+## 宿主驱动 AI 预编辑协议
+
+宿主已有 AI 命令、Agent 或对话面板时，可在不启用内置 `ask-ai` 的情况下使用 `MarkweaveAiEditController`。宿主读取受支持的选区、自行调用任意供应商并返回 Markdown；Markweave 只负责目标映射、原位审阅、接受、舍弃和冲突保护，不会发送供应商请求或接收密钥。
+
+### 控制器生命周期与完整响应
+
+编辑器创建后，`:on-ai-edit-controller-change` 传入控制器；销毁或重建前传入 `null`。每次控制器生命周期回调都必须替换宿主保存的引用，收到 `null` 后不得复用旧控制器。
+
+```vue
+<script setup lang="ts">
+import { shallowRef } from "vue";
+import {
+  MarkweaveEditor,
+  type MarkweaveAiEditController,
+  type MarkweaveAiEditContext,
+} from "@markweave/vue3";
+
+const aiEdit = shallowRef<MarkweaveAiEditController | null>(null);
+
+function setAiEditController(controller: MarkweaveAiEditController | null) {
+  aiEdit.value = controller;
+}
+
+async function reviseSelection() {
+  const controller = aiEdit.value;
+  if (!controller) return;
+  const captured = controller.captureSelection({ metadata: { action: "revise" } });
+  if (!captured.ok) {
+    console.warn(captured.code, captured.message);
+    return;
+  }
+  const { id, selection, signal } = captured.value;
+  try {
+    const markdown = await callHostAi(selection, signal);
+    const completed = controller.updateProposal({ contextId: id, markdown, status: "complete" });
+    if (!completed.ok) console.warn(completed.code, completed.message);
+  } catch (error) {
+    if (!signal.aborted) {
+      controller.failProposal(id, error instanceof Error ? error.message : undefined);
+    }
+  }
+}
+</script>
+
+<template>
+  <MarkweaveEditor :on-ai-edit-controller-change="setAiEditController" />
+</template>
+```
+
+`selection` 只含目标的 `from`、`to`、`text`、`html` 和 `markdown`，不会包含整篇文档。不要用捕获时的数字位置自行修改文档；应调用 `accept(contextId)`，由 Markweave 在当前映射后的目标上执行一次可撤销事务。
+
+### 累计流式响应与 headless 操作条
+
+每次流式更新必须传入当前累计的完整 Markdown，而不是单个 token；结束时必须再提交一次 `complete`：
+
+```ts
+async function submitStream(
+  controller: MarkweaveAiEditController,
+  context: MarkweaveAiEditContext,
+  stream: AsyncIterable<string>,
+) {
+  let markdown = "";
+  try {
+    for await (const chunk of stream) {
+      if (context.signal.aborted) return;
+      markdown += chunk;
+      const updated = controller.updateProposal({
+        contextId: context.id,
+        markdown,
+        status: "streaming",
+      });
+      if (!updated.ok) return;
+    }
+    controller.updateProposal({ contextId: context.id, markdown, status: "complete" });
+  } catch (error) {
+    if (!context.signal.aborted) {
+      controller.failProposal(context.id, error instanceof Error ? error.message : undefined);
+    }
+  }
+}
+```
+
+`captureSelection()` 默认显示 Markweave 操作条；`captureSelection({ controls: "none" })` 只隐藏操作条，有效的原位预览仍会显示。自定义界面必须先用 `getState()` 取得当前状态，再用 `subscribe()` 监听后续变化，并在卸载时注销 `subscribe` 和 `onDecision` 监听。只有 `review` phase 可以 `accept`，任意活动 phase 均可 `discard`；`failProposal` 只进入 `error`，不会修改文档。
+
+### 状态、错误码与安全规则
+
+phase 包括 `idle`、`captured`、`streaming`、`review`、`error` 和 `conflict`。错误码包括 `readonly`、`no-selection`、`unsupported-selection`、`active-review`、`stale-context`、`invalid-markdown`、`schema-incompatible`、`incomplete-proposal` 和 `conflict`。每个编辑器只允许一个活动上下文。
+
+V1 只捕获可编辑 Live 模式下的普通非空文本选区；代码块、表格/单元格、媒体/原子节点、`NodeSelection` 和 `CellSelection` 返回 `unsupported-selection`，但提案仍可包含 schema 支持的列表、代码和数学公式。目标外编辑会映射范围；目标内部编辑、切换 View、舍弃或销毁编辑器会中止上下文的 `AbortSignal`。signal 中止或返回 `stale-context` 后必须忽略迟到任务。预览、错误、冲突和舍弃都不改变序列化内容或撤销历史；接受只产生一次事务和一次 Undo。`onDecision` 报告 `accepted`、`discarded` 或 `conflict`，回传 metadata，并只在接受后可能包含 `appliedRange`。
 
 ## 表格、兼容 AI 回调与复制回调
 

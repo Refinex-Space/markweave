@@ -25,6 +25,7 @@ import { MarkweaveLinkClick } from "./link-click";
 import { MarkweaveMarkBoundary } from "./mark-boundary";
 import { MarkweaveCallout } from "../plugins/callout/callout-node";
 import { MarkweaveAskAi } from "../plugins/ask-ai/ask-ai-session";
+import { MarkweaveAiEdit } from "../plugins/ai-edit/ai-edit-controller";
 import { MarkweaveCodeBlockClickFocus, MarkweaveCodeBlockCollapse, markweaveCodeBlockBehavior } from "../plugins/codeblock/codeblock-behavior";
 import { createMarkweaveLowlight } from "../plugins/codeblock/codeblock-lowlight";
 import { MarkweaveIndent } from "../plugins/indent/indent-extension";
@@ -389,6 +390,10 @@ export function createMarkweaveEditorExtensions(options: CreateMarkweaveEditorEx
   return [
     MarkweaveCompositionGuard,
     MarkweaveAskAi,
+    MarkweaveAiEdit.configure({
+      lang: options.lang === "en" ? "en" : "zh",
+      messages: messages.aiEdit,
+    }),
     MarkweaveSlashEmptyLinePlaceholder.configure({
       placeholder: messages.slash.emptyLinePlaceholder,
     }),

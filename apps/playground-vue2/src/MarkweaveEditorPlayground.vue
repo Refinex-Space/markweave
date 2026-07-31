@@ -3,6 +3,20 @@
     <div class="markweave-playground-toolbar" aria-label="Playground controls">
       <button
         type="button"
+        class="markweave-playground-ai-edit-toggle"
+        :disabled="!aiEditController || !isLiveMode"
+        aria-label="运行宿主 AI 预编辑（请先选择文本）"
+        title="运行宿主 AI 预编辑（请先选择文本）"
+        @click="runHostAiEdit"
+      >
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="m12 3-1.7 4.3L6 9l4.3 1.7L12 15l1.7-4.3L18 9l-4.3-1.7Z" />
+          <path d="m5 15-.8 2.2L2 18l2.2.8L5 21l.8-2.2L8 18l-2.2-.8Z" />
+          <path d="m19 13-.8 2.2-2.2.8 2.2.8L19 19l.8-2.2L22 16l-2.2-.8Z" />
+        </svg>
+      </button>
+      <button
+        type="button"
         class="markweave-playground-mode-toggle"
         data-testid="markweave-playground-mode-toggle"
         :data-mode="editorMode"
@@ -106,6 +120,7 @@
       :on-slash-command-upload="handleSlashUpload"
       :on-table-command-result="handleTableCommandResult"
       :on-table-copy-payload="handleTableCopyPayload"
+      :on-ai-edit-controller-change="handleAiEditControllerChange"
     />
 
     <details class="markweave-debug-panel">
@@ -119,6 +134,8 @@
         <button type="button" @click="loadFixture(largeMissingMediaPerformanceFixture)">250k Missing Media Fixture</button>
         <button type="button" @click="loadFixture(stressDocumentPerformanceFixture)">1MB Stress Fixture</button>
       </div>
+
+      <div v-if="lastAiEditStatus" class="markweave-debug-ai">Host AI edit: {{ lastAiEditStatus }}</div>
 
       <div v-if="lastTableCopyPayload" class="markweave-debug-copy" data-testid="markweave-debug-copy">
         <div>Last table copy: {{ lastTableCopyPayload.kind }}</div>
@@ -168,6 +185,7 @@ import {
   playgroundAskAiConfig,
   resolvePlaygroundLinkCard,
   resolvePlaygroundMediaSource,
+  runPlaygroundAiEditProposal,
   stressDocumentPerformanceFixture,
 } from "@markweave/playground-fixtures";
 
@@ -197,6 +215,8 @@ export default {
       lastTableEditWithAiRequest: null,
       lastFloatingToolbarAssistantRequest: null,
       lastSlashUploadRequest: null,
+      aiEditController: null,
+      lastAiEditStatus: null,
     };
   },
   computed: {
@@ -229,6 +249,33 @@ export default {
     },
     toggleTheme() {
       this.theme = this.theme === "light" ? "dark" : "light";
+    },
+    handleAiEditControllerChange(controller) {
+      this.aiEditController = controller;
+    },
+    async runHostAiEdit() {
+      const controller = this.aiEditController;
+      if (!controller) return;
+      const captured = controller.captureSelection({ metadata: { source: "playground-host" } });
+      if (!captured.ok) {
+        this.lastAiEditStatus = `${captured.code}: ${captured.message}`;
+        return;
+      }
+      let markdown = "";
+      try {
+        markdown = await runPlaygroundAiEditProposal(captured.value, (cumulativeMarkdown) => {
+          markdown = cumulativeMarkdown;
+          controller.updateProposal({ contextId: captured.value.id, markdown, status: "streaming" });
+        });
+        const completed = controller.updateProposal({ contextId: captured.value.id, markdown, status: "complete" });
+        this.lastAiEditStatus = completed.ok ? "Host AI edit is ready for review." : `${completed.code}: ${completed.message}`;
+      } catch (error) {
+        if (!captured.value.signal.aborted) {
+          const message = error instanceof Error ? error.message : "Host AI edit failed.";
+          controller.failProposal(captured.value.id, message);
+          this.lastAiEditStatus = message;
+        }
+      }
     },
     handleEditWithAi(request) {
       this.lastTableEditWithAiRequest = request;

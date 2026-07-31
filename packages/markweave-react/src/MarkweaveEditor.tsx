@@ -66,6 +66,7 @@ import { normalizeMarkweaveEditorMode, setMarkweaveEditorModeState, type Markwea
 import { normalizeMarkweaveCanvasColor, normalizeMarkweaveTheme, type MarkweaveTheme } from "markweave/internal/core/theme";
 import type {
   FloatingToolbarAssistantRequest,
+  MarkweaveAiEditController,
   MarkweaveAskAiConfig,
   MarkweaveContentFormat,
   MarkweaveContentValue,
@@ -93,6 +94,7 @@ import {
   createMarkweaveSearchController,
   type MarkweaveSearchController,
 } from "markweave/internal/plugins/search/search-controller";
+import { createMarkweaveAiEditController } from "markweave/internal/plugins/ai-edit/ai-edit-controller";
 
 export interface MarkweaveEditorControllerActions {
   readonly closeSlashMenu: () => void;
@@ -156,6 +158,7 @@ export interface MarkweaveEditorControllerOptions {
   readonly onTableCopyPayload?: (payload: MarkweaveMenuCopyPayload) => void;
   readonly onTableCommandResult?: (result: TableCommandResult) => void;
   readonly onRuntimeStateChange?: (snapshot: MarkweaveEditorRuntimeSnapshot) => void;
+  readonly onAiEditControllerChange?: (controller: MarkweaveAiEditController | null) => void;
   readonly onSearchControllerChange?: (controller: MarkweaveSearchController | null) => void;
   readonly onTocChange?: (state: MarkweaveTocState) => void;
   readonly linkCardResolver?: MarkweaveLinkCardResolver;
@@ -250,6 +253,7 @@ export function useMarkweaveEditorController({
   onEditWithAi,
   onExtractToNote,
   onRewriteSelection,
+  onAiEditControllerChange,
   onRuntimeStateChange,
   onSearchControllerChange,
   onSlashCommandUpload,
@@ -293,6 +297,8 @@ export function useMarkweaveEditorController({
   uploadHandlerRef.current = onSlashCommandUpload;
   const searchControllerChangeRef = useRef(onSearchControllerChange);
   searchControllerChangeRef.current = onSearchControllerChange;
+  const aiEditControllerChangeRef = useRef(onAiEditControllerChange);
+  aiEditControllerChangeRef.current = onAiEditControllerChange;
   const linkCardResolverRef = useRef(linkCardResolver);
   linkCardResolverRef.current = linkCardResolver;
   const extensions = useMemo(
@@ -603,6 +609,18 @@ export function useMarkweaveEditorController({
 
     return () => {
       searchControllerChangeRef.current?.(null);
+    };
+  }, [editor]);
+
+  useEffect(() => {
+    if (!editor) {
+      return;
+    }
+
+    aiEditControllerChangeRef.current?.(createMarkweaveAiEditController(editor));
+
+    return () => {
+      aiEditControllerChangeRef.current?.(null);
     };
   }, [editor]);
 

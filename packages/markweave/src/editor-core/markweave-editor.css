@@ -2565,6 +2565,15 @@
   display: none;
 }
 
+.markweave-ask-ai-original.markweave-ai-edit-original[data-markweave-ai-edit-original="true"] {
+  display: inline;
+  background: color-mix(in srgb, var(--markweave-text-muted, #5f646c) 8%, transparent);
+  box-shadow: inset 0 -1px 0 color-mix(in srgb, var(--markweave-text-muted, #5f646c) 24%, transparent);
+  color: color-mix(in srgb, var(--markweave-text-muted, #5f646c) 78%, transparent);
+  text-decoration: line-through;
+  text-decoration-color: color-mix(in srgb, currentColor 58%, transparent);
+}
+
 .markweave-ask-ai-proposal-cell {
   background: color-mix(in srgb, var(--markweave-focus, #4f77b6) 9%, var(--markweave-surface, #ffffff));
 }
@@ -2580,10 +2589,21 @@
 }
 
 .markweave-ask-ai-proposal--text {
-  display: inline;
   border-radius: 3px;
   background: color-mix(in srgb, var(--markweave-focus, #4f77b6) 9%, transparent);
   box-shadow: inset 0 -1px 0 color-mix(in srgb, var(--markweave-focus, #4f77b6) 34%, transparent);
+}
+
+.markweave-ask-ai-proposal--text[data-markweave-ask-ai-layout="inline"] {
+  display: inline;
+}
+
+.markweave-ask-ai-proposal--text[data-markweave-ask-ai-layout="block"] {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  margin-block: 6px;
+  padding: 8px 10px;
 }
 
 .markweave-ask-ai-proposal--table-cell {
@@ -2606,9 +2626,13 @@
   margin-block: 0;
 }
 
-.markweave-ask-ai-proposal--text > p {
+.markweave-ask-ai-proposal--text[data-markweave-ask-ai-layout="inline"] > p {
   display: inline;
   margin: 0;
+}
+
+.markweave-ask-ai-proposal--text[data-markweave-ask-ai-layout="block"] > :is(ul, ol) {
+  margin-block: 6px;
 }
 
 .markweave-ask-ai-proposal code {
@@ -2639,6 +2663,71 @@
   border-radius: 3px;
   animation: markweave-ask-ai-applied 560ms ease-out both;
   background: color-mix(in srgb, var(--markweave-focus, #4f77b6) 18%, transparent);
+}
+
+.markweave-ai-edit-controls {
+  position: relative;
+  z-index: 61;
+  display: inline-flex;
+  max-width: min(100%, 520px);
+  align-items: center;
+  gap: 6px;
+  box-sizing: border-box;
+  margin: 4px 0 4px 8px;
+  border: 1px solid color-mix(in srgb, var(--markweave-border, #dfe3e8) 88%, transparent);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--markweave-surface, #ffffff) 96%, transparent);
+  box-shadow: 0 7px 18px rgba(31, 35, 40, 0.1);
+  padding: 4px;
+  color: var(--markweave-text-muted, #5f646c);
+  font: 500 13px/1.25 ui-sans-serif, system-ui, sans-serif;
+  vertical-align: middle;
+}
+
+.markweave-ai-edit-status {
+  min-width: 0;
+  max-width: 360px;
+  overflow: hidden;
+  padding: 0 6px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.markweave-ai-edit-controls[data-markweave-ai-edit-phase="captured"] .markweave-ai-edit-status,
+.markweave-ai-edit-controls[data-markweave-ai-edit-phase="streaming"] .markweave-ai-edit-status {
+  animation: markweave-ask-ai-text-pulse 1.6s ease-in-out infinite;
+}
+
+.markweave-ai-edit-button {
+  display: inline-flex;
+  min-height: 30px;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 6px;
+  padding: 0 10px;
+  color: var(--markweave-text-muted, #5f646c);
+  font: inherit;
+  white-space: nowrap;
+}
+
+.markweave-ai-edit-button--secondary {
+  background: transparent;
+}
+
+.markweave-ai-edit-button--secondary:hover {
+  background: var(--markweave-surface-muted, #f1f2f4);
+  color: var(--markweave-text, #2f343b);
+}
+
+.markweave-ai-edit-button--primary {
+  background: #34363a;
+  color: #ffffff;
+}
+
+.markweave-ai-edit-button--primary:hover {
+  background: #191a1c;
+  color: #ffffff;
 }
 
 @keyframes markweave-ask-ai-applied {
@@ -3001,12 +3090,22 @@
   .markweave-ask-ai-stream {
     max-height: 220px;
   }
+
+  .markweave-ai-edit-controls {
+    max-width: calc(100vw - 24px);
+    margin-inline-start: 4px;
+  }
+
+  .markweave-ai-edit-status {
+    max-width: min(48vw, 260px);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .markweave-ask-ai-sparkles,
   .markweave-ask-ai-progress-label,
-  .markweave-ask-ai-applied {
+  .markweave-ask-ai-applied,
+  .markweave-ai-edit-status {
     animation: none;
   }
 }
@@ -4515,6 +4614,28 @@ body:has(.markweave-mermaid-fullscreen-layer, .markweave-image-preview-layer) .m
 
 .markweave-editor-frame[data-markweave-theme="dark"] .markweave-ask-ai-proposal-cell {
   background: color-mix(in srgb, var(--markweave-focus) 14%, var(--markweave-surface));
+}
+
+.markweave-editor-frame[data-markweave-theme="dark"] .markweave-ai-edit-controls {
+  border-color: var(--markweave-border);
+  background: var(--markweave-surface-raised);
+  box-shadow: 0 9px 22px rgba(0, 0, 0, 0.28);
+  color: var(--markweave-text-muted);
+}
+
+.markweave-editor-frame[data-markweave-theme="dark"] .markweave-ai-edit-button--secondary:hover {
+  background: var(--markweave-surface-muted);
+  color: var(--markweave-text);
+}
+
+.markweave-editor-frame[data-markweave-theme="dark"] .markweave-ai-edit-button--primary {
+  background: #f0f1f3;
+  color: #24262a;
+}
+
+.markweave-editor-frame[data-markweave-theme="dark"] .markweave-ai-edit-button--primary:hover {
+  background: #ffffff;
+  color: #17181a;
 }
 
 .markweave-editor-frame[data-markweave-theme="dark"] .markweave-ask-ai-preview table,

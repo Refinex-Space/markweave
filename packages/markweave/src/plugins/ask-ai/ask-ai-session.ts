@@ -112,14 +112,34 @@ function getAskAiPluginMeta(transaction: Transaction) {
   return transaction.getMeta(markweaveAskAiPluginKey) as AskAiPluginMeta | undefined;
 }
 
-function createAskAiProposalDom(content: Fragment, kind: "text" | "table-cell", schema: EditorState["schema"]) {
+function createAskAiProposalDom(
+  content: Fragment,
+  kind: "text" | "table-cell",
+  schema: EditorState["schema"],
+  layout: "inline" | "block" = "block",
+) {
   const element = document.createElement(kind === "text" ? "span" : "div");
   element.className = `markweave-ask-ai-proposal markweave-ask-ai-proposal--${kind}`;
   element.dataset.markweaveAskAiProposal = kind;
+  element.dataset.markweaveAskAiLayout = layout;
   element.contentEditable = "false";
-  element.appendChild(DOMSerializer.fromSchema(schema).serializeFragment(content));
+  const serializedContent = kind === "text" && layout === "inline" && content.childCount === 1
+    ? content.firstChild?.content ?? content
+    : content;
+  element.appendChild(DOMSerializer.fromSchema(schema).serializeFragment(serializedContent));
   enhanceMarkweaveAskAiPreview(element);
   return element;
+}
+
+function getTextProposalLayout(state: EditorState, target: AskAiPluginState, content: Fragment) {
+  const $from = state.doc.resolve(target.from);
+  const $to = state.doc.resolve(target.to);
+  const proposedNode = content.childCount === 1 ? content.firstChild : null;
+  return $from.sameParent($to)
+    && $from.parent.inlineContent
+    && Boolean(proposedNode?.isTextblock)
+    ? "inline" as const
+    : "block" as const;
 }
 
 function createAskAiProposalVersion(markdown: string) {
@@ -170,6 +190,7 @@ function createAskAiDecorations(state: EditorState) {
 
   if (target.status === "target" && target.preview?.content) {
     const previewVersion = createAskAiProposalVersion(target.preview.markdown);
+    const layout = getTextProposalLayout(state, target, target.preview.content);
     return DecorationSet.create(state.doc, [
       Decoration.inline(target.from, target.to, {
         class: "markweave-ask-ai-target markweave-ask-ai-original",
@@ -178,8 +199,8 @@ function createAskAiDecorations(state: EditorState) {
       }),
       Decoration.widget(
         target.from,
-        () => createAskAiProposalDom(target.preview!.content!, "text", state.schema),
-        { key: `markweave-ask-ai-text-proposal-${previewVersion}`, side: -1 },
+        () => createAskAiProposalDom(target.preview!.content!, "text", state.schema, layout),
+        { key: `markweave-ask-ai-text-proposal-${previewVersion}`, side: 1 },
       ),
     ]);
   }
@@ -415,6 +436,10 @@ export function getMarkweaveAskAiTarget(editor: Editor): MarkweaveAskAiTargetSta
   return target
     ? { status: target.status, from: target.from, to: target.to, selection: target.selection, target: target.target }
     : null;
+}
+
+export function hasMarkweaveAskAiPreview(state: EditorState) {
+  return Boolean(markweaveAskAiPluginKey.getState(state)?.preview);
 }
 
 export function getMappedMarkweaveAskAiSelection(

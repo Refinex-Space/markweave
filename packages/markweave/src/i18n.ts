@@ -53,6 +53,16 @@ export interface MarkweaveMessages {
     readonly errorFallback: string;
     readonly tableMergedUnsupported: string;
   };
+  readonly aiEdit: {
+    readonly ariaLabel: string;
+    readonly preparing: string;
+    readonly streaming: string;
+    readonly accept: string;
+    readonly discard: string;
+    readonly stop: string;
+    readonly conflict: string;
+    readonly errorFallback: string;
+  };
   readonly linkCard: {
     readonly titleLabel: string;
     readonly titlePlaceholder: string;
@@ -688,6 +698,16 @@ const messagesByLang: Record<MarkweaveLang, MarkweaveMessages> = {
       errorFallback: "AI 处理失败，请重试。",
       tableMergedUnsupported: "包含合并单元格的多单元格范围暂不支持 Ask AI。",
     },
+    aiEdit: {
+      ariaLabel: "AI 预编辑审阅",
+      preparing: "AI 正在准备修改...",
+      streaming: "AI 正在修改...",
+      accept: "接受",
+      discard: "放弃",
+      stop: "停止",
+      conflict: "原内容已发生变化，无法应用这次修改。",
+      errorFallback: "AI 修改无法预览，请检查返回内容。",
+    },
     linkCard: {
       titleLabel: "链接标题",
       titlePlaceholder: "输入链接标题",
@@ -953,6 +973,16 @@ const messagesByLang: Record<MarkweaveLang, MarkweaveMessages> = {
       emptyResult: "AI returned an empty result. Try again.",
       errorFallback: "AI processing failed. Try again.",
       tableMergedUnsupported: "Ask AI does not yet support multi-cell ranges containing merged cells.",
+    },
+    aiEdit: {
+      ariaLabel: "AI edit review",
+      preparing: "AI is preparing an edit...",
+      streaming: "AI is editing...",
+      accept: "Accept",
+      discard: "Discard",
+      stop: "Stop",
+      conflict: "The original content changed, so this edit cannot be applied.",
+      errorFallback: "The AI edit cannot be previewed. Check the returned content.",
     },
     linkCard: {
       titleLabel: "Link title",

@@ -2,7 +2,13 @@
 
 import { createApp, defineComponent, h, nextTick, ref, type App } from "vue";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { MarkweaveEditor, type MarkweaveEditorMode, type MarkweaveEditorRuntimeSnapshot, type TableCommandResult } from "@markweave/vue3";
+import {
+  MarkweaveEditor,
+  type MarkweaveAiEditController,
+  type MarkweaveEditorMode,
+  type MarkweaveEditorRuntimeSnapshot,
+  type TableCommandResult,
+} from "@markweave/vue3";
 
 let activeApp: App<Element> | null = null;
 let activeContainer: HTMLDivElement | null = null;
@@ -215,6 +221,25 @@ function getByTestId<T extends HTMLElement = HTMLElement>(container: HTMLElement
 }
 
 describe("Markweave Vue3 editor", () => {
+  it("exposes the AI edit controller and clears the bridge on unmount", async () => {
+    const controllers: (MarkweaveAiEditController | null)[] = [];
+    await mountVue(
+      defineComponent({
+        setup() {
+          return () => h(MarkweaveEditor, {
+            defaultContent: "Selectable content",
+            onAiEditControllerChange: (controller: MarkweaveAiEditController | null) => controllers.push(controller),
+          });
+        },
+      }),
+    );
+
+    expect(controllers.find((controller) => controller !== null)?.getState().phase).toBe("idle");
+    activeApp?.unmount();
+    activeApp = null;
+    expect(controllers.at(-1)).toBeNull();
+  });
+
   it("renders Markdown content and exposes runtime state", async () => {
     const snapshots: MarkweaveEditorRuntimeSnapshot[] = [];
     const container = await mountVue(

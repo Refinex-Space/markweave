@@ -28,3 +28,13 @@ Vue remains a peer dependency and should come from the host app. Vue CLI 4 / Web
 The built-in outline uses `inner-toc-placement="container"` by default, keeping it vertically centered in the visual viewport while symmetric TOC gutters keep the writing column centered. It hides automatically in a narrow editor container to preserve readable content width.
 
 Version 0.3.5 keeps this fixed positioning and resolver-backed first-screen image loading compatible with Vue CLI 4 applications hosted in Electron 21 / Chromium 106.
+
+## Host-Driven AI Edit Review
+
+Version 0.3.6 exports `MarkweaveAiEditController` and exposes it through `:on-ai-edit-controller-change`. The host captures a supported text selection, calls its own AI service, and submits Markdown for in-place review; Markweave does not send provider requests or receive credentials.
+
+```vue
+<MarkweaveEditor :on-ai-edit-controller-change="setAiEditController" />
+```
+
+The callback receives a controller after editor creation and `null` before teardown or recreation. See the full integration guide for `captureSelection`, cumulative streaming, default/headless controls, conflicts, acceptance, and error handling.

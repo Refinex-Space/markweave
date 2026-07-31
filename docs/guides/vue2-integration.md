@@ -1,6 +1,6 @@
 ---
 owner: refinex
-updated: 2026-07-30
+updated: 2026-07-31
 status: active
 referenced_by: docs/README.md#knowledge-map
 ---
@@ -291,6 +291,60 @@ Ask AI is disabled by default. Vue templates enable it with `:ask-ai`:
 `handleAskAi(request)` returns Markdown or `AsyncIterable<string>`. The same handler receives ordinary text targets and table cell, row, column, selection, or whole-table targets through `request.target`; the legacy `selection` field remains a flat compatibility projection. Only target-local content is sent. Single cells expect a Markdown fragment, while multi-cell targets expect an exact-shape GFM table. Markweave previews without changing the document and applies only accepted cell contents in one undoable transaction while preserving table structure and attributes. Multi-cell targets containing merged cells and View mode remain fail-closed.
 
 `on-rewrite-selection` and `on-extract-to-note` remain legacy compatibility callbacks.
+
+## Host-Driven AI Edit Review
+
+Vue 2 hosts obtain the same `MarkweaveAiEditController` as React and Vue 3 through `:on-ai-edit-controller-change`. This is independent from built-in `ask-ai`: the host calls any provider and returns Markdown, while Markweave owns mapping, in-place review, acceptance, discard, and conflict protection.
+
+### Controller lifecycle and complete response
+
+The callback receives a controller after editor creation and `null` before destruction or recreation. Replace the stored reference on every controller lifecycle callback and never reuse it after `null`.
+
+```vue
+<MarkweaveEditor :on-ai-edit-controller-change="setAiEditController" />
+```
+
+```js
+export default {
+  data() {
+    return { aiEditController: null };
+  },
+  methods: {
+    setAiEditController(controller) {
+      this.aiEditController = controller;
+    },
+    async reviseSelection() {
+      const controller = this.aiEditController;
+      if (!controller) return;
+      const captured = controller.captureSelection({ metadata: { action: "revise" } });
+      if (!captured.ok) {
+        console.warn(captured.code, captured.message);
+        return;
+      }
+      const { id, selection, signal } = captured.value;
+      try {
+        const markdown = await callHostAi(selection, signal);
+        const completed = controller.updateProposal({ contextId: id, markdown, status: "complete" });
+        if (!completed.ok) console.warn(completed.code, completed.message);
+      } catch (error) {
+        if (!signal.aborted) controller.failProposal(id, error instanceof Error ? error.message : undefined);
+      }
+    },
+  },
+};
+```
+
+The context contains only `selection.from`, `to`, `text`, `html`, and `markdown`, never the full document. Do not patch with captured positions; `accept(contextId)` applies the live mapped target in one undoable transaction.
+
+### Cumulative streaming and headless controls
+
+Every streaming call must pass the complete accumulated Markdown, not one token, and finish with `status: "complete"`. Temporarily invalid streaming frames retain the last valid preview; call `failProposal` for a host failure. `captureSelection({ controls: "none" })` hides only the default bar. Read `getState()` before `subscribe()` because subscriptions report only later changes, and dispose both `subscribe` and `onDecision` listeners in `beforeDestroy`. Call `accept` only during `review`; `discard` works in any active phase.
+
+### State, errors, and safety
+
+Phases are `idle`, `captured`, `streaming`, `review`, `error`, and `conflict`. Errors are `readonly`, `no-selection`, `unsupported-selection`, `active-review`, `stale-context`, `invalid-markdown`, `schema-incompatible`, `incomplete-proposal`, and `conflict`; one editor allows one active context.
+
+V1 captures only an ordinary non-empty text selection in editable Live mode. Code blocks, tables/cells, media/atoms, `NodeSelection`, and `CellSelection` are unsupported targets, but proposals may contain schema-supported lists, code, and math. External edits remap the range; editing inside the target, switching View, discarding, or editor teardown aborts the context `AbortSignal`. Ignore late work after abort or `stale-context`. Preview, failure, conflict, and discard do not change serialized content or undo history. `onDecision` reports `accepted`, `discarded`, or `conflict` and echoes metadata.
 
 ## Tables, Compatibility AI, And Copy Callbacks
 

@@ -17,6 +17,22 @@ const readmeSources = {
   package: readFileSync(resolve(workspaceRoot, "packages/markweave/README.md"), "utf8"),
 };
 
+const aiEditGuideSources = {
+  reactEn: readFileSync(resolve(workspaceRoot, "docs/guides/react-integration.md"), "utf8"),
+  reactZh: readFileSync(resolve(workspaceRoot, "docs/guides/react-integration-zh-cn.md"), "utf8"),
+  vue2En: readFileSync(resolve(workspaceRoot, "docs/guides/vue2-integration.md"), "utf8"),
+  vue2Zh: readFileSync(resolve(workspaceRoot, "docs/guides/vue2-integration-zh-cn.md"), "utf8"),
+  vue3En: readFileSync(resolve(workspaceRoot, "docs/guides/vue3-integration.md"), "utf8"),
+  vue3Zh: readFileSync(resolve(workspaceRoot, "docs/guides/vue3-integration-zh-cn.md"), "utf8"),
+};
+
+const publishedReadmeSources = {
+  core: readFileSync(resolve(workspaceRoot, "packages/markweave/README.md"), "utf8"),
+  react: readFileSync(resolve(workspaceRoot, "packages/markweave-react/README.md"), "utf8"),
+  vue2: readFileSync(resolve(workspaceRoot, "packages/markweave-vue2/README.md"), "utf8"),
+  vue3: readFileSync(resolve(workspaceRoot, "packages/markweave-vue3/README.md"), "utf8"),
+};
+
 const runbookSource = readFileSync(resolve(workspaceRoot, "docs/guides/runbook.md"), "utf8");
 const envExampleSource = readFileSync(resolve(workspaceRoot, ".env.example"), "utf8");
 const playgroundConfigSources = {
@@ -118,6 +134,40 @@ describe("playground integration contract", () => {
       expect(source, `${name} README should document shared core stylesheet compatibility`).toContain("markweave/styles.css");
       expect(source, `${name} README should allow app-level stylesheet import`).toContain("You can import the adapter `styles.css` once in the app entry");
     }
+  });
+
+  it("keeps the host-driven AI edit protocol unambiguous across framework guides", () => {
+    const requiredProtocolTerms = [
+      "captureSelection",
+      "updateProposal",
+      "failProposal",
+      "getState",
+      "subscribe",
+      "onDecision",
+      'controls: "none"',
+      "active-review",
+      "stale-context",
+      "incomplete-proposal",
+      "AbortSignal",
+    ];
+
+    for (const [guide, source] of Object.entries(aiEditGuideSources)) {
+      for (const term of requiredProtocolTerms) {
+        expect(source, `${guide} should document ${term}`).toContain(term);
+      }
+      expect(source, `${guide} should require cumulative streaming Markdown`).toMatch(/accumulated Markdown|累计 Markdown|当前累计的完整 Markdown/);
+      expect(source, `${guide} should document the controller lifecycle`).toMatch(/controller lifecycle|控制器生命周期/i);
+    }
+  });
+
+  it("documents AI edit discovery in every published package README", () => {
+    for (const [name, source] of Object.entries(publishedReadmeSources)) {
+      expect(source, `${name} README should expose MarkweaveAiEditController`).toContain("MarkweaveAiEditController");
+    }
+    expect(publishedReadmeSources.core).toContain("createMarkweaveAiEditController");
+    expect(publishedReadmeSources.react).toContain("onAiEditControllerChange");
+    expect(publishedReadmeSources.vue2).toContain(":on-ai-edit-controller-change");
+    expect(publishedReadmeSources.vue3).toContain(":on-ai-edit-controller-change");
   });
 
   it("documents package dry-run verification before publishing", () => {

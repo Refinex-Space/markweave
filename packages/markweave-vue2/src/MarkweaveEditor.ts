@@ -126,6 +126,7 @@ import { normalizeMarkweaveEditorMode, setMarkweaveEditorModeState, type Markwea
 import { normalizeMarkweaveCanvasColor, normalizeMarkweaveTheme, type MarkweaveTheme } from "markweave/internal/core/theme";
 import type {
   FloatingToolbarAssistantRequest,
+  MarkweaveAiEditController,
   MarkweaveAskAiConfig,
   MarkweaveAskAiSelection,
   MarkweaveContentFormat,
@@ -136,6 +137,7 @@ import type {
   TableCommandResult,
   TableEditWithAiRequest,
 } from "markweave/internal/core/public-types";
+import { createMarkweaveAiEditController } from "markweave/internal/plugins/ai-edit/ai-edit-controller";
 import {
   acceptMarkweaveAskAiResult,
   calculateMarkweaveAskAiPanelPosition,
@@ -352,6 +354,7 @@ export interface MarkweaveVue2EditorControllerOptions {
   readonly onTableCopyPayload?: (payload: MarkweaveMenuCopyPayload) => void;
   readonly onTableCommandResult?: (result: TableCommandResult) => void;
   readonly onRuntimeStateChange?: (snapshot: MarkweaveEditorRuntimeSnapshot) => void;
+  readonly onAiEditControllerChange?: (controller: MarkweaveAiEditController | null) => void;
   readonly onTocChange?: (state: MarkweaveTocState) => void;
   readonly linkCardResolver?: MarkweaveLinkCardResolver;
   readonly resolveMediaSource?: MarkweaveMediaSourceResolver;
@@ -3365,6 +3368,7 @@ export function useMarkweaveEditorController(options: MarkweaveVue2EditorControl
       }
     },
   });
+  options.onAiEditControllerChange?.(createMarkweaveAiEditController(editorRef.value));
 
   const editor = computed<CoreEditor | null>(() => (editorRef.value as unknown as CoreEditor | null) ?? null);
 
@@ -3639,6 +3643,7 @@ export function useMarkweaveEditorController(options: MarkweaveVue2EditorControl
 
   onBeforeUnmount(() => {
     cleanupTocListeners?.();
+    options.onAiEditControllerChange?.(null);
     const editorToDestroy = editorRef.value;
     editorRef.value = null;
     void nextTick(() => editorToDestroy?.destroy());
@@ -3704,6 +3709,7 @@ export const MarkweaveEditor = defineComponent({
     onTableCopyPayload: { type: Function as PropType<(payload: MarkweaveMenuCopyPayload) => void>, default: undefined },
     onTableCommandResult: { type: Function as PropType<(result: TableCommandResult) => void>, default: undefined },
     onRuntimeStateChange: { type: Function as PropType<(snapshot: MarkweaveEditorRuntimeSnapshot) => void>, default: undefined },
+    onAiEditControllerChange: { type: Function as PropType<(controller: MarkweaveAiEditController | null) => void>, default: undefined },
     onTocChange: { type: Function as PropType<(state: MarkweaveTocState) => void>, default: undefined },
   },
   setup(props) {
