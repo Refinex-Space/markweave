@@ -217,7 +217,7 @@
   border: 1px solid #d8dde5;
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.98);
-  box-shadow: 0 12px 30px rgba(31, 35, 40, 0.14);
+  box-shadow: none;
   opacity: 0;
   pointer-events: none;
   transform: translateY(-50%) translateX(8px);
@@ -451,7 +451,7 @@
   border: 1px solid #e1e4e8;
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.97);
-  box-shadow: 0 12px 28px rgba(28, 31, 36, 0.14);
+  box-shadow: none;
   padding: 0 6px;
   opacity: 0;
   pointer-events: none;
@@ -2334,9 +2334,7 @@
   border: 1px solid rgba(229, 231, 235, 0.88);
   border-radius: 12px;
   background: #ffffff;
-  box-shadow:
-    0 10px 28px rgba(31, 35, 40, 0.08),
-    0 1px 2px rgba(31, 35, 40, 0.08);
+  box-shadow: none;
   padding: 0;
   opacity: 1;
   transform: translateY(0) scale(1);
@@ -2543,9 +2541,7 @@
   border: 1px solid rgba(229, 231, 235, 0.92);
   border-radius: 12px;
   background: #ffffff;
-  box-shadow:
-    0 14px 32px rgba(31, 35, 40, 0.1),
-    0 1px 3px rgba(31, 35, 40, 0.07);
+  box-shadow: none;
   color: #3f434a;
   font-family: ui-sans-serif, system-ui, sans-serif;
 }
@@ -2765,7 +2761,7 @@
 }
 
 .markweave-ask-ai-popover[data-phase="input"] .markweave-ask-ai-composer {
-  box-shadow: 0 12px 30px rgba(31, 35, 40, 0.1);
+  box-shadow: none;
 }
 
 .markweave-ask-ai-composer {
@@ -2780,7 +2776,9 @@
 
 .markweave-ask-ai-composer:focus-within {
   border-color: #9aa0a8;
-  box-shadow: 0 0 0 3px rgba(47, 49, 53, 0.08);
+  box-shadow: none;
+  outline: 2px solid rgba(47, 49, 53, 0.12);
+  outline-offset: 1px;
 }
 
 .markweave-ask-ai-input {
@@ -3320,9 +3318,7 @@
   border: 1px solid rgba(229, 231, 235, 0.9);
   border-radius: 8px;
   background: #ffffff;
-  box-shadow:
-    0 12px 28px rgba(31, 35, 40, 0.1),
-    0 1px 2px rgba(31, 35, 40, 0.08);
+  box-shadow: none;
   padding: 5px 6px;
   color: #5f636b;
   font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -3790,11 +3786,7 @@
   border: 1px solid rgba(37, 39, 45, 0.08);
   border-radius: 10px;
   background: var(--markweave-surface);
-  box-shadow:
-    0 2px 3px rgba(17, 24, 39, 0.08),
-    0 6px 8px rgba(17, 24, 39, 0.06),
-    0 12px 24px rgba(17, 24, 39, 0.06),
-    0 16px 48px rgba(17, 24, 39, 0.04);
+  box-shadow: none;
   padding: 5px;
   pointer-events: auto;
   transition:
@@ -3898,11 +3890,7 @@
   border: 1px solid rgba(37, 39, 45, 0.08);
   border-radius: 10px;
   background: var(--markweave-surface);
-  box-shadow:
-    0 2px 3px rgba(17, 24, 39, 0.08),
-    0 6px 8px rgba(17, 24, 39, 0.06),
-    0 12px 24px rgba(17, 24, 39, 0.06),
-    0 16px 48px rgba(17, 24, 39, 0.04);
+  box-shadow: none;
   padding: 5px;
   scrollbar-width: thin;
 }
@@ -3960,9 +3948,7 @@
   border: 1px solid #e1e4e8;
   border-radius: 6px;
   background: #ffffff;
-  box-shadow:
-    0 1px 2px rgba(31, 35, 40, 0.08),
-    0 4px 12px rgba(31, 35, 40, 0.08);
+  box-shadow: none;
   padding: 2px;
   font-family: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
   pointer-events: auto;
@@ -4079,7 +4065,7 @@
   border: 1px solid #d2d6dc;
   border-radius: 7px;
   background: #ffffff;
-  box-shadow: 0 5px 16px rgba(31, 35, 40, 0.12);
+  box-shadow: none;
   padding: 6px;
   font-family: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
   pointer-events: auto;
@@ -4578,6 +4564,20 @@ body:has(.markweave-mermaid-fullscreen-layer, .markweave-image-preview-layer) .m
   box-shadow: 0 10px 28px var(--markweave-shadow);
 }
 
+.markweave-editor-frame[data-markweave-theme="dark"] :is(
+  .markweave-inner-toc-panel,
+  .markweave-floating-toolbar,
+  .markweave-floating-toolbar-popover,
+  .markweave-slash-menu,
+  .markweave-table-menu,
+  .markweave-table-submenu,
+  .markweave-codeblock-controls,
+  .markweave-codeblock-language-menu,
+  .markweave-image-toolbar
+) {
+  box-shadow: none;
+}
+
 .markweave-editor-frame[data-markweave-theme="dark"] .markweave-editor-surface {
   background: var(--markweave-canvas);
   box-shadow: none;
@@ -4692,6 +4692,10 @@ body:has(.markweave-mermaid-fullscreen-layer, .markweave-image-preview-layer) .m
 .markweave-editor-frame[data-markweave-theme="dark"] .markweave-ask-ai-composer {
   border-color: var(--markweave-border);
   background: var(--markweave-surface);
+}
+
+.markweave-editor-frame[data-markweave-theme="dark"] .markweave-ask-ai-composer:focus-within {
+  outline-color: rgba(255, 255, 255, 0.16);
 }
 
 .markweave-editor-frame[data-markweave-theme="dark"] .markweave-ask-ai-action-bar {
@@ -4889,9 +4893,7 @@ body:has(.markweave-mermaid-fullscreen-layer, .markweave-image-preview-layer) .m
 .markweave-editor-frame[data-markweave-theme="dark"] .markweave-codeblock-controls {
   border-color: var(--markweave-border);
   background: var(--markweave-surface);
-  box-shadow:
-    0 1px 2px rgba(0, 0, 0, 0.22),
-    0 4px 12px rgba(0, 0, 0, 0.2);
+  box-shadow: none;
 }
 
 .markweave-editor-frame[data-markweave-theme="dark"] .markweave-codeblock-language-menu,
@@ -4899,6 +4901,13 @@ body:has(.markweave-mermaid-fullscreen-layer, .markweave-image-preview-layer) .m
   border-color: var(--markweave-border);
   background: var(--markweave-surface);
   color: var(--markweave-text);
+}
+
+.markweave-editor-frame[data-markweave-theme="dark"] .markweave-codeblock-language-menu {
+  box-shadow: none;
+}
+
+.markweave-editor-frame[data-markweave-theme="dark"] .markweave-codeblock-tooltip {
   box-shadow: 0 10px 28px var(--markweave-shadow);
 }
 
