@@ -3368,7 +3368,19 @@ export function useMarkweaveEditorController(options: MarkweaveVue2EditorControl
       }
     },
   });
-  options.onAiEditControllerChange?.(createMarkweaveAiEditController(editorRef.value));
+  const aiEditControllerEditor = editorRef.value;
+  const aiEditControllerForHost = createMarkweaveAiEditController(aiEditControllerEditor);
+  let aiEditControllerDisposed = false;
+  let aiEditControllerPublished = false;
+  // Vue 2 creates a keyed replacement before destroying the previous VNode. Publish
+  // on the next tick so the previous instance's null cleanup cannot win the race.
+  void nextTick(() => {
+    if (aiEditControllerDisposed || editorRef.value !== aiEditControllerEditor) {
+      return;
+    }
+    aiEditControllerPublished = true;
+    options.onAiEditControllerChange?.(aiEditControllerForHost);
+  });
 
   const editor = computed<CoreEditor | null>(() => (editorRef.value as unknown as CoreEditor | null) ?? null);
 
@@ -3643,7 +3655,10 @@ export function useMarkweaveEditorController(options: MarkweaveVue2EditorControl
 
   onBeforeUnmount(() => {
     cleanupTocListeners?.();
-    options.onAiEditControllerChange?.(null);
+    aiEditControllerDisposed = true;
+    if (aiEditControllerPublished) {
+      options.onAiEditControllerChange?.(null);
+    }
     const editorToDestroy = editorRef.value;
     editorRef.value = null;
     void nextTick(() => editorToDestroy?.destroy());

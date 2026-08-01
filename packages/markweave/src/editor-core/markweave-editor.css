@@ -2570,6 +2570,25 @@
   text-decoration-color: color-mix(in srgb, currentColor 58%, transparent);
 }
 
+.markweave-ai-edit-hunk-original[data-markweave-ai-edit-original="true"] {
+  border-radius: 3px;
+  background: color-mix(in srgb, #d14343 8%, transparent);
+  box-shadow: inset 0 -1px 0 color-mix(in srgb, #d14343 28%, transparent);
+  color: color-mix(in srgb, var(--markweave-text-muted, #5f646c) 78%, transparent);
+  text-decoration: line-through;
+  text-decoration-color: color-mix(in srgb, #d14343 58%, transparent);
+}
+
+.markweave-ai-edit-hunk-proposal {
+  border-left: 3px solid color-mix(in srgb, var(--markweave-focus, #4f77b6) 72%, transparent);
+}
+
+.markweave-ai-edit-hunk-proposal--delete {
+  min-height: 8px;
+  border-left-color: color-mix(in srgb, #d14343 72%, transparent);
+  background: color-mix(in srgb, #d14343 7%, transparent);
+}
+
 .markweave-ask-ai-proposal-cell {
   background: color-mix(in srgb, var(--markweave-focus, #4f77b6) 9%, var(--markweave-surface, #ffffff));
 }

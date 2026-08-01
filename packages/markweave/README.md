@@ -117,7 +117,7 @@ Markweave 0.2.3 exports `createMarkweaveSearchController` and the shared `Markwe
 
 ## Host-Driven AI Edit Review
 
-Markweave 0.3.6 exports `createMarkweaveAiEditController` and `MarkweaveAiEditController`. A host can capture one supported text selection, call any AI service itself, and submit complete or cumulative-stream Markdown for in-place review. Preview and discard do not mutate the document or undo history; acceptance applies the live mapped target in one undoable transaction. Markweave never sends model requests or receives provider credentials.
+Markweave 0.3.8 lets `createMarkweaveAiEditController` create a `MarkweaveAiEditController` that lazily exposes the current selection and explicitly captures an exact selection, covering blocks, or the full document. Complete block/document proposals render as bounded structural multi-hunk diffs and apply atomically in one undo step. Markweave never sends model requests or receives provider credentials.
 
 Framework adapters expose the controller through `onAiEditControllerChange` (React) or `:on-ai-edit-controller-change` (Vue). See the framework integration guides for controller lifecycle, supported targets, streaming, headless controls, cancellation, state/error codes, and decision events.
 

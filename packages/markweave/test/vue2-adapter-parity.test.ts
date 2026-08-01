@@ -62,6 +62,8 @@ describe("Vue2 adapter parity source contract", () => {
       "MarkweaveAskAiConfig",
       "MarkweaveAiEditController",
       "createMarkweaveAiEditController",
+      "aiEditControllerPublished",
+      "void nextTick",
       "onAiEditControllerChange",
       "startMarkweaveAskAiTarget",
       "startMarkweaveAskAiTableTarget",

@@ -1,6 +1,6 @@
 ---
 owner: refinex
-updated: 2026-07-30
+updated: 2026-08-01
 status: active
 referenced_by: AGENTS.md#knowledge-map
 ---
@@ -19,10 +19,11 @@ referenced_by: AGENTS.md#knowledge-map
 
 Markweave is a browser-side editor package. Treat editor content, Markdown source, HTML fallbacks, JSON documents, pasted HTML/Markdown, links, media nodes, and Mermaid source as untrusted input unless a specific caller has already validated it.
 
-- `MarkweaveAiEditController.captureSelection()` exposes only the active supported selection. It never includes the surrounding document, sends a request, chooses a provider, stores credentials, or persists the captured context.
-- The host owns user consent, authorization, redaction, provider policy, network transport, retention, logging, rate limits, and deletion for any selected content it sends to an AI service. Do not place API keys in Markweave props, browser bundles, metadata, or playground source.
+- `MarkweaveAiEditController.getSelection()` and `subscribeSelection()` serialize selection content only on explicit host demand; selection content is intentionally absent from the high-frequency runtime snapshot. Line ranges are one-based block-precision locations in normalized Markdown, not byte-for-byte offsets in an uploaded source file.
+- `captureSelection()` remains selection-only. `capture({ scope: "blocks" | "document" })` includes the explicitly requested block range or full document; Markweave never silently widens an empty selection, sends a request, chooses a provider, stores credentials, or persists the captured context.
+- The host owns user consent, authorization, redaction, provider policy, network transport, retention, logging, rate limits, and deletion for any selection, block range, or document content it sends to an AI service. Full-document capture must be an explicit product action. Do not place API keys in Markweave props, browser bundles, metadata, or playground source.
 - AI edit metadata is host-defined in-memory context. Treat it as untrusted application data: avoid secrets and do not render metadata as HTML.
-- Proposal Markdown is parsed through the current editor schema and shown with ProseMirror Decorations before acceptance. It must not bypass the existing link/media/Mermaid safety boundaries, and only a complete compatible proposal may enter the document.
+- Proposal Markdown is parsed through the current editor schema and shown with ProseMirror Decorations before acceptance. Multi-scope proposals use a bounded block diff and fail closed when complexity exceeds the review budget. They must not bypass the existing link/media/Mermaid safety boundaries, and only a complete compatible proposal may enter the document.
 
 ## Uploads And Media
 

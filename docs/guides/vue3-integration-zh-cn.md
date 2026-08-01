@@ -1,6 +1,6 @@
 ---
 owner: refinex
-updated: 2026-07-31
+updated: 2026-08-01
 status: active
 referenced_by: docs/README.md#knowledge-map
 ---
@@ -295,7 +295,7 @@ async function reviseSelection() {
 </template>
 ```
 
-`selection` 只含目标的 `from`、`to`、`text`、`html` 和 `markdown`，不会包含整篇文档。不要用捕获时的数字位置自行修改文档；应调用 `accept(contextId)`，由 Markweave 在当前映射后的目标上执行一次可撤销事务。
+`captureSelection()` 继续只捕获精确普通文本选区。`getSelection()` / `subscribeSelection()` 可按需取得选区正文和规范化 Markdown 的 1-based 块级 `lineRange`。需要所选段落或全文多处修改时，显式调用 `capture({ scope: "blocks" | "document" })`，并让 AI 返回该范围修改后的完整 Markdown。Markweave 在 `complete` 后计算并展示最多 200 个结构化 hunk，接受时一次事务应用所有 hunk；不要用捕获位置自行修改文档。
 
 ### 累计流式响应与 headless 操作条
 
@@ -328,13 +328,13 @@ async function submitStream(
 }
 ```
 
-`captureSelection()` 默认显示 Markweave 操作条；`captureSelection({ controls: "none" })` 只隐藏操作条，有效的原位预览仍会显示。自定义界面必须先用 `getState()` 取得当前状态，再用 `subscribe()` 监听后续变化，并在卸载时注销 `subscribe` 和 `onDecision` 监听。只有 `review` phase 可以 `accept`，任意活动 phase 均可 `discard`；`failProposal` 只进入 `error`，不会修改文档。
+`captureSelection()` 默认显示 Markweave 操作条；`controls: "none"` 只隐藏操作条。精确选区可在流式阶段预览，`blocks/document` 只在 `complete` 后展示多处 Diff。自定义界面先用 `getState()` 再订阅状态；`subscribeSelection()` 会立即回放当前选区。卸载时注销全部监听。
 
 ### 状态、错误码与安全规则
 
-phase 包括 `idle`、`captured`、`streaming`、`review`、`error` 和 `conflict`。错误码包括 `readonly`、`no-selection`、`unsupported-selection`、`active-review`、`stale-context`、`invalid-markdown`、`schema-incompatible`、`incomplete-proposal` 和 `conflict`。每个编辑器只允许一个活动上下文。
+phase 包括 `idle`、`captured`、`streaming`、`review`、`error` 和 `conflict`。错误码包括 `active-review`、`stale-context`、`incomplete-proposal`、`unsupported-scope` 与 `proposal-too-complex`。每个编辑器只允许一个活动上下文；通过 `onDecision` 订阅接受、舍弃和冲突结果。目标内部编辑、切换 View 或卸载会中止上下文 `AbortSignal`。
 
-V1 只捕获可编辑 Live 模式下的普通非空文本选区；代码块、表格/单元格、媒体/原子节点、`NodeSelection` 和 `CellSelection` 返回 `unsupported-selection`，但提案仍可包含 schema 支持的列表、代码和数学公式。目标外编辑会映射范围；目标内部编辑、切换 View、舍弃或销毁编辑器会中止上下文的 `AbortSignal`。signal 中止或返回 `stale-context` 后必须忽略迟到任务。预览、错误、冲突和舍弃都不改变序列化内容或撤销历史；接受只产生一次事务和一次 Undo。`onDecision` 报告 `accepted`、`discarded` 或 `conflict`，回传 metadata，并只在接受后可能包含 `appliedRange`。
+精确 `selection` 仍拒绝代码块、表格/单元格和媒体/原子节点；`blocks/document` 可携带未改变的复杂结构，并对完整提案执行 schema 校验和有界多 hunk Diff。目标外编辑映射范围，目标内部编辑进入冲突；预览、错误、冲突和舍弃不改变文档，接受只产生一次事务和一次 Undo。
 
 ## 表格、兼容 AI 回调与复制回调
 

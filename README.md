@@ -145,7 +145,7 @@ The controller exposes `setQuery`, `setOptions`, `findNext`, `findPrevious`, `re
 
 ## Host-Driven AI Edit Review
 
-Markweave 0.3.6 adds `createMarkweaveAiEditController` and each adapter's `onAiEditControllerChange` callback. A host can capture one supported text selection, call any AI service itself, and submit complete or cumulative-stream Markdown for in-place review. Markweave makes no provider request and receives no credentials. The proposal stays outside the document and undo history until the user accepts it; discard and target conflicts leave the original document unchanged.
+Markweave 0.3.8 extends `MarkweaveAiEditController` with lazy selection snapshots and explicit `selection`, `blocks`, and `document` capture scopes. Exact selections keep local streaming review; block and document proposals become bounded structural multi-hunk diffs after completion and apply atomically in one undo step. Markweave makes no provider request, receives no credentials, and never widens an empty selection without an explicit host scope.
 
 The controller callback is lifecycle-bound: adapters provide it after editor creation and send `null` before teardown or recreation. Streaming updates contain the currently accumulated Markdown, not individual tokens. See the React, Vue 3, or Vue 2 integration guide for selection limits, default and headless controls, cancellation, state/error handling, and decision events.
 

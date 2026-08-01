@@ -86,8 +86,9 @@ describe("Markweave AI edit controller", () => {
     })).toMatchObject({ ok: true });
     expect(controller.getState().phase).toBe("streaming");
     expect(editor.getJSON()).toEqual(before);
-    await new Promise((resolve) => globalThis.setTimeout(resolve, 20));
-    expect(editor.view.dom.querySelector('[data-markweave-ask-ai-proposal="text"]')?.textContent).toBe("Improved");
+    await vi.waitFor(() => {
+      expect(editor.view.dom.querySelector('[data-markweave-ask-ai-proposal="text"]')?.textContent).toBe("Improved");
+    });
     expect(editor.view.dom.querySelector(".markweave-ai-edit-original")?.textContent).toBe("selected text");
     expect(editor.view.dom.querySelector(".markweave-ai-edit-controls")?.getAttribute("data-markweave-ai-edit-phase")).toBe("streaming");
 
@@ -166,7 +167,7 @@ describe("Markweave AI edit controller", () => {
     expect(discarded).toMatchObject({ ok: true, value: { decision: "discarded" } });
     expect(captured.value.signal.aborted).toBe(true);
     expect(editor.getJSON()).toEqual(before);
-    expect(controller.getState()).toEqual({ phase: "idle", context: null, proposal: null, error: null });
+    expect(controller.getState()).toEqual({ phase: "idle", context: null, proposal: null, error: null, hunks: [] });
     expect(decisions).toHaveBeenCalledTimes(1);
   });
 
@@ -245,5 +246,255 @@ describe("Markweave AI edit controller", () => {
 
     expect(editor.view.dom.querySelector('[data-markweave-ask-ai-proposal="text"]')?.textContent).toBe("Headless replacement");
     expect(editor.view.dom.querySelector(".markweave-ai-edit-controls")).toBeNull();
+  });
+
+  it("exposes a lazy selection snapshot with normalized Markdown block lines", () => {
+    const editor = createEditor("<h1>Title</h1><p>First line</p><p>Second selected line</p>");
+    selectText(editor, "selected");
+    const controller = createMarkweaveAiEditController(editor);
+    const listener = vi.fn();
+    const unsubscribe = controller.subscribeSelection(listener);
+
+    expect(controller.getSelection()).toMatchObject({
+      text: "selected",
+      markdown: "selected",
+      eligible: true,
+      reason: null,
+      lineRange: {
+        start: 5,
+        end: 5,
+        basis: "normalized-markdown",
+        precision: "block",
+      },
+    });
+    expect(listener).toHaveBeenCalledWith(expect.objectContaining({ text: "selected" }));
+
+    editor.commands.setTextSelection(findText(editor, "First line"));
+    expect(listener).toHaveBeenLastCalledWith(expect.objectContaining({
+      text: "First line",
+      lineRange: expect.objectContaining({ start: 3, end: 3 }),
+    }));
+    unsubscribe();
+  });
+
+  it("captures a document without a selection and reviews multiple disjoint block changes atomically", () => {
+    const editor = createEditor("<h1>Original title</h1><p>Keep this paragraph</p><p>Original ending</p>");
+    const before = editor.getJSON();
+    const controller = createMarkweaveAiEditController(editor);
+    const captured = controller.capture({ scope: "document", controls: "none" });
+    expect(captured.ok).toBe(true);
+    if (!captured.ok) {
+      return;
+    }
+    expect(captured.value.target).toMatchObject({ scope: "document", from: 0 });
+
+    expect(controller.updateProposal({
+      contextId: captured.value.id,
+      markdown: "# Revised title\n\nKeep this paragraph\n\nRevised ending",
+      status: "streaming",
+    })).toMatchObject({ ok: true });
+    expect(editor.view.dom.querySelectorAll("[data-markweave-ai-edit-hunk]")).toHaveLength(0);
+
+    expect(controller.updateProposal({
+      contextId: captured.value.id,
+      markdown: "# Revised title\n\nKeep this paragraph\n\nRevised ending",
+      status: "complete",
+    })).toMatchObject({ ok: true });
+    expect(controller.getState().hunks).toHaveLength(2);
+    expect(editor.view.dom.querySelectorAll(".markweave-ai-edit-hunk-proposal")).toHaveLength(2);
+    expect(editor.getJSON()).toEqual(before);
+
+    const accepted = controller.accept(captured.value.id);
+    expect(accepted).toMatchObject({
+      ok: true,
+      value: { decision: "accepted", appliedRanges: expect.any(Array) },
+    });
+    if (accepted.ok) {
+      expect(accepted.value.appliedRanges).toHaveLength(2);
+    }
+    expect(editor.getText()).toContain("Revised title");
+    expect(editor.getText()).toContain("Keep this paragraph");
+    expect(editor.getText()).toContain("Revised ending");
+    expect(editor.commands.undo()).toBe(true);
+    expect(editor.getJSON()).toEqual(before);
+  });
+
+  it("expands a collapsed cursor to the current block and maps unrelated edits before it", () => {
+    const editor = createEditor("<p>Before block</p><p>Target block</p><p>After block</p>");
+    const target = findText(editor, "Target block");
+    editor.commands.setTextSelection(target.from + 2);
+    const controller = createMarkweaveAiEditController(editor);
+    const captured = controller.capture({ scope: "blocks", controls: "none" });
+    expect(captured.ok).toBe(true);
+    if (!captured.ok) {
+      return;
+    }
+    expect(captured.value.target).toMatchObject({ scope: "blocks", markdown: "Target block" });
+
+    editor.commands.insertContentAt(1, "Earlier ");
+    expect(controller.updateProposal({
+      contextId: captured.value.id,
+      markdown: "Revised target block",
+      status: "complete",
+    })).toMatchObject({ ok: true });
+    expect(controller.accept(captured.value.id)).toMatchObject({ ok: true });
+    expect(editor.getText()).toContain("Earlier Before block");
+    expect(editor.getText()).toContain("Revised target block");
+    expect(editor.getText()).toContain("After block");
+  });
+
+  it("captures all top-level blocks covered by a non-empty selection", () => {
+    const editor = createEditor("<p>Before block</p><p>First target</p><p>Second target</p><p>After block</p>");
+    const first = findText(editor, "First target");
+    const second = findText(editor, "Second target");
+    editor.commands.setTextSelection({ from: first.from + 2, to: second.to - 2 });
+    const controller = createMarkweaveAiEditController(editor);
+    const captured = controller.capture({ scope: "blocks", controls: "none" });
+
+    expect(captured).toMatchObject({
+      ok: true,
+      value: {
+        target: {
+          scope: "blocks",
+          markdown: "First target\n\nSecond target",
+        },
+      },
+    });
+  });
+
+  it("fails closed when the captured multi-block target changes before acceptance", () => {
+    const editor = createEditor("<p>Before block</p><p>Target block</p><p>After block</p>");
+    const target = findText(editor, "Target block");
+    editor.commands.setTextSelection(target);
+    const controller = createMarkweaveAiEditController(editor);
+    const captured = controller.capture({ scope: "blocks", controls: "none" });
+    expect(captured.ok).toBe(true);
+    if (!captured.ok) {
+      return;
+    }
+
+    editor.commands.insertContentAt(target.from + 2, "changed ");
+    expect(controller.getState().phase).toBe("conflict");
+    expect(captured.value.signal.aborted).toBe(true);
+    expect(controller.accept(captured.value.id)).toMatchObject({ ok: false, code: "conflict" });
+    expect(editor.getText()).toContain("changed");
+  });
+
+  it("keeps unchanged media blocks intact during a document-wide multi-hunk acceptance", () => {
+    const editor = createEditor([
+      "<h1>Old title</h1>",
+      '<p><img src="markweave://asset/image.png" alt="Diagram"></p>',
+      "<p>Old ending</p>",
+    ].join(""));
+    let imageBlock = editor.state.doc.firstChild;
+    editor.state.doc.forEach((node) => {
+      if (node.type.name === "image") {
+        imageBlock = node;
+      }
+    });
+    const controller = createMarkweaveAiEditController(editor);
+    const captured = controller.capture({ scope: "document", controls: "none" });
+    expect(captured.ok).toBe(true);
+    if (!captured.ok) {
+      return;
+    }
+
+    expect(controller.updateProposal({
+      contextId: captured.value.id,
+      markdown: "# New title\n\n![Diagram](markweave://asset/image.png)\n\nNew ending",
+      status: "complete",
+    })).toMatchObject({ ok: true });
+    expect(controller.getState().hunks).toHaveLength(2);
+    expect(controller.accept(captured.value.id)).toMatchObject({ ok: true });
+    let acceptedImage = editor.state.doc.firstChild;
+    editor.state.doc.forEach((node) => {
+      if (node.type.name === "image") {
+        acceptedImage = node;
+      }
+    });
+    expect(acceptedImage).toBe(imageBlock);
+  });
+
+  it("reviews sparse changes in a document with more than 200 top-level blocks", () => {
+    const paragraphs = Array.from({ length: 300 }, (_, index) => `Paragraph ${index + 1}`);
+    const editor = createEditor(paragraphs.map((paragraph) => `<p>${paragraph}</p>`).join(""));
+    const controller = createMarkweaveAiEditController(editor);
+    const captured = controller.capture({ scope: "document", controls: "none" });
+    expect(captured.ok).toBe(true);
+    if (!captured.ok) {
+      return;
+    }
+    const revised = [...paragraphs];
+    revised[19] = "Revised paragraph 20";
+    revised[149] = "Revised paragraph 150";
+    revised[279] = "Revised paragraph 280";
+
+    expect(controller.updateProposal({
+      contextId: captured.value.id,
+      markdown: revised.join("\n\n"),
+      status: "complete",
+    })).toMatchObject({ ok: true });
+    expect(controller.getState().hunks).toHaveLength(3);
+    expect(controller.accept(captured.value.id)).toMatchObject({ ok: true });
+    expect(editor.getText()).toContain("Revised paragraph 20");
+    expect(editor.getText()).toContain("Revised paragraph 150");
+    expect(editor.getText()).toContain("Revised paragraph 280");
+  });
+
+  it("accepts a proposal containing exactly 200 disjoint hunks", () => {
+    const hunkCount = 200;
+    const paragraphs = Array.from(
+      { length: hunkCount * 2 + 1 },
+      (_, index) => `Boundary paragraph ${index + 1}`,
+    );
+    const revised = paragraphs.map((paragraph, index) => (
+      index % 2 === 0 && index < hunkCount * 2 ? `${paragraph} revised` : paragraph
+    ));
+    const editor = createEditor(paragraphs.map((paragraph) => `<p>${paragraph}</p>`).join(""));
+    const controller = createMarkweaveAiEditController(editor);
+    const captured = controller.capture({ scope: "document", controls: "none" });
+    expect(captured.ok).toBe(true);
+    if (!captured.ok) {
+      return;
+    }
+
+    expect(controller.updateProposal({
+      contextId: captured.value.id,
+      markdown: revised.join("\n\n"),
+      status: "complete",
+    })).toMatchObject({ ok: true });
+    expect(controller.getState().hunks).toHaveLength(hunkCount);
+    expect(controller.accept(captured.value.id)).toMatchObject({
+      ok: true,
+      value: { appliedRanges: expect.any(Array) },
+    });
+    expect(editor.getText()).toContain("Boundary paragraph 399 revised");
+  });
+
+  it("rejects a proposal containing 201 disjoint hunks", () => {
+    const hunkCount = 201;
+    const paragraphs = Array.from(
+      { length: hunkCount * 2 + 1 },
+      (_, index) => `Rejected paragraph ${index + 1}`,
+    );
+    const revised = paragraphs.map((paragraph, index) => (
+      index % 2 === 0 && index < hunkCount * 2 ? `${paragraph} revised` : paragraph
+    ));
+    const editor = createEditor(paragraphs.map((paragraph) => `<p>${paragraph}</p>`).join(""));
+    const before = editor.getJSON();
+    const controller = createMarkweaveAiEditController(editor);
+    const captured = controller.capture({ scope: "document", controls: "none" });
+    expect(captured.ok).toBe(true);
+    if (!captured.ok) {
+      return;
+    }
+
+    expect(controller.updateProposal({
+      contextId: captured.value.id,
+      markdown: revised.join("\n\n"),
+      status: "complete",
+    })).toMatchObject({ ok: false, code: "proposal-too-complex" });
+    expect(controller.getState()).toMatchObject({ phase: "error", hunks: [] });
+    expect(editor.getJSON()).toEqual(before);
   });
 });

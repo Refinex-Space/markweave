@@ -1,5 +1,6 @@
 import { Extension, type Editor, type JSONContent } from "@tiptap/core";
-import { Plugin, PluginKey, TextSelection } from "@tiptap/pm/state";
+import type { Fragment } from "@tiptap/pm/model";
+import { Plugin, PluginKey, TextSelection, type Transaction } from "@tiptap/pm/state";
 import { Decoration, DecorationSet } from "@tiptap/pm/view";
 import type {
   MarkweaveAiEditContext,
@@ -9,6 +10,7 @@ import type {
   MarkweaveAiEditProposal,
   MarkweaveAiEditResult,
   MarkweaveAiEditSelection,
+  MarkweaveAiEditSelectionSnapshot,
   MarkweaveAiEditState,
 } from "../../core/public-types";
 import {
@@ -32,6 +34,17 @@ import {
   setMarkweaveAskAiPreview,
   startMarkweaveAskAiTarget,
 } from "../ask-ai/ask-ai-session";
+import {
+  applyMarkweaveAiEditHunks,
+  createMarkweaveAiEditDiff,
+  createMarkweaveAiEditProposalDom,
+  parseMarkweaveAiEditProposal,
+  type MarkweaveAiEditInternalHunk,
+} from "./ai-edit-multi-scope";
+import {
+  createMarkweaveAiEditTarget,
+  inspectMarkweaveAiEditSelection,
+} from "./ai-edit-selection";
 
 export interface MarkweaveAiEditOptions {
   readonly lang: MarkweaveLang;
@@ -46,12 +59,20 @@ interface MarkweaveAiEditSession {
   proposal: MarkweaveAiEditProposal | null;
   error: string | null;
   conflictNotified: boolean;
+  hunks: readonly MarkweaveAiEditInternalHunk[];
+  range: {
+    from: number;
+    to: number;
+    readonly originalContent: Fragment;
+    conflict: boolean;
+  } | null;
 }
 
 interface MarkweaveAiEditControllerRuntime {
   readonly controller: MarkweaveAiEditController;
   readonly listeners: Set<(state: MarkweaveAiEditState) => void>;
   readonly decisionListeners: Set<(event: MarkweaveAiEditDecision) => void>;
+  readonly selectionListeners: Set<(selection: MarkweaveAiEditSelectionSnapshot | null) => void>;
   readonly unsubscribeMode: () => void;
 }
 
@@ -73,6 +94,7 @@ const idleState: MarkweaveAiEditState = {
   context: null,
   proposal: null,
   error: null,
+  hunks: [],
 };
 
 function ok<T>(value: T): MarkweaveAiEditResult<T> {
@@ -96,6 +118,7 @@ function publicState(editor: Editor): MarkweaveAiEditState {
         context: session.context,
         proposal: session.proposal,
         error: session.error,
+        hunks: session.hunks,
       }
     : idleState;
 }
@@ -107,6 +130,7 @@ function stateKey(state: MarkweaveAiEditState) {
     state.proposal?.status ?? "",
     state.proposal?.markdown ?? "",
     state.error ?? "",
+    state.hunks.map((hunk) => `${hunk.id}:${hunk.from}:${hunk.to}`).join(","),
   ].join("\u0000");
 }
 
@@ -129,14 +153,17 @@ function createDecision(
   session: MarkweaveAiEditSession,
   decision: MarkweaveAiEditDecision["decision"],
   appliedRange?: MarkweaveAiEditDecision["appliedRange"],
+  appliedRanges?: MarkweaveAiEditDecision["appliedRanges"],
 ): MarkweaveAiEditDecision {
   return {
     contextId: session.context.id,
     decision,
     original: session.context.selection,
+    originalTarget: session.context.target,
     proposedMarkdown: session.proposal?.markdown ?? null,
     metadata: session.context.metadata,
     appliedRange,
+    appliedRanges,
   };
 }
 
@@ -152,7 +179,10 @@ function synchronizeConflict(editor: Editor) {
     return false;
   }
   const target = getMarkweaveAskAiTarget(editor);
-  if (target?.status === "target") {
+  const targetIsCurrent = session.range
+    ? !session.range.conflict
+    : target?.status === "target";
+  if (targetIsCurrent) {
     return false;
   }
 
@@ -165,14 +195,6 @@ function synchronizeConflict(editor: Editor) {
     emitDecision(editor, createDecision(session, "conflict"));
   }
   return true;
-}
-
-function serializeSelectionMarkdown(editor: Editor) {
-  const selectionContent = editor.state.selection.content().content.toJSON();
-  if (!editor.markdown || selectionContent.length === 0) {
-    return "";
-  }
-  return editor.markdown.serialize({ type: "doc", content: selectionContent } as JSONContent).trimEnd();
 }
 
 function validateCompleteMarkdown(editor: Editor, markdown: string) {
@@ -333,7 +355,7 @@ function createReviewControls(editor: Editor, session: MarkweaveAiEditSession) {
 function createAiEditDecorations(editor: Editor) {
   const session = sessions.get(editor);
   const target = getMarkweaveAskAiTarget(editor);
-  if (!session || !target || target.from > target.to) {
+  if (!session) {
     return DecorationSet.empty;
   }
   const key = [
@@ -343,17 +365,37 @@ function createAiEditDecorations(editor: Editor) {
     session.proposal?.markdown.length ?? 0,
     session.error ?? "",
   ].join("-");
-  const decorations = hasMarkweaveAskAiPreview(editor.state) && target.status === "target"
-    ? [Decoration.inline(target.from, target.to, {
-        class: "markweave-ai-edit-original",
-        "data-markweave-ai-edit-original": "true",
-      })]
-    : [];
+  const decorations: Decoration[] = [];
+  if (session.range) {
+    session.hunks.forEach((hunk) => {
+      if (hunk.from < hunk.to) {
+        decorations.push(Decoration.inline(hunk.from, hunk.to, {
+          class: "markweave-ai-edit-original markweave-ai-edit-hunk-original",
+          "data-markweave-ai-edit-original": "true",
+          "data-markweave-ai-edit-hunk": hunk.id,
+        }));
+      }
+      decorations.push(Decoration.widget(hunk.to, () => createMarkweaveAiEditProposalDom(editor, hunk), {
+        key: `markweave-ai-edit-hunk-${key}-${hunk.id}`,
+        side: 1,
+      }));
+    });
+  } else if (target && hasMarkweaveAskAiPreview(editor.state) && target.status === "target") {
+    decorations.push(Decoration.inline(target.from, target.to, {
+      class: "markweave-ai-edit-original",
+      "data-markweave-ai-edit-original": "true",
+    }));
+  }
   if (session.controls === "default") {
-    decorations.push(Decoration.widget(target.to, () => createReviewControls(editor, session), {
+    const controlsAt = session.range
+      ? session.hunks.at(-1)?.to ?? session.range.to
+      : target?.to;
+    if (controlsAt !== undefined) {
+      decorations.push(Decoration.widget(controlsAt, () => createReviewControls(editor, session), {
       key: `markweave-ai-edit-controls-${key}`,
       side: 1,
-    }));
+      }));
+    }
   }
   return DecorationSet.create(editor.state.doc, decorations);
 }
@@ -372,6 +414,29 @@ function disposeController(editor: Editor) {
   controllerRuntimes.delete(editor);
   editorLanguages.delete(editor);
   editorMessages.delete(editor);
+}
+
+function mapMultiScopeSession(editor: Editor, transaction: Transaction) {
+  const session = sessions.get(editor);
+  if (!session?.range || !transaction.docChanged || session.range.conflict) {
+    return;
+  }
+  const mappedFrom = transaction.mapping.mapResult(session.range.from, 1);
+  const mappedTo = transaction.mapping.mapResult(session.range.to, -1);
+  const from = Math.max(0, Math.min(mappedFrom.pos, transaction.doc.content.size));
+  const to = Math.max(from, Math.min(mappedTo.pos, transaction.doc.content.size));
+  session.range.from = from;
+  session.range.to = to;
+  if (mappedFrom.deletedAcross || mappedTo.deletedAcross
+    || !transaction.doc.slice(from, to).content.eq(session.range.originalContent)) {
+    session.range.conflict = true;
+    return;
+  }
+  session.hunks = session.hunks.map((hunk) => ({
+    ...hunk,
+    from: transaction.mapping.map(hunk.from, 1),
+    to: transaction.mapping.map(hunk.to, -1),
+  }));
 }
 
 export const MarkweaveAiEdit = Extension.create<MarkweaveAiEditOptions>({
@@ -395,6 +460,7 @@ export const MarkweaveAiEdit = Extension.create<MarkweaveAiEditOptions>({
         state: {
           init: () => 0,
           apply(transaction, revision) {
+            mapMultiScopeSession(editor, transaction);
             return transaction.getMeta(markweaveAiEditPluginKey) ? revision + 1 : revision;
           },
         },
@@ -404,7 +470,7 @@ export const MarkweaveAiEdit = Extension.create<MarkweaveAiEditOptions>({
         view() {
           let previousStateKey = stateKey(publicState(editor));
           return {
-            update() {
+            update(view, previousState) {
               const becameConflict = synchronizeConflict(editor);
               const nextState = publicState(editor);
               const nextStateKey = stateKey(nextState);
@@ -414,6 +480,12 @@ export const MarkweaveAiEdit = Extension.create<MarkweaveAiEditOptions>({
               }
               if (becameConflict) {
                 Promise.resolve().then(() => dispatchRefresh(editor));
+              }
+              const selectionListeners = controllerRuntimes.get(editor)?.selectionListeners;
+              if (selectionListeners?.size
+                && (!view.state.selection.eq(previousState.selection) || !view.state.doc.eq(previousState.doc))) {
+                const selection = inspectMarkweaveAiEditSelection(editor);
+                selectionListeners.forEach((listener) => listener(selection));
               }
             },
             destroy() {
@@ -434,44 +506,70 @@ export function createMarkweaveAiEditController(editor: Editor): MarkweaveAiEdit
 
   const listeners = new Set<(state: MarkweaveAiEditState) => void>();
   const decisionListeners = new Set<(event: MarkweaveAiEditDecision) => void>();
+  const selectionListeners = new Set<(selection: MarkweaveAiEditSelectionSnapshot | null) => void>();
 
   const controller: MarkweaveAiEditController = {
-    captureSelection(options = {}) {
+    getSelection() {
+      return inspectMarkweaveAiEditSelection(editor);
+    },
+
+    subscribeSelection(listener) {
+      selectionListeners.add(listener);
+      listener(inspectMarkweaveAiEditSelection(editor));
+      return () => selectionListeners.delete(listener);
+    },
+
+    capture(options) {
       if (sessions.has(editor) || getMarkweaveAskAiTarget(editor)) {
         return fail("active-review", "An AI edit review is already active.");
       }
       if (!editor.isEditable || !isMarkweaveEditorLiveEditable(getMarkweaveEditorModeState(editor))) {
         return fail("readonly", "AI edits require Live editable mode.");
       }
-      if (!(editor.state.selection instanceof TextSelection)) {
-        return fail("unsupported-selection", "The current selection type is not supported.");
+      if (!(["selection", "blocks", "document"] as const).includes(options.scope)) {
+        return fail("unsupported-scope", "The requested AI edit scope is not supported.");
       }
-      if (editor.state.selection.empty) {
-        return fail("no-selection", "Select text before creating an AI edit context.");
-      }
-      if (!isMarkweaveAskAiSelectionEligible(editor)) {
-        return fail("unsupported-selection", "The current selection cannot be reviewed as a text edit.");
+      if (options.scope === "selection") {
+        if (!(editor.state.selection instanceof TextSelection)) {
+          return fail("unsupported-selection", "The current selection type is not supported.");
+        }
+        if (editor.state.selection.empty) {
+          return fail("no-selection", "Select text before creating an AI edit context.");
+        }
+        if (!isMarkweaveAskAiSelectionEligible(editor)) {
+          return fail("unsupported-selection", "The current selection cannot be reviewed as a text edit.");
+        }
       }
 
-      const askAiSelection = createMarkweaveAskAiSelection(editor);
-      if (!askAiSelection) {
-        return fail("unsupported-selection", "The current selection cannot be captured.");
+      const capturedTarget = createMarkweaveAiEditTarget(editor, options.scope);
+      if (!capturedTarget) {
+        return fail(options.scope === "selection" ? "no-selection" : "unsupported-scope", "The requested AI edit scope cannot be captured.");
       }
-      const selection: MarkweaveAiEditSelection = {
-        ...askAiSelection,
-        markdown: serializeSelectionMarkdown(editor),
-      };
+      const askAiSelection = options.scope === "selection" ? createMarkweaveAskAiSelection(editor) : null;
+      const target = askAiSelection
+        ? { ...capturedTarget, ...askAiSelection, scope: capturedTarget.scope, lineRange: capturedTarget.lineRange }
+        : capturedTarget;
+      const selection: MarkweaveAiEditSelection = target;
       const abortController = new AbortController();
       const context: MarkweaveAiEditContext = {
         id: createContextId(),
         lang: normalizeMarkweaveLang(editorLanguages.get(editor)),
         selection,
+        target,
         signal: abortController.signal,
         metadata: options.metadata,
       };
-      if (!startMarkweaveAskAiTarget(editor)) {
+      if (options.scope === "selection" && !startMarkweaveAskAiTarget(editor)) {
         return fail("unsupported-selection", "The current selection cannot be captured.");
       }
+      const range = options.scope === "selection"
+        ? null
+        : {
+            from: target.from,
+            to: target.to,
+            originalContent: editor.state.doc.slice(target.from, target.to).content,
+            conflict: false,
+          };
       sessions.set(editor, {
         context,
         abortController,
@@ -480,9 +578,15 @@ export function createMarkweaveAiEditController(editor: Editor): MarkweaveAiEdit
         proposal: null,
         error: null,
         conflictNotified: false,
+        hunks: [],
+        range,
       });
       dispatchRefresh(editor);
       return ok(context);
+    },
+
+    captureSelection(options = {}) {
+      return controller.capture({ ...options, scope: "selection" });
     },
 
     updateProposal(proposal) {
@@ -497,7 +601,9 @@ export function createMarkweaveAiEditController(editor: Editor): MarkweaveAiEdit
 
       if (proposal.status === "streaming") {
         session.phase = "streaming";
-        if (proposal.markdown.trim()) {
+        // Multi-block and document proposals are complete-target snapshots. Rendering
+        // a partial stream would make the unreceived suffix look deleted.
+        if (!session.range && proposal.markdown.trim()) {
           schedulePreview(editor, proposal.contextId, proposal.markdown);
         }
         dispatchRefresh(editor);
@@ -512,6 +618,43 @@ export function createMarkweaveAiEditController(editor: Editor): MarkweaveAiEdit
         dispatchRefresh(editor);
         return fail("incomplete-proposal", session.error);
       }
+      if (session.range) {
+        const parsed = parseMarkweaveAiEditProposal(editor, proposal.markdown);
+        if (!parsed.ok) {
+          session.phase = "error";
+          session.error = parsed.reason === "invalid-markdown"
+            ? "The completed AI edit proposal is not valid Markdown."
+            : "The completed AI edit proposal is incompatible with the editor schema.";
+          dispatchRefresh(editor);
+          return fail(parsed.reason, session.error);
+        }
+        const diff = createMarkweaveAiEditDiff(
+          editor,
+          session.range.originalContent,
+          parsed.content,
+          session.range.from,
+          session.context.target.lineRange.start,
+        );
+        if (!diff.ok) {
+          session.phase = "error";
+          session.error = diff.reason === "proposal-too-complex"
+            ? "The completed AI edit proposal is too complex to review safely."
+            : "The completed AI edit proposal is incompatible with the editor schema.";
+          dispatchRefresh(editor);
+          return fail(diff.reason, session.error);
+        }
+        if (diff.hunks.length === 0) {
+          session.phase = "error";
+          session.error = "The completed AI edit proposal does not change the captured content.";
+          dispatchRefresh(editor);
+          return fail("incomplete-proposal", session.error);
+        }
+        session.hunks = diff.hunks;
+        session.phase = "review";
+        dispatchRefresh(editor);
+        return ok(publicState(editor));
+      }
+
       const validationError = validateCompleteMarkdown(editor, proposal.markdown);
       if (validationError) {
         session.phase = "error";
@@ -557,6 +700,23 @@ export function createMarkweaveAiEditController(editor: Editor): MarkweaveAiEdit
 
       cancelPendingPreview(editor);
       sessions.delete(editor);
+      if (session.range) {
+        const appliedRanges = session.hunks.map((hunk) => ({ from: hunk.from, to: hunk.to }));
+        const appliedRange = { from: session.range.from, to: session.range.to };
+        try {
+          const transaction = applyMarkweaveAiEditHunks(editor.state.tr, session.hunks).scrollIntoView();
+          editor.view.dispatch(transaction);
+        } catch {
+          session.phase = "error";
+          session.error = "The AI edit proposal could not be applied to the current schema.";
+          sessions.set(editor, session);
+          dispatchRefresh(editor);
+          return fail("schema-incompatible", session.error);
+        }
+        const decision = createDecision(session, "accepted", appliedRange, appliedRanges);
+        emitDecision(editor, decision);
+        return ok(decision);
+      }
       if (!acceptMarkweaveAskAiResult(editor, session.proposal.markdown)) {
         session.phase = "error";
         session.error = "The AI edit proposal could not be applied to the current schema.";
@@ -617,6 +777,12 @@ export function createMarkweaveAiEditController(editor: Editor): MarkweaveAiEdit
       controller.discard(session.context.id);
     }
   });
-  controllerRuntimes.set(editor, { controller, listeners, decisionListeners, unsubscribeMode });
+  controllerRuntimes.set(editor, {
+    controller,
+    listeners,
+    decisionListeners,
+    selectionListeners,
+    unsubscribeMode,
+  });
   return controller;
 }

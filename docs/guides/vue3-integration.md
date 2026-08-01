@@ -1,6 +1,6 @@
 ---
 owner: refinex
-updated: 2026-07-31
+updated: 2026-08-01
 status: active
 referenced_by: docs/README.md#knowledge-map
 ---
@@ -295,7 +295,7 @@ async function reviseSelection() {
 </template>
 ```
 
-`selection` contains only the target's `from`, `to`, `text`, `html`, and `markdown`, never the full document. Do not use the captured numeric positions to patch the document yourself; `accept(contextId)` applies the currently mapped target as one undoable transaction.
+`captureSelection()` remains an exact ordinary-text capture. `getSelection()` / `subscribeSelection()` lazily expose content and a one-based block-precision `lineRange` in normalized Markdown. For selected blocks or document-wide multi-edit review, explicitly call `capture({ scope: "blocks" | "document" })` and return the complete revised target Markdown. Markweave computes and previews at most 200 structural hunks after `complete` and applies all hunks in one transaction; never patch with captured positions.
 
 ### Cumulative streaming and headless controls
 
@@ -328,13 +328,13 @@ async function submitStream(
 }
 ```
 
-`captureSelection()` renders Markweave's default controls. `captureSelection({ controls: "none" })` hides only the action bar; valid in-place preview remains visible. A custom surface must read `getState()` before `subscribe()` because subscriptions only report later changes, and must dispose both `subscribe` and `onDecision` listeners when it unmounts. Call `accept` only in `review`; `discard` is valid for any active phase. `failProposal` enters `error` without changing the document.
+`captureSelection()` renders default controls; `controls: "none"` hides only the action bar. Exact selections may preview while streaming, while block/document diffs appear only after `complete`. Read `getState()` before state `subscribe()`; `subscribeSelection()` immediately replays the current selection. Dispose every listener on unmount.
 
 ### State, errors, and safety
 
-Phases are `idle`, `captured`, `streaming`, `review`, `error`, and `conflict`. Errors are `readonly`, `no-selection`, `unsupported-selection`, `active-review`, `stale-context`, `invalid-markdown`, `schema-incompatible`, `incomplete-proposal`, and `conflict`. Only one context may be active per editor.
+Phases are `idle`, `captured`, `streaming`, `review`, `error`, and `conflict`. Errors include `active-review`, `stale-context`, `incomplete-proposal`, `unsupported-scope`, and `proposal-too-complex`. Only one context may be active per editor. Subscribe to accepted, discarded, and conflict decisions with `onDecision`. Editing inside the target, switching to View mode, or teardown aborts the context `AbortSignal`.
 
-V1 captures only a non-empty ordinary text selection in editable Live mode; code blocks, tables/cells, media/atoms, `NodeSelection`, and `CellSelection` return `unsupported-selection`. Proposals may still contain schema-supported lists, code, and math. Edits outside the target remap its range; editing inside it, switching to View, discarding, or destroying the editor aborts the context `AbortSignal`. Ignore late work after abort or `stale-context`. Preview, error, conflict, and discard never change serialized content or undo history; acceptance is one transaction and one undo step. `onDecision` reports `accepted`, `discarded`, or `conflict`, echoes metadata, and may include `appliedRange` after acceptance.
+Exact `selection` still rejects code, table, and media targets. `blocks/document` may carry unchanged complex structures and validate the complete proposal with a bounded multi-hunk diff. Edits outside the target remap it; edits inside fail closed. Preview, error, conflict, and discard never change the document; acceptance is one transaction and one undo step, with multi-scope ranges available as `appliedRanges`.
 
 ## Tables, Compatibility AI, And Copy Callbacks
 

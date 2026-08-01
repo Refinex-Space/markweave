@@ -1,6 +1,6 @@
 ---
 owner: refinex
-updated: 2026-07-31
+updated: 2026-08-01
 status: active
 referenced_by: docs/README.md#knowledge-map
 ---
@@ -298,7 +298,7 @@ Vue 2 hosts obtain the same `MarkweaveAiEditController` as React and Vue 3 throu
 
 ### Controller lifecycle and complete response
 
-The callback receives a controller after editor creation and `null` before destruction or recreation. Replace the stored reference on every controller lifecycle callback and never reuse it after `null`.
+The callback receives a controller after editor creation and `null` on final destruction. A keyed Vue 2 replacement publishes its successor on the next tick so stale cleanup cannot overwrite the new reference with `null`. Replace the stored reference on every callback and never reuse it after `null`.
 
 ```vue
 <MarkweaveEditor :on-ai-edit-controller-change="setAiEditController" />
@@ -334,17 +334,38 @@ export default {
 };
 ```
 
-The context contains only `selection.from`, `to`, `text`, `html`, and `markdown`, never the full document. Do not patch with captured positions; `accept(contextId)` applies the live mapped target in one undoable transaction.
+`captureSelection()` remains an exact ordinary-text capture. `getSelection()` and `subscribeSelection()` lazily expose `text`, `html`, `markdown`, and a one-based block-precision `lineRange` in normalized Markdown. Selection content is intentionally absent from the high-frequency runtime snapshot.
+
+### Selected blocks and document-wide multi-edit review
+
+```js
+const snapshot = controller.getSelection();
+const unsubscribe = controller.subscribeSelection(renderSelectionHint);
+// A "revise selected blocks" action; a collapsed cursor targets its top-level block.
+const capturedBlocks = controller.capture({
+  scope: "blocks",
+  controls: "default",
+});
+
+// A separate, explicit "review and revise document" action.
+const capturedDocument = controller.capture({
+  scope: "document",
+  controls: "default",
+  metadata: { action: "revise-document" },
+});
+```
+
+`selection` requires an eligible non-empty text range. `blocks` expands the range or cursor to covering top-level blocks. `document` explicitly captures the whole document without requiring a selection. For blocks and documents, return the complete revised Markdown for the captured target, never ProseMirror positions or a patch. Markweave waits for `complete`, computes and previews at most 200 structural hunks, and applies all hunks in one transaction and one undo step. `onDecision.appliedRanges` reports the mapped ranges actually applied. Full-document capture must remain an explicit host action and must not be inferred merely from an empty selection.
 
 ### Cumulative streaming and headless controls
 
-Every streaming call must pass the complete accumulated Markdown, not one token, and finish with `status: "complete"`. Temporarily invalid streaming frames retain the last valid preview; call `failProposal` for a host failure. `captureSelection({ controls: "none" })` hides only the default bar. Read `getState()` before `subscribe()` because subscriptions report only later changes, and dispose both `subscribe` and `onDecision` listeners in `beforeDestroy`. Call `accept` only during `review`; `discard` works in any active phase.
+Every streaming call must pass the complete accumulated Markdown, not one token, and finish with `status: "complete"`. Exact selections may update their local preview while streaming; block/document diffs appear only after completion so an unreceived suffix never looks deleted. `controls: "none"` hides only the default bar. Read `getState()` before state `subscribe()`; `subscribeSelection()` immediately replays the current selection. Dispose all listeners in `beforeDestroy`.
 
 ### State, errors, and safety
 
-Phases are `idle`, `captured`, `streaming`, `review`, `error`, and `conflict`. Errors are `readonly`, `no-selection`, `unsupported-selection`, `active-review`, `stale-context`, `invalid-markdown`, `schema-incompatible`, `incomplete-proposal`, and `conflict`; one editor allows one active context.
+Phases are `idle`, `captured`, `streaming`, `review`, `error`, and `conflict`. Errors include `active-review`, `stale-context`, `incomplete-proposal`, `unsupported-scope`, and `proposal-too-complex`; one editor allows one active context.
 
-V1 captures only an ordinary non-empty text selection in editable Live mode. Code blocks, tables/cells, media/atoms, `NodeSelection`, and `CellSelection` are unsupported targets, but proposals may contain schema-supported lists, code, and math. External edits remap the range; editing inside the target, switching View, discarding, or editor teardown aborts the context `AbortSignal`. Ignore late work after abort or `stale-context`. Preview, failure, conflict, and discard do not change serialized content or undo history. `onDecision` reports `accepted`, `discarded`, or `conflict` and echoes metadata.
+Exact `selection` still rejects code blocks, tables/cells, media/atoms, `NodeSelection`, and `CellSelection`. `blocks/document` may safely carry unchanged structures and validate the complete proposal against the schema. External edits remap the range; editing inside the target, switching View, discarding, or editor teardown aborts the context `AbortSignal`. Ignore late work after abort or `stale-context`. Preview, failure, conflict, and discard do not change serialized content or undo history.
 
 ## Tables, Compatibility AI, And Copy Callbacks
 

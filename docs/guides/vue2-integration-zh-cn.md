@@ -1,6 +1,6 @@
 ---
 owner: refinex
-updated: 2026-07-31
+updated: 2026-08-01
 status: active
 referenced_by: docs/README.md#knowledge-map
 ---
@@ -298,7 +298,7 @@ Vue 2 宿主通过 `:on-ai-edit-controller-change` 获取与 React/Vue 3 相同�
 
 ### 控制器生命周期与完整响应
 
-编辑器创建后回调传入控制器，销毁或重建前传入 `null`。每次控制器生命周期回调都应替换宿主引用，收到 `null` 后不得复用旧控制器。
+编辑器创建后回调传入控制器，最终销毁时传入 `null`。Vue 2 的 keyed 重建会在下一次 tick 发布后继控制器，旧实例清理不会再用迟到的 `null` 覆盖新引用。每次回调仍应替换宿主引用，收到 `null` 后不得复用旧控制器。
 
 ```vue
 <MarkweaveEditor :on-ai-edit-controller-change="setAiEditController" />
@@ -334,17 +334,44 @@ export default {
 };
 ```
 
-上下文只含 `selection.from`、`to`、`text`、`html` 和 `markdown`，不会包含整篇文档。不要用捕获时的位置自行修改文档；应调用 `accept(contextId)`，由 Markweave 在当前映射目标上执行一次可撤销事务。
+`captureSelection()` 继续只捕获精确普通文本选区。`getSelection()` 与 `subscribeSelection()` 可让宿主按需取得选区的 `text`、`html`、`markdown` 及 `lineRange`；行号是规范化 Markdown 的 1-based 块级位置，不是上传原文件的字节级源码位置。选区正文不会进入高频 runtime snapshot。
+
+### 所选段落与全文多处修改
+
+```js
+const snapshot = controller.getSelection();
+const unsubscribe = controller.subscribeSelection((selection) => {
+  renderSelectionHint(selection); // 例如：第 5-7 行
+});
+
+// “修改所选段落”动作；没有选区时修改光标所在顶层块。
+const capturedBlocks = controller.capture({
+  scope: "blocks",
+  controls: "default",
+  metadata: { action: "revise" },
+});
+
+// 独立且明确的“检查并修改全文”动作，不要由空选区自动触发。
+const capturedDocument = controller.capture({
+  scope: "document",
+  controls: "default",
+  metadata: { action: "revise-document" },
+});
+```
+
+`scope: "selection"` 要求普通非空文本选区并保持单点替换；`blocks` 将当前选区或光标扩展到覆盖的顶层块；`document` 不要求选区并显式捕获全文。后两种模式要求 AI 返回捕获范围修改后的完整 Markdown，而不是补丁、ProseMirror 位置或单个片段。Markweave 在 `complete` 后计算最多 200 个结构化 hunk，原位展示多处 Diff；流式阶段不会把尚未收到的文档后缀误显示为删除。接受时所有 hunk 通过一次事务应用，`onDecision.appliedRanges` 返回映射后的实际应用范围；舍弃、失败和冲突不修改文档。
+
+不要用捕获时的位置自行修改文档。全文捕获必须是宿主明确展示并授权的产品动作，Markweave 不会因为没有选区自动扩大范围。
 
 ### 累计流式响应与 headless 操作条
 
-每次流式调用必须传入当前累计的完整 Markdown，而非单个 token，并以 `status: "complete"` 结束。暂时无法解析的流式片段保留上一次有效预览；宿主失败时调用 `failProposal`。`captureSelection({ controls: "none" })` 只隐藏默认操作条。由于 `subscribe()` 只报告后续变化，自定义界面应先读取 `getState()`，并在 `beforeDestroy` 中注销 `subscribe` 和 `onDecision` 监听。只有 `review` phase 可 `accept`；任意活动 phase 均可 `discard`。
+每次流式调用必须传入当前累计的完整 Markdown，而非单个 token，并以 `status: "complete"` 结束。精确选区可在流式期间更新局部预览；`blocks/document` 只在 complete 后展示多处 Diff。宿主失败时调用 `failProposal`。`controls: "none"` 只隐藏默认操作条。由于状态 `subscribe()` 只报告后续变化，自定义界面应先读取 `getState()`；选区 `subscribeSelection()` 会立即回放当前选区。两类监听都应在 `beforeDestroy` 中注销。只有 `review` phase 可 `accept`；任意活动 phase 均可 `discard`。
 
 ### 状态、错误码与安全规则
 
-phase 包括 `idle`、`captured`、`streaming`、`review`、`error` 和 `conflict`。错误码包括 `readonly`、`no-selection`、`unsupported-selection`、`active-review`、`stale-context`、`invalid-markdown`、`schema-incompatible`、`incomplete-proposal` 和 `conflict`；每个编辑器只允许一个活动上下文。
+phase 包括 `idle`、`captured`、`streaming`、`review`、`error` 和 `conflict`。错误码包括 `active-review`、`stale-context`、`incomplete-proposal`、`unsupported-scope` 和 `proposal-too-complex`；每个编辑器只允许一个活动上下文。
 
-V1 只捕获可编辑 Live 模式下的普通非空文本选区；代码块、表格/单元格、媒体/原子节点、`NodeSelection` 和 `CellSelection` 暂不支持，但提案可包含 schema 支持的列表、代码和数学公式。目标外编辑会映射范围；目标内部编辑、切换 View、舍弃或编辑器销毁会中止上下文 `AbortSignal`。signal 中止或返回 `stale-context` 后必须忽略迟到任务。预览、失败、冲突和舍弃不改变序列化内容或撤销历史。`onDecision` 报告 `accepted`、`discarded` 或 `conflict` 并回传 metadata。
+精确 `selection` 仍拒绝代码块、表格/单元格、媒体/原子节点、`NodeSelection` 和 `CellSelection`；`blocks/document` 可以安全携带这些未改变的结构，并由 schema 校验完整提案。目标外编辑会映射范围；目标内部编辑、切换 View、舍弃或编辑器销毁会中止上下文 `AbortSignal`。signal 中止或返回 `stale-context` 后必须忽略迟到任务。预览、失败、冲突和舍弃不改变序列化内容或撤销历史。
 
 ## 表格、兼容 AI 回调与复制回调
 
