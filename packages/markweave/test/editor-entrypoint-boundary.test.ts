@@ -93,7 +93,7 @@ describe("editor entrypoint boundary", () => {
         version?: string;
       };
 
-      expect(packageJson.version).toBe("0.3.7");
+      expect(packageJson.version).toBe("0.3.8");
       expect(packageJson.homepage).toBe(homepageUrl);
       expect(packageJson.bugs).toEqual({ url: bugsUrl });
       expect(packageJson.repository).toEqual({
@@ -153,6 +153,9 @@ describe("editor entrypoint boundary", () => {
     expect(indexSource).toContain("MarkweaveSearchController");
     expect(indexSource).toContain("createMarkweaveAiEditController");
     expect(indexSource).toContain("MarkweaveAiEditController");
+    expect(indexSource).toContain("MarkweaveAiEditSelectionSnapshot");
+    expect(indexSource).toContain("MarkweaveAiEditScope");
+    expect(indexSource).toContain("MarkweaveAiEditHunk");
     expect(indexSource).toContain("MarkweaveAskAiConfig");
     expect(indexSource).not.toContain("runMarkweaveAskAiHandler");
     expect(reactShim).toContain('from "@markweave/react"');
@@ -163,17 +166,20 @@ describe("editor entrypoint boundary", () => {
     expect(reactIndexSource).toContain("MarkweaveSearchController");
     expect(reactIndexSource).toContain("createMarkweaveAiEditController");
     expect(reactIndexSource).toContain("MarkweaveAiEditController");
+    expect(reactIndexSource).toContain("MarkweaveAiEditSelectionSnapshot");
     expect(reactIndexSource).toContain("MarkweaveAskAiConfig");
     expect(vue2IndexSource).toContain("MarkweaveEditor");
     expect(vue2IndexSource).toContain("useMarkweaveEditorController");
     expect(vue2IndexSource).toContain("MarkweaveAskAiConfig");
     expect(vue2IndexSource).toContain("createMarkweaveAiEditController");
     expect(vue2IndexSource).toContain("MarkweaveAiEditController");
+    expect(vue2IndexSource).toContain("MarkweaveAiEditSelectionSnapshot");
     expect(vue3IndexSource).toContain("MarkweaveEditor");
     expect(vue3IndexSource).toContain("useMarkweaveEditorController");
     expect(vue3IndexSource).toContain("MarkweaveAskAiConfig");
     expect(vue3IndexSource).toContain("createMarkweaveAiEditController");
     expect(vue3IndexSource).toContain("MarkweaveAiEditController");
+    expect(vue3IndexSource).toContain("MarkweaveAiEditSelectionSnapshot");
 
     const defaultFormat: MarkweaveContentFormat = "markdown";
     const tocState: MarkweaveTocState = { activeId: null, items: [] };

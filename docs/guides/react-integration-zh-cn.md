@@ -1,6 +1,6 @@
 ---
 owner: refinex
-updated: 2026-07-31
+updated: 2026-08-01
 status: active
 referenced_by: docs/README.md#knowledge-map
 ---
@@ -297,7 +297,11 @@ export function AiDocumentEditor() {
 }
 ```
 
-`selection` 只包含目标选区的 `from`、`to`、`text`、`html` 和 `markdown`。数字位置属于捕获瞬间的 ProseMirror 快照，不要用它们自行修改文档；应调用 `accept(contextId)`，由 Markweave 在当前映射后的目标上执行一次可撤销事务。
+`captureSelection()` 继续只捕获精确普通文本选区。宿主可通过 `getSelection()` / `subscribeSelection()` 按需读取选区正文与规范化 Markdown 的 1-based 块级 `lineRange`，而不会把正文塞入高频 runtime snapshot。
+
+需要修改所选段落或全文多处内容时，调用 `capture({ scope: "blocks" | "document" })`；`blocks` 扩展到覆盖的顶层块，`document` 不要求选区但必须由宿主显式触发。AI 应返回捕获范围修改后的完整 Markdown，不返回 ProseMirror 位置或补丁。Markweave 在 `complete` 后计算并展示最多 200 个结构化 hunk，接受时一次事务应用全部变更并通过 `appliedRanges` 报告范围。流式阶段不会提前展示不完整的全文 Diff。
+
+不要用捕获时的数字位置自行修改文档；应调用 `accept(contextId)`。
 
 ### 累计流式响应
 
@@ -330,7 +334,7 @@ async function submitStream(
 }
 ```
 
-流式中暂时无法解析的片段会保留上一次有效预览。最终 `complete` Markdown 必须能被解析并满足当前 schema；否则 `updateProposal` 返回 `invalid-markdown` 或 `schema-incompatible`，原文保持不变。
+精确选区在流式中保留上一次有效局部预览；`blocks/document` 只在最终 `complete` 后展示多处 Diff。最终 Markdown 必须能被解析并满足当前 schema；否则原文保持不变。
 
 ### 默认操作条与 headless 模式
 
@@ -364,14 +368,16 @@ phase 包括 `idle`、`captured`、`streaming`、`review`、`error` 和 `conflic
 | `readonly` | 编辑器不处于可编辑的 Live 模式。 |
 | `no-selection` | 当前选区为空。 |
 | `unsupported-selection` | 目标为代码块、表格/单元格、媒体/原子节点、`NodeSelection` 或 `CellSelection`。 |
+| `unsupported-scope` | 请求的捕获范围无法建立。 |
 | `active-review` | 已存在 captured、streaming、review 或 error 上下文，必须先接受或舍弃。 |
 | `stale-context` | 上下文已舍弃、接受、替换或销毁，迟到结果必须忽略。 |
 | `invalid-markdown` | 完整结果无法解析为 Markdown。 |
 | `schema-incompatible` | 解析结果不能由当前编辑器 schema 表示。 |
 | `incomplete-proposal` | 完整结果为空，或尚未进入 review 就请求接受。 |
+| `proposal-too-complex` | 多范围 Diff 超过安全复杂度或 hunk 上限。 |
 | `conflict` | 宿主处理期间目标选区内容发生变化。 |
 
-目标外编辑会映射活动范围；目标内部编辑、切换到 View、停止/舍弃或销毁编辑器都会中止上下文的 `AbortSignal`。宿主应把该 signal 传给网络请求并忽略迟到任务。`onDecision` 报告 `accepted`、`discarded` 或 `conflict`，回传只读 metadata，并只在接受后可能提供 `appliedRange`。预览、错误、冲突和舍弃都不会改变 Markdown/HTML/JSON 或撤销历史；接受只产生一次事务和一次 Undo。虽然 V1 不允许把代码块、表格或媒体作为捕获目标，提案仍可包含当前 schema 支持的段落、列表、代码块和数学公式。
+目标外编辑会映射活动范围；目标内部编辑、切换到 View、停止/舍弃或销毁编辑器都会中止上下文的 `AbortSignal`。`selection` 仍拒绝代码块、表格和媒体目标；`blocks/document` 可携带未改变的复杂结构并校验完整提案。预览、错误、冲突和舍弃不改变文档或撤销历史；接受只产生一次事务和一次 Undo。
 
 ## 表格、兼容 AI 回调与复制回调
 

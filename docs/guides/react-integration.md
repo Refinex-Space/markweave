@@ -1,6 +1,6 @@
 ---
 owner: refinex
-updated: 2026-07-31
+updated: 2026-08-01
 status: active
 referenced_by: docs/README.md#knowledge-map
 ---
@@ -297,7 +297,7 @@ export function AiDocumentEditor() {
 }
 ```
 
-`selection` contains only `from`, `to`, `text`, `html`, and `markdown` for the captured target. The numeric positions identify the original ProseMirror snapshot; do not use them to patch the document yourself. Call `accept(contextId)` so Markweave applies the currently mapped target as one undoable transaction.
+`captureSelection()` remains an exact ordinary-text capture. `getSelection()` / `subscribeSelection()` lazily expose content and a one-based block-precision `lineRange` in normalized Markdown without placing content in runtime snapshots. For selected blocks or document-wide multi-edit review, explicitly call `capture({ scope: "blocks" | "document" })` and return the complete revised Markdown for that target. Markweave computes and previews at most 200 structural hunks after `complete`, then applies all hunks in one transaction. Never patch with captured ProseMirror positions.
 
 ### Cumulative streaming
 
@@ -330,7 +330,7 @@ async function submitStream(
 }
 ```
 
-Streaming frames that are temporarily incomplete keep the last valid preview. The final `complete` Markdown must parse against the current schema; otherwise `updateProposal` returns `invalid-markdown` or `schema-incompatible` and the original document remains unchanged.
+Exact selections retain their last valid local preview while streaming. Block/document diffs appear only after `complete`, so an unreceived suffix never looks deleted. The final Markdown must parse against the current schema or the original document remains unchanged.
 
 ### Default and headless controls
 
@@ -364,14 +364,16 @@ Phases are `idle`, `captured`, `streaming`, `review`, `error`, and `conflict`. O
 | `readonly` | The editor is not in editable Live mode. |
 | `no-selection` | The selection is empty. |
 | `unsupported-selection` | The target is a code block, table/cell, media/atom node, `NodeSelection`, or `CellSelection`. |
+| `unsupported-scope` | The requested capture scope could not be established. |
 | `active-review` | Another captured, streaming, review, or error context must be accepted or discarded first. |
 | `stale-context` | The context was discarded, accepted, replaced, or destroyed; ignore the late result. |
 | `invalid-markdown` | Complete output could not be parsed as Markdown. |
 | `schema-incompatible` | Parsed output cannot be represented by the current editor schema. |
 | `incomplete-proposal` | Complete output is empty, or acceptance was requested before review. |
+| `proposal-too-complex` | A multi-scope diff exceeds the safe complexity or hunk budget. |
 | `conflict` | The captured target changed while the host was working. |
 
-Edits outside the target remap its live range. Editing inside the target, switching to View mode, stopping/discarding, or destroying the editor aborts the context `AbortSignal`; pass that signal to the host request and ignore late work. `onDecision` reports `accepted`, `discarded`, or `conflict`, echoes immutable metadata, and includes `appliedRange` only when available after acceptance. Preview, error, conflict, and discard never change Markdown/HTML/JSON or undo history. Accepted output is one transaction and one undo step. Proposals may contain schema-supported paragraphs, lists, code blocks, and math even though those node types are not valid V1 capture targets.
+Edits outside the target remap its live range. Editing inside the target aborts the context and fails closed. Exact `selection` still rejects code, table, and media targets; `blocks/document` may carry unchanged complex structures and validate the complete proposal. Preview, error, conflict, and discard never change the document; acceptance is one transaction and one undo step, with multi-scope ranges reported in `appliedRanges`.
 
 ## Tables, Compatibility AI, And Copy Callbacks
 

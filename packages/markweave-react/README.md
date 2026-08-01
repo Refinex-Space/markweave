@@ -25,7 +25,7 @@ Version 0.3.5 keeps this fixed positioning and resolver-backed first-screen imag
 
 ## Host-Driven AI Edit Review
 
-Version 0.3.6 exports `MarkweaveAiEditController` and exposes it through `onAiEditControllerChange`. The host captures a supported text selection, calls its own AI service, and submits Markdown for in-place review; Markweave does not send provider requests or receive credentials.
+Version 0.3.8 exposes lazy selection snapshots plus explicit selection, block, and document AI edit scopes through `MarkweaveAiEditController`. Multi-scope proposals render as atomic multi-hunk review without Markweave sending provider requests or receiving credentials.
 
 ```tsx
 import { useState } from "react";

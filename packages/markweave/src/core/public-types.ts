@@ -85,10 +85,36 @@ export interface MarkweaveAiEditSelection {
   readonly markdown: string;
 }
 
+export type MarkweaveAiEditScope = "selection" | "blocks" | "document";
+
+/**
+ * One-based line range in Markweave's normalized Markdown projection.
+ * `block` precision intentionally does not claim byte-for-byte source offsets.
+ */
+export interface MarkweaveAiEditLineRange {
+  readonly start: number;
+  readonly end: number;
+  readonly basis: "normalized-markdown";
+  readonly precision: "block";
+}
+
+export interface MarkweaveAiEditSelectionSnapshot extends MarkweaveAiEditSelection {
+  readonly lineRange: MarkweaveAiEditLineRange;
+  readonly eligible: boolean;
+  readonly reason: "unsupported-selection" | null;
+}
+
+export interface MarkweaveAiEditTarget extends MarkweaveAiEditSelection {
+  readonly scope: MarkweaveAiEditScope;
+  readonly lineRange: MarkweaveAiEditLineRange;
+}
+
 export interface MarkweaveAiEditContext {
   readonly id: string;
   readonly lang: MarkweaveLang;
   readonly selection: MarkweaveAiEditSelection;
+  /** Scope-aware capture. `selection` remains as the backward-compatible content alias. */
+  readonly target: MarkweaveAiEditTarget;
   readonly signal: AbortSignal;
   readonly metadata?: Readonly<Record<string, unknown>>;
 }
@@ -105,11 +131,13 @@ export type MarkweaveAiEditErrorCode =
   | "readonly"
   | "no-selection"
   | "unsupported-selection"
+  | "unsupported-scope"
   | "active-review"
   | "stale-context"
   | "invalid-markdown"
   | "schema-incompatible"
   | "incomplete-proposal"
+  | "proposal-too-complex"
   | "conflict";
 
 export type MarkweaveAiEditResult<T> =
@@ -132,18 +160,43 @@ export interface MarkweaveAiEditState {
   readonly context: MarkweaveAiEditContext | null;
   readonly proposal: MarkweaveAiEditProposal | null;
   readonly error: string | null;
+  readonly hunks: readonly MarkweaveAiEditHunk[];
+}
+
+export interface MarkweaveAiEditHunk {
+  readonly id: string;
+  readonly kind: "insert" | "delete" | "replace";
+  readonly from: number;
+  readonly to: number;
+  readonly originalMarkdown: string;
+  readonly proposedMarkdown: string;
+  readonly lineRange: MarkweaveAiEditLineRange;
 }
 
 export interface MarkweaveAiEditDecision {
   readonly contextId: string;
   readonly decision: "accepted" | "discarded" | "conflict";
   readonly original: MarkweaveAiEditSelection;
+  readonly originalTarget: MarkweaveAiEditTarget;
   readonly proposedMarkdown: string | null;
   readonly metadata?: Readonly<Record<string, unknown>>;
   readonly appliedRange?: { readonly from: number; readonly to: number };
+  readonly appliedRanges?: readonly { readonly from: number; readonly to: number }[];
 }
 
 export interface MarkweaveAiEditController {
+  /** Lazily serializes the current non-empty selection for host UI. */
+  readonly getSelection: () => MarkweaveAiEditSelectionSnapshot | null;
+  /** Emits only while a host listener is registered; content is not added to runtime snapshots. */
+  readonly subscribeSelection: (
+    listener: (selection: MarkweaveAiEditSelectionSnapshot | null) => void,
+  ) => () => void;
+  readonly capture: (options: {
+    readonly scope: MarkweaveAiEditScope;
+    readonly metadata?: Readonly<Record<string, unknown>>;
+    /** Inline review remains visible; this option controls only Markweave's built-in action bar. */
+    readonly controls?: "default" | "none";
+  }) => MarkweaveAiEditResult<MarkweaveAiEditContext>;
   readonly captureSelection: (options?: {
     readonly metadata?: Readonly<Record<string, unknown>>;
     /** Inline review remains visible; this option controls only Markweave's built-in action bar. */
