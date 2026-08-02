@@ -399,6 +399,49 @@ describe("table clipboard paste extension", () => {
     });
   });
 
+  it("leaves mixed rich HTML with a table to the default paste pipeline", () => {
+    const editor = createPasteEditor();
+    const payload = {
+      "text/html": [
+        "<p><strong>Before table</strong></p>",
+        "<table><tbody><tr><th>Module</th><th>Artifact</th></tr><tr><td>core</td><td>io.core</td></tr></tbody></table>",
+        "<p><em>After table</em></p>",
+      ].join(""),
+      "text/plain": "Before table\nModule\tArtifact\ncore\tio.core\nAfter table",
+    };
+
+    expect(dispatchPaste(editor, payload)).toEqual({ handled: false, defaultPrevented: false });
+    expect(tableShape(editor)).toEqual([]);
+
+    expect(dispatchNativePaste(editor, payload)).toEqual({ defaultPrevented: true });
+    expect(tableShape(editor)).toEqual([{ rows: 2, columns: 2, rowWidths: [2, 2] }]);
+    expect(editor.state.doc.textContent).toContain("Before tableModuleArtifactcoreio.coreAfter table");
+
+    const serialized = JSON.stringify(editor.state.doc.toJSON());
+    expect(serialized).toContain('"type":"bold"');
+    expect(serialized).toContain('"type":"italic"');
+  });
+
+  it("leaves multiple HTML tables to the default paste pipeline", () => {
+    const editor = createPasteEditor();
+    const payload = {
+      "text/html": [
+        "<table><tbody><tr><td>A1</td><td>A2</td></tr></tbody></table>",
+        "<p>Between tables</p>",
+        "<table><tbody><tr><td>B1</td><td>B2</td></tr></tbody></table>",
+      ].join(""),
+      "text/plain": "A1\tA2\nBetween tables\nB1\tB2",
+    };
+
+    expect(dispatchPaste(editor, payload)).toEqual({ handled: false, defaultPrevented: false });
+    expect(dispatchNativePaste(editor, payload)).toEqual({ defaultPrevented: true });
+    expect(tableShape(editor)).toEqual([
+      { rows: 1, columns: 2, rowWidths: [2] },
+      { rows: 1, columns: 2, rowWidths: [2] },
+    ]);
+    expect(editor.state.doc.textContent).toContain("A1A2Between tablesB1B2");
+  });
+
   it("preserves merged-cell spans when pasting HTML tables", () => {
     const editor = createPasteEditor();
     const result = dispatchPaste(editor, {

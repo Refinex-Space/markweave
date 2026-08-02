@@ -2360,6 +2360,7 @@ const VueCodeBlockControls = defineComponent({
   setup(props) {
     const controlsRef = ref<HTMLDivElement | null>(null);
     const languageButtonRef = ref<HTMLButtonElement | null>(null);
+    const languageMenuRef = ref<HTMLDivElement | null>(null);
     const searchInputRef = ref<HTMLInputElement | null>(null);
     const languageListRef = ref<HTMLDivElement | null>(null);
     const languageMenuDomId = ref<string | null>(null);
@@ -2488,9 +2489,11 @@ const VueCodeBlockControls = defineComponent({
 
       if (languageMenuOpen.value && languageButtonRef.value) {
         const buttonRect = languageButtonRef.value.getBoundingClientRect();
+        const menuHeight = languageMenuRef.value?.getBoundingClientRect().height;
         languageMenuPosition.value = calculateCodeBlockLanguageMenuPosition({
           overlayRect,
           buttonRect,
+          menuHeight,
           windowWidth: window.innerWidth,
           windowHeight: window.innerHeight,
         });
@@ -2742,7 +2745,7 @@ const VueCodeBlockControls = defineComponent({
     );
 
     watch(
-      () => [showTargetControls.value, collapseRevision.value, codeBlock.value?.pos ?? null, languageMenuOpen.value, visibleMermaidMode.value] as const,
+      () => [showTargetControls.value, collapseRevision.value, codeBlock.value?.pos ?? null, languageItems.value.length, languageMenuOpen.value, visibleMermaidMode.value] as const,
       async () => {
         await nextTick();
         updatePosition();
@@ -3009,6 +3012,7 @@ const VueCodeBlockControls = defineComponent({
           ? h(
               "div",
               {
+                ref: languageMenuRef,
                 class: "markweave-codeblock-language-menu",
                 "data-testid": "markweave-codeblock-language-menu",
                 "data-positioned": languageMenuPosition.value ? "true" : "false",

@@ -262,6 +262,29 @@ export function parseHtmlTable(html: string): ParsedClipboardTable | null {
   );
 }
 
+function isStandaloneHtmlTableFragment(html: string) {
+  if (!html || typeof DOMParser === "undefined") {
+    return false;
+  }
+
+  const document = new DOMParser().parseFromString(html, "text/html");
+  const tables = document.body.querySelectorAll("table");
+
+  if (tables.length !== 1) {
+    return false;
+  }
+
+  const remainingContent = document.body.cloneNode(true) as HTMLElement;
+  remainingContent.querySelector("table")?.remove();
+  remainingContent.querySelectorAll("meta,style,link,script,title").forEach((element) => element.remove());
+
+  if ((remainingContent.textContent ?? "").trim().length > 0) {
+    return false;
+  }
+
+  return remainingContent.querySelector("img,video,audio,iframe,object,embed,hr,input,textarea,select,canvas,svg") === null;
+}
+
 export function parseClipboardTable(payload: ClipboardTablePayload): ParsedClipboardTable | null {
   const htmlTable = payload.html ? parseHtmlTable(payload.html) : null;
   if (htmlTable) {
@@ -893,6 +916,10 @@ export function runMarkweaveTablePaste(editor: Editor, clipboardData: Pick<DataT
   if (didReplaceSelectedCells) {
     editor.view.focus();
     return true;
+  }
+
+  if (html && !isStandaloneHtmlTableFragment(html)) {
+    return false;
   }
 
   const parsedTable = parseClipboardTable({

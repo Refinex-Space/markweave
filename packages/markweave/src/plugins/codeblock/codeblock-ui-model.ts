@@ -397,6 +397,7 @@ export function createMermaidTabPosition(target: CodeBlockTargetState, targetRec
 export function calculateCodeBlockLanguageMenuPosition(input: {
   readonly overlayRect: DOMRect;
   readonly buttonRect: DOMRect;
+  readonly menuHeight?: number;
   readonly windowWidth: number;
   readonly windowHeight: number;
 }) {
@@ -405,11 +406,13 @@ export function calculateCodeBlockLanguageMenuPosition(input: {
   const visibleTop = Math.max(input.overlayRect.top, 8) - input.overlayRect.top;
   const visibleBottom = Math.min(input.overlayRect.bottom, input.windowHeight - 8) - input.overlayRect.top;
   const visibleHeight = Math.max(120, visibleBottom - visibleTop);
-  const menuHeight = Math.min(codeBlockLanguageMenuMaxHeight, visibleHeight - 16, input.overlayRect.height - 16);
+  const maximumMenuHeight = Math.min(codeBlockLanguageMenuMaxHeight, visibleHeight - 16, input.overlayRect.height - 16);
+  const measuredMenuHeight = input.menuHeight && input.menuHeight > 0 ? input.menuHeight : maximumMenuHeight;
+  const menuHeight = Math.min(measuredMenuHeight, maximumMenuHeight);
   const rawLeft = input.buttonRect.right - input.overlayRect.left - codeBlockLanguageMenuWidth;
   const rawTop = input.buttonRect.bottom - input.overlayRect.top + 6;
   const flippedTop = input.buttonRect.top - input.overlayRect.top - menuHeight - 6;
-  const top = rawTop + menuHeight > visibleBottom - 8 ? flippedTop : rawTop;
+  const top = rawTop + maximumMenuHeight > visibleBottom - 8 ? flippedTop : rawTop;
 
   return {
     left: Math.round(clamp(rawLeft, visibleLeft + 8, Math.max(visibleLeft + 8, visibleRight - codeBlockLanguageMenuWidth - 8))),
