@@ -168,6 +168,7 @@ function Icon({ icon }: { readonly icon: IconName }) {
 export function CodeBlockControls({ active, editor, mermaidMode, onMermaidModeChange, readOnly = false }: CodeBlockControlsProps) {
   const controlsRef = useRef<HTMLDivElement | null>(null);
   const languageButtonRef = useRef<HTMLButtonElement | null>(null);
+  const languageMenuRef = useRef<HTMLDivElement | null>(null);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
   const languageListRef = useRef<HTMLDivElement | null>(null);
   const languageMenuDomIdRef = useRef<string | null>(null);
@@ -449,7 +450,8 @@ export function CodeBlockControls({ active, editor, mermaidMode, onMermaidModeCh
 
       if (languageMenuOpen && languageButtonRef.current) {
         const buttonRect = languageButtonRef.current.getBoundingClientRect();
-        setLanguageMenuPosition(calculateCodeBlockLanguageMenuPosition({ overlayRect, buttonRect, windowWidth: window.innerWidth, windowHeight: window.innerHeight }));
+        const menuHeight = languageMenuRef.current?.getBoundingClientRect().height;
+        setLanguageMenuPosition(calculateCodeBlockLanguageMenuPosition({ overlayRect, buttonRect, menuHeight, windowWidth: window.innerWidth, windowHeight: window.innerHeight }));
       }
     };
 
@@ -461,7 +463,7 @@ export function CodeBlockControls({ active, editor, mermaidMode, onMermaidModeCh
       window.removeEventListener("resize", updatePosition);
       window.removeEventListener("scroll", updatePosition, true);
     };
-  }, [showTargetControls, collapseRevision, codeBlock?.pos, editor, languageMenuOpen, visibleMermaidMode]);
+  }, [showTargetControls, collapseRevision, codeBlock?.pos, editor, languageItems.length, languageMenuOpen, visibleMermaidMode]);
 
   if (!showTargetControls && mermaidTargets.length === 0 && !fullscreenViewer) {
     return null;
@@ -832,6 +834,7 @@ export function CodeBlockControls({ active, editor, mermaidMode, onMermaidModeCh
       ) : null}
       {showWritableControls && showTargetControls && languageMenuOpen ? (
         <div
+          ref={languageMenuRef}
           className="markweave-codeblock-language-menu"
           data-testid="markweave-codeblock-language-menu"
           data-positioned={languageMenuPosition ? "true" : "false"}

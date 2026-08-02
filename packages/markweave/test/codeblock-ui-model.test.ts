@@ -82,4 +82,19 @@ describe("code block UI model", () => {
 
     expect(overlayRect.top + position.top).toBe(buttonRect.top - codeBlockLanguageMenuMaxHeight - 6);
   });
+
+  it("keeps a filtered upward language menu anchored by its measured height", () => {
+    const overlayRect = createRect(224, -1807, 1132, 5253);
+    const buttonRect = createRect(967, 1180, 86, 24);
+
+    const position = calculateCodeBlockLanguageMenuPosition({
+      buttonRect,
+      menuHeight: 72,
+      overlayRect,
+      windowHeight: 1265,
+      windowWidth: 1595,
+    });
+
+    expect(overlayRect.top + position.top).toBe(buttonRect.top - 72 - 6);
+  });
 });
