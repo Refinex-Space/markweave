@@ -100,6 +100,9 @@ describe("editor style boundary", () => {
     expect(editorCss).toContain(".selectedCell.markweave-selection-excluded-cell");
     expect(editorCss).toContain('.markweave-table-selection-overlay[data-axis-target="row"]');
     expect(editorCss).toContain('.markweave-table-selection-overlay[data-axis-target="column"]');
+    expect(editorCss).toMatch(
+      /\.markweave-table-selection-overlay\[data-axis-target="row"\],[\s\S]*?\.markweave-table-selection-overlay\[data-axis-target="column"\]\s*\{[^}]*background-image:\s*none;/s,
+    );
     expect(editorCss).toContain("background-color: var(--markweave-table-axis-selection-fill);");
     expect(editorCss).not.toContain("background-color: var(--markweave-selection);");
     expect(axisSelectionFillValues).toHaveLength(2);

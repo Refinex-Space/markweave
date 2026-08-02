@@ -1808,6 +1808,7 @@
 
 .markweave-table-selection-overlay[data-axis-target="row"],
 .markweave-table-selection-overlay[data-axis-target="column"] {
+  background-image: none;
   background-color: var(--markweave-table-axis-selection-fill);
 }
 
