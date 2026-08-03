@@ -10,6 +10,7 @@ import {
   getFloatingToolbarFloatingOptions,
   getFloatingToolbarState,
   shouldShowFloatingToolbar,
+  shouldShowFloatingToolbarForAiState,
 } from "../src/editor-core/selection-state";
 import { getMarkweaveMessages } from "../src/i18n";
 import {
@@ -263,6 +264,23 @@ describe("floating toolbar button model", () => {
       hiddenReason: "table-cell-selection",
       variant: "hidden",
     });
+  });
+
+  it("suppresses the selection toolbar while an AI replacement preview is open", () => {
+    const editor = createEditor("<p>selected text</p>");
+    selectText(editor, "selected text");
+    const snapshot = createSelectionSnapshot(editor);
+
+    expect(shouldShowFloatingToolbarForAiState(snapshot, {
+      editable: true,
+      hasAskAiPreview: true,
+      hasActiveAskAiTableTarget: false,
+    })).toBe(false);
+    expect(shouldShowFloatingToolbarForAiState(snapshot, {
+      editable: true,
+      hasAskAiPreview: false,
+      hasActiveAskAiTableTarget: false,
+    })).toBe(true);
   });
 
   it("returns no visible button models for hidden toolbar state", () => {

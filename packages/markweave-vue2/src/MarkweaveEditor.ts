@@ -119,7 +119,7 @@ import {
   calculateFloatingToolbarPopoverPlacement,
   createSelectionSnapshot,
   markweaveRuntimeProjectionDelayMs,
-  shouldShowFloatingToolbar,
+  shouldShowFloatingToolbarForAiState,
   type EditorSelectionSnapshot,
 } from "markweave/internal/editor-core/selection-state";
 import { normalizeMarkweaveEditorMode, setMarkweaveEditorModeState, type MarkweaveEditorMode } from "markweave/internal/core/editor-mode-state";
@@ -149,6 +149,7 @@ import {
   getMarkweaveAskAiSurfaceRect,
   getMarkweaveAskAiTarget,
   getMarkweaveAskAiTargetRect,
+  hasMarkweaveAskAiPreview,
   isMarkweaveAskAiSelectionEligible,
   MarkweaveAskAiError,
   restoreMarkweaveAskAiTargetSelection,
@@ -1190,9 +1191,11 @@ const VueFloatingToolbar = defineComponent({
           editor: props.editor as unknown as VueEditor,
           shouldShow: ({ editor }: { editor: CoreEditor }) => {
             const target = getMarkweaveAskAiTarget(editor);
-            return editor.isEditable && (target?.target.kind === "table" && target.status === "target"
-              ? true
-              : shouldShowFloatingToolbar(createSelectionSnapshot(editor)));
+            return shouldShowFloatingToolbarForAiState(createSelectionSnapshot(editor), {
+              editable: editor.isEditable,
+              hasAskAiPreview: hasMarkweaveAskAiPreview(editor.state),
+              hasActiveAskAiTableTarget: target?.target.kind === "table" && target.status === "target",
+            });
           },
           getReferencedVirtualElement: () => {
             const target = getMarkweaveAskAiTarget(props.editor);

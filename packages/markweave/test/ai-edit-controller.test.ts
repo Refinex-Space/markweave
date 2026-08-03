@@ -87,7 +87,10 @@ describe("Markweave AI edit controller", () => {
     expect(controller.getState().phase).toBe("streaming");
     expect(editor.getJSON()).toEqual(before);
     await vi.waitFor(() => {
-      expect(editor.view.dom.querySelector('[data-markweave-ask-ai-proposal="text"]')?.textContent).toBe("Improved");
+      const proposal = editor.view.dom.querySelector<HTMLElement>('[data-markweave-ask-ai-proposal="text"]');
+      const controls = editor.view.dom.querySelector(".markweave-ai-edit-controls");
+      expect(proposal?.textContent).toContain("Improved");
+      expect(proposal?.nextSibling).toBe(controls);
     });
     expect(editor.view.dom.querySelector(".markweave-ai-edit-original")?.textContent).toBe("selected text");
     expect(editor.view.dom.querySelector(".markweave-ai-edit-controls")?.getAttribute("data-markweave-ai-edit-phase")).toBe("streaming");
