@@ -284,6 +284,8 @@ Images render with preview, align, caption, resize, replace, download, and delet
 
 Ask AI is disabled by default. Vue templates enable it with `:ask-ai`:
 
+The Ask AI composer stays bound to the selection that opened it. When the user presses the mouse, pen, or touch surface inside the editor to start another selection, Markweave first closes and cancels the current Ask AI session, then restores the regular floating toolbar for the new selection. Interacting inside the composer or its panel does not dismiss it.
+
 ```vue
 <MarkweaveEditor :ask-ai="{ enabled: true, handler: handleAskAi }" />
 ```

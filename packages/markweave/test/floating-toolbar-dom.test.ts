@@ -393,6 +393,24 @@ describe("floating toolbar Ask AI", () => {
     expect(editor.getHTML()).toContain("<strong>Improved text</strong>");
   });
 
+  it("dismisses the current Ask AI session before a pointer starts a new selection", async () => {
+    const editor = await renderFloatingToolbar(
+      "<p>First selected text</p><p>Second selected text</p>",
+      "First selected text",
+      getMarkweaveMessages("en"),
+      { enabled: true, handler: async () => "Unused" },
+    );
+    await click(getByTestId("markweave-floating-toolbar-button-ask-ai"));
+    expect(getByTestId("markweave-floating-toolbar").dataset.askAiSession).toBe("open");
+
+    editor.view.dom.dispatchEvent(new MouseEvent("pointerdown", { bubbles: true, cancelable: true }));
+    await flushReact();
+
+    expect(getByTestId("markweave-floating-toolbar").dataset.askAiSession).toBe("closed");
+    expect(document.querySelector('[data-testid="markweave-ask-ai-popover"]')).toBeNull();
+    await act(async () => new Promise((resolve) => window.setTimeout(resolve, 300)));
+  });
+
   it("does not submit during IME or Shift+Enter and aborts generation on Escape", async () => {
     const requestSignals: AbortSignal[] = [];
     const handler = vi.fn((request: { readonly signal: AbortSignal }) => {

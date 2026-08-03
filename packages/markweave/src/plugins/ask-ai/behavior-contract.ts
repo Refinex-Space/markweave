@@ -10,6 +10,7 @@ export const markweaveAskAiBehaviorContract = {
   reviewPresentation: "in-place-ephemeral-proposal-with-compact-follow-up-actions",
   reviewRendering: "target-local-text-table-code-math-proposal-mermaid-source-only",
   conflictPolicy: "abort-on-target-change",
+  selectionRetargeting: "dismiss-current-session-before-new-pointer-selection",
   requestScope: "target-only",
   tableApplyMode: "content-only-exact-shape-single-transaction",
 } as const;
