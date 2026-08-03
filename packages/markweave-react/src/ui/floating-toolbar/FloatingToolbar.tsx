@@ -46,7 +46,7 @@ import {
   createSelectionSnapshot,
   getFloatingToolbarFloatingOptions,
   getFloatingToolbarState,
-  shouldShowFloatingToolbar,
+  shouldShowFloatingToolbarForAiState,
   transitionFloatingToolbarState,
   type EditorSelectionSnapshot,
   type FloatingToolbarState,
@@ -91,6 +91,7 @@ import {
   getMarkweaveAskAiSurfaceRect,
   getMarkweaveAskAiTarget,
   getMarkweaveAskAiTargetRect,
+  hasMarkweaveAskAiPreview,
   MarkweaveAskAiError,
   runMarkweaveAskAiHandler,
   restoreMarkweaveAskAiTargetSelection,
@@ -992,10 +993,11 @@ export function FloatingToolbar({ editor, lang = "zh", messages = defaultMarkwea
       options={floatingOptions}
       shouldShow={({ editor: activeEditor }) => {
         const target = getMarkweaveAskAiTarget(activeEditor);
-        return activeEditor.isEditable && (
-          (target?.target.kind === "table" && target.status === "target") ||
-          shouldShowFloatingToolbar(createSelectionSnapshot(activeEditor))
-        );
+        return shouldShowFloatingToolbarForAiState(createSelectionSnapshot(activeEditor), {
+          editable: activeEditor.isEditable,
+          hasAskAiPreview: hasMarkweaveAskAiPreview(activeEditor.state),
+          hasActiveAskAiTableTarget: target?.target.kind === "table" && target.status === "target",
+        });
       }}
     >
       <div ref={toolbarContentRef} className="markweave-floating-toolbar-content" data-menu={openMenu ?? "none"}>

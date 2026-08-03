@@ -131,9 +131,21 @@ describe("editor style boundary", () => {
     const acceptHoverRule = editorCss.match(
       /\.markweave-ask-ai-popover \.markweave-ask-ai-accept:hover:not\(:disabled\)\s*\{([\s\S]*?)\n\}/,
     )?.[1];
+    const stopRule = editorCss.match(/\.markweave-ask-ai-popover \.markweave-ask-ai-stop\s*\{([\s\S]*?)\n\}/)?.[1];
+    const stopHoverRule = editorCss.match(
+      /\.markweave-ask-ai-popover \.markweave-ask-ai-stop:hover:not\(:disabled\)\s*\{([\s\S]*?)\n\}/,
+    )?.[1];
 
     expect(generatingMinHeight).toBeGreaterThan(0);
-    expect(generatingMinHeight).toBeLessThanOrEqual(46);
+    expect(generatingMinHeight).toBeLessThanOrEqual(34);
+    expect(editorCss).toContain('.markweave-ask-ai-popover[data-phase="generating"]');
+    expect(stopRule).toContain("flex: 0 0 26px;");
+    expect(stopRule).toContain("min-height: 26px;");
+    expect(stopRule).toContain("width: 26px;");
+    expect(stopRule).toContain("height: 26px;");
+    expect(stopRule).toContain("padding: 0;");
+    expect(stopHoverRule).toContain("background: #4b5058;");
+    expect(stopHoverRule).toContain("color: #fff;");
     expect(editorCss).toContain(".markweave-ask-ai-progress-label");
     expect(editorCss).not.toContain(".markweave-ask-ai-progress-dots");
     expect(acceptHoverRule).toContain("background: #17181a;");

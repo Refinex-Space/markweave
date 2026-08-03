@@ -200,6 +200,19 @@ export function shouldShowFloatingToolbar(snapshot: EditorSelectionSnapshot) {
   return getFloatingToolbarState(snapshot).visibility === "visible";
 }
 
+export function shouldShowFloatingToolbarForAiState(
+  snapshot: EditorSelectionSnapshot,
+  options: {
+    readonly editable: boolean;
+    readonly hasAskAiPreview: boolean;
+    readonly hasActiveAskAiTableTarget: boolean;
+  },
+) {
+  return options.editable
+    && !options.hasAskAiPreview
+    && (options.hasActiveAskAiTableTarget || shouldShowFloatingToolbar(snapshot));
+}
+
 export function getFloatingToolbarVariant(snapshot: EditorSelectionSnapshot): FloatingToolbarVariant {
   return getFloatingToolbarState(snapshot).variant;
 }

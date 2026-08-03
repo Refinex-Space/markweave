@@ -2872,11 +2872,15 @@
 }
 
 .markweave-ask-ai-generating {
-  min-height: 44px;
-  padding: 0 10px;
+  min-height: 34px;
+  padding: 0 8px;
   color: #4d5259;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 500;
+}
+
+.markweave-ask-ai-popover[data-phase="generating"] {
+  padding: 4px;
 }
 
 .markweave-ask-ai-progress > span:nth-child(2) {
@@ -2895,8 +2899,9 @@
 
 .markweave-ask-ai-stop {
   margin-left: auto;
-  width: 32px;
-  height: 32px;
+  min-height: 26px;
+  width: 26px;
+  height: 26px;
   padding: 0;
   border-radius: 999px;
   background: #5f6369;
@@ -3090,7 +3095,17 @@
   color: #fff;
 }
 .markweave-ask-ai-popover .markweave-ask-ai-stop {
+  flex: 0 0 26px;
+  min-height: 26px;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border-radius: 8px;
   background: #5f6369;
+  color: #fff;
+}
+.markweave-ask-ai-popover .markweave-ask-ai-stop:hover:not(:disabled) {
+  background: #4b5058;
   color: #fff;
 }
 .markweave-ask-ai-popover .markweave-ask-ai-send:hover:not(:disabled),
