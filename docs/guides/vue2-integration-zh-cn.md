@@ -284,6 +284,8 @@ interface MarkweaveUploadResult {
 
 Ask AI 默认关闭。Vue 模板通过 `:ask-ai` 显式开启：
 
+Ask AI 输入框绑定打开时的原始选区。用户在编辑区按下鼠标、触控笔或触屏并开始选择其他内容时，Markweave 会先关闭并取消当前 Ask AI 会话，再为新选区恢复常规浮动工具条；点击输入框或面板内部不会触发关闭。
+
 ```vue
 <MarkweaveEditor :ask-ai="{ enabled: true, handler: handleAskAi }" />
 ```

@@ -856,6 +856,19 @@ const VueFloatingToolbar = defineComponent({
       }
     };
 
+    const handleFloatingToolbarPointerDown = (event: PointerEvent) => {
+      if (!openMenu.value || toolbarContentRef.value?.contains(event.target as Node)) {
+        return;
+      }
+
+      if (openMenu.value === "ask-ai") {
+        closeAskAi(true);
+        return;
+      }
+
+      openMenu.value = null;
+    };
+
     watch([openMenu, askAiPhase, askAiMarkdown, askAiError], ([menu]) => {
       if (!menu) {
         return;
@@ -868,6 +881,7 @@ const VueFloatingToolbar = defineComponent({
       window.addEventListener("resize", popoverPlacementScheduler.schedule);
       window.addEventListener("scroll", popoverPlacementScheduler.schedule, true);
       props.editor.on("transaction", handleAskAiTransaction);
+      document.addEventListener("pointerdown", handleFloatingToolbarPointerDown, true);
       document.addEventListener("keydown", handleAskAiEscape, true);
     });
 
@@ -877,6 +891,7 @@ const VueFloatingToolbar = defineComponent({
       window.removeEventListener("resize", popoverPlacementScheduler.schedule);
       window.removeEventListener("scroll", popoverPlacementScheduler.schedule, true);
       props.editor.off("transaction", handleAskAiTransaction);
+      document.removeEventListener("pointerdown", handleFloatingToolbarPointerDown, true);
       document.removeEventListener("keydown", handleAskAiEscape, true);
       askAiAbortController.value?.abort();
       clearMarkweaveAskAiTarget(props.editor);
