@@ -153,6 +153,28 @@ describe("editor style boundary", () => {
     expect(editorCss).toContain('.markweave-editor-frame[data-markweave-theme="dark"] .markweave-ask-ai-preview table');
   });
 
+  it("keeps AI edit review controls flat and compact", () => {
+    const controlsRule = editorCss.match(/\.markweave-ai-edit-controls\s*\{([\s\S]*?)\n\}/)?.[1];
+    const buttonRule = editorCss.match(/\.markweave-ai-edit-button\s*\{([\s\S]*?)\n\}/)?.[1];
+    const primaryButtonRule = editorCss.match(/\.markweave-ai-edit-button--primary\s*\{([\s\S]*?)\n\}/)?.[1];
+    const originalRule = editorCss.match(/\.markweave-ask-ai-original\.markweave-ai-edit-original\[data-markweave-ai-edit-original="true"\]\s*\{([\s\S]*?)\n\}/)?.[1];
+
+    expect(controlsRule).toContain("border: 0;");
+    expect(controlsRule).toContain("background: transparent;");
+    expect(controlsRule).toContain("box-shadow: none;");
+    expect(buttonRule).toContain("min-height: 26px;");
+    expect(buttonRule).toContain("padding: 0 8px;");
+    expect(buttonRule).toContain("border: 1px solid");
+    expect(buttonRule).toContain("box-shadow: none;");
+    expect(primaryButtonRule).toContain("background: var(--markweave-focus, #4168c9);");
+    expect(primaryButtonRule).toContain("border-color: var(--markweave-focus, #4168c9);");
+    expect(originalRule).toContain("box-shadow: none;");
+    expect(editorCss).toMatch(/\.markweave-ask-ai-proposal-cell\s*\{[^}]*background:\s*transparent;/s);
+    expect(editorCss).toMatch(/\.markweave-ask-ai-proposal--text\s*\{[^}]*background:\s*transparent;[^}]*box-shadow:\s*none;/s);
+    expect(editorCss).toMatch(/\.markweave-ask-ai-proposal--text \+ \.markweave-ai-edit-controls\s*\{[^}]*max-width:\s*none;[^}]*width:\s*100%;[^}]*justify-content:\s*flex-end;/s);
+    expect(editorCss).toMatch(/\.markweave-ask-ai-proposal--text\[data-markweave-ask-ai-layout="block"\]\s*\{[^}]*padding:\s*8px 0;/s);
+  });
+
   it("keeps code block controls compact and Mermaid source readable in the core stylesheet", () => {
     expect(editorCss).toContain(".markweave-floating-toolbar");
     expect(editorCss).toContain("z-index: 40");

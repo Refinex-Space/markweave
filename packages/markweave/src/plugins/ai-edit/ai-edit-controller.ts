@@ -375,7 +375,13 @@ function createAiEditDecorations(editor: Editor) {
           "data-markweave-ai-edit-hunk": hunk.id,
         }));
       }
-      decorations.push(Decoration.widget(hunk.to, () => createMarkweaveAiEditProposalDom(editor, hunk), {
+      decorations.push(Decoration.widget(hunk.to, () => {
+        const proposal = createMarkweaveAiEditProposalDom(editor, hunk);
+        if (session.controls === "default" && hunk.id === session.hunks.at(-1)?.id) {
+          proposal.append(createReviewControls(editor, session));
+        }
+        return proposal;
+      }, {
         key: `markweave-ai-edit-hunk-${key}-${hunk.id}`,
         side: 1,
       }));
@@ -387,13 +393,16 @@ function createAiEditDecorations(editor: Editor) {
     }));
   }
   if (session.controls === "default") {
+    const controlsFollowPreview = !session.range
+      && target?.status === "target"
+      && hasMarkweaveAskAiPreview(editor.state);
     const controlsAt = session.range
-      ? session.hunks.at(-1)?.to ?? session.range.to
-      : target?.to;
+      ? session.hunks.length === 0 ? session.range.to : undefined
+      : controlsFollowPreview ? target?.from : target?.to;
     if (controlsAt !== undefined) {
       decorations.push(Decoration.widget(controlsAt, () => createReviewControls(editor, session), {
-      key: `markweave-ai-edit-controls-${key}`,
-      side: 1,
+        key: `markweave-ai-edit-controls-${key}`,
+        side: controlsFollowPreview ? 2 : 1,
       }));
     }
   }
