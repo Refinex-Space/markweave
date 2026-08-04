@@ -313,7 +313,7 @@ describe("image node view", () => {
     expect(getByTestId("markweave-image-caption").textContent).toBe("Read-only caption");
   });
 
-  it("resolves a mounted first-screen image when Chromium 106 delays the initial observer callback", async () => {
+  it("resolves a mounted first-screen image eagerly when Chromium 106 delays the initial observer callback", async () => {
     const observe = installStalledIntersectionObserver();
     let finishResolve!: (value: { src: string; width: number; height: number }) => void;
     const deferredSource = new Promise<{ src: string; width: number; height: number }>((resolve) => {
@@ -353,6 +353,7 @@ describe("image node view", () => {
     expect(imageNode?.dataset.mediaState).toBe("pending");
     expect(imageNode?.getAttribute("aria-busy")).toBe("true");
     expect(image?.hidden).toBe(true);
+    expect(image?.getAttribute("loading")).toBe("eager");
     expect(placeholder?.hidden).toBe(false);
     expect(image?.hasAttribute("src")).toBe(false);
 
@@ -371,7 +372,7 @@ describe("image node view", () => {
     expect(imageNode?.hasAttribute("aria-busy")).toBe(false);
     expect(image?.hidden).toBe(false);
     expect(placeholder?.hidden).toBe(true);
-    expect(image?.getAttribute("loading")).toBe("lazy");
+    expect(image?.getAttribute("loading")).toBe("eager");
     expect(image?.getAttribute("decoding")).toBe("async");
     expect(image?.getAttribute("width")).toBe("640");
     expect(image?.getAttribute("height")).toBe("360");
