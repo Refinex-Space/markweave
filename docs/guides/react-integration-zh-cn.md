@@ -299,7 +299,7 @@ export function AiDocumentEditor() {
 
 `captureSelection()` 继续只捕获精确普通文本选区。宿主可通过 `getSelection()` / `subscribeSelection()` 按需读取选区正文与规范化 Markdown 的 1-based 块级 `lineRange`，而不会把正文塞入高频 runtime snapshot。
 
-需要修改所选段落或全文多处内容时，调用 `capture({ scope: "blocks" | "document" })`；`blocks` 扩展到覆盖的顶层块，`document` 不要求选区但必须由宿主显式触发。AI 应返回捕获范围修改后的完整 Markdown，不返回 ProseMirror 位置或补丁。Markweave 在 `complete` 后计算并展示最多 200 个结构化 hunk，接受时一次事务应用全部变更并通过 `appliedRanges` 报告范围。流式阶段不会提前展示不完整的全文 Diff。
+需要修改所选段落或全文多处内容时，调用 `capture({ scope: "blocks" | "document" })`；`blocks` 扩展到覆盖的顶层块，`document` 不要求选区但必须由宿主显式触发。AI 应返回捕获范围修改后的完整 Markdown，不返回 ProseMirror 位置或补丁。Markweave 在 `complete` 后计算并展示最多 200 个结构化 hunk。逐块接受/放弃只暂存决定，全部 hunk 处理完后，被接受的子集通过一次事务应用并由 `appliedRanges` 报告范围；流式阶段不会提前展示不完整的全文 Diff。
 
 不要用捕获时的数字位置自行修改文档；应调用 `accept(contextId)`。
 
@@ -338,7 +338,7 @@ async function submitStream(
 
 ### 默认操作条与 headless 模式
 
-`captureSelection()` 默认使用 `controls: "default"`，Markweave 会在编辑器当前可视边界的右下角渲染唯一的紧凑决策条。决策条通过 Portal 挂载到 `body`，长文档或多 hunk 提案滚动时仍保持可见，并会在裁剪容器滚动、窗口缩放、重新聚焦和页面重新激活后重新定位；提案文字与主操作按钮使用 Chromium 106 可稳定计算的兼容色值。“停止”和“舍弃”都会取消当前上下文。`captureSelection({ controls: "none" })` 只隐藏该决策条；有效提案仍在原位置显示。
+`captureSelection()` 默认使用 `controls: "default"`，Markweave 会在编辑器当前可视边界底部居中渲染唯一的紧凑决策条。review 阶段显示当前/总 hunk 数、上一个/下一个、全部放弃和全部接受；当前或 hover 的 hunk 右下角显示逐块操作。决策条通过 Portal 挂载到 `body`，长文档滚动、裁剪容器滚动、窗口缩放、重新聚焦和页面重新激活后都会重新定位。`captureSelection({ controls: "none" })` 隐藏内置全局与逐块操作，提案和 headless 状态仍保留。
 
 自定义操作界面应先调用 `getState()` 读取初始快照，再通过 `subscribe()` 接收后续变化；`subscribe()` 不会主动回放当前状态。宿主界面卸载时必须注销状态和决策监听：
 
@@ -357,7 +357,7 @@ if (captured.ok) {
 }
 ```
 
-只有 phase 为 `review` 时才能调用 `accept(contextId)`；任意活动 phase 均可调用 `discard(contextId)`。`failProposal` 只进入 `error`，不会替换文档，宿主可以使用同一 context 重试或舍弃。
+只有 phase 为 `review` 时才能接受结果。`previousHunk`、`nextHunk` 和 `activateHunk` 控制当前审阅项；`acceptHunk`、`discardHunk` 暂存逐块决定，全部处理完成后自动结算为 `accepted`、`discarded` 或 `partially-accepted`。`acceptAll`、`discardAll` 是显式全量操作，现有 `accept`、`discard` 保留为兼容别名。`failProposal` 只进入 `error`，不会替换文档。
 
 ### 状态、错误码与安全规则
 

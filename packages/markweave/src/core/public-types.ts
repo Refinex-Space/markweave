@@ -161,7 +161,10 @@ export interface MarkweaveAiEditState {
   readonly proposal: MarkweaveAiEditProposal | null;
   readonly error: string | null;
   readonly hunks: readonly MarkweaveAiEditHunk[];
+  readonly activeHunkId: string | null;
 }
+
+export type MarkweaveAiEditHunkDisposition = "pending" | "accepted" | "discarded";
 
 export interface MarkweaveAiEditHunk {
   readonly id: string;
@@ -171,17 +174,25 @@ export interface MarkweaveAiEditHunk {
   readonly originalMarkdown: string;
   readonly proposedMarkdown: string;
   readonly lineRange: MarkweaveAiEditLineRange;
+  readonly disposition: MarkweaveAiEditHunkDisposition;
+}
+
+export interface MarkweaveAiEditHunkDecision {
+  readonly hunkId: string;
+  readonly decision: Exclude<MarkweaveAiEditHunkDisposition, "pending">;
+  readonly appliedRange?: { readonly from: number; readonly to: number };
 }
 
 export interface MarkweaveAiEditDecision {
   readonly contextId: string;
-  readonly decision: "accepted" | "discarded" | "conflict";
+  readonly decision: "accepted" | "discarded" | "partially-accepted" | "conflict";
   readonly original: MarkweaveAiEditSelection;
   readonly originalTarget: MarkweaveAiEditTarget;
   readonly proposedMarkdown: string | null;
   readonly metadata?: Readonly<Record<string, unknown>>;
   readonly appliedRange?: { readonly from: number; readonly to: number };
   readonly appliedRanges?: readonly { readonly from: number; readonly to: number }[];
+  readonly hunkDecisions?: readonly MarkweaveAiEditHunkDecision[];
 }
 
 export interface MarkweaveAiEditController {
@@ -215,6 +226,30 @@ export interface MarkweaveAiEditController {
   readonly discard: (
     contextId: string,
   ) => MarkweaveAiEditResult<MarkweaveAiEditDecision>;
+  readonly acceptAll: (
+    contextId: string,
+  ) => MarkweaveAiEditResult<MarkweaveAiEditDecision>;
+  readonly discardAll: (
+    contextId: string,
+  ) => MarkweaveAiEditResult<MarkweaveAiEditDecision>;
+  readonly activateHunk: (
+    contextId: string,
+    hunkId: string,
+  ) => MarkweaveAiEditResult<MarkweaveAiEditState>;
+  readonly previousHunk: (
+    contextId: string,
+  ) => MarkweaveAiEditResult<MarkweaveAiEditState>;
+  readonly nextHunk: (
+    contextId: string,
+  ) => MarkweaveAiEditResult<MarkweaveAiEditState>;
+  readonly acceptHunk: (
+    contextId: string,
+    hunkId: string,
+  ) => MarkweaveAiEditResult<MarkweaveAiEditState | MarkweaveAiEditDecision>;
+  readonly discardHunk: (
+    contextId: string,
+    hunkId: string,
+  ) => MarkweaveAiEditResult<MarkweaveAiEditState | MarkweaveAiEditDecision>;
   readonly getState: () => MarkweaveAiEditState;
   readonly subscribe: (
     listener: (state: MarkweaveAiEditState) => void,

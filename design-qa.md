@@ -1,6 +1,6 @@
 ---
 owner: refinex
-updated: 2026-07-29
+updated: 2026-08-04
 status: active
 referenced_by: product-design:image-to-code
 ---
@@ -88,6 +88,26 @@ The supplied reference screenshot and the local implementation screenshot use di
 
 final result: passed
 
+## AI Pre-edit Hunk Visual Polish QA (2026-08-04)
+
+### Visual evidence
+
+- User reference without desired tooltip styling: `C:/Users/ADMINI~1/AppData/Local/Temp/codex-clipboard-12a7ebe5-84db-4d36-9a6a-673249382bb2.png`
+- User reference highlighting the proposal rail: `C:/Users/ADMINI~1/AppData/Local/Temp/codex-clipboard-3194b8da-bc90-4518-8407-fbf3f5a29794.png`
+- Final dark implementation: `C:/Users/Administrator/AppData/Local/Temp/markweave-ai-edit-tooltip-dark-clean-final.png`
+- Viewport: 1308 x 912 CSS px, React playground, dark theme, document-scope review
+
+### Findings and repair
+
+- Removed the proposal's 3 px left border. Browser-computed `border-left-width` is now `0px`.
+- Removed native `title` attributes from AI review icon buttons to prevent unstyled browser tooltips.
+- Added a shared dark tooltip surface matching the selection toolbar: `#2f3135` background, white text, 9 px radius, 13 px medium text, and compact 7 x 10 px padding.
+- Local hunk tooltips align from the right edge so labels expand inward instead of leaving the editor frame. Navigation tooltips remain centered over their icon buttons.
+- Hover and keyboard-focus selectors share the same visible state; each tooltip is connected with `aria-describedby` and `role="tooltip"`.
+- The final reference/implementation comparison shows no left rail and replaces the white native tooltip with the compact dark product tooltip. No actionable P0, P1, or P2 findings remain.
+
+final result: passed
+
 ## Ask AI Review Flow QA (2026-07-29)
 
 ### Source truth and implementation evidence
@@ -119,5 +139,43 @@ The implementation states were rendered through an isolated browser visual fixtu
 - First repair anchored the panel to the mapped target selection and introduced the integrated input, generating, and review states.
 - Visual comparison exposed a double outline in the input state; the final repair removed the outer card chrome for that phase and retained the composer as the single visible surface.
 - No actionable P0, P1, or P2 visual findings remain in the approved scope.
+
+final result: passed
+
+## Host-driven AI Pre-edit Review QA (2026-08-04)
+
+### Visual evidence
+
+- Cursor reference: `C:/Users/ADMINI~1/AppData/Local/Temp/codex-clipboard-27785605-3614-4cc6-84a6-2c78c53f4a1e.png`
+- Cursor local-action reference: `C:/Users/ADMINI~1/AppData/Local/Temp/codex-clipboard-1885474f-ba37-4435-8ccc-93f40aace280.png`
+- Markweave dark implementation: `C:/Users/Administrator/AppData/Local/Temp/markweave-ai-edit-review-dark.png`
+- Markweave light implementation: `C:/Users/Administrator/AppData/Local/Temp/markweave-ai-edit-review.png`
+- Markweave full-page check: `C:/Users/Administrator/AppData/Local/Temp/markweave-ai-edit-review-dark-full.png`
+- Browser: Codex In-app Browser
+- Viewport: 1308 x 912 CSS px at the browser default pixel density
+- State: React playground, dark theme, document scope, multi-hunk review, current `1 / 7`
+
+### Same-state comparison
+
+- The global decision dock is bottom-centered and preserves the reference hierarchy: previous, current/total, next, discard all, and accept all.
+- Original content uses the existing deletion treatment, while proposal blocks use the shared blue review border and background in both light and dark themes.
+- The current or hovered hunk exposes compact discard and accept icon controls at the lower right. Non-current hunks hide their controls to avoid repeating visual noise.
+- Completing a proposal now scrolls the first hunk into view. Navigation and per-hunk decisions scroll to the next target.
+- Full-page capture was executed. The in-app browser compositor repeated chunks of the internal scrolling document, so the final visual judgment uses the state-matched 1308 x 912 reference and implementation viewport captures plus measured DOM positions.
+
+### Interaction evidence
+
+- Next updates `1 / 7` to `2 / 7` and centers the target hunk in the viewport.
+- Accepting one hunk only stages its `accepted` disposition; the document remains unchanged and the next pending hunk becomes active.
+- Accept all applies the proposal and removes all review UI.
+- Discard all removes all review UI and preserves the original document.
+- The behavior contract test verifies that mixed per-hunk decisions apply the accepted subset in one undoable transaction.
+- The console showed only the existing Bilibili embed's third-party request failures; no Markweave AI pre-edit error was observed.
+
+### Repair history
+
+- The first browser pass found that starting a review from the bottom of the long playground document left hunk 1 outside the viewport.
+- The final implementation scrolls the first hunk after the complete proposal refresh. Its measured rectangle was `y = 110.8`, height `62.5`, inside the 912 px viewport.
+- No actionable P0, P1, or P2 visual findings remain in this scope.
 
 final result: passed

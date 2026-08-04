@@ -1,6 +1,6 @@
 ---
 owner: refinex
-updated: 2026-08-01
+updated: 2026-08-04
 status: active
 referenced_by: docs/README.md#knowledge-map
 ---
@@ -295,7 +295,7 @@ async function reviseSelection() {
 </template>
 ```
 
-`captureSelection()` remains an exact ordinary-text capture. `getSelection()` / `subscribeSelection()` lazily expose content and a one-based block-precision `lineRange` in normalized Markdown. For selected blocks or document-wide multi-edit review, explicitly call `capture({ scope: "blocks" | "document" })` and return the complete revised target Markdown. Markweave computes and previews at most 200 structural hunks after `complete` and applies all hunks in one transaction; never patch with captured positions.
+`captureSelection()` remains an exact ordinary-text capture. `getSelection()` / `subscribeSelection()` lazily expose content and a one-based block-precision `lineRange` in normalized Markdown. For selected blocks or document-wide multi-edit review, explicitly call `capture({ scope: "blocks" | "document" })` and return the complete revised target Markdown. Markweave computes and previews at most 200 structural hunks after `complete`, stages per-hunk decisions, and applies the accepted subset in one transaction; never patch with captured positions.
 
 ### Cumulative streaming and headless controls
 
@@ -328,7 +328,7 @@ async function submitStream(
 }
 ```
 
-`captureSelection()` renders default controls; `controls: "none"` hides only the action bar. Exact selections may preview while streaming, while block/document diffs appear only after `complete`. Read `getState()` before state `subscribe()`; `subscribeSelection()` immediately replays the current selection. Dispose every listener on unmount.
+`captureSelection()` renders a bottom-center global dock with hunk count, cyclic navigation, and global decisions; the active or hovered hunk exposes local decisions. `controls: "none"` hides both built-in control surfaces. Exact selections may preview while streaming, while block/document diffs appear only after `complete`. Headless hosts can use `previousHunk`, `nextHunk`, `acceptHunk`, `discardHunk`, `acceptAll`, and `discardAll`. Read `getState()` before state `subscribe()` and dispose every listener on unmount.
 
 ### State, errors, and safety
 

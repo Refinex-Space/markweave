@@ -93,7 +93,7 @@ describe("editor entrypoint boundary", () => {
         version?: string;
       };
 
-      expect(packageJson.version).toBe("0.4.4");
+      expect(packageJson.version).toBe("0.5.0");
       expect(packageJson.homepage).toBe(homepageUrl);
       expect(packageJson.bugs).toEqual({ url: bugsUrl });
       expect(packageJson.repository).toEqual({
@@ -156,6 +156,8 @@ describe("editor entrypoint boundary", () => {
     expect(indexSource).toContain("MarkweaveAiEditSelectionSnapshot");
     expect(indexSource).toContain("MarkweaveAiEditScope");
     expect(indexSource).toContain("MarkweaveAiEditHunk");
+    expect(indexSource).toContain("MarkweaveAiEditHunkDecision");
+    expect(indexSource).toContain("MarkweaveAiEditHunkDisposition");
     expect(indexSource).toContain("MarkweaveAskAiConfig");
     expect(indexSource).not.toContain("runMarkweaveAskAiHandler");
     expect(reactShim).toContain('from "@markweave/react"');

@@ -2596,13 +2596,172 @@
   text-decoration-color: rgba(209, 67, 67, 0.58);
 }
 
-.markweave-ai-edit-hunk-proposal {
-  border-left: 3px solid var(--markweave-ai-proposal-border, rgba(65, 104, 201, 0.72));
+.markweave-ai-edit-hunk-shell {
+  position: relative;
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  transition: border-color 120ms ease, background-color 120ms ease, box-shadow 120ms ease;
+}
+
+.markweave-ai-edit-hunk-shell[data-markweave-ai-edit-active="true"] {
+  border-color: rgba(65, 104, 201, 0.5);
+  background: rgba(65, 104, 201, 0.055);
+  box-shadow: 0 0 0 1px rgba(65, 104, 201, 0.08);
+}
+
+.markweave-ai-edit-hunk-shell > .markweave-ai-edit-hunk-proposal {
+  margin-block: 0;
+  padding-inline: 8px 72px;
+}
+
+.markweave-ai-edit-hunk-shell[data-markweave-ai-edit-disposition="accepted"] {
+  border-color: rgba(46, 139, 87, 0.34);
+  background: rgba(46, 139, 87, 0.055);
+}
+
+.markweave-ai-edit-hunk-shell[data-markweave-ai-edit-disposition="accepted"] > .markweave-ai-edit-hunk-proposal {
+  color: var(--markweave-text, #1f2328);
+}
+
+.markweave-ai-edit-hunk-original[data-markweave-ai-edit-disposition="accepted"] {
+  opacity: 0.45;
+}
+
+.markweave-ai-edit-hunk-original[data-markweave-ai-edit-disposition="discarded"] {
+  background: transparent;
+  color: inherit;
+  text-decoration: none;
+}
+
+.markweave-ai-edit-hunk-shell[data-markweave-ai-edit-disposition="discarded"] > .markweave-ai-edit-hunk-proposal {
+  display: none;
+}
+
+.markweave-ai-edit-hunk-shell[data-markweave-ai-edit-disposition="discarded"] {
+  min-height: 0;
+  border-color: transparent;
+  background: transparent;
+}
+
+.markweave-ai-edit-hunk-shell[data-markweave-ai-edit-disposition="discarded"][data-markweave-ai-edit-active="true"] {
+  min-height: 34px;
+  border-color: rgba(95, 100, 108, 0.28);
+  border-style: dashed;
+}
+
+.markweave-ai-edit-hunk-actions {
+  position: absolute;
+  right: 5px;
+  bottom: 5px;
+  z-index: 2;
+  display: inline-flex;
+  gap: 3px;
+  border: 1px solid var(--markweave-border, #d9dee7);
+  border-radius: 6px;
+  background: var(--markweave-surface, #ffffff);
+  box-shadow: 0 3px 10px var(--markweave-shadow, rgba(31, 35, 40, 0.14));
+  padding: 2px;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(2px);
+  transition: opacity 100ms ease, transform 100ms ease;
+}
+
+.markweave-ai-edit-hunk-shell:is(:hover, :focus-within, [data-markweave-ai-edit-active="true"]) > .markweave-ai-edit-hunk-actions {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0);
+}
+
+.markweave-ai-edit-hunk-button,
+.markweave-ai-edit-nav-button {
+  position: relative;
+  display: inline-flex;
+  width: 26px;
+  min-width: 26px;
+  height: 26px;
+  min-height: 26px;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  padding: 0;
+  color: var(--markweave-text-muted, #5f646c);
+  cursor: pointer;
+}
+
+.markweave-ai-edit-tooltip {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  z-index: 64;
+  max-width: min(180px, 70vw);
+  transform: translate(-50%, 2px);
+  visibility: hidden;
+  border: 0;
+  border-radius: 9px;
+  background: #2f3135;
+  box-shadow: none;
+  padding: 7px 10px;
+  color: #ffffff;
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.2;
+  opacity: 0;
+  overflow: hidden;
+  pointer-events: none;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  transition: opacity 100ms ease, transform 100ms ease, visibility 100ms ease;
+}
+
+.markweave-ai-edit-hunk-button > .markweave-ai-edit-tooltip {
+  right: -2px;
+  left: auto;
+  transform: translateY(2px);
+}
+
+.markweave-ai-edit-hunk-button:hover > .markweave-ai-edit-tooltip,
+.markweave-ai-edit-hunk-button:focus-visible > .markweave-ai-edit-tooltip,
+.markweave-ai-edit-nav-button:hover:not(:disabled) > .markweave-ai-edit-tooltip,
+.markweave-ai-edit-nav-button:focus-visible:not(:disabled) > .markweave-ai-edit-tooltip {
+  visibility: visible;
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+
+.markweave-ai-edit-hunk-button:hover > .markweave-ai-edit-tooltip,
+.markweave-ai-edit-hunk-button:focus-visible > .markweave-ai-edit-tooltip {
+  transform: translateY(0);
+}
+
+.markweave-ai-edit-hunk-button:hover,
+.markweave-ai-edit-nav-button:hover:not(:disabled) {
+  background: var(--markweave-surface-muted, #f3f5f7);
+  color: var(--markweave-text, #1f2328);
+}
+
+.markweave-ai-edit-hunk-button--accept {
+  color: #2e8b57;
+}
+
+.markweave-ai-edit-hunk-button--discard {
+  color: #c74747;
+}
+
+.markweave-ai-edit-hunk-button:focus-visible,
+.markweave-ai-edit-nav-button:focus-visible {
+  outline: 2px solid var(--markweave-focus, #4168c9);
+  outline-offset: 1px;
 }
 
 .markweave-ai-edit-hunk-proposal--delete {
   min-height: 8px;
-  border-left-color: rgba(209, 67, 67, 0.72);
   background: rgba(209, 67, 67, 0.07);
 }
 
@@ -2744,6 +2903,29 @@
   box-shadow: 0 6px 18px var(--markweave-shadow, rgba(31, 35, 40, 0.14));
   padding: 4px;
   visibility: hidden;
+}
+
+.markweave-ai-edit-navigation {
+  display: inline-flex;
+  min-height: 26px;
+  align-items: center;
+  gap: 1px;
+  border-radius: 5px;
+  background: var(--markweave-surface-muted, #f3f5f7);
+  padding: 0 2px;
+}
+
+.markweave-ai-edit-count {
+  min-width: 44px;
+  padding: 0 2px;
+  color: var(--markweave-text-muted, #5f646c);
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.markweave-ai-edit-nav-button:disabled {
+  opacity: 0.35;
+  cursor: default;
 }
 
 .markweave-ai-edit-controls--floating .markweave-ai-edit-status {

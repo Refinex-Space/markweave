@@ -166,6 +166,10 @@ describe("editor style boundary", () => {
   });
 
   it("keeps AI edit review controls compact, visible, and Chromium 106 compatible", () => {
+    const hunkReviewCss = editorCss.slice(
+      editorCss.indexOf(".markweave-ai-edit-hunk-shell"),
+      editorCss.indexOf(".markweave-ai-edit-controls"),
+    );
     const controlsRule = editorCss.match(/\.markweave-ai-edit-controls\s*\{([\s\S]*?)\n\}/)?.[1];
     const floatingControlsRule = editorCss.match(/\.markweave-ai-edit-controls--floating\s*\{([\s\S]*?)\n\}/)?.[1];
     const buttonRule = editorCss.match(/\.markweave-ai-edit-button\s*\{([\s\S]*?)\n\}/)?.[1];
@@ -196,6 +200,17 @@ describe("editor style boundary", () => {
     expect(editorCss).toMatch(/\.markweave-ask-ai-proposal--text\s*\{[^}]*background:\s*transparent;[^}]*box-shadow:\s*none;/s);
     expect(editorCss).not.toMatch(/\.markweave-ask-ai-proposal--text \+ \.markweave-ai-edit-controls/);
     expect(editorCss).toMatch(/\.markweave-ask-ai-proposal--text\[data-markweave-ask-ai-layout="block"\]\s*\{[^}]*padding:\s*8px 0;/s);
+    expect(editorCss).toMatch(/\.markweave-ai-edit-hunk-shell\[data-markweave-ai-edit-active="true"\]\s*\{[^}]*border-color:/s);
+    expect(editorCss).toMatch(/\.markweave-ai-edit-hunk-shell:is\(:hover, :focus-within, \[data-markweave-ai-edit-active="true"\]\) > \.markweave-ai-edit-hunk-actions\s*\{[^}]*opacity:\s*1;/s);
+    expect(editorCss).toMatch(/\.markweave-ai-edit-hunk-button,\s*\.markweave-ai-edit-nav-button\s*\{[^}]*width:\s*26px;[^}]*height:\s*26px;/s);
+    expect(editorCss).not.toMatch(/\.markweave-ai-edit-hunk-proposal\s*\{[^}]*border-left:/s);
+    expect(editorCss).toMatch(/\.markweave-ai-edit-tooltip\s*\{[^}]*background:\s*#2f3135;[^}]*color:\s*#ffffff;/s);
+    expect(editorCss).toMatch(/\.markweave-ai-edit-hunk-button:hover > \.markweave-ai-edit-tooltip[\s\S]*visibility:\s*visible;/s);
+    expect(editorCss).toContain(".markweave-ai-edit-navigation");
+    expect(editorCss).toContain(".markweave-ai-edit-count");
+    expect(hunkReviewCss).not.toContain("@container");
+    expect(hunkReviewCss).not.toContain("container-type");
+    expect(hunkReviewCss).not.toContain("color-mix");
   });
 
   it("keeps code block controls compact and Mermaid source readable in the core stylesheet", () => {

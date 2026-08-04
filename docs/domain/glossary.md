@@ -1,6 +1,6 @@
 ---
 owner: refinex
-updated: 2026-07-30
+updated: 2026-08-04
 status: active
 referenced_by: AGENTS.md#knowledge-map
 ---
@@ -25,5 +25,5 @@ referenced_by: AGENTS.md#knowledge-map
 | Ask AI session | An ephemeral, host-handled Markdown generation session that maps a text or table target, renders a target-local in-place proposal without mutating the document, and applies content only after explicit acceptance. |
 | Ask AI table target | A cell, row, column, rectangular cell selection, or whole table represented as target-only Markdown/HTML plus an exact result shape; accepting it replaces cell contents while preserving table structure and attributes. |
 | AI edit context | An in-memory, host-owned snapshot of one supported text selection containing only its mapped range, text, HTML, Markdown, language, metadata, and cancellation signal. |
-| AI edit proposal | Complete or cumulative-stream Markdown supplied by the host and rendered as an ephemeral in-place diff until it is accepted, discarded, or invalidated by a conflict. |
+| AI edit proposal | Complete or cumulative-stream Markdown supplied by the host and rendered as an ephemeral in-place diff until it is accepted, discarded, partially accepted through staged hunk decisions, or invalidated by a conflict. |
 | Mermaid preview | Code-block preview behavior for Mermaid source. |

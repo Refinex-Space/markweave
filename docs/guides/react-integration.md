@@ -297,7 +297,7 @@ export function AiDocumentEditor() {
 }
 ```
 
-`captureSelection()` remains an exact ordinary-text capture. `getSelection()` / `subscribeSelection()` lazily expose content and a one-based block-precision `lineRange` in normalized Markdown without placing content in runtime snapshots. For selected blocks or document-wide multi-edit review, explicitly call `capture({ scope: "blocks" | "document" })` and return the complete revised Markdown for that target. Markweave computes and previews at most 200 structural hunks after `complete`, then applies all hunks in one transaction. Never patch with captured ProseMirror positions.
+`captureSelection()` remains an exact ordinary-text capture. `getSelection()` / `subscribeSelection()` lazily expose content and a one-based block-precision `lineRange` in normalized Markdown without placing content in runtime snapshots. For selected blocks or document-wide multi-edit review, explicitly call `capture({ scope: "blocks" | "document" })` and return the complete revised Markdown for that target. Markweave computes and previews at most 200 structural hunks after `complete`. Per-hunk accept/discard decisions stay staged until review settlement, then the accepted subset applies in one transaction. Never patch with captured ProseMirror positions.
 
 ### Cumulative streaming
 
@@ -334,7 +334,7 @@ Exact selections retain their last valid local preview while streaming. Block/do
 
 ### Default and headless controls
 
-`captureSelection()` uses `controls: "default"`: Markweave renders one compact decision dock at the bottom-right of the editor's currently visible boundary. The dock is portaled to `body`, stays visible while long or multi-hunk proposals scroll, and repositions after clipping-container scroll, resize, focus, and page reactivation. Proposal and primary-action colors use Chromium 106-safe fallbacks. Stop and discard both cancel the active context. `captureSelection({ controls: "none" })` hides only that dock; a valid proposal still renders in place.
+`captureSelection()` uses `controls: "default"`: Markweave renders one compact bottom-center decision dock inside the editor's currently visible boundary. Review shows the current/total hunk count, cyclic previous/next navigation, and discard-all/accept-all actions; the active or hovered hunk exposes local discard/accept controls. The dock is portaled to `body`, remains visible through long-document scrolling, and repositions after clipping-container scroll, resize, focus, and page reactivation. `controls: "none"` hides both built-in global and local controls while preserving proposal and headless state.
 
 For a custom action surface, read the initial snapshot with `getState()` and then subscribe to later changes. `subscribe()` does not replay the current state. Unsubscribe both listeners when the host surface unmounts:
 
@@ -353,7 +353,7 @@ if (captured.ok) {
 }
 ```
 
-Call `accept(contextId)` only after phase `review`; call `discard(contextId)` from any active phase. `failProposal` enters `error` without replacing the document, so the host may retry with the same context or discard it.
+Accept only after phase `review`. `previousHunk`, `nextHunk`, and `activateHunk` control the active review item. `acceptHunk` and `discardHunk` stage local decisions; resolving every hunk settles as `accepted`, `discarded`, or `partially-accepted`. `acceptAll` and `discardAll` are explicit global actions, while existing `accept` and `discard` remain compatibility aliases. `failProposal` enters `error` without replacing the document.
 
 ### State, errors, and safety rules
 
