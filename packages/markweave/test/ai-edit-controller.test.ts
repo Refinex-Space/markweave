@@ -9,10 +9,28 @@ import { createMarkweaveAiEditController } from "../src/plugins/ai-edit/ai-edit-
 let activeEditor: Editor | null = null;
 
 function createEditor(content: string, lang: "zh" | "en" = "zh") {
+  const frame = document.createElement("section");
+  frame.className = "markweave-editor-frame";
   const element = document.createElement("div");
-  document.body.appendChild(element);
+  element.className = "markweave-editor-surface";
+  frame.appendChild(element);
+  document.body.appendChild(frame);
   activeEditor = new Editor({ element, extensions: createMarkweaveEditorExtensions({ lang }), content });
   return activeEditor;
+}
+
+function createRect(left: number, top: number, width: number, height: number): DOMRect {
+  return {
+    bottom: top + height,
+    height,
+    left,
+    right: left + width,
+    top,
+    width,
+    x: left,
+    y: top,
+    toJSON: () => ({}),
+  } as DOMRect;
 }
 
 function findText(editor: Editor, text: string) {
@@ -88,12 +106,13 @@ describe("Markweave AI edit controller", () => {
     expect(editor.getJSON()).toEqual(before);
     await vi.waitFor(() => {
       const proposal = editor.view.dom.querySelector<HTMLElement>('[data-markweave-ask-ai-proposal="text"]');
-      const controls = editor.view.dom.querySelector(".markweave-ai-edit-controls");
+      const controls = document.body.querySelector(".markweave-ai-edit-controls--floating");
       expect(proposal?.textContent).toContain("Improved");
-      expect(proposal?.nextSibling).toBe(controls);
+      expect(controls).not.toBeNull();
+      expect(editor.view.dom.contains(controls)).toBe(false);
     });
     expect(editor.view.dom.querySelector(".markweave-ai-edit-original")?.textContent).toBe("selected text");
-    expect(editor.view.dom.querySelector(".markweave-ai-edit-controls")?.getAttribute("data-markweave-ai-edit-phase")).toBe("streaming");
+    expect(document.body.querySelector(".markweave-ai-edit-controls")?.getAttribute("data-markweave-ai-edit-phase")).toBe("streaming");
 
     expect(controller.updateProposal({
       contextId: captured.value.id,
@@ -248,7 +267,74 @@ describe("Markweave AI edit controller", () => {
     });
 
     expect(editor.view.dom.querySelector('[data-markweave-ask-ai-proposal="text"]')?.textContent).toBe("Headless replacement");
+    expect(document.body.querySelector(".markweave-ai-edit-controls")).toBeNull();
+  });
+
+  it("keeps the default decision toolbar viewport-fixed inside the visible editor boundary", async () => {
+    const editor = createEditor("<p>Before selected text after</p>");
+    const frame = editor.view.dom.closest<HTMLElement>(".markweave-editor-frame");
+    expect(frame).not.toBeNull();
+    frame!.getBoundingClientRect = () => createRect(20, 40, 800, 600);
+    selectText(editor, "selected text");
+    const controller = createMarkweaveAiEditController(editor);
+    const captured = controller.captureSelection();
+    expect(captured.ok).toBe(true);
+    if (!captured.ok) {
+      return;
+    }
+
+    expect(controller.updateProposal({
+      contextId: captured.value.id,
+      markdown: "Improved text",
+      status: "complete",
+    })).toMatchObject({ ok: true });
+
+    const controls = await vi.waitFor(() => {
+      const element = document.body.querySelector<HTMLElement>(".markweave-ai-edit-controls--floating");
+      expect(element).not.toBeNull();
+      return element!;
+    });
+    controls.getBoundingClientRect = () => createRect(0, 0, 120, 34);
+    document.dispatchEvent(new Event("scroll"));
+
+    await vi.waitFor(() => {
+      expect(controls.dataset.markweavePositioned).toBe("true");
+      expect(controls.style.left).toBe("688px");
+      expect(controls.style.top).toBe("594px");
+      expect(controls.style.visibility).toBe("visible");
+    });
+
+    frame!.getBoundingClientRect = () => createRect(30, 50, 700, 500);
+    window.dispatchEvent(new Event("pageshow"));
+    await vi.waitFor(() => {
+      expect(controls.style.left).toBe("598px");
+      expect(controls.style.top).toBe("504px");
+    });
+    expect(document.body.querySelectorAll(".markweave-ai-edit-controls--floating")).toHaveLength(1);
     expect(editor.view.dom.querySelector(".markweave-ai-edit-controls")).toBeNull();
+  });
+
+  it("keeps one body-level decision toolbar for a multi-hunk document proposal", async () => {
+    const editor = createEditor("<h1>Original title</h1><p>Keep this paragraph</p><p>Original ending</p>");
+    const controller = createMarkweaveAiEditController(editor);
+    const captured = controller.capture({ scope: "document", controls: "default" });
+    expect(captured.ok).toBe(true);
+    if (!captured.ok) {
+      return;
+    }
+
+    expect(controller.updateProposal({
+      contextId: captured.value.id,
+      markdown: "# Revised title\n\nKeep this paragraph\n\nRevised ending",
+      status: "complete",
+    })).toMatchObject({ ok: true });
+
+    await vi.waitFor(() => {
+      expect(editor.view.dom.querySelectorAll(".markweave-ai-edit-hunk-proposal")).toHaveLength(2);
+      expect(document.body.querySelectorAll(".markweave-ai-edit-controls--floating")).toHaveLength(1);
+    });
+    expect(editor.view.dom.querySelector(".markweave-ai-edit-controls")).toBeNull();
+    expect(document.body.querySelector(".markweave-ai-edit-controls")?.getAttribute("data-markweave-ai-edit-phase")).toBe("review");
   });
 
   it("exposes a lazy selection snapshot with normalized Markdown block lines", () => {

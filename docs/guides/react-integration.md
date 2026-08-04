@@ -1,6 +1,6 @@
 ---
 owner: refinex
-updated: 2026-08-01
+updated: 2026-08-04
 status: active
 referenced_by: docs/README.md#knowledge-map
 ---
@@ -334,7 +334,7 @@ Exact selections retain their last valid local preview while streaming. Block/do
 
 ### Default and headless controls
 
-`captureSelection()` uses `controls: "default"`: Markweave renders a compact status/action bar next to the in-place diff. Stop and discard both cancel the active context. `captureSelection({ controls: "none" })` hides only that bar; a valid proposal still renders in place.
+`captureSelection()` uses `controls: "default"`: Markweave renders one compact decision dock at the bottom-right of the editor's currently visible boundary. The dock is portaled to `body`, stays visible while long or multi-hunk proposals scroll, and repositions after clipping-container scroll, resize, focus, and page reactivation. Proposal and primary-action colors use Chromium 106-safe fallbacks. Stop and discard both cancel the active context. `captureSelection({ controls: "none" })` hides only that dock; a valid proposal still renders in place.
 
 For a custom action surface, read the initial snapshot with `getState()` and then subscribe to later changes. `subscribe()` does not replay the current state. Unsubscribe both listeners when the host surface unmounts:
 

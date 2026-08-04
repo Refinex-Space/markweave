@@ -1,6 +1,6 @@
 ---
 owner: refinex
-updated: 2026-08-01
+updated: 2026-08-04
 status: active
 referenced_by: docs/README.md#knowledge-map
 ---
@@ -338,7 +338,7 @@ async function submitStream(
 
 ### 默认操作条与 headless 模式
 
-`captureSelection()` 默认使用 `controls: "default"`，Markweave 会在原位差异旁渲染紧凑的状态/操作条。“停止”和“舍弃”都会取消当前上下文。`captureSelection({ controls: "none" })` 只隐藏该操作条；有效提案仍在原位置显示。
+`captureSelection()` 默认使用 `controls: "default"`，Markweave 会在编辑器当前可视边界的右下角渲染唯一的紧凑决策条。决策条通过 Portal 挂载到 `body`，长文档或多 hunk 提案滚动时仍保持可见，并会在裁剪容器滚动、窗口缩放、重新聚焦和页面重新激活后重新定位；提案文字与主操作按钮使用 Chromium 106 可稳定计算的兼容色值。“停止”和“舍弃”都会取消当前上下文。`captureSelection({ controls: "none" })` 只隐藏该决策条；有效提案仍在原位置显示。
 
 自定义操作界面应先调用 `getState()` 读取初始快照，再通过 `subscribe()` 接收后续变化；`subscribe()` 不会主动回放当前状态。宿主界面卸载时必须注销状态和决策监听：
 

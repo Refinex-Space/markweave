@@ -14,6 +14,11 @@
   --markweave-border-strong: #c9d1df;
   --markweave-focus: #4168c9;
   --markweave-focus-ring: rgba(65, 104, 201, 0.28);
+  --markweave-ai-proposal-text: #355eae;
+  --markweave-ai-original-text: #777c84;
+  --markweave-ai-proposal-border: rgba(65, 104, 201, 0.72);
+  --markweave-ai-primary-text: #ffffff;
+  --markweave-ai-primary-hover: #3657a8;
   --markweave-selection: #e8f1ff;
   --markweave-table-selection-border: #7296c8;
   --markweave-table-selection-border-strong: #5479ad;
@@ -64,6 +69,11 @@
   --markweave-border-strong: #596474;
   --markweave-focus: #91adff;
   --markweave-focus-ring: rgba(145, 173, 255, 0.38);
+  --markweave-ai-proposal-text: #adc0f9;
+  --markweave-ai-original-text: #a7adb8;
+  --markweave-ai-proposal-border: rgba(145, 173, 255, 0.72);
+  --markweave-ai-primary-text: #1e2532;
+  --markweave-ai-primary-hover: #a2baff;
   --markweave-selection: rgba(104, 142, 234, 0.32);
   --markweave-table-selection-border: #86a8d8;
   --markweave-table-selection-border-strong: #a0bce2;
@@ -2554,8 +2564,8 @@
 
 .markweave-ask-ai-target {
   border-radius: 3px;
-  background: color-mix(in srgb, var(--markweave-focus, #4f77b6) 16%, transparent);
-  box-shadow: inset 0 -1px 0 color-mix(in srgb, var(--markweave-focus, #4f77b6) 38%, transparent);
+  background: rgba(65, 104, 201, 0.16);
+  box-shadow: inset 0 -1px 0 rgba(65, 104, 201, 0.38);
 }
 
 .markweave-ask-ai-original[data-markweave-ask-ai-original="true"]:not(.markweave-ask-ai-proposal-cell) {
@@ -2564,30 +2574,30 @@
 
 .markweave-ask-ai-original.markweave-ai-edit-original[data-markweave-ai-edit-original="true"] {
   display: inline;
-  background: color-mix(in srgb, var(--markweave-text-muted, #5f646c) 8%, transparent);
+  background: rgba(95, 100, 108, 0.08);
   box-shadow: none;
-  color: color-mix(in srgb, var(--markweave-text-muted, #5f646c) 78%, transparent);
+  color: var(--markweave-ai-original-text, #777c84);
   text-decoration: line-through;
-  text-decoration-color: color-mix(in srgb, currentColor 58%, transparent);
+  text-decoration-color: rgba(95, 100, 108, 0.58);
 }
 
 .markweave-ai-edit-hunk-original[data-markweave-ai-edit-original="true"] {
   border-radius: 3px;
-  background: color-mix(in srgb, #d14343 8%, transparent);
+  background: rgba(209, 67, 67, 0.08);
   box-shadow: none;
-  color: color-mix(in srgb, var(--markweave-text-muted, #5f646c) 78%, transparent);
+  color: var(--markweave-ai-original-text, #777c84);
   text-decoration: line-through;
-  text-decoration-color: color-mix(in srgb, #d14343 58%, transparent);
+  text-decoration-color: rgba(209, 67, 67, 0.58);
 }
 
 .markweave-ai-edit-hunk-proposal {
-  border-left: 3px solid color-mix(in srgb, var(--markweave-focus, #4f77b6) 72%, transparent);
+  border-left: 3px solid var(--markweave-ai-proposal-border, rgba(65, 104, 201, 0.72));
 }
 
 .markweave-ai-edit-hunk-proposal--delete {
   min-height: 8px;
-  border-left-color: color-mix(in srgb, #d14343 72%, transparent);
-  background: color-mix(in srgb, #d14343 7%, transparent);
+  border-left-color: rgba(209, 67, 67, 0.72);
+  background: rgba(209, 67, 67, 0.07);
 }
 
 .markweave-ask-ai-proposal-cell {
@@ -2599,7 +2609,7 @@
 }
 
 .markweave-ask-ai-proposal {
-  color: color-mix(in srgb, var(--markweave-focus, #4f77b6) 76%, var(--markweave-text, #2f343b));
+  color: var(--markweave-ai-proposal-text, #355eae);
   caret-color: transparent;
   cursor: default;
 }
@@ -2652,22 +2662,22 @@
 }
 
 .markweave-ask-ai-proposal code {
-  border-color: color-mix(in srgb, var(--markweave-focus, #4f77b6) 22%, var(--markweave-border, #dfe3e8));
-  background: color-mix(in srgb, var(--markweave-focus, #4f77b6) 7%, var(--markweave-code-surface, #f4f5f7));
+  border-color: var(--markweave-border-strong, #c9d1df);
+  background: var(--markweave-surface-muted, #f3f5f7);
   color: inherit;
 }
 
 .markweave-ask-ai-proposal pre.markweave-code-block {
   max-width: 100%;
   overflow-x: auto;
-  border-color: color-mix(in srgb, var(--markweave-focus, #4f77b6) 22%, var(--markweave-border, #dfe3e8));
-  background: color-mix(in srgb, var(--markweave-focus, #4f77b6) 6%, var(--markweave-code-surface, #f7f8fa));
+  border-color: var(--markweave-border-strong, #c9d1df);
+  background: var(--markweave-surface-muted, #f3f5f7);
   color: inherit;
 }
 
 .markweave-ask-ai-proposal .tiptap-mathematics-render[data-type="block-math"] {
   counter-increment: none;
-  background: color-mix(in srgb, var(--markweave-focus, #4f77b6) 6%, var(--markweave-code-surface, #f7f8fa));
+  background: var(--markweave-surface-muted, #f3f5f7);
 }
 
 .markweave-ask-ai-proposal .tiptap-mathematics-render[data-type="block-math"]::before,
@@ -2678,7 +2688,7 @@
 .markweave-ask-ai-applied {
   border-radius: 3px;
   animation: markweave-ask-ai-applied 560ms ease-out both;
-  background: color-mix(in srgb, var(--markweave-focus, #4f77b6) 18%, transparent);
+  background: rgba(65, 104, 201, 0.18);
 }
 
 .markweave-ai-edit-controls {
@@ -2714,16 +2724,23 @@
   animation: markweave-ask-ai-text-pulse 1.6s ease-in-out infinite;
 }
 
-.markweave-ask-ai-proposal--text .markweave-ai-edit-controls,
-.markweave-ask-ai-proposal--text + .markweave-ai-edit-controls {
+.markweave-ai-edit-controls--floating {
+  position: fixed;
+  z-index: 61;
   display: flex;
-  max-width: none;
-  width: 100%;
+  width: max-content;
+  max-width: calc(100vw - 24px);
   justify-content: flex-end;
+  margin: 0;
+  border: 1px solid var(--markweave-border, #d9dee7);
+  border-radius: 8px;
+  background: var(--markweave-surface, #ffffff);
+  box-shadow: 0 6px 18px var(--markweave-shadow, rgba(31, 35, 40, 0.14));
+  padding: 4px;
+  visibility: hidden;
 }
 
-.markweave-ask-ai-proposal--text .markweave-ai-edit-status,
-.markweave-ask-ai-proposal--text + .markweave-ai-edit-controls .markweave-ai-edit-status {
+.markweave-ai-edit-controls--floating .markweave-ai-edit-status {
   margin-inline-end: auto;
 }
 
@@ -2733,7 +2750,7 @@
   min-height: 26px;
   align-items: center;
   justify-content: center;
-  border: 1px solid color-mix(in srgb, var(--markweave-border, #dfe3e8) 88%, transparent);
+  border: 1px solid var(--markweave-border, #d9dee7);
   border-radius: 5px;
   box-shadow: none;
   padding: 0 8px;
@@ -2756,18 +2773,18 @@
 .markweave-ai-edit-button--primary {
   background: var(--markweave-focus, #4168c9);
   border-color: var(--markweave-focus, #4168c9);
-  color: #ffffff;
+  color: var(--markweave-ai-primary-text, #ffffff);
 }
 
 .markweave-ai-edit-button--primary:hover {
-  background: color-mix(in srgb, var(--markweave-focus, #4168c9) 84%, #000000);
+  background: var(--markweave-ai-primary-hover, #3657a8);
   box-shadow: none;
-  color: #ffffff;
+  color: var(--markweave-ai-primary-text, #ffffff);
   transform: none;
 }
 
 @keyframes markweave-ask-ai-applied {
-  from { background-color: color-mix(in srgb, var(--markweave-focus, #4f77b6) 22%, transparent); }
+  from { background-color: rgba(65, 104, 201, 0.22); }
   to { background-color: transparent; }
 }
 
@@ -3147,6 +3164,10 @@
   .markweave-ai-edit-controls {
     max-width: calc(100vw - 24px);
     margin-inline-start: 4px;
+  }
+
+  .markweave-ai-edit-controls--floating {
+    margin: 0;
   }
 
   .markweave-ai-edit-status {
@@ -4664,7 +4685,7 @@ body:has(.markweave-mermaid-fullscreen-layer, .markweave-image-preview-layer) .m
 }
 
 .markweave-editor-frame[data-markweave-theme="dark"] .markweave-ask-ai-proposal {
-  color: color-mix(in srgb, var(--markweave-focus) 68%, var(--markweave-text));
+  color: var(--markweave-ai-proposal-text);
 }
 
 .markweave-editor-frame[data-markweave-theme="dark"] .markweave-ask-ai-proposal-cell {
@@ -4686,12 +4707,12 @@ body:has(.markweave-mermaid-fullscreen-layer, .markweave-image-preview-layer) .m
 .markweave-editor-frame[data-markweave-theme="dark"] .markweave-ai-edit-button--primary {
   background: var(--markweave-focus);
   border-color: var(--markweave-focus);
-  color: #1e2532;
+  color: var(--markweave-ai-primary-text);
 }
 
 .markweave-editor-frame[data-markweave-theme="dark"] .markweave-ai-edit-button--primary:hover {
-  background: color-mix(in srgb, var(--markweave-focus) 84%, #ffffff);
-  color: #1e2532;
+  background: var(--markweave-ai-primary-hover);
+  color: var(--markweave-ai-primary-text);
 }
 
 .markweave-editor-frame[data-markweave-theme="dark"] .markweave-ask-ai-preview table,

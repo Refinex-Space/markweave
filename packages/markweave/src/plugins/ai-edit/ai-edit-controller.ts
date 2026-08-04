@@ -18,6 +18,7 @@ import {
   isMarkweaveEditorLiveEditable,
   subscribeToMarkweaveEditorMode,
 } from "../../core/editor-mode-state";
+import { getMarkweaveVisibleBoundaryRect } from "../../core/visible-boundary";
 import {
   getMarkweaveMessages,
   normalizeMarkweaveLang,
@@ -290,8 +291,8 @@ function preventEditorFocusLoss(event: Event) {
   event.stopPropagation();
 }
 
-function createActionButton(label: string, className: string, action: () => void) {
-  const button = document.createElement("button");
+function createActionButton(ownerDocument: Document, label: string, className: string, action: () => void) {
+  const button = ownerDocument.createElement("button");
   button.type = "button";
   button.className = className;
   button.textContent = label;
@@ -307,7 +308,8 @@ function createActionButton(label: string, className: string, action: () => void
 function createReviewControls(editor: Editor, session: MarkweaveAiEditSession) {
   const messages = editorMessages.get(editor) ?? getMarkweaveMessages(editorLanguages.get(editor)).aiEdit;
   const controller = createMarkweaveAiEditController(editor);
-  const element = document.createElement("span");
+  const ownerDocument = editor.view.dom.ownerDocument;
+  const element = ownerDocument.createElement("span");
   element.className = "markweave-ai-edit-controls";
   element.dataset.markweaveAiEditPhase = session.phase;
   element.dataset.markweaveAiEditContext = session.context.id;
@@ -315,7 +317,7 @@ function createReviewControls(editor: Editor, session: MarkweaveAiEditSession) {
   element.setAttribute("role", "toolbar");
   element.setAttribute("aria-label", messages.ariaLabel);
 
-  const status = document.createElement("span");
+  const status = ownerDocument.createElement("span");
   status.className = "markweave-ai-edit-status";
   status.setAttribute("aria-live", "polite");
 
@@ -323,7 +325,7 @@ function createReviewControls(editor: Editor, session: MarkweaveAiEditSession) {
     status.textContent = session.phase === "captured" ? messages.preparing : messages.streaming;
     element.append(
       status,
-      createActionButton(messages.stop, "markweave-ai-edit-button markweave-ai-edit-button--secondary", () => {
+      createActionButton(ownerDocument, messages.stop, "markweave-ai-edit-button markweave-ai-edit-button--secondary", () => {
         controller.discard(session.context.id);
       }),
     );
@@ -332,10 +334,10 @@ function createReviewControls(editor: Editor, session: MarkweaveAiEditSession) {
 
   if (session.phase === "review") {
     element.append(
-      createActionButton(messages.discard, "markweave-ai-edit-button markweave-ai-edit-button--secondary", () => {
+      createActionButton(ownerDocument, messages.discard, "markweave-ai-edit-button markweave-ai-edit-button--secondary", () => {
         controller.discard(session.context.id);
       }),
-      createActionButton(messages.accept, "markweave-ai-edit-button markweave-ai-edit-button--primary", () => {
+      createActionButton(ownerDocument, messages.accept, "markweave-ai-edit-button markweave-ai-edit-button--primary", () => {
         controller.accept(session.context.id);
       }),
     );
@@ -345,11 +347,157 @@ function createReviewControls(editor: Editor, session: MarkweaveAiEditSession) {
   status.textContent = session.error ?? (session.phase === "conflict" ? messages.conflict : messages.errorFallback);
   element.append(
     status,
-    createActionButton(messages.discard, "markweave-ai-edit-button markweave-ai-edit-button--secondary", () => {
+    createActionButton(ownerDocument, messages.discard, "markweave-ai-edit-button markweave-ai-edit-button--secondary", () => {
       controller.discard(session.context.id);
     }),
   );
   return element;
+}
+
+const aiEditPortalThemeTokens = [
+  "--markweave-text",
+  "--markweave-text-muted",
+  "--markweave-surface",
+  "--markweave-surface-muted",
+  "--markweave-border",
+  "--markweave-focus",
+  "--markweave-shadow",
+  "--markweave-ai-primary-text",
+  "--markweave-ai-primary-hover",
+] as const;
+
+function getAiEditFrame(editor: Editor) {
+  return editor.view.dom.closest<HTMLElement>(".markweave-editor-frame") ?? editor.view.dom;
+}
+
+function copyAiEditPortalTheme(frame: HTMLElement, controls: HTMLElement) {
+  const view = frame.ownerDocument.defaultView;
+  if (!view) {
+    return;
+  }
+  const styles = view.getComputedStyle(frame);
+  aiEditPortalThemeTokens.forEach((token) => {
+    const value = styles.getPropertyValue(token).trim();
+    if (value) {
+      controls.style.setProperty(token, value);
+    }
+  });
+  controls.dataset.markweaveTheme = frame.dataset.markweaveTheme ?? "light";
+}
+
+function createFloatingReviewControls(editor: Editor) {
+  const frame = getAiEditFrame(editor);
+  const ownerDocument = frame.ownerDocument;
+  const view = ownerDocument.defaultView;
+  let controls: HTMLElement | null = null;
+  let controlsKey = "";
+  let cancelScheduledPosition: (() => void) | null = null;
+  let resizeObserver: ResizeObserver | null = null;
+  let tracking = false;
+
+  const position = () => {
+    cancelScheduledPosition = null;
+    if (!controls?.isConnected) {
+      return;
+    }
+    const boundary = getMarkweaveVisibleBoundaryRect(frame);
+    if (boundary.width <= 0 || boundary.height <= 0) {
+      controls.style.visibility = "hidden";
+      controls.dataset.markweavePositioned = "false";
+      return;
+    }
+
+    const margin = Math.min(12, Math.max(4, boundary.width / 8), Math.max(4, boundary.height / 8));
+    controls.style.maxWidth = `${Math.max(0, Math.floor(boundary.width - margin * 2))}px`;
+    const controlsRect = controls.getBoundingClientRect();
+    const left = Math.max(boundary.left + margin, boundary.left + boundary.width - controlsRect.width - margin);
+    const top = Math.max(boundary.top + margin, boundary.top + boundary.height - controlsRect.height - margin);
+    controls.style.left = `${Math.round(left)}px`;
+    controls.style.top = `${Math.round(top)}px`;
+    controls.style.visibility = "visible";
+    controls.dataset.markweavePositioned = "true";
+  };
+
+  const schedulePosition = () => {
+    if (cancelScheduledPosition) {
+      return;
+    }
+    if (view?.requestAnimationFrame) {
+      const frameId = view.requestAnimationFrame(position);
+      cancelScheduledPosition = () => view.cancelAnimationFrame(frameId);
+      return;
+    }
+    const timeout = globalThis.setTimeout(position, 0);
+    cancelScheduledPosition = () => globalThis.clearTimeout(timeout);
+  };
+
+  const startTracking = () => {
+    if (tracking) {
+      return;
+    }
+    const ResizeObserverCtor = view?.ResizeObserver ?? globalThis.ResizeObserver;
+    resizeObserver = ResizeObserverCtor ? new ResizeObserverCtor(schedulePosition) : null;
+    resizeObserver?.observe(frame);
+    if (controls) {
+      resizeObserver?.observe(controls);
+    }
+    ownerDocument.addEventListener("scroll", schedulePosition, true);
+    ownerDocument.addEventListener("visibilitychange", schedulePosition);
+    view?.addEventListener("resize", schedulePosition);
+    view?.addEventListener("focus", schedulePosition);
+    view?.addEventListener("pageshow", schedulePosition);
+    tracking = true;
+  };
+
+  const stopTracking = () => {
+    if (!tracking) {
+      return;
+    }
+    cancelScheduledPosition?.();
+    cancelScheduledPosition = null;
+    resizeObserver?.disconnect();
+    resizeObserver = null;
+    ownerDocument.removeEventListener("scroll", schedulePosition, true);
+    ownerDocument.removeEventListener("visibilitychange", schedulePosition);
+    view?.removeEventListener("resize", schedulePosition);
+    view?.removeEventListener("focus", schedulePosition);
+    view?.removeEventListener("pageshow", schedulePosition);
+    tracking = false;
+  };
+
+  return {
+    update() {
+      const session = sessions.get(editor);
+      if (!session || session.controls !== "default") {
+        stopTracking();
+        controls?.remove();
+        controls = null;
+        controlsKey = "";
+        return;
+      }
+
+      const nextKey = [session.context.id, session.phase, session.error ?? ""].join("\u0000");
+      if (!controls || controlsKey !== nextKey) {
+        stopTracking();
+        controls?.remove();
+        controls = createReviewControls(editor, session);
+        controls.classList.add("markweave-ai-edit-controls--floating");
+        copyAiEditPortalTheme(frame, controls);
+        ownerDocument.body.appendChild(controls);
+        controlsKey = nextKey;
+      } else {
+        copyAiEditPortalTheme(frame, controls);
+      }
+      startTracking();
+      schedulePosition();
+    },
+    destroy() {
+      stopTracking();
+      controls?.remove();
+      controls = null;
+      controlsKey = "";
+    },
+  };
 }
 
 function createAiEditDecorations(editor: Editor) {
@@ -376,11 +524,7 @@ function createAiEditDecorations(editor: Editor) {
         }));
       }
       decorations.push(Decoration.widget(hunk.to, () => {
-        const proposal = createMarkweaveAiEditProposalDom(editor, hunk);
-        if (session.controls === "default" && hunk.id === session.hunks.at(-1)?.id) {
-          proposal.append(createReviewControls(editor, session));
-        }
-        return proposal;
+        return createMarkweaveAiEditProposalDom(editor, hunk);
       }, {
         key: `markweave-ai-edit-hunk-${key}-${hunk.id}`,
         side: 1,
@@ -391,20 +535,6 @@ function createAiEditDecorations(editor: Editor) {
       class: "markweave-ai-edit-original",
       "data-markweave-ai-edit-original": "true",
     }));
-  }
-  if (session.controls === "default") {
-    const controlsFollowPreview = !session.range
-      && target?.status === "target"
-      && hasMarkweaveAskAiPreview(editor.state);
-    const controlsAt = session.range
-      ? session.hunks.length === 0 ? session.range.to : undefined
-      : controlsFollowPreview ? target?.from : target?.to;
-    if (controlsAt !== undefined) {
-      decorations.push(Decoration.widget(controlsAt, () => createReviewControls(editor, session), {
-        key: `markweave-ai-edit-controls-${key}`,
-        side: controlsFollowPreview ? 2 : 1,
-      }));
-    }
   }
   return DecorationSet.create(editor.state.doc, decorations);
 }
@@ -477,7 +607,9 @@ export const MarkweaveAiEdit = Extension.create<MarkweaveAiEditOptions>({
           decorations: () => createAiEditDecorations(editor),
         },
         view() {
+          const floatingControls = createFloatingReviewControls(editor);
           let previousStateKey = stateKey(publicState(editor));
+          floatingControls.update();
           return {
             update(view, previousState) {
               const becameConflict = synchronizeConflict(editor);
@@ -496,8 +628,10 @@ export const MarkweaveAiEdit = Extension.create<MarkweaveAiEditOptions>({
                 const selection = inspectMarkweaveAiEditSelection(editor);
                 selectionListeners.forEach((listener) => listener(selection));
               }
+              floatingControls.update();
             },
             destroy() {
+              floatingControls.destroy();
               disposeController(editor);
             },
           };

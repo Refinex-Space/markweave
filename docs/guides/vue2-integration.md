@@ -1,6 +1,6 @@
 ---
 owner: refinex
-updated: 2026-08-01
+updated: 2026-08-04
 status: active
 referenced_by: docs/README.md#knowledge-map
 ---
@@ -361,7 +361,7 @@ const capturedDocument = controller.capture({
 
 ### Cumulative streaming and headless controls
 
-Every streaming call must pass the complete accumulated Markdown, not one token, and finish with `status: "complete"`. Exact selections may update their local preview while streaming; block/document diffs appear only after completion so an unreceived suffix never looks deleted. `controls: "none"` hides only the default bar. Read `getState()` before state `subscribe()`; `subscribeSelection()` immediately replays the current selection. Dispose all listeners in `beforeDestroy`.
+Every streaming call must pass the complete accumulated Markdown, not one token, and finish with `status: "complete"`. Exact selections may update their local preview while streaming; block/document diffs appear only after completion so an unreceived suffix never looks deleted. The default controls use one body-level fixed decision dock at the bottom-right of the editor's visible boundary, retaining accessible stop/accept/discard actions for long and multi-hunk proposals in legacy Chromium 106 hosts. `controls: "none"` hides only that dock. Read `getState()` before state `subscribe()`; `subscribeSelection()` immediately replays the current selection. Dispose all listeners in `beforeDestroy`.
 
 ### State, errors, and safety
 

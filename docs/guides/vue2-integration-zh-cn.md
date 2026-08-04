@@ -1,6 +1,6 @@
 ---
 owner: refinex
-updated: 2026-08-01
+updated: 2026-08-04
 status: active
 referenced_by: docs/README.md#knowledge-map
 ---
@@ -367,7 +367,7 @@ const capturedDocument = controller.capture({
 
 ### 累计流式响应与 headless 操作条
 
-每次流式调用必须传入当前累计的完整 Markdown，而非单个 token，并以 `status: "complete"` 结束。精确选区可在流式期间更新局部预览；`blocks/document` 只在 complete 后展示多处 Diff。宿主失败时调用 `failProposal`。`controls: "none"` 只隐藏默认操作条。由于状态 `subscribe()` 只报告后续变化，自定义界面应先读取 `getState()`；选区 `subscribeSelection()` 会立即回放当前选区。两类监听都应在 `beforeDestroy` 中注销。只有 `review` phase 可 `accept`；任意活动 phase 均可 `discard`。
+每次流式调用必须传入当前累计的完整 Markdown，而非单个 token，并以 `status: "complete"` 结束。精确选区可在流式期间更新局部预览；`blocks/document` 只在 complete 后展示多处 Diff。宿主失败时调用 `failProposal`。默认操作使用一个挂载到 `body`、固定在编辑器当前可视边界右下角的紧凑决策条，长文档与多 hunk 提案滚动时仍可直接停止、接受或舍弃，并兼容 Chromium 106。`controls: "none"` 只隐藏该决策条。由于状态 `subscribe()` 只报告后续变化，自定义界面应先读取 `getState()`；选区 `subscribeSelection()` 会立即回放当前选区。两类监听都应在 `beforeDestroy` 中注销。只有 `review` phase 可 `accept`；任意活动 phase 均可 `discard`。
 
 ### 状态、错误码与安全规则
 

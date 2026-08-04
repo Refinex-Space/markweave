@@ -165,25 +165,36 @@ describe("editor style boundary", () => {
     expect(editorCss).toContain('.markweave-editor-frame[data-markweave-theme="dark"] .markweave-ask-ai-preview table');
   });
 
-  it("keeps AI edit review controls flat and compact", () => {
+  it("keeps AI edit review controls compact, visible, and Chromium 106 compatible", () => {
     const controlsRule = editorCss.match(/\.markweave-ai-edit-controls\s*\{([\s\S]*?)\n\}/)?.[1];
+    const floatingControlsRule = editorCss.match(/\.markweave-ai-edit-controls--floating\s*\{([\s\S]*?)\n\}/)?.[1];
     const buttonRule = editorCss.match(/\.markweave-ai-edit-button\s*\{([\s\S]*?)\n\}/)?.[1];
     const primaryButtonRule = editorCss.match(/\.markweave-ai-edit-button--primary\s*\{([\s\S]*?)\n\}/)?.[1];
+    const primaryButtonHoverRule = editorCss.match(/\.markweave-ai-edit-button--primary:hover\s*\{([\s\S]*?)\n\}/)?.[1];
     const originalRule = editorCss.match(/\.markweave-ask-ai-original\.markweave-ai-edit-original\[data-markweave-ai-edit-original="true"\]\s*\{([\s\S]*?)\n\}/)?.[1];
+    const proposalRule = editorCss.match(/\.markweave-ask-ai-proposal\s*\{([\s\S]*?)\n\}/)?.[1];
 
     expect(controlsRule).toContain("border: 0;");
     expect(controlsRule).toContain("background: transparent;");
     expect(controlsRule).toContain("box-shadow: none;");
+    expect(floatingControlsRule).toContain("position: fixed;");
+    expect(floatingControlsRule).toContain("visibility: hidden;");
+    expect(floatingControlsRule).toContain("background: var(--markweave-surface, #ffffff);");
+    expect(floatingControlsRule).toContain("border: 1px solid var(--markweave-border, #d9dee7);");
     expect(buttonRule).toContain("min-height: 26px;");
     expect(buttonRule).toContain("padding: 0 8px;");
     expect(buttonRule).toContain("border: 1px solid");
     expect(buttonRule).toContain("box-shadow: none;");
     expect(primaryButtonRule).toContain("background: var(--markweave-focus, #4168c9);");
     expect(primaryButtonRule).toContain("border-color: var(--markweave-focus, #4168c9);");
+    expect(primaryButtonHoverRule).toContain("background: var(--markweave-ai-primary-hover, #3657a8);");
+    expect(primaryButtonHoverRule).not.toContain("color-mix");
     expect(originalRule).toContain("box-shadow: none;");
+    expect(proposalRule).toContain("color: var(--markweave-ai-proposal-text, #355eae);");
+    expect(proposalRule).not.toContain("color-mix");
     expect(editorCss).toMatch(/\.markweave-ask-ai-proposal-cell\s*\{[^}]*background:\s*transparent;/s);
     expect(editorCss).toMatch(/\.markweave-ask-ai-proposal--text\s*\{[^}]*background:\s*transparent;[^}]*box-shadow:\s*none;/s);
-    expect(editorCss).toMatch(/\.markweave-ask-ai-proposal--text \+ \.markweave-ai-edit-controls\s*\{[^}]*max-width:\s*none;[^}]*width:\s*100%;[^}]*justify-content:\s*flex-end;/s);
+    expect(editorCss).not.toMatch(/\.markweave-ask-ai-proposal--text \+ \.markweave-ai-edit-controls/);
     expect(editorCss).toMatch(/\.markweave-ask-ai-proposal--text\[data-markweave-ask-ai-layout="block"\]\s*\{[^}]*padding:\s*8px 0;/s);
   });
 
