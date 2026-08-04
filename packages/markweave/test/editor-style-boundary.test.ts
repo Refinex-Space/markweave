@@ -250,6 +250,9 @@ describe("editor style boundary", () => {
     expect(editorCss).toContain('.markweave-video-node[data-selected="true"]');
     expect(editorCss).toContain(".markweave-inner-toc");
     expect(editorCss).toContain(".markweave-inner-toc-rail");
+    expect(editorCss).toContain("height: var(--markweave-inner-toc-rail-height, 15.5px)");
+    expect(editorCss).toContain("max-height: min(42vh, 288px)");
+    expect(editorCss).toMatch(/\.markweave-inner-toc-rail\s*\{[^}]*overflow:\s*hidden;[^}]*justify-content:\s*space-between;[^}]*gap:\s*0;/s);
     expect(editorCss).toContain(".markweave-inner-toc-panel");
     expect(editorCss).toContain(".markweave-inner-toc-item");
     expect(editorCss).toContain(".markweave-inner-toc:hover .markweave-inner-toc-panel");

@@ -35,9 +35,22 @@ export const markweaveTocProjectionPluginKey = new PluginKey<
 >("markweaveTocProjection");
 
 const compactInnerTocContainerWidth = 900;
+const innerTocRailMarkerHeight = 1.5;
+const innerTocRailMarkerGap = 4;
+const innerTocRailPadding = 14;
 
 export function normalizeMarkweaveInnerTocPlacement(value: unknown): MarkweaveInnerTocPlacement {
   return value === "viewport" ? "viewport" : "container";
+}
+
+export function getMarkweaveInnerTocRailHeight(itemCount: number) {
+  const normalizedItemCount = Number.isFinite(itemCount)
+    ? Math.max(1, Math.floor(itemCount))
+    : 1;
+  const markerHeight = normalizedItemCount * innerTocRailMarkerHeight;
+  const markerGaps = (normalizedItemCount - 1) * innerTocRailMarkerGap;
+
+  return `${markerHeight + markerGaps + innerTocRailPadding}px`;
 }
 
 export function observeMarkweaveInnerTocContainerPosition(tocElement: HTMLElement) {

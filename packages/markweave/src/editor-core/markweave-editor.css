@@ -179,10 +179,14 @@
   right: 0;
   display: flex;
   width: 28px;
+  height: var(--markweave-inner-toc-rail-height, 15.5px);
+  max-height: min(42vh, 288px);
+  overflow: hidden;
   padding: 7px 0;
   align-items: flex-end;
   flex-direction: column;
-  gap: 4px;
+  justify-content: space-between;
+  gap: 0;
   pointer-events: none;
   transform: translateY(-50%);
 }
@@ -191,6 +195,8 @@
   display: block;
   width: 20px;
   height: 1.5px;
+  min-height: 0;
+  flex-shrink: 1;
   border-radius: 999px;
   background: #dfe3e8;
   transition:
