@@ -31,7 +31,7 @@ Version 0.3.5 keeps this fixed positioning and resolver-backed first-screen imag
 
 ## Host-Driven AI Edit Review
 
-Version 0.3.8 exposes lazy selection snapshots plus explicit selection, block, and document AI edit scopes through `MarkweaveAiEditController`. Keyed Vue 2 replacements preserve the successor controller, and multi-scope proposals render as atomic multi-hunk review without Markweave sending provider requests or receiving credentials.
+Version 0.5.0 exposes lazy selection snapshots plus explicit selection, block, and document AI edit scopes through `MarkweaveAiEditController`. Keyed Vue 2 replacements preserve the successor controller, while multi-scope proposals provide count/navigation, global decisions, and staged per-hunk decisions before one atomic settlement.
 
 ```vue
 <MarkweaveEditor :on-ai-edit-controller-change="setAiEditController" />

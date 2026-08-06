@@ -2,6 +2,7 @@ import type { Editor } from "@tiptap/core";
 import { TextSelection } from "@tiptap/pm/state";
 import { CellSelection, findCell, isInTable, selectedRect, TableMap } from "@tiptap/pm/tables";
 import type { TableCommandResult, TableCommandSnapshot, TableEditWithAiRequest } from "../../core/public-types";
+import { getMarkweaveVisibleBoundaryRect } from "../../core/visible-boundary";
 import { getMarkweaveMessages, type MarkweaveMessages } from "../../i18n";
 import {
   getMarkweaveMenuCopyPayloadFromState,
@@ -176,65 +177,13 @@ function getPositioningBoundary(
   return insetTableControlRect(intersectTableControlRects(frameRect, boundaryRect ?? frameRect), boundaryPadding);
 }
 
-function clipsOverflow(value: string) {
-  return /^(auto|clip|hidden|overlay|scroll)$/.test(value);
-}
-
 /**
  * Returns the part of the editor frame that is visible through the viewport and
  * every clipping ancestor. All values stay in viewport coordinates so adapters
  * can share the same positioning calculations.
  */
 export function getTableMenuBoundaryRect(frameElement: HTMLElement): TableControlsRect {
-  const frameRect = frameElement.getBoundingClientRect();
-  let boundary: TableControlsRect = {
-    left: frameRect.left,
-    top: frameRect.top,
-    width: frameRect.width,
-    height: frameRect.height,
-  };
-
-  const view = frameElement.ownerDocument.defaultView;
-  if (!view) {
-    return boundary;
-  }
-
-  boundary = intersectTableControlRects(boundary, {
-    left: 0,
-    top: 0,
-    width: view.innerWidth,
-    height: view.innerHeight,
-  });
-
-  let ancestor = frameElement.parentElement;
-  while (ancestor) {
-    const style = view.getComputedStyle(ancestor);
-    const clipsX =
-      clipsOverflow(style.overflowX) ||
-      clipsOverflow(style.overflow) ||
-      clipsOverflow(ancestor.style.overflowX) ||
-      clipsOverflow(ancestor.style.overflow);
-    const clipsY =
-      clipsOverflow(style.overflowY) ||
-      clipsOverflow(style.overflow) ||
-      clipsOverflow(ancestor.style.overflowY) ||
-      clipsOverflow(ancestor.style.overflow);
-
-    if (clipsX || clipsY) {
-      const ancestorRect = ancestor.getBoundingClientRect();
-      const constrainedRect: TableControlsRect = {
-        left: clipsX ? ancestorRect.left : boundary.left,
-        top: clipsY ? ancestorRect.top : boundary.top,
-        width: clipsX ? ancestorRect.width : boundary.width,
-        height: clipsY ? ancestorRect.height : boundary.height,
-      };
-      boundary = intersectTableControlRects(boundary, constrainedRect);
-    }
-
-    ancestor = ancestor.parentElement;
-  }
-
-  return boundary;
+  return getMarkweaveVisibleBoundaryRect(frameElement);
 }
 
 export function calculateTableControlsPosition(input: {

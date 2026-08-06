@@ -6,6 +6,7 @@ import { createMarkweaveEditorExtensions } from "../src/editor-core/create-edito
 import {
   createMarkweaveTocState,
   getActiveMarkweaveTocId,
+  getMarkweaveInnerTocRailHeight,
   getMarkweaveTocItems,
   getMarkweaveTocItemsFromState,
   scrollToMarkweaveTocItem,
@@ -48,6 +49,13 @@ afterEach(() => {
 });
 
 describe("markweave table of contents model", () => {
+  it("calculates a Chromium 106-safe intrinsic rail height from the heading count", () => {
+    expect(getMarkweaveInnerTocRailHeight(1)).toBe("15.5px");
+    expect(getMarkweaveInnerTocRailHeight(120)).toBe("670px");
+    expect(getMarkweaveInnerTocRailHeight(0)).toBe("15.5px");
+    expect(getMarkweaveInnerTocRailHeight(Number.NaN)).toBe("15.5px");
+  });
+
   it("registers only the optimized task-list extension", () => {
     const editor = createEditor("<p>Body</p>");
     const taskLists = editor.extensionManager.extensions.filter(

@@ -17,7 +17,7 @@ Open `http://127.0.0.1:5173/`.
 - Shared Markdown fixture from `@markweave/playground-fixtures`.
 - Live/View mode switching.
 - Floating toolbar, slash commands, tables, media, code blocks, Mermaid, math, and inner TOC.
-- Upload mock, table callbacks, and AI callback debug surfaces.
+- Upload mock, table callbacks, AI callback debug surfaces, and a deterministic whole-document multi-hunk review trigger for navigation and per-hunk decision checks.
 - Real text and table Ask AI streaming through the local `/api/markweave/ask-ai` development proxy, including exact-shape GFM table prompts. The API key stays in the root `.env` and is never exposed through Vite client variables.
 
 ## Integration Shape

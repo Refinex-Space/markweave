@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Eye, Moon, PencilLine, Sparkles, Sun } from "lucide-react";
+import { Eye, ListChecks, Moon, PencilLine, Sparkles, Sun } from "lucide-react";
 import {
   MarkweaveEditor,
   type MarkweaveAiEditController,
@@ -97,6 +97,34 @@ export function MarkweaveEditorPlayground() {
     }
   };
 
+  const runHostAiMultiEdit = () => {
+    if (!aiEditController) return;
+    const captured = aiEditController.capture({
+      scope: "document",
+      metadata: { source: "playground-host-multi-edit" },
+    });
+    if (!captured.ok) {
+      setLastAiEditStatus(`${captured.code}: ${captured.message}`);
+      return;
+    }
+    const replacements = [
+      ["# Markweave Editor", "# Markweave AI Review"],
+      ["## 2. Headings And Paragraph Rhythm", "## 2. Headings, Rhythm, And Review"],
+      ["## 7. Code Blocks", "## 7. Code Blocks And Tooling"],
+      ["## 11. Keyboard And Slash Checks", "## 11. Keyboard, Slash, And AI Review Checks"],
+    ] as const;
+    const proposal = replacements.reduce(
+      (markdown, [original, revised]) => markdown.replace(original, revised),
+      captured.value.target.markdown,
+    );
+    const completed = aiEditController.updateProposal({
+      contextId: captured.value.id,
+      markdown: proposal,
+      status: "complete",
+    });
+    setLastAiEditStatus(completed.ok ? "Multi-hunk host AI edit is ready for review." : `${completed.code}: ${completed.message}`);
+  };
+
   const isLiveMode = editorMode === "live";
   const ModeIcon = isLiveMode ? Eye : PencilLine;
   const nextMode: MarkweaveEditorMode = isLiveMode ? "view" : "live";
@@ -117,6 +145,17 @@ export function MarkweaveEditorPlayground() {
           onClick={() => void runHostAiEdit()}
         >
           <Sparkles size={18} strokeWidth={1.8} aria-hidden="true" />
+        </button>
+        <button
+          type="button"
+          className="markweave-playground-ai-edit-toggle"
+          data-testid="markweave-playground-ai-multi-edit"
+          disabled={!aiEditController || !isLiveMode}
+          aria-label="运行宿主 AI 全文多处预编辑"
+          title="运行宿主 AI 全文多处预编辑"
+          onClick={runHostAiMultiEdit}
+        >
+          <ListChecks size={18} strokeWidth={1.8} aria-hidden="true" />
         </button>
         <button
           type="button"

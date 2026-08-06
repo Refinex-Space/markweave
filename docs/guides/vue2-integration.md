@@ -1,6 +1,6 @@
 ---
 owner: refinex
-updated: 2026-08-01
+updated: 2026-08-04
 status: active
 referenced_by: docs/README.md#knowledge-map
 ---
@@ -357,11 +357,11 @@ const capturedDocument = controller.capture({
 });
 ```
 
-`selection` requires an eligible non-empty text range. `blocks` expands the range or cursor to covering top-level blocks. `document` explicitly captures the whole document without requiring a selection. For blocks and documents, return the complete revised Markdown for the captured target, never ProseMirror positions or a patch. Markweave waits for `complete`, computes and previews at most 200 structural hunks, and applies all hunks in one transaction and one undo step. `onDecision.appliedRanges` reports the mapped ranges actually applied. Full-document capture must remain an explicit host action and must not be inferred merely from an empty selection.
+`selection` requires an eligible non-empty text range. `blocks` expands the range or cursor to covering top-level blocks. `document` explicitly captures the whole document without requiring a selection. For blocks and documents, return the complete revised Markdown for the captured target, never ProseMirror positions or a patch. Markweave waits for `complete`, computes and previews at most 200 structural hunks, stages per-hunk decisions, and applies the accepted subset in one transaction and one undo step. `onDecision.appliedRanges` reports the mapped ranges actually applied. Full-document capture must remain an explicit host action and must not be inferred merely from an empty selection.
 
 ### Cumulative streaming and headless controls
 
-Every streaming call must pass the complete accumulated Markdown, not one token, and finish with `status: "complete"`. Exact selections may update their local preview while streaming; block/document diffs appear only after completion so an unreceived suffix never looks deleted. `controls: "none"` hides only the default bar. Read `getState()` before state `subscribe()`; `subscribeSelection()` immediately replays the current selection. Dispose all listeners in `beforeDestroy`.
+Every streaming call must pass the complete accumulated Markdown, not one token, and finish with `status: "complete"`. Exact selections may update their local preview while streaming; block/document diffs appear only after completion so an unreceived suffix never looks deleted. The default controls use one body-level bottom-center decision dock with hunk count, cyclic navigation, and global actions; the active or hovered hunk exposes local accept/discard controls. `controls: "none"` hides both built-in control surfaces. Headless hosts can use `previousHunk`, `nextHunk`, `acceptHunk`, `discardHunk`, `acceptAll`, and `discardAll`. Read `getState()` before state `subscribe()`; `subscribeSelection()` immediately replays the current selection. Dispose all listeners in `beforeDestroy`.
 
 ### State, errors, and safety
 
@@ -408,6 +408,7 @@ Vue 2 receives the complete Markweave UI: floating toolbar, link popover, slash 
 - Inline emphasis remains visible for CJK fallback fonts even when the host system has no native italic face.
 - Keep `vue` and `vue-template-compiler` versions identical.
 - Keep `transpileDependencies` for modern ESM dependencies when using Vue CLI 4 / Webpack 4.
+- The host-driven multi-hunk AI review dock mounts directly under `body` instead of relying on a CSS query container; per-hunk actions and tooltips use DOM, selector, and layout primitives supported by Electron 21 / Chromium 106.
 - Markweave 0.3.5 avoids CSS query-container fixed-position drift and actively probes pending first-screen images after mount, including when Electron 21 / Chromium 106 delays the initial `IntersectionObserver` callback.
 - Keep uploads authenticated and validate file size, MIME type, and returned URLs on your server.
 - Do not allow arbitrary iframe hosts. Markweave only handles direct video plus supported YouTube/Bilibili embed forms.

@@ -30,6 +30,8 @@ export type {
   MarkweaveAiEditDecision,
   MarkweaveAiEditErrorCode,
   MarkweaveAiEditHunk,
+  MarkweaveAiEditHunkDecision,
+  MarkweaveAiEditHunkDisposition,
   MarkweaveAiEditLineRange,
   MarkweaveAiEditPhase,
   MarkweaveAiEditProposal,

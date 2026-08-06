@@ -60,6 +60,13 @@ export interface MarkweaveMessages {
     readonly accept: string;
     readonly discard: string;
     readonly stop: string;
+    readonly acceptAll: string;
+    readonly discardAll: string;
+    readonly acceptHunk: string;
+    readonly discardHunk: string;
+    readonly previousHunk: string;
+    readonly nextHunk: string;
+    readonly changeCount: (current: number, total: number) => string;
     readonly conflict: string;
     readonly errorFallback: string;
   };
@@ -705,6 +712,13 @@ const messagesByLang: Record<MarkweaveLang, MarkweaveMessages> = {
       accept: "接受",
       discard: "放弃",
       stop: "停止",
+      acceptAll: "全部接受",
+      discardAll: "全部放弃",
+      acceptHunk: "接受此变更",
+      discardHunk: "放弃此变更",
+      previousHunk: "上一个变更",
+      nextHunk: "下一个变更",
+      changeCount: (current, total) => `${current} / ${total}`,
       conflict: "原内容已发生变化，无法应用这次修改。",
       errorFallback: "AI 修改无法预览，请检查返回内容。",
     },
@@ -981,6 +995,13 @@ const messagesByLang: Record<MarkweaveLang, MarkweaveMessages> = {
       accept: "Accept",
       discard: "Discard",
       stop: "Stop",
+      acceptAll: "Accept all",
+      discardAll: "Discard all",
+      acceptHunk: "Accept this change",
+      discardHunk: "Discard this change",
+      previousHunk: "Previous change",
+      nextHunk: "Next change",
+      changeCount: (current, total) => `${current} / ${total}`,
       conflict: "The original content changed, so this edit cannot be applied.",
       errorFallback: "The AI edit cannot be previewed. Check the returned content.",
     },

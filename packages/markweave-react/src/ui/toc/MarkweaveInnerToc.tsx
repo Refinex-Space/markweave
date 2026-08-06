@@ -1,7 +1,8 @@
 import type { Editor } from "@tiptap/core";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, type CSSProperties } from "react";
 import type { MarkweaveMessages } from "markweave/internal/i18n";
 import {
+  getMarkweaveInnerTocRailHeight,
   observeMarkweaveInnerTocContainerPosition,
   scrollToMarkweaveTocItem,
   type MarkweaveInnerTocPlacement,
@@ -44,7 +45,13 @@ export function MarkweaveInnerToc({ editor, state, messages, editable, placement
   };
 
   return (
-    <nav ref={tocElement} className="markweave-inner-toc" data-testid="markweave-inner-toc" aria-label={messages.toc.ariaLabel}>
+    <nav
+      ref={tocElement}
+      className="markweave-inner-toc"
+      data-testid="markweave-inner-toc"
+      aria-label={messages.toc.ariaLabel}
+      style={{ "--markweave-inner-toc-rail-height": getMarkweaveInnerTocRailHeight(state.items.length) } as CSSProperties}
+    >
       <div className="markweave-inner-toc-rail" aria-hidden="true">
         {state.items.map((item) => (
           <span key={item.id} data-level={item.level} data-active={item.active ? "true" : "false"} />

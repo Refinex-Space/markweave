@@ -9,10 +9,28 @@ import { createMarkweaveAiEditController } from "../src/plugins/ai-edit/ai-edit-
 let activeEditor: Editor | null = null;
 
 function createEditor(content: string, lang: "zh" | "en" = "zh") {
+  const frame = document.createElement("section");
+  frame.className = "markweave-editor-frame";
   const element = document.createElement("div");
-  document.body.appendChild(element);
+  element.className = "markweave-editor-surface";
+  frame.appendChild(element);
+  document.body.appendChild(frame);
   activeEditor = new Editor({ element, extensions: createMarkweaveEditorExtensions({ lang }), content });
   return activeEditor;
+}
+
+function createRect(left: number, top: number, width: number, height: number): DOMRect {
+  return {
+    bottom: top + height,
+    height,
+    left,
+    right: left + width,
+    top,
+    width,
+    x: left,
+    y: top,
+    toJSON: () => ({}),
+  } as DOMRect;
 }
 
 function findText(editor: Editor, text: string) {
@@ -88,19 +106,25 @@ describe("Markweave AI edit controller", () => {
     expect(editor.getJSON()).toEqual(before);
     await vi.waitFor(() => {
       const proposal = editor.view.dom.querySelector<HTMLElement>('[data-markweave-ask-ai-proposal="text"]');
-      const controls = editor.view.dom.querySelector(".markweave-ai-edit-controls");
+      const controls = document.body.querySelector(".markweave-ai-edit-controls--floating");
       expect(proposal?.textContent).toContain("Improved");
-      expect(proposal?.nextSibling).toBe(controls);
+      expect(controls).not.toBeNull();
+      expect(editor.view.dom.contains(controls)).toBe(false);
     });
     expect(editor.view.dom.querySelector(".markweave-ai-edit-original")?.textContent).toBe("selected text");
-    expect(editor.view.dom.querySelector(".markweave-ai-edit-controls")?.getAttribute("data-markweave-ai-edit-phase")).toBe("streaming");
+    expect(document.body.querySelector(".markweave-ai-edit-controls")?.getAttribute("data-markweave-ai-edit-phase")).toBe("streaming");
 
     expect(controller.updateProposal({
       contextId: captured.value.id,
       markdown: "**Improved text** with $a^2$.",
       status: "complete",
     })).toMatchObject({ ok: true });
-    expect(controller.getState().phase).toBe("review");
+    expect(controller.getState()).toMatchObject({
+      phase: "review",
+      activeHunkId: expect.any(String),
+      hunks: [expect.objectContaining({ disposition: "pending", kind: "replace" })],
+    });
+    expect(document.body.querySelector(".markweave-ai-edit-count")?.textContent).toBe("1 / 1");
     expect(editor.getJSON()).toEqual(before);
 
     const decision = controller.accept(captured.value.id);
@@ -170,7 +194,7 @@ describe("Markweave AI edit controller", () => {
     expect(discarded).toMatchObject({ ok: true, value: { decision: "discarded" } });
     expect(captured.value.signal.aborted).toBe(true);
     expect(editor.getJSON()).toEqual(before);
-    expect(controller.getState()).toEqual({ phase: "idle", context: null, proposal: null, error: null, hunks: [] });
+    expect(controller.getState()).toEqual({ phase: "idle", context: null, proposal: null, error: null, hunks: [], activeHunkId: null });
     expect(decisions).toHaveBeenCalledTimes(1);
   });
 
@@ -248,7 +272,78 @@ describe("Markweave AI edit controller", () => {
     });
 
     expect(editor.view.dom.querySelector('[data-markweave-ask-ai-proposal="text"]')?.textContent).toBe("Headless replacement");
+    expect(document.body.querySelector(".markweave-ai-edit-controls")).toBeNull();
+    expect(editor.view.dom.querySelector(".markweave-ai-edit-hunk-actions")).toBeNull();
+  });
+
+  it("keeps the default decision toolbar viewport-fixed inside the visible editor boundary", async () => {
+    const editor = createEditor("<p>Before selected text after</p>");
+    const frame = editor.view.dom.closest<HTMLElement>(".markweave-editor-frame");
+    expect(frame).not.toBeNull();
+    frame!.getBoundingClientRect = () => createRect(20, 40, 800, 600);
+    selectText(editor, "selected text");
+    const controller = createMarkweaveAiEditController(editor);
+    const captured = controller.captureSelection();
+    expect(captured.ok).toBe(true);
+    if (!captured.ok) {
+      return;
+    }
+
+    expect(controller.updateProposal({
+      contextId: captured.value.id,
+      markdown: "Improved text",
+      status: "complete",
+    })).toMatchObject({ ok: true });
+
+    const controls = await vi.waitFor(() => {
+      const element = document.body.querySelector<HTMLElement>(".markweave-ai-edit-controls--floating");
+      expect(element).not.toBeNull();
+      return element!;
+    });
+    controls.getBoundingClientRect = () => createRect(0, 0, 120, 34);
+    document.dispatchEvent(new Event("scroll"));
+
+    await vi.waitFor(() => {
+      expect(controls.dataset.markweavePositioned).toBe("true");
+      expect(controls.style.left).toBe("360px");
+      expect(controls.style.top).toBe("594px");
+      expect(controls.style.visibility).toBe("visible");
+    });
+
+    frame!.getBoundingClientRect = () => createRect(30, 50, 700, 500);
+    window.dispatchEvent(new Event("pageshow"));
+    await vi.waitFor(() => {
+      expect(controls.style.left).toBe("320px");
+      expect(controls.style.top).toBe("504px");
+    });
+    expect(document.body.querySelectorAll(".markweave-ai-edit-controls--floating")).toHaveLength(1);
     expect(editor.view.dom.querySelector(".markweave-ai-edit-controls")).toBeNull();
+  });
+
+  it("keeps one body-level decision toolbar for a multi-hunk document proposal", async () => {
+    const editor = createEditor("<h1>Original title</h1><p>Keep this paragraph</p><p>Original ending</p>");
+    const controller = createMarkweaveAiEditController(editor);
+    const captured = controller.capture({ scope: "document", controls: "default" });
+    expect(captured.ok).toBe(true);
+    if (!captured.ok) {
+      return;
+    }
+
+    expect(controller.updateProposal({
+      contextId: captured.value.id,
+      markdown: "# Revised title\n\nKeep this paragraph\n\nRevised ending",
+      status: "complete",
+    })).toMatchObject({ ok: true });
+
+    await vi.waitFor(() => {
+      expect(editor.view.dom.querySelectorAll(".markweave-ai-edit-hunk-proposal")).toHaveLength(2);
+      expect(document.body.querySelectorAll(".markweave-ai-edit-controls--floating")).toHaveLength(1);
+    });
+    expect(editor.view.dom.querySelector(".markweave-ai-edit-controls")).toBeNull();
+    expect(document.body.querySelector(".markweave-ai-edit-controls")?.getAttribute("data-markweave-ai-edit-phase")).toBe("review");
+    expect(document.body.querySelector(".markweave-ai-edit-count")?.textContent).toBe("1 / 2");
+    expect(document.body.querySelectorAll(".markweave-ai-edit-nav-button")).toHaveLength(2);
+    expect(document.body.querySelectorAll(".markweave-ai-edit-button")).toHaveLength(2);
   });
 
   it("exposes a lazy selection snapshot with normalized Markdown block lines", () => {
@@ -318,6 +413,83 @@ describe("Markweave AI edit controller", () => {
     expect(editor.getText()).toContain("Revised title");
     expect(editor.getText()).toContain("Keep this paragraph");
     expect(editor.getText()).toContain("Revised ending");
+    expect(editor.commands.undo()).toBe(true);
+    expect(editor.getJSON()).toEqual(before);
+  });
+
+  it("navigates hunks and settles mixed per-hunk decisions in one undoable transaction", () => {
+    const editor = createEditor("<h1>Original title</h1><p>Keep this paragraph</p><p>Original ending</p>");
+    const before = editor.getJSON();
+    const controller = createMarkweaveAiEditController(editor);
+    const captured = controller.capture({ scope: "document", controls: "default" });
+    expect(captured.ok).toBe(true);
+    if (!captured.ok) {
+      return;
+    }
+
+    expect(controller.updateProposal({
+      contextId: captured.value.id,
+      markdown: "# Revised title\n\nKeep this paragraph\n\nRevised ending",
+      status: "complete",
+    })).toMatchObject({ ok: true });
+
+    const initial = controller.getState();
+    expect(initial.hunks).toHaveLength(2);
+    expect(initial.hunks.every((hunk) => hunk.disposition === "pending")).toBe(true);
+    expect(initial.activeHunkId).toBe(initial.hunks[0]?.id);
+    expect(editor.view.dom.querySelectorAll(".markweave-ai-edit-hunk-actions")).toHaveLength(2);
+    const iconButtons = editor.view.dom.ownerDocument.querySelectorAll<HTMLButtonElement>(
+      ".markweave-ai-edit-hunk-button, .markweave-ai-edit-nav-button",
+    );
+    expect(iconButtons).toHaveLength(6);
+    iconButtons.forEach((button) => {
+      const tooltip = button.querySelector<HTMLElement>(".markweave-ai-edit-tooltip");
+      expect(button.hasAttribute("title")).toBe(false);
+      expect(button.getAttribute("aria-describedby")).toBe(tooltip?.id);
+      expect(tooltip?.getAttribute("role")).toBe("tooltip");
+    });
+
+    const hunkShells = editor.view.dom.querySelectorAll<HTMLElement>(".markweave-ai-edit-hunk-shell");
+    hunkShells[1]?.dispatchEvent(new MouseEvent("pointerover", { bubbles: true }));
+    expect(controller.getState().activeHunkId).toBe(initial.hunks[1]?.id);
+
+    expect(controller.previousHunk(captured.value.id)).toMatchObject({
+      ok: true,
+      value: { activeHunkId: initial.hunks[0]?.id },
+    });
+    expect(controller.nextHunk(captured.value.id)).toMatchObject({
+      ok: true,
+      value: { activeHunkId: initial.hunks[1]?.id },
+    });
+    expect(controller.previousHunk(captured.value.id)).toMatchObject({
+      ok: true,
+      value: { activeHunkId: initial.hunks[0]?.id },
+    });
+
+    const firstAccepted = controller.acceptHunk(captured.value.id, initial.hunks[0]!.id);
+    expect(firstAccepted).toMatchObject({
+      ok: true,
+      value: {
+        phase: "review",
+        activeHunkId: initial.hunks[1]?.id,
+        hunks: [expect.objectContaining({ disposition: "accepted" }), expect.objectContaining({ disposition: "pending" })],
+      },
+    });
+    expect(editor.getJSON()).toEqual(before);
+
+    const settled = controller.discardHunk(captured.value.id, initial.hunks[1]!.id);
+    expect(settled).toMatchObject({
+      ok: true,
+      value: {
+        decision: "partially-accepted",
+        hunkDecisions: [
+          expect.objectContaining({ decision: "accepted" }),
+          expect.objectContaining({ decision: "discarded" }),
+        ],
+      },
+    });
+    expect(editor.getText()).toContain("Revised title");
+    expect(editor.getText()).toContain("Original ending");
     expect(editor.commands.undo()).toBe(true);
     expect(editor.getJSON()).toEqual(before);
   });

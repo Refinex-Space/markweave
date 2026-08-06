@@ -165,26 +165,52 @@ describe("editor style boundary", () => {
     expect(editorCss).toContain('.markweave-editor-frame[data-markweave-theme="dark"] .markweave-ask-ai-preview table');
   });
 
-  it("keeps AI edit review controls flat and compact", () => {
+  it("keeps AI edit review controls compact, visible, and Chromium 106 compatible", () => {
+    const hunkReviewCss = editorCss.slice(
+      editorCss.indexOf(".markweave-ai-edit-hunk-shell"),
+      editorCss.indexOf(".markweave-ai-edit-controls"),
+    );
     const controlsRule = editorCss.match(/\.markweave-ai-edit-controls\s*\{([\s\S]*?)\n\}/)?.[1];
+    const floatingControlsRule = editorCss.match(/\.markweave-ai-edit-controls--floating\s*\{([\s\S]*?)\n\}/)?.[1];
     const buttonRule = editorCss.match(/\.markweave-ai-edit-button\s*\{([\s\S]*?)\n\}/)?.[1];
     const primaryButtonRule = editorCss.match(/\.markweave-ai-edit-button--primary\s*\{([\s\S]*?)\n\}/)?.[1];
+    const primaryButtonHoverRule = editorCss.match(/\.markweave-ai-edit-button--primary:hover\s*\{([\s\S]*?)\n\}/)?.[1];
     const originalRule = editorCss.match(/\.markweave-ask-ai-original\.markweave-ai-edit-original\[data-markweave-ai-edit-original="true"\]\s*\{([\s\S]*?)\n\}/)?.[1];
+    const proposalRule = editorCss.match(/\.markweave-ask-ai-proposal\s*\{([\s\S]*?)\n\}/)?.[1];
 
     expect(controlsRule).toContain("border: 0;");
     expect(controlsRule).toContain("background: transparent;");
     expect(controlsRule).toContain("box-shadow: none;");
+    expect(floatingControlsRule).toContain("position: fixed;");
+    expect(floatingControlsRule).toContain("visibility: hidden;");
+    expect(floatingControlsRule).toContain("background: var(--markweave-surface, #ffffff);");
+    expect(floatingControlsRule).toContain("border: 1px solid var(--markweave-border, #d9dee7);");
     expect(buttonRule).toContain("min-height: 26px;");
     expect(buttonRule).toContain("padding: 0 8px;");
     expect(buttonRule).toContain("border: 1px solid");
     expect(buttonRule).toContain("box-shadow: none;");
     expect(primaryButtonRule).toContain("background: var(--markweave-focus, #4168c9);");
     expect(primaryButtonRule).toContain("border-color: var(--markweave-focus, #4168c9);");
+    expect(primaryButtonHoverRule).toContain("background: var(--markweave-ai-primary-hover, #3657a8);");
+    expect(primaryButtonHoverRule).not.toContain("color-mix");
     expect(originalRule).toContain("box-shadow: none;");
+    expect(proposalRule).toContain("color: var(--markweave-ai-proposal-text, #355eae);");
+    expect(proposalRule).not.toContain("color-mix");
     expect(editorCss).toMatch(/\.markweave-ask-ai-proposal-cell\s*\{[^}]*background:\s*transparent;/s);
     expect(editorCss).toMatch(/\.markweave-ask-ai-proposal--text\s*\{[^}]*background:\s*transparent;[^}]*box-shadow:\s*none;/s);
-    expect(editorCss).toMatch(/\.markweave-ask-ai-proposal--text \+ \.markweave-ai-edit-controls\s*\{[^}]*max-width:\s*none;[^}]*width:\s*100%;[^}]*justify-content:\s*flex-end;/s);
+    expect(editorCss).not.toMatch(/\.markweave-ask-ai-proposal--text \+ \.markweave-ai-edit-controls/);
     expect(editorCss).toMatch(/\.markweave-ask-ai-proposal--text\[data-markweave-ask-ai-layout="block"\]\s*\{[^}]*padding:\s*8px 0;/s);
+    expect(editorCss).toMatch(/\.markweave-ai-edit-hunk-shell\[data-markweave-ai-edit-active="true"\]\s*\{[^}]*border-color:/s);
+    expect(editorCss).toMatch(/\.markweave-ai-edit-hunk-shell:is\(:hover, :focus-within, \[data-markweave-ai-edit-active="true"\]\) > \.markweave-ai-edit-hunk-actions\s*\{[^}]*opacity:\s*1;/s);
+    expect(editorCss).toMatch(/\.markweave-ai-edit-hunk-button,\s*\.markweave-ai-edit-nav-button\s*\{[^}]*width:\s*26px;[^}]*height:\s*26px;/s);
+    expect(editorCss).not.toMatch(/\.markweave-ai-edit-hunk-proposal\s*\{[^}]*border-left:/s);
+    expect(editorCss).toMatch(/\.markweave-ai-edit-tooltip\s*\{[^}]*background:\s*#2f3135;[^}]*color:\s*#ffffff;/s);
+    expect(editorCss).toMatch(/\.markweave-ai-edit-hunk-button:hover > \.markweave-ai-edit-tooltip[\s\S]*visibility:\s*visible;/s);
+    expect(editorCss).toContain(".markweave-ai-edit-navigation");
+    expect(editorCss).toContain(".markweave-ai-edit-count");
+    expect(hunkReviewCss).not.toContain("@container");
+    expect(hunkReviewCss).not.toContain("container-type");
+    expect(hunkReviewCss).not.toContain("color-mix");
   });
 
   it("keeps code block controls compact and Mermaid source readable in the core stylesheet", () => {
@@ -239,6 +265,9 @@ describe("editor style boundary", () => {
     expect(editorCss).toContain('.markweave-video-node[data-selected="true"]');
     expect(editorCss).toContain(".markweave-inner-toc");
     expect(editorCss).toContain(".markweave-inner-toc-rail");
+    expect(editorCss).toContain("height: var(--markweave-inner-toc-rail-height, 15.5px)");
+    expect(editorCss).toContain("max-height: min(42vh, 288px)");
+    expect(editorCss).toMatch(/\.markweave-inner-toc-rail\s*\{[^}]*overflow:\s*hidden;[^}]*justify-content:\s*space-between;[^}]*gap:\s*0;/s);
     expect(editorCss).toContain(".markweave-inner-toc-panel");
     expect(editorCss).toContain(".markweave-inner-toc-item");
     expect(editorCss).toContain(".markweave-inner-toc:hover .markweave-inner-toc-panel");

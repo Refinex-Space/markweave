@@ -163,6 +163,7 @@ import {
   emptyMarkweaveTocState,
   getActiveMarkweaveTocId,
   getMarkweaveTocItemsFromState,
+  getMarkweaveInnerTocRailHeight,
   getValidMarkweaveTocActiveId,
   normalizeMarkweaveInnerTocPlacement,
   observeMarkweaveInnerTocContainerPosition,
@@ -3206,7 +3207,13 @@ const VueInnerToc = defineComponent({
 
     return () =>
       props.state.items.length
-        ? h("nav", { ref: tocElement, class: "markweave-inner-toc", "data-testid": "markweave-inner-toc", "aria-label": props.messages.toc.ariaLabel }, [
+        ? h("nav", {
+            ref: tocElement,
+            class: "markweave-inner-toc",
+            "data-testid": "markweave-inner-toc",
+            "aria-label": props.messages.toc.ariaLabel,
+            style: { "--markweave-inner-toc-rail-height": getMarkweaveInnerTocRailHeight(props.state.items.length) },
+          }, [
             h("div", { class: "markweave-inner-toc-rail", "aria-hidden": "true" }, props.state.items.map((item: MarkweaveTocItem) => h("span", { key: item.id, "data-level": item.level, "data-active": item.active ? "true" : "false" }))),
             h("div", { class: "markweave-inner-toc-panel" }, [
               h("div", { class: "markweave-inner-toc-list" }, props.state.items.map((item: MarkweaveTocItem) =>

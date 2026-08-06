@@ -7,6 +7,9 @@ import type {
   MarkweaveAiEditController,
   MarkweaveAiEditDecision,
   MarkweaveAiEditErrorCode,
+  MarkweaveAiEditHunk,
+  MarkweaveAiEditHunkDecision,
+  MarkweaveAiEditHunkDisposition,
   MarkweaveAiEditProposal,
   MarkweaveAiEditResult,
   MarkweaveAiEditSelection,
@@ -18,6 +21,7 @@ import {
   isMarkweaveEditorLiveEditable,
   subscribeToMarkweaveEditorMode,
 } from "../../core/editor-mode-state";
+import { getMarkweaveVisibleBoundaryRect } from "../../core/visible-boundary";
 import {
   getMarkweaveMessages,
   normalizeMarkweaveLang,
@@ -60,6 +64,8 @@ interface MarkweaveAiEditSession {
   error: string | null;
   conflictNotified: boolean;
   hunks: readonly MarkweaveAiEditInternalHunk[];
+  selectionHunk: MarkweaveAiEditHunk | null;
+  activeHunkId: string | null;
   range: {
     from: number;
     to: number;
@@ -95,7 +101,12 @@ const idleState: MarkweaveAiEditState = {
   proposal: null,
   error: null,
   hunks: [],
+  activeHunkId: null,
 };
+
+function sessionHunks(session: MarkweaveAiEditSession): readonly MarkweaveAiEditHunk[] {
+  return session.selectionHunk ? [session.selectionHunk] : session.hunks;
+}
 
 function ok<T>(value: T): MarkweaveAiEditResult<T> {
   return { ok: true, value };
@@ -118,7 +129,8 @@ function publicState(editor: Editor): MarkweaveAiEditState {
         context: session.context,
         proposal: session.proposal,
         error: session.error,
-        hunks: session.hunks,
+        hunks: sessionHunks(session),
+        activeHunkId: session.activeHunkId,
       }
     : idleState;
 }
@@ -130,7 +142,8 @@ function stateKey(state: MarkweaveAiEditState) {
     state.proposal?.status ?? "",
     state.proposal?.markdown ?? "",
     state.error ?? "",
-    state.hunks.map((hunk) => `${hunk.id}:${hunk.from}:${hunk.to}`).join(","),
+    state.activeHunkId ?? "",
+    state.hunks.map((hunk) => `${hunk.id}:${hunk.from}:${hunk.to}:${hunk.disposition}`).join(","),
   ].join("\u0000");
 }
 
@@ -154,6 +167,7 @@ function createDecision(
   decision: MarkweaveAiEditDecision["decision"],
   appliedRange?: MarkweaveAiEditDecision["appliedRange"],
   appliedRanges?: MarkweaveAiEditDecision["appliedRanges"],
+  hunkDecisions?: MarkweaveAiEditDecision["hunkDecisions"],
 ): MarkweaveAiEditDecision {
   return {
     contextId: session.context.id,
@@ -164,7 +178,24 @@ function createDecision(
     metadata: session.context.metadata,
     appliedRange,
     appliedRanges,
+    hunkDecisions,
   };
+}
+
+function createHunkDecisions(
+  hunks: readonly MarkweaveAiEditHunk[],
+  forcedDisposition?: Exclude<MarkweaveAiEditHunkDisposition, "pending">,
+): readonly MarkweaveAiEditHunkDecision[] {
+  return hunks
+    .filter((hunk) => forcedDisposition || hunk.disposition !== "pending")
+    .map((hunk) => {
+      const decision = forcedDisposition ?? hunk.disposition;
+      return {
+        hunkId: hunk.id,
+        decision: decision as Exclude<MarkweaveAiEditHunkDisposition, "pending">,
+        ...(decision === "accepted" ? { appliedRange: { from: hunk.from, to: hunk.to } } : {}),
+      };
+    });
 }
 
 function abortSession(session: MarkweaveAiEditSession, reason: string) {
@@ -290,11 +321,59 @@ function preventEditorFocusLoss(event: Event) {
   event.stopPropagation();
 }
 
-function createActionButton(label: string, className: string, action: () => void) {
-  const button = document.createElement("button");
+type AiEditIconName = "check" | "discard" | "previous" | "next";
+
+const aiEditIconPaths: Record<AiEditIconName, readonly string[]> = {
+  check: ["M20 6 9 17l-5-5"],
+  discard: ["M18 6 6 18", "M6 6l12 12"],
+  previous: ["m18 15-6-6-6 6"],
+  next: ["m6 9 6 6 6-6"],
+};
+
+let aiEditTooltipSequence = 0;
+
+function createActionIcon(ownerDocument: Document, icon: AiEditIconName) {
+  const namespace = "http://www.w3.org/2000/svg";
+  const svg = ownerDocument.createElementNS(namespace, "svg");
+  svg.setAttribute("viewBox", "0 0 24 24");
+  svg.setAttribute("width", "15");
+  svg.setAttribute("height", "15");
+  svg.setAttribute("fill", "none");
+  svg.setAttribute("stroke", "currentColor");
+  svg.setAttribute("stroke-width", "2");
+  svg.setAttribute("stroke-linecap", "round");
+  svg.setAttribute("stroke-linejoin", "round");
+  svg.setAttribute("aria-hidden", "true");
+  aiEditIconPaths[icon].forEach((value) => {
+    const path = ownerDocument.createElementNS(namespace, "path");
+    path.setAttribute("d", value);
+    svg.appendChild(path);
+  });
+  return svg;
+}
+
+function createActionButton(
+  ownerDocument: Document,
+  label: string,
+  className: string,
+  action: () => void,
+  icon?: AiEditIconName,
+) {
+  const button = ownerDocument.createElement("button");
   button.type = "button";
   button.className = className;
-  button.textContent = label;
+  if (icon) {
+    button.appendChild(createActionIcon(ownerDocument, icon));
+    const tooltip = ownerDocument.createElement("span");
+    tooltip.id = `markweave-ai-edit-tooltip-${++aiEditTooltipSequence}`;
+    tooltip.className = "markweave-ai-edit-tooltip";
+    tooltip.setAttribute("role", "tooltip");
+    tooltip.textContent = label;
+    button.setAttribute("aria-describedby", tooltip.id);
+    button.appendChild(tooltip);
+  } else {
+    button.textContent = label;
+  }
   button.setAttribute("aria-label", label);
   button.addEventListener("mousedown", preventEditorFocusLoss);
   button.addEventListener("click", (event) => {
@@ -304,10 +383,63 @@ function createActionButton(label: string, className: string, action: () => void
   return button;
 }
 
+function activeHunkIndex(session: MarkweaveAiEditSession) {
+  const hunks = sessionHunks(session);
+  const index = hunks.findIndex((hunk) => hunk.id === session.activeHunkId);
+  return index >= 0 ? index : 0;
+}
+
+function createHunkReviewDom(editor: Editor, session: MarkweaveAiEditSession, hunk: MarkweaveAiEditInternalHunk) {
+  const messages = editorMessages.get(editor) ?? getMarkweaveMessages(editorLanguages.get(editor)).aiEdit;
+  const controller = createMarkweaveAiEditController(editor);
+  const ownerDocument = editor.view.dom.ownerDocument;
+  const shell = ownerDocument.createElement("div");
+  shell.className = "markweave-ai-edit-hunk-shell";
+  shell.dataset.markweaveAiEditHunk = hunk.id;
+  shell.dataset.markweaveAiEditDisposition = hunk.disposition;
+  shell.dataset.markweaveAiEditActive = String(session.activeHunkId === hunk.id);
+  shell.contentEditable = "false";
+
+  const proposal = createMarkweaveAiEditProposalDom(editor, hunk);
+  shell.appendChild(proposal);
+  if (session.controls === "none") {
+    return shell;
+  }
+  const actions = ownerDocument.createElement("span");
+  actions.className = "markweave-ai-edit-hunk-actions";
+  actions.setAttribute("role", "toolbar");
+  actions.setAttribute("aria-label", `${messages.ariaLabel}: ${hunk.lineRange.start}-${hunk.lineRange.end}`);
+  actions.append(
+    createActionButton(
+      ownerDocument,
+      messages.discardHunk,
+      "markweave-ai-edit-hunk-button markweave-ai-edit-hunk-button--discard",
+      () => controller.discardHunk(session.context.id, hunk.id),
+      "discard",
+    ),
+    createActionButton(
+      ownerDocument,
+      messages.acceptHunk,
+      "markweave-ai-edit-hunk-button markweave-ai-edit-hunk-button--accept",
+      () => controller.acceptHunk(session.context.id, hunk.id),
+      "check",
+    ),
+  );
+  shell.addEventListener("pointerenter", () => {
+    controller.activateHunk(session.context.id, hunk.id);
+  });
+  shell.addEventListener("focusin", () => {
+    controller.activateHunk(session.context.id, hunk.id);
+  });
+  shell.appendChild(actions);
+  return shell;
+}
+
 function createReviewControls(editor: Editor, session: MarkweaveAiEditSession) {
   const messages = editorMessages.get(editor) ?? getMarkweaveMessages(editorLanguages.get(editor)).aiEdit;
   const controller = createMarkweaveAiEditController(editor);
-  const element = document.createElement("span");
+  const ownerDocument = editor.view.dom.ownerDocument;
+  const element = ownerDocument.createElement("span");
   element.className = "markweave-ai-edit-controls";
   element.dataset.markweaveAiEditPhase = session.phase;
   element.dataset.markweaveAiEditContext = session.context.id;
@@ -315,7 +447,7 @@ function createReviewControls(editor: Editor, session: MarkweaveAiEditSession) {
   element.setAttribute("role", "toolbar");
   element.setAttribute("aria-label", messages.ariaLabel);
 
-  const status = document.createElement("span");
+  const status = ownerDocument.createElement("span");
   status.className = "markweave-ai-edit-status";
   status.setAttribute("aria-live", "polite");
 
@@ -323,7 +455,7 @@ function createReviewControls(editor: Editor, session: MarkweaveAiEditSession) {
     status.textContent = session.phase === "captured" ? messages.preparing : messages.streaming;
     element.append(
       status,
-      createActionButton(messages.stop, "markweave-ai-edit-button markweave-ai-edit-button--secondary", () => {
+      createActionButton(ownerDocument, messages.stop, "markweave-ai-edit-button markweave-ai-edit-button--secondary", () => {
         controller.discard(session.context.id);
       }),
     );
@@ -331,12 +463,38 @@ function createReviewControls(editor: Editor, session: MarkweaveAiEditSession) {
   }
 
   if (session.phase === "review") {
+    const hunks = sessionHunks(session);
+    const current = hunks.length ? activeHunkIndex(session) + 1 : 0;
+    const navigation = ownerDocument.createElement("span");
+    navigation.className = "markweave-ai-edit-navigation";
+    const previous = createActionButton(
+      ownerDocument,
+      messages.previousHunk,
+      "markweave-ai-edit-nav-button markweave-ai-edit-nav-button--previous",
+      () => controller.previousHunk(session.context.id),
+      "previous",
+    );
+    const count = ownerDocument.createElement("span");
+    count.className = "markweave-ai-edit-count";
+    count.textContent = messages.changeCount(current, hunks.length);
+    count.setAttribute("aria-live", "polite");
+    const next = createActionButton(
+      ownerDocument,
+      messages.nextHunk,
+      "markweave-ai-edit-nav-button markweave-ai-edit-nav-button--next",
+      () => controller.nextHunk(session.context.id),
+      "next",
+    );
+    previous.disabled = hunks.length <= 1;
+    next.disabled = hunks.length <= 1;
+    navigation.append(previous, count, next);
     element.append(
-      createActionButton(messages.discard, "markweave-ai-edit-button markweave-ai-edit-button--secondary", () => {
-        controller.discard(session.context.id);
+      navigation,
+      createActionButton(ownerDocument, messages.discardAll, "markweave-ai-edit-button markweave-ai-edit-button--secondary", () => {
+        controller.discardAll(session.context.id);
       }),
-      createActionButton(messages.accept, "markweave-ai-edit-button markweave-ai-edit-button--primary", () => {
-        controller.accept(session.context.id);
+      createActionButton(ownerDocument, messages.acceptAll, "markweave-ai-edit-button markweave-ai-edit-button--primary", () => {
+        controller.acceptAll(session.context.id);
       }),
     );
     return element;
@@ -345,11 +503,169 @@ function createReviewControls(editor: Editor, session: MarkweaveAiEditSession) {
   status.textContent = session.error ?? (session.phase === "conflict" ? messages.conflict : messages.errorFallback);
   element.append(
     status,
-    createActionButton(messages.discard, "markweave-ai-edit-button markweave-ai-edit-button--secondary", () => {
+    createActionButton(ownerDocument, messages.discard, "markweave-ai-edit-button markweave-ai-edit-button--secondary", () => {
       controller.discard(session.context.id);
     }),
   );
   return element;
+}
+
+const aiEditPortalThemeTokens = [
+  "--markweave-text",
+  "--markweave-text-muted",
+  "--markweave-surface",
+  "--markweave-surface-muted",
+  "--markweave-border",
+  "--markweave-focus",
+  "--markweave-shadow",
+  "--markweave-ai-primary-text",
+  "--markweave-ai-primary-hover",
+] as const;
+
+function getAiEditFrame(editor: Editor) {
+  return editor.view.dom.closest<HTMLElement>(".markweave-editor-frame") ?? editor.view.dom;
+}
+
+function copyAiEditPortalTheme(frame: HTMLElement, controls: HTMLElement) {
+  const view = frame.ownerDocument.defaultView;
+  if (!view) {
+    return;
+  }
+  const styles = view.getComputedStyle(frame);
+  aiEditPortalThemeTokens.forEach((token) => {
+    const value = styles.getPropertyValue(token).trim();
+    if (value) {
+      controls.style.setProperty(token, value);
+    }
+  });
+  controls.dataset.markweaveTheme = frame.dataset.markweaveTheme ?? "light";
+}
+
+function createFloatingReviewControls(editor: Editor) {
+  const frame = getAiEditFrame(editor);
+  const ownerDocument = frame.ownerDocument;
+  const view = ownerDocument.defaultView;
+  let controls: HTMLElement | null = null;
+  let controlsKey = "";
+  let cancelScheduledPosition: (() => void) | null = null;
+  let resizeObserver: ResizeObserver | null = null;
+  let tracking = false;
+
+  const position = () => {
+    cancelScheduledPosition = null;
+    if (!controls?.isConnected) {
+      return;
+    }
+    const boundary = getMarkweaveVisibleBoundaryRect(frame);
+    if (boundary.width <= 0 || boundary.height <= 0) {
+      controls.style.visibility = "hidden";
+      controls.dataset.markweavePositioned = "false";
+      return;
+    }
+
+    const margin = Math.min(12, Math.max(4, boundary.width / 8), Math.max(4, boundary.height / 8));
+    controls.style.maxWidth = `${Math.max(0, Math.floor(boundary.width - margin * 2))}px`;
+    const controlsRect = controls.getBoundingClientRect();
+    const left = Math.max(
+      boundary.left + margin,
+      Math.min(
+        boundary.left + boundary.width - controlsRect.width - margin,
+        boundary.left + (boundary.width - controlsRect.width) / 2,
+      ),
+    );
+    const top = Math.max(boundary.top + margin, boundary.top + boundary.height - controlsRect.height - margin);
+    controls.style.left = `${Math.round(left)}px`;
+    controls.style.top = `${Math.round(top)}px`;
+    controls.style.visibility = "visible";
+    controls.dataset.markweavePositioned = "true";
+  };
+
+  const schedulePosition = () => {
+    if (cancelScheduledPosition) {
+      return;
+    }
+    if (view?.requestAnimationFrame) {
+      const frameId = view.requestAnimationFrame(position);
+      cancelScheduledPosition = () => view.cancelAnimationFrame(frameId);
+      return;
+    }
+    const timeout = globalThis.setTimeout(position, 0);
+    cancelScheduledPosition = () => globalThis.clearTimeout(timeout);
+  };
+
+  const startTracking = () => {
+    if (tracking) {
+      return;
+    }
+    const ResizeObserverCtor = view?.ResizeObserver ?? globalThis.ResizeObserver;
+    resizeObserver = ResizeObserverCtor ? new ResizeObserverCtor(schedulePosition) : null;
+    resizeObserver?.observe(frame);
+    if (controls) {
+      resizeObserver?.observe(controls);
+    }
+    ownerDocument.addEventListener("scroll", schedulePosition, true);
+    ownerDocument.addEventListener("visibilitychange", schedulePosition);
+    view?.addEventListener("resize", schedulePosition);
+    view?.addEventListener("focus", schedulePosition);
+    view?.addEventListener("pageshow", schedulePosition);
+    tracking = true;
+  };
+
+  const stopTracking = () => {
+    if (!tracking) {
+      return;
+    }
+    cancelScheduledPosition?.();
+    cancelScheduledPosition = null;
+    resizeObserver?.disconnect();
+    resizeObserver = null;
+    ownerDocument.removeEventListener("scroll", schedulePosition, true);
+    ownerDocument.removeEventListener("visibilitychange", schedulePosition);
+    view?.removeEventListener("resize", schedulePosition);
+    view?.removeEventListener("focus", schedulePosition);
+    view?.removeEventListener("pageshow", schedulePosition);
+    tracking = false;
+  };
+
+  return {
+    update() {
+      const session = sessions.get(editor);
+      if (!session || session.controls !== "default") {
+        stopTracking();
+        controls?.remove();
+        controls = null;
+        controlsKey = "";
+        return;
+      }
+
+      const nextKey = [
+        session.context.id,
+        session.phase,
+        session.error ?? "",
+        session.activeHunkId ?? "",
+        sessionHunks(session).map((hunk) => `${hunk.id}:${hunk.disposition}`).join(","),
+      ].join("\u0000");
+      if (!controls || controlsKey !== nextKey) {
+        stopTracking();
+        controls?.remove();
+        controls = createReviewControls(editor, session);
+        controls.classList.add("markweave-ai-edit-controls--floating");
+        copyAiEditPortalTheme(frame, controls);
+        ownerDocument.body.appendChild(controls);
+        controlsKey = nextKey;
+      } else {
+        copyAiEditPortalTheme(frame, controls);
+      }
+      startTracking();
+      schedulePosition();
+    },
+    destroy() {
+      stopTracking();
+      controls?.remove();
+      controls = null;
+      controlsKey = "";
+    },
+  };
 }
 
 function createAiEditDecorations(editor: Editor) {
@@ -364,6 +680,8 @@ function createAiEditDecorations(editor: Editor) {
     session.proposal?.status ?? "",
     session.proposal?.markdown.length ?? 0,
     session.error ?? "",
+    session.activeHunkId ?? "",
+    sessionHunks(session).map((hunk) => hunk.disposition).join(","),
   ].join("-");
   const decorations: Decoration[] = [];
   if (session.range) {
@@ -373,38 +691,28 @@ function createAiEditDecorations(editor: Editor) {
           class: "markweave-ai-edit-original markweave-ai-edit-hunk-original",
           "data-markweave-ai-edit-original": "true",
           "data-markweave-ai-edit-hunk": hunk.id,
+          "data-markweave-ai-edit-disposition": hunk.disposition,
+          "data-markweave-ai-edit-active": String(session.activeHunkId === hunk.id),
         }));
       }
       decorations.push(Decoration.widget(hunk.to, () => {
-        const proposal = createMarkweaveAiEditProposalDom(editor, hunk);
-        if (session.controls === "default" && hunk.id === session.hunks.at(-1)?.id) {
-          proposal.append(createReviewControls(editor, session));
-        }
-        return proposal;
+        return createHunkReviewDom(editor, session, hunk);
       }, {
         key: `markweave-ai-edit-hunk-${key}-${hunk.id}`,
         side: 1,
       }));
     });
   } else if (target && hasMarkweaveAskAiPreview(editor.state) && target.status === "target") {
+    const hunk = session.selectionHunk;
     decorations.push(Decoration.inline(target.from, target.to, {
       class: "markweave-ai-edit-original",
       "data-markweave-ai-edit-original": "true",
+      ...(hunk ? {
+        "data-markweave-ai-edit-hunk": hunk.id,
+        "data-markweave-ai-edit-disposition": hunk.disposition,
+        "data-markweave-ai-edit-active": String(session.activeHunkId === hunk.id),
+      } : {}),
     }));
-  }
-  if (session.controls === "default") {
-    const controlsFollowPreview = !session.range
-      && target?.status === "target"
-      && hasMarkweaveAskAiPreview(editor.state);
-    const controlsAt = session.range
-      ? session.hunks.length === 0 ? session.range.to : undefined
-      : controlsFollowPreview ? target?.from : target?.to;
-    if (controlsAt !== undefined) {
-      decorations.push(Decoration.widget(controlsAt, () => createReviewControls(editor, session), {
-        key: `markweave-ai-edit-controls-${key}`,
-        side: controlsFollowPreview ? 2 : 1,
-      }));
-    }
   }
   return DecorationSet.create(editor.state.doc, decorations);
 }
@@ -448,6 +756,117 @@ function mapMultiScopeSession(editor: Editor, transaction: Transaction) {
   }));
 }
 
+function bindHunkPointerActivation(editor: Editor) {
+  const handlePointerOver = (event: Event) => {
+    const target = event.target instanceof Element
+      ? event.target.closest<HTMLElement>("[data-markweave-ai-edit-hunk]")
+      : null;
+    const session = sessions.get(editor);
+    const hunkId = target?.dataset.markweaveAiEditHunk;
+    if (!session || session.controls !== "default" || session.phase !== "review" || !hunkId || session.activeHunkId === hunkId) {
+      return;
+    }
+    createMarkweaveAiEditController(editor).activateHunk(session.context.id, hunkId);
+  };
+  editor.view.dom.addEventListener("pointerover", handlePointerOver);
+  return () => editor.view.dom.removeEventListener("pointerover", handlePointerOver);
+}
+
+function scrollToHunk(editor: Editor, hunkId: string) {
+  const editorDom = editor.view.dom;
+  const view = editorDom.ownerDocument.defaultView;
+  const scroll = () => {
+    if (editor.isDestroyed || !editorDom.isConnected) {
+      return;
+    }
+    const target = [...editorDom.querySelectorAll<HTMLElement>("[data-markweave-ai-edit-hunk]")]
+      .find((element) => element.dataset.markweaveAiEditHunk === hunkId);
+    if (!target) {
+      return;
+    }
+    const reduceMotion = view?.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    target.scrollIntoView?.({ block: "center", inline: "nearest", behavior: reduceMotion ? "auto" : "smooth" });
+  };
+  if (view?.requestAnimationFrame) {
+    view.requestAnimationFrame(scroll);
+  } else {
+    globalThis.setTimeout(scroll, 0);
+  }
+}
+
+function settleMultiScopeReview(
+  editor: Editor,
+  session: MarkweaveAiEditSession,
+  forcedDisposition?: Exclude<MarkweaveAiEditHunkDisposition, "pending">,
+): MarkweaveAiEditResult<MarkweaveAiEditDecision> {
+  const settledHunks = forcedDisposition
+    ? session.hunks.map((hunk) => ({ ...hunk, disposition: forcedDisposition }))
+    : session.hunks;
+  const acceptedHunks = settledHunks.filter((hunk) => hunk.disposition === "accepted");
+  const appliedRanges = acceptedHunks.map((hunk) => ({ from: hunk.from, to: hunk.to }));
+  const appliedRange = acceptedHunks.length && session.range
+    ? { from: session.range.from, to: session.range.to }
+    : undefined;
+  const decisionType: MarkweaveAiEditDecision["decision"] = acceptedHunks.length === 0
+    ? "discarded"
+    : acceptedHunks.length === settledHunks.length
+      ? "accepted"
+      : "partially-accepted";
+  const hunkDecisions = createHunkDecisions(settledHunks);
+
+  cancelPendingPreview(editor);
+  sessions.delete(editor);
+  if (acceptedHunks.length) {
+    try {
+      const transaction = applyMarkweaveAiEditHunks(editor.state.tr, acceptedHunks).scrollIntoView();
+      editor.view.dispatch(transaction);
+    } catch {
+      session.phase = "error";
+      session.error = "The AI edit proposal could not be applied to the current schema.";
+      sessions.set(editor, session);
+      dispatchRefresh(editor);
+      return fail("schema-incompatible", session.error);
+    }
+  } else {
+    abortSession(session, "discarded");
+    dispatchRefresh(editor);
+  }
+  const decision = createDecision(session, decisionType, appliedRange, appliedRanges, hunkDecisions);
+  emitDecision(editor, decision);
+  return ok(decision);
+}
+
+function decideMultiScopeHunk(
+  editor: Editor,
+  session: MarkweaveAiEditSession,
+  hunkId: string,
+  disposition: Exclude<MarkweaveAiEditHunkDisposition, "pending">,
+): MarkweaveAiEditResult<MarkweaveAiEditState | MarkweaveAiEditDecision> {
+  const hunkIndex = session.hunks.findIndex((hunk) => hunk.id === hunkId);
+  if (hunkIndex < 0) {
+    return fail("stale-context", "The AI edit hunk is no longer active.");
+  }
+  session.hunks = session.hunks.map((hunk) => (
+    hunk.id === hunkId ? { ...hunk, disposition } : hunk
+  ));
+  const pending = session.hunks.filter((hunk) => hunk.disposition === "pending");
+  if (!pending.length) {
+    return settleMultiScopeReview(editor, session);
+  }
+  for (let offset = 1; offset <= session.hunks.length; offset += 1) {
+    const candidate = session.hunks[(hunkIndex + offset) % session.hunks.length];
+    if (candidate?.disposition === "pending") {
+      session.activeHunkId = candidate.id;
+      break;
+    }
+  }
+  dispatchRefresh(editor);
+  if (session.activeHunkId) {
+    scrollToHunk(editor, session.activeHunkId);
+  }
+  return ok(publicState(editor));
+}
+
 export const MarkweaveAiEdit = Extension.create<MarkweaveAiEditOptions>({
   name: "markweaveAiEdit",
 
@@ -477,7 +896,10 @@ export const MarkweaveAiEdit = Extension.create<MarkweaveAiEditOptions>({
           decorations: () => createAiEditDecorations(editor),
         },
         view() {
+          const floatingControls = createFloatingReviewControls(editor);
+          const unbindHunkPointerActivation = bindHunkPointerActivation(editor);
           let previousStateKey = stateKey(publicState(editor));
+          floatingControls.update();
           return {
             update(view, previousState) {
               const becameConflict = synchronizeConflict(editor);
@@ -496,8 +918,11 @@ export const MarkweaveAiEdit = Extension.create<MarkweaveAiEditOptions>({
                 const selection = inspectMarkweaveAiEditSelection(editor);
                 selectionListeners.forEach((listener) => listener(selection));
               }
+              floatingControls.update();
             },
             destroy() {
+              unbindHunkPointerActivation();
+              floatingControls.destroy();
               disposeController(editor);
             },
           };
@@ -588,6 +1013,8 @@ export function createMarkweaveAiEditController(editor: Editor): MarkweaveAiEdit
         error: null,
         conflictNotified: false,
         hunks: [],
+        selectionHunk: null,
+        activeHunkId: null,
         range,
       });
       dispatchRefresh(editor);
@@ -659,8 +1086,13 @@ export function createMarkweaveAiEditController(editor: Editor): MarkweaveAiEdit
           return fail("incomplete-proposal", session.error);
         }
         session.hunks = diff.hunks;
+        session.selectionHunk = null;
+        session.activeHunkId = diff.hunks[0]?.id ?? null;
         session.phase = "review";
         dispatchRefresh(editor);
+        if (session.controls === "default" && session.activeHunkId) {
+          scrollToHunk(editor, session.activeHunkId);
+        }
         return ok(publicState(editor));
       }
 
@@ -680,6 +1112,19 @@ export function createMarkweaveAiEditController(editor: Editor): MarkweaveAiEdit
         dispatchRefresh(editor);
         return fail("schema-incompatible", session.error);
       }
+      const selectionHunk: MarkweaveAiEditHunk = {
+        id: `hunk-1-${session.context.target.from}-${session.context.target.to}`,
+        kind: "replace",
+        from: session.context.target.from,
+        to: session.context.target.to,
+        originalMarkdown: session.context.target.markdown,
+        proposedMarkdown: proposal.markdown,
+        lineRange: session.context.target.lineRange,
+        disposition: "pending",
+      };
+      session.selectionHunk = selectionHunk;
+      session.activeHunkId = selectionHunk.id;
+      dispatchRefresh(editor);
       return ok(publicState(editor));
     },
 
@@ -698,6 +1143,14 @@ export function createMarkweaveAiEditController(editor: Editor): MarkweaveAiEdit
     },
 
     accept(contextId) {
+      return controller.acceptAll(contextId);
+    },
+
+    discard(contextId) {
+      return controller.discardAll(contextId);
+    },
+
+    acceptAll(contextId) {
       const active = ensureActiveSession(editor, contextId);
       if (!active.ok) {
         return active;
@@ -708,24 +1161,10 @@ export function createMarkweaveAiEditController(editor: Editor): MarkweaveAiEdit
       }
 
       cancelPendingPreview(editor);
-      sessions.delete(editor);
       if (session.range) {
-        const appliedRanges = session.hunks.map((hunk) => ({ from: hunk.from, to: hunk.to }));
-        const appliedRange = { from: session.range.from, to: session.range.to };
-        try {
-          const transaction = applyMarkweaveAiEditHunks(editor.state.tr, session.hunks).scrollIntoView();
-          editor.view.dispatch(transaction);
-        } catch {
-          session.phase = "error";
-          session.error = "The AI edit proposal could not be applied to the current schema.";
-          sessions.set(editor, session);
-          dispatchRefresh(editor);
-          return fail("schema-incompatible", session.error);
-        }
-        const decision = createDecision(session, "accepted", appliedRange, appliedRanges);
-        emitDecision(editor, decision);
-        return ok(decision);
+        return settleMultiScopeReview(editor, session, "accepted");
       }
+      sessions.delete(editor);
       if (!acceptMarkweaveAskAiResult(editor, session.proposal.markdown)) {
         session.phase = "error";
         session.error = "The AI edit proposal could not be applied to the current schema.";
@@ -737,7 +1176,20 @@ export function createMarkweaveAiEditController(editor: Editor): MarkweaveAiEdit
       const appliedRange = appliedTarget
         ? { from: appliedTarget.from, to: appliedTarget.to }
         : undefined;
-      const decision = createDecision(session, "accepted", appliedRange);
+      const hunkDecisions = session.selectionHunk
+        ? [{
+            hunkId: session.selectionHunk.id,
+            decision: "accepted" as const,
+            ...(appliedRange ? { appliedRange } : {}),
+          }]
+        : undefined;
+      const decision = createDecision(
+        session,
+        "accepted",
+        appliedRange,
+        appliedRange ? [appliedRange] : undefined,
+        hunkDecisions,
+      );
       emitDecision(editor, decision);
       globalThis.setTimeout(() => {
         const target = getMarkweaveAskAiTarget(editor);
@@ -748,20 +1200,112 @@ export function createMarkweaveAiEditController(editor: Editor): MarkweaveAiEdit
       return ok(decision);
     },
 
-    discard(contextId) {
+    discardAll(contextId) {
       const session = sessions.get(editor);
       if (!session || session.context.id !== contextId) {
         return fail("stale-context", "The AI edit context is no longer active.");
       }
+      if (session.range && session.phase === "review") {
+        return settleMultiScopeReview(editor, session, "discarded");
+      }
       cancelPendingPreview(editor);
       sessions.delete(editor);
       abortSession(session, session.phase === "conflict" ? "conflict" : "discarded");
-      const decision = createDecision(session, session.phase === "conflict" ? "conflict" : "discarded");
+      const hunkDecisions = session.phase === "conflict"
+        ? undefined
+        : createHunkDecisions(sessionHunks(session), "discarded");
+      const decision = createDecision(
+        session,
+        session.phase === "conflict" ? "conflict" : "discarded",
+        undefined,
+        undefined,
+        hunkDecisions,
+      );
       if (!session.conflictNotified) {
         emitDecision(editor, decision);
       }
       clearMarkweaveAskAiTarget(editor);
       return ok(decision);
+    },
+
+    activateHunk(contextId, hunkId) {
+      const active = ensureActiveSession(editor, contextId);
+      if (!active.ok) {
+        return active;
+      }
+      const session = active.value;
+      if (session.phase !== "review" || !sessionHunks(session).some((hunk) => hunk.id === hunkId)) {
+        return fail("stale-context", "The AI edit hunk is no longer active.");
+      }
+      if (session.activeHunkId !== hunkId) {
+        session.activeHunkId = hunkId;
+        dispatchRefresh(editor);
+      }
+      return ok(publicState(editor));
+    },
+
+    previousHunk(contextId) {
+      const active = ensureActiveSession(editor, contextId);
+      if (!active.ok) {
+        return active;
+      }
+      const session = active.value;
+      const hunks = sessionHunks(session);
+      if (session.phase !== "review" || !hunks.length) {
+        return fail("incomplete-proposal", "No AI edit hunk is available for review.");
+      }
+      const current = activeHunkIndex(session);
+      session.activeHunkId = hunks[(current - 1 + hunks.length) % hunks.length]!.id;
+      dispatchRefresh(editor);
+      scrollToHunk(editor, session.activeHunkId);
+      return ok(publicState(editor));
+    },
+
+    nextHunk(contextId) {
+      const active = ensureActiveSession(editor, contextId);
+      if (!active.ok) {
+        return active;
+      }
+      const session = active.value;
+      const hunks = sessionHunks(session);
+      if (session.phase !== "review" || !hunks.length) {
+        return fail("incomplete-proposal", "No AI edit hunk is available for review.");
+      }
+      const current = activeHunkIndex(session);
+      session.activeHunkId = hunks[(current + 1) % hunks.length]!.id;
+      dispatchRefresh(editor);
+      scrollToHunk(editor, session.activeHunkId);
+      return ok(publicState(editor));
+    },
+
+    acceptHunk(contextId, hunkId) {
+      const active = ensureActiveSession(editor, contextId);
+      if (!active.ok) {
+        return active;
+      }
+      const session = active.value;
+      if (session.phase !== "review" || session.proposal?.status !== "complete") {
+        return fail("incomplete-proposal", "Only a complete AI edit hunk can be accepted.");
+      }
+      if (session.selectionHunk?.id === hunkId) {
+        return controller.acceptAll(contextId);
+      }
+      return decideMultiScopeHunk(editor, session, hunkId, "accepted");
+    },
+
+    discardHunk(contextId, hunkId) {
+      const active = ensureActiveSession(editor, contextId);
+      if (!active.ok) {
+        return active;
+      }
+      const session = active.value;
+      if (session.phase !== "review" || session.proposal?.status !== "complete") {
+        return fail("incomplete-proposal", "Only a complete AI edit hunk can be discarded.");
+      }
+      if (session.selectionHunk?.id === hunkId) {
+        return controller.discardAll(contextId);
+      }
+      return decideMultiScopeHunk(editor, session, hunkId, "discarded");
     },
 
     getState() {

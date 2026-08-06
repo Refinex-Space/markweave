@@ -1,6 +1,6 @@
 ---
 owner: refinex
-updated: 2026-08-01
+updated: 2026-08-04
 status: active
 referenced_by: docs/README.md#knowledge-map
 ---
@@ -361,13 +361,13 @@ const capturedDocument = controller.capture({
 });
 ```
 
-`scope: "selection"` 要求普通非空文本选区并保持单点替换；`blocks` 将当前选区或光标扩展到覆盖的顶层块；`document` 不要求选区并显式捕获全文。后两种模式要求 AI 返回捕获范围修改后的完整 Markdown，而不是补丁、ProseMirror 位置或单个片段。Markweave 在 `complete` 后计算最多 200 个结构化 hunk，原位展示多处 Diff；流式阶段不会把尚未收到的文档后缀误显示为删除。接受时所有 hunk 通过一次事务应用，`onDecision.appliedRanges` 返回映射后的实际应用范围；舍弃、失败和冲突不修改文档。
+`scope: "selection"` 要求普通非空文本选区并保持单点替换；`blocks` 将当前选区或光标扩展到覆盖的顶层块；`document` 不要求选区并显式捕获全文。后两种模式要求 AI 返回捕获范围修改后的完整 Markdown，而不是补丁、ProseMirror 位置或单个片段。Markweave 在 `complete` 后计算最多 200 个结构化 hunk，原位展示多处 Diff；逐块决定先暂存，全部处理完成后，被接受的子集通过一次事务应用，`onDecision.appliedRanges` 返回实际范围；舍弃、失败和冲突不修改文档。
 
 不要用捕获时的位置自行修改文档。全文捕获必须是宿主明确展示并授权的产品动作，Markweave 不会因为没有选区自动扩大范围。
 
 ### 累计流式响应与 headless 操作条
 
-每次流式调用必须传入当前累计的完整 Markdown，而非单个 token，并以 `status: "complete"` 结束。精确选区可在流式期间更新局部预览；`blocks/document` 只在 complete 后展示多处 Diff。宿主失败时调用 `failProposal`。`controls: "none"` 只隐藏默认操作条。由于状态 `subscribe()` 只报告后续变化，自定义界面应先读取 `getState()`；选区 `subscribeSelection()` 会立即回放当前选区。两类监听都应在 `beforeDestroy` 中注销。只有 `review` phase 可 `accept`；任意活动 phase 均可 `discard`。
+每次流式调用必须传入当前累计的完整 Markdown，而非单个 token，并以 `status: "complete"` 结束。精确选区可在流式期间更新局部预览；`blocks/document` 只在 complete 后展示多处 Diff。宿主失败时调用 `failProposal`。默认操作使用一个挂载到 `body`、固定在编辑器当前可视边界底部居中的决策条，提供 hunk 计数、循环导航和全量操作；当前或 hover hunk 显示逐块操作。`controls: "none"` 隐藏两类内置控件。自定义界面应先读取 `getState()`，并使用 `previousHunk`、`nextHunk`、`acceptHunk`、`discardHunk`、`acceptAll`、`discardAll`；两类监听都应在 `beforeDestroy` 中注销。
 
 ### 状态、错误码与安全规则
 
@@ -414,6 +414,7 @@ Vue 2 适配器提供完整 Markweave UI：浮动工具栏、链接弹层、slas
 - 即使宿主系统的中文回退字体没有原生斜体字形，行内斜体也会保持可见。
 - 保持 `vue` 和 `vue-template-compiler` 版本完全一致。
 - 使用 Vue CLI 4 / Webpack 4 时，为现代 ESM 依赖保留 `transpileDependencies`。
+- 宿主驱动 AI 多处审阅的全局决策条直接挂载到 `body`，不依赖 CSS query container；逐块操作和 Tooltip 只使用 Electron 21 / Chromium 106 已支持的 DOM、选择器与布局能力。
 - Markweave 0.3.5 不再让 CSS 查询容器影响固定目录定位，并会在挂载后主动探测 pending 状态的首屏图片，覆盖 Electron 21 / Chromium 106 延迟首次 `IntersectionObserver` 回调的情况。
 - 上传接口必须做认证、文件大小、MIME 类型和返回 URL 校验。
 - 不要接受任意 iframe host。Markweave 只处理直接视频和受支持的 YouTube/Bilibili embed 形态。

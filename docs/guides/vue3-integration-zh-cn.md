@@ -1,6 +1,6 @@
 ---
 owner: refinex
-updated: 2026-08-01
+updated: 2026-08-04
 status: active
 referenced_by: docs/README.md#knowledge-map
 ---
@@ -295,7 +295,7 @@ async function reviseSelection() {
 </template>
 ```
 
-`captureSelection()` 继续只捕获精确普通文本选区。`getSelection()` / `subscribeSelection()` 可按需取得选区正文和规范化 Markdown 的 1-based 块级 `lineRange`。需要所选段落或全文多处修改时，显式调用 `capture({ scope: "blocks" | "document" })`，并让 AI 返回该范围修改后的完整 Markdown。Markweave 在 `complete` 后计算并展示最多 200 个结构化 hunk，接受时一次事务应用所有 hunk；不要用捕获位置自行修改文档。
+`captureSelection()` 继续只捕获精确普通文本选区。`getSelection()` / `subscribeSelection()` 可按需取得选区正文和规范化 Markdown 的 1-based 块级 `lineRange`。需要所选段落或全文多处修改时，显式调用 `capture({ scope: "blocks" | "document" })`，并让 AI 返回该范围修改后的完整 Markdown。Markweave 在 `complete` 后计算并展示最多 200 个结构化 hunk，逐块决定先暂存，最后一次事务应用被接受的子集；不要用捕获位置自行修改文档。
 
 ### 累计流式响应与 headless 操作条
 
@@ -328,11 +328,11 @@ async function submitStream(
 }
 ```
 
-`captureSelection()` 默认显示 Markweave 操作条；`controls: "none"` 只隐藏操作条。精确选区可在流式阶段预览，`blocks/document` 只在 `complete` 后展示多处 Diff。自定义界面先用 `getState()` 再订阅状态；`subscribeSelection()` 会立即回放当前选区。卸载时注销全部监听。
+`captureSelection()` 默认显示底部居中的全局决策条，包含 hunk 计数、循环导航和全量操作；当前或 hover hunk 显示逐块操作。`controls: "none"` 隐藏两类内置控件。精确选区可在流式阶段预览，`blocks/document` 只在 `complete` 后展示多处 Diff。headless 宿主可使用 `previousHunk`、`nextHunk`、`acceptHunk`、`discardHunk`、`acceptAll`、`discardAll`；卸载时注销全部监听。
 
 ### 状态、错误码与安全规则
 
-phase 包括 `idle`、`captured`、`streaming`、`review`、`error` 和 `conflict`。错误码包括 `active-review`、`stale-context`、`incomplete-proposal`、`unsupported-scope` 与 `proposal-too-complex`。每个编辑器只允许一个活动上下文；通过 `onDecision` 订阅接受、舍弃和冲突结果。目标内部编辑、切换 View 或卸载会中止上下文 `AbortSignal`。
+phase 包括 `idle`、`captured`、`streaming`、`review`、`error` 和 `conflict`。宿主可先通过 `getState()` 读取当前快照，再使用 `subscribe()` 监听后续变化。错误码包括 `active-review`、`stale-context`、`incomplete-proposal`、`unsupported-scope` 与 `proposal-too-complex`。每个编辑器只允许一个活动上下文；通过 `onDecision` 订阅接受、舍弃和冲突结果。目标内部编辑、切换 View 或卸载会中止上下文 `AbortSignal`。
 
 精确 `selection` 仍拒绝代码块、表格/单元格和媒体/原子节点；`blocks/document` 可携带未改变的复杂结构，并对完整提案执行 schema 校验和有界多 hunk Diff。目标外编辑映射范围，目标内部编辑进入冲突；预览、错误、冲突和舍弃不改变文档，接受只产生一次事务和一次 Undo。
 

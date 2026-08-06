@@ -216,6 +216,7 @@ export function createMarkweaveAiEditDiff(
         originalMarkdown: serializeNodes(editor, originalNodes),
         proposedMarkdown: serializeNodes(editor, proposedNodes),
         lineRange: hunkLineRange(lines, oldStart, oldEnd, startLine),
+        disposition: "pending",
         replacement: Fragment.fromArray(proposedNodes),
       });
     }
@@ -238,6 +239,7 @@ export function createMarkweaveAiEditProposalDom(
   element.dataset.markweaveAskAiLayout = "block";
   element.dataset.markweaveAiEditHunk = hunk.id;
   element.dataset.markweaveAiEditHunkKind = hunk.kind;
+  element.dataset.markweaveAiEditDisposition = hunk.disposition;
   element.contentEditable = "false";
   if (hunk.replacement.childCount > 0) {
     element.appendChild(DOMSerializer.fromSchema(editor.schema).serializeFragment(hunk.replacement));

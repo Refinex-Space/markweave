@@ -211,7 +211,7 @@ class MarkweaveLightweightImageNodeView implements NodeView {
     this.box.className = "markweave-image-box";
     this.image = document.createElement("img");
     this.image.className = "markweave-image";
-    this.image.setAttribute("loading", "lazy");
+    this.image.setAttribute("loading", "eager");
     this.image.setAttribute("decoding", "async");
     this.image.draggable = false;
     this.placeholder = document.createElement("div");
