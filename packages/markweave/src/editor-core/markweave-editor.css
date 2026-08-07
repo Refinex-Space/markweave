@@ -1243,13 +1243,28 @@
   position: absolute;
   top: 8px;
   right: 8px;
+  z-index: 2;
   display: inline-flex;
   gap: 2px;
   border: 1px solid #dfe3ea;
   border-radius: 9px;
   background: rgba(255, 255, 255, 0.96);
-  box-shadow: 0 6px 16px rgba(31, 35, 40, 0.12);
+  box-shadow: none;
   padding: 3px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 120ms ease;
+}
+
+.markweave-link-card:hover .markweave-link-card-tools,
+.markweave-link-card:focus-within .markweave-link-card-tools,
+.markweave-link-card[data-selected="true"] .markweave-link-card-tools {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.markweave-editor-frame[data-markweave-mode="view"] .markweave-link-card-tools {
+  display: none;
 }
 
 .markweave-link-card-tools button {
@@ -1300,7 +1315,7 @@
   border: 1px solid #dfe3ea;
   border-radius: 10px;
   background: #ffffff;
-  box-shadow: 0 12px 28px rgba(31, 35, 40, 0.16);
+  box-shadow: none;
   padding: 10px;
 }
 
@@ -1342,26 +1357,28 @@
   z-index: 70;
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  gap: 6px;
-  width: min(400px, calc(100vw - 24px));
+  gap: 4px;
+  width: min(300px, calc(100vw - 24px));
   border: 1px solid #dfe3ea;
-  border-radius: 10px;
+  border-radius: 8px;
   background: #f4f5f7;
-  box-shadow: 0 12px 28px rgba(31, 35, 40, 0.16);
+  box-shadow: none;
   color: #2f343b;
   font-family: ui-sans-serif, system-ui, sans-serif;
-  padding: 8px;
+  padding: 6px;
 }
 
 .markweave-link-card-composer-field {
   display: grid;
-  gap: 4px;
+  gap: 0;
   min-width: 0;
   color: #6a717b;
 }
 
 .markweave-link-card-composer-field:has(.markweave-link-card-composer-icon) {
-  grid-template-columns: minmax(0, 1fr) 32px;
+  grid-template-columns: minmax(0, 1fr) 28px;
+  align-items: center;
+  gap: 4px;
 }
 
 .markweave-link-card-composer-field>span {
@@ -1375,29 +1392,29 @@
 
 .markweave-link-card-composer-field input {
   min-width: 0;
-  height: 40px;
+  height: 32px;
   border: 1px solid transparent;
-  border-radius: 7px;
+  border-radius: 6px;
   outline: none;
   background: #ffffff;
   color: #2f343b;
-  font: 15px/1.2 ui-sans-serif, system-ui, sans-serif;
-  padding: 0 11px;
+  font: 13px/1.2 ui-sans-serif, system-ui, sans-serif;
+  padding: 0 10px;
 }
 
 .markweave-link-card-composer-field input:focus {
   border-color: #4168c9;
-  box-shadow: 0 0 0 3px rgba(65, 104, 201, 0.2);
+  box-shadow: none;
 }
 
 .markweave-link-card-composer-action {
   position: relative;
   display: grid;
-  width: 32px;
-  height: 32px;
+  width: 28px;
+  height: 28px;
   place-items: center;
   border: 0;
-  border-radius: 7px;
+  border-radius: 6px;
   background: transparent;
   color: #3f4650;
   cursor: pointer;
@@ -1420,7 +1437,8 @@
 
 .markweave-link-card-composer-icon {
   align-self: center;
-  width: 32px;
+  width: 28px;
+  height: 28px;
   padding: 0;
 }
 
@@ -1428,7 +1446,7 @@
   grid-column: 1 / -1;
   display: flex;
   justify-content: flex-end;
-  gap: 3px;
+  gap: 2px;
   padding-top: 0;
 }
 
@@ -1463,7 +1481,7 @@
   border-color: #3d444f;
   background: #292d34;
   color: #e8e9ed;
-  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.42);
+  box-shadow: none;
 }
 
 .markweave-link-card-composer[data-markweave-theme="dark"] .markweave-link-card-composer-field {
@@ -1478,7 +1496,7 @@
 
 .markweave-link-card-composer[data-markweave-theme="dark"] input:focus {
   border-color: #91adff;
-  box-shadow: 0 0 0 3px rgba(145, 173, 255, 0.28);
+  box-shadow: none;
 }
 
 .markweave-link-card-composer[data-markweave-theme="dark"] .markweave-link-card-composer-action {
