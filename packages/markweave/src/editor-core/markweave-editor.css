@@ -447,6 +447,7 @@
 .markweave-editor-frame[data-markweave-mode="view"] .markweave-image-resize-handle,
 .markweave-editor-frame[data-markweave-mode="view"] .markweave-image-upload-placeholder,
 .markweave-editor-frame[data-markweave-mode="view"] .markweave-video-upload-placeholder,
+.markweave-editor-frame[data-markweave-mode="view"] .markweave-attachment-upload-placeholder,
 .markweave-editor-frame[data-markweave-mode="view"] .markweave-video-selection-layer {
   display: none;
 }
@@ -677,113 +678,170 @@
   opacity: 1;
 }
 
-.markweave-image-upload-placeholder {
-  display: grid;
-  justify-items: center;
-  gap: 10px;
+.markweave-image-upload-placeholder,
+.markweave-video-upload-placeholder {
+  display: flex;
+  box-sizing: border-box;
+  flex-direction: column;
+  gap: 8px;
   width: 100%;
-  min-height: 218px;
-  border: 2px dashed #c8cdd5;
-  border-radius: 14px;
-  background: #ffffff;
+  max-width: 100%;
+  margin: 0.8em 0;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: #f3f4f6;
   box-shadow: none;
-  padding: 30px 28px;
-  color: #4f555e;
+  padding: 10px 12px;
+  color: #6b7280;
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-size: 13px;
 }
 
-.markweave-image-upload-placeholder[data-drag-active="true"] {
-  border-color: #6b7280;
-  background: #fafafa;
+.markweave-image-upload-placeholder[data-drag-active="true"],
+.markweave-video-upload-placeholder[data-drag-active="true"] {
+  border-color: #c8cdd5;
+  background: #eceef2;
 }
 
-.markweave-image-upload-icon {
+.markweave-image-upload-trigger,
+.markweave-video-upload-trigger {
   position: relative;
-  display: grid;
-  place-items: center;
-  color: #c6ccd5;
-}
-
-.markweave-image-upload-copy {
-  font-size: 17px;
-  line-height: 1.25;
-}
-
-.markweave-image-upload-copy button {
+  display: inline-flex;
+  box-sizing: border-box;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
   border: 0;
   background: transparent;
-  color: #3f434a;
-  cursor: pointer;
+  color: inherit;
   font: inherit;
-  text-decoration: underline;
-  text-underline-offset: 3px;
+  text-align: left;
+  cursor: pointer;
 }
 
-.markweave-image-upload-note {
-  color: #9aa0a9;
-  font-size: 13px;
-  font-weight: 600;
+.markweave-image-upload-trigger:hover,
+.markweave-video-upload-trigger:hover {
+  color: #4b5563;
 }
 
-.markweave-image-upload-row {
-  display: grid;
-  grid-template-columns: minmax(160px, 1fr) auto auto;
-  gap: 8px;
-  width: min(100%, 560px);
-  margin-top: 2px;
+.markweave-image-upload-icon,
+.markweave-video-upload-icon {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  color: inherit;
 }
 
-.markweave-image-upload-row input {
+.markweave-image-upload-label,
+.markweave-video-upload-label {
   min-width: 0;
-  height: 36px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 500;
+}
+
+.markweave-image-upload-tooltip,
+.markweave-video-upload-tooltip {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 0;
+  z-index: 2;
+  width: max-content;
+  max-width: min(320px, 70vw);
+  border-radius: 9px;
+  background: #30343a;
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.35;
+  padding: 8px 10px;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(3px);
+  transition:
+    opacity 120ms ease,
+    transform 120ms ease;
+  white-space: normal;
+}
+
+.markweave-image-upload-trigger:hover .markweave-image-upload-tooltip,
+.markweave-image-upload-trigger:focus-visible .markweave-image-upload-tooltip,
+.markweave-video-upload-trigger:hover .markweave-video-upload-tooltip,
+.markweave-video-upload-trigger:focus-visible .markweave-video-upload-tooltip {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.markweave-image-upload-row,
+.markweave-video-upload-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 6px;
+  width: 100%;
+}
+
+.markweave-image-upload-row input,
+.markweave-video-upload-row input {
+  min-width: 0;
+  height: 32px;
   border: 1px solid #d9dee6;
-  border-radius: 10px;
+  border-radius: 8px;
   outline: none;
   background: #ffffff;
   color: #2f343b;
   font: inherit;
-  font-size: 14px;
-  padding: 0 11px;
+  font-size: 13px;
+  padding: 0 10px;
 }
 
-.markweave-image-upload-row input:focus {
+.markweave-image-upload-row input:focus,
+.markweave-video-upload-row input:focus {
   border-color: #6b7280;
 }
 
-.markweave-image-upload-row button {
+.markweave-image-upload-row button,
+.markweave-video-upload-row button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 6px;
-  height: 36px;
+  height: 32px;
   border: 0;
-  border-radius: 10px;
-  background: #f0f1f2;
+  border-radius: 8px;
+  background: #e8eaee;
   color: #3f434a;
   cursor: pointer;
   font: inherit;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
-  padding: 0 12px;
+  padding: 0 10px;
 }
 
-.markweave-image-upload-row button[data-testid="markweave-image-upload-submit"] {
+.markweave-image-upload-row button[data-testid="markweave-image-upload-submit"],
+.markweave-video-upload-row button[data-testid="markweave-video-upload-submit"] {
   background: #30343a;
   color: #ffffff;
 }
 
-.markweave-image-upload-row button:disabled {
+.markweave-image-upload-row button:disabled,
+.markweave-video-upload-row button:disabled {
   cursor: default;
   opacity: 0.48;
 }
 
-.markweave-image-upload-error {
-  width: min(100%, 560px);
-  border-radius: 9px;
+.markweave-image-upload-error,
+.markweave-video-upload-error {
+  width: 100%;
+  border-radius: 8px;
   background: #fff1f1;
   color: #b91c1c;
   font-size: 12px;
   line-height: 1.35;
-  padding: 8px 10px;
+  padding: 6px 8px;
 }
 
 @media (max-width: 640px) {
@@ -792,12 +850,8 @@
     overflow-x: auto;
   }
 
-  .markweave-image-upload-placeholder {
-    min-height: 196px;
-    padding: 24px 16px;
-  }
-
-  .markweave-image-upload-row {
+  .markweave-image-upload-row,
+  .markweave-video-upload-row {
     grid-template-columns: minmax(0, 1fr);
   }
 }
@@ -809,114 +863,6 @@
   width: 100%;
   margin: 1.1em 0;
   outline: none;
-}
-
-.markweave-video-upload-placeholder {
-  display: grid;
-  justify-items: center;
-  gap: 10px;
-  width: 100%;
-  min-height: 218px;
-  border: 2px dashed #c8cdd5;
-  border-radius: 14px;
-  background: #ffffff;
-  box-shadow: none;
-  padding: 30px 28px;
-  color: #4f555e;
-}
-
-.markweave-video-upload-placeholder[data-drag-active="true"] {
-  border-color: #6b7280;
-  background: #fafafa;
-}
-
-.markweave-video-upload-icon {
-  display: grid;
-  place-items: center;
-  color: #c6ccd5;
-}
-
-.markweave-video-upload-copy {
-  font-size: 17px;
-  line-height: 1.25;
-}
-
-.markweave-video-upload-copy button {
-  border: 0;
-  background: transparent;
-  color: #3f434a;
-  cursor: pointer;
-  font: inherit;
-  text-decoration: underline;
-  text-underline-offset: 3px;
-}
-
-.markweave-video-upload-note {
-  color: #9aa0a9;
-  font-size: 13px;
-  font-weight: 600;
-}
-
-.markweave-video-upload-row {
-  display: grid;
-  grid-template-columns: minmax(160px, 1fr) auto auto;
-  gap: 8px;
-  width: min(100%, 680px);
-  margin-top: 2px;
-}
-
-.markweave-video-upload-row input {
-  min-width: 0;
-  height: 36px;
-  border: 1px solid #d9dee6;
-  border-radius: 10px;
-  outline: none;
-  background: #ffffff;
-  color: #2f343b;
-  font: inherit;
-  font-size: 14px;
-  padding: 0 11px;
-}
-
-.markweave-video-upload-row input:focus {
-  border-color: #6b7280;
-}
-
-.markweave-video-upload-row button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  height: 36px;
-  border: 0;
-  border-radius: 10px;
-  background: #f0f1f2;
-  color: #3f434a;
-  cursor: pointer;
-  font: inherit;
-  font-size: 13px;
-  font-weight: 600;
-  padding: 0 12px;
-}
-
-.markweave-video-upload-row button[data-testid="markweave-video-upload-submit"] {
-  background: #30343a;
-  color: #ffffff;
-}
-
-.markweave-video-upload-row button:disabled {
-  cursor: default;
-  opacity: 0.48;
-}
-
-.markweave-video-upload-error {
-  width: min(100%, 680px);
-  border-radius: 9px;
-  background: #fff1f1;
-  color: #b91c1c;
-  font-size: 12px;
-  line-height: 1.35;
-  padding: 8px 10px;
 }
 
 .markweave-video-embed {
@@ -992,31 +938,212 @@
   margin: 0;
 }
 
-@media (max-width: 640px) {
-  .markweave-video-upload-placeholder {
-    min-height: 196px;
-    padding: 24px 16px;
-  }
-
-  .markweave-video-upload-row {
-    grid-template-columns: minmax(0, 1fr);
-  }
-}
-
 .markweave-editor-surface .markweave-attachment {
-  display: inline-flex;
+  display: flex;
+  box-sizing: border-box;
   align-items: center;
-  gap: 7px;
+  gap: 8px;
+  width: 100%;
   max-width: 100%;
   margin: 0.8em 0;
   border: 1px solid #dfe3ea;
-  border-radius: 6px;
+  border-radius: 10px;
   background: #ffffff;
-  padding: 7px 10px;
+  padding: 10px 12px;
   color: #2f343b;
   font-family: ui-sans-serif, system-ui, sans-serif;
   font-size: 13px;
   text-decoration: none;
+  cursor: pointer;
+}
+
+.markweave-editor-surface .markweave-attachment-upload-placeholder,
+.markweave-editor-surface .markweave-attachment-uploading {
+  border-color: transparent;
+  background: #f3f4f6;
+  color: #6b7280;
+}
+
+.markweave-editor-surface .markweave-attachment-upload-placeholder:hover {
+  background: #eceef2;
+}
+
+.markweave-editor-surface .markweave-attachment-upload-trigger {
+  display: inline-flex;
+  box-sizing: border-box;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.markweave-editor-surface .markweave-attachment-upload-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 500;
+}
+
+.markweave-editor-surface .markweave-attachment-upload-error {
+  margin-left: auto;
+  color: #b42318;
+  font-size: 12px;
+}
+
+.markweave-editor-surface .markweave-attachment-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.markweave-editor-surface .markweave-attachment-spinner {
+  display: inline-block;
+  box-sizing: border-box;
+  width: 12px;
+  height: 12px;
+  border: 1.5px solid #c4c9d1;
+  border-top-color: #4b5563;
+  border-radius: 50%;
+  animation: markweave-attachment-spin 0.7s linear infinite;
+}
+
+@keyframes markweave-attachment-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.markweave-editor-surface .markweave-attachment[data-selected="true"],
+.markweave-editor-surface .markweave-attachment.ProseMirror-selectednode {
+  outline: none;
+  box-shadow: none;
+}
+
+.markweave-editor-surface .markweave-attachment-upload-placeholder[data-selected="true"],
+.markweave-editor-surface .markweave-attachment-uploading[data-selected="true"],
+.markweave-editor-surface .markweave-attachment-upload-placeholder.ProseMirror-selectednode,
+.markweave-editor-surface .markweave-attachment-uploading.ProseMirror-selectednode {
+  border-color: transparent;
+  outline: none;
+  box-shadow: none;
+}
+
+.markweave-editor-surface .markweave-attachment-icon {
+  display: inline-flex;
+  flex: 0 0 auto;
+  color: #6b7280;
+}
+
+.markweave-editor-surface .markweave-attachment-body {
+  display: flex;
+  min-width: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.markweave-editor-surface .markweave-attachment-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 500;
+  color: #2f343b;
+}
+
+.markweave-editor-surface .markweave-attachment-meta {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #6b7280;
+  font-size: 11px;
+}
+
+.markweave-editor-surface .markweave-attachment-actions {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 2px;
+}
+
+.markweave-editor-surface .markweave-attachment-download,
+.markweave-editor-surface .markweave-attachment-delete {
+  position: relative;
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  margin: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  padding: 0;
+  color: #626870;
+  cursor: pointer;
+}
+
+.markweave-editor-surface .markweave-attachment-download svg,
+.markweave-editor-surface .markweave-attachment-delete svg {
+  width: 16px;
+  height: 16px;
+}
+
+.markweave-editor-surface .markweave-attachment-download:hover:not(:disabled),
+.markweave-editor-surface .markweave-attachment-download:focus-visible:not(:disabled) {
+  background: #f0f1f2;
+  color: #2f343b;
+}
+
+.markweave-editor-surface .markweave-attachment-delete:hover:not(:disabled),
+.markweave-editor-surface .markweave-attachment-delete:focus-visible:not(:disabled) {
+  background: #fef3f2;
+  color: #b42318;
+}
+
+.markweave-editor-surface .markweave-attachment-download:disabled,
+.markweave-editor-surface .markweave-attachment-delete:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.markweave-editor-surface .markweave-attachment-tooltip {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  z-index: 2;
+  width: max-content;
+  max-width: 190px;
+  border-radius: 9px;
+  background: #30343a;
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1;
+  padding: 8px 10px;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateX(-50%) translateY(3px);
+  transition:
+    opacity 120ms ease,
+    transform 120ms ease;
+  white-space: nowrap;
+}
+
+.markweave-editor-surface .markweave-attachment-download:hover:not(:disabled) .markweave-attachment-tooltip,
+.markweave-editor-surface .markweave-attachment-download:focus-visible:not(:disabled) .markweave-attachment-tooltip,
+.markweave-editor-surface .markweave-attachment-delete:hover:not(:disabled) .markweave-attachment-tooltip,
+.markweave-editor-surface .markweave-attachment-delete:focus-visible:not(:disabled) .markweave-attachment-tooltip {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
 }
 
 .markweave-link-card {
@@ -1439,6 +1566,10 @@
   content: "↗";
   color: #6b7280;
   font-size: 12px;
+}
+
+.markweave-editor-surface .markweave-attachment[data-markweave-attachment-nodeview="true"]::before {
+  content: none;
 }
 
 .markweave-editor-surface hr.markweave-separator {
@@ -4824,13 +4955,19 @@ body:has(.markweave-mermaid-fullscreen-layer, .markweave-image-preview-layer) .m
 .markweave-editor-frame[data-markweave-theme="dark"] .markweave-codeblock-language-menu,
 .markweave-editor-frame[data-markweave-theme="dark"] .markweave-math-editor-popover,
 .markweave-editor-frame[data-markweave-theme="dark"] .markweave-image-toolbar,
-.markweave-editor-frame[data-markweave-theme="dark"] .markweave-image-upload-placeholder,
-.markweave-editor-frame[data-markweave-theme="dark"] .markweave-video-upload-placeholder,
 .markweave-editor-frame[data-markweave-theme="dark"] .markweave-image-readonly-empty,
 .markweave-editor-frame[data-markweave-theme="dark"] .markweave-video-readonly-empty {
   background: var(--markweave-surface);
   border-color: var(--markweave-border);
   box-shadow: 0 10px 28px var(--markweave-shadow);
+}
+
+.markweave-editor-frame[data-markweave-theme="dark"] .markweave-image-upload-placeholder,
+.markweave-editor-frame[data-markweave-theme="dark"] .markweave-video-upload-placeholder {
+  background: var(--markweave-surface-muted, var(--markweave-surface));
+  border-color: transparent;
+  box-shadow: none;
+  color: var(--markweave-text-muted);
 }
 
 .markweave-editor-frame[data-markweave-theme="dark"] :is(

@@ -56,7 +56,7 @@ afterEach(() => {
 });
 
 describe("slash command menu DOM", () => {
-  it("renders the disabled attachment command as visible but non-interactive", async () => {
+  it("selects the attachment command without opening the upload panel", async () => {
     const attachmentCommand = defaultSlashCommandSpecs.find((command) => command.id === "attachment");
 
     if (!attachmentCommand) {
@@ -92,19 +92,19 @@ describe("slash command menu DOM", () => {
     const button = getByTestId<HTMLButtonElement>("markweave-slash-command-attachment");
 
     expect(button.disabled).toBe(false);
-    expect(button.dataset.disabled).toBe("true");
-    expect(button.getAttribute("aria-disabled")).toBe("true");
+    expect(button.dataset.disabled).toBe("false");
+    expect(button.getAttribute("aria-disabled")).toBe("false");
     expect(button.textContent).toContain("附件");
-    expect(button.textContent).toContain("暂不可用。");
+    expect(attachmentCommand.inputKind).toBeUndefined();
 
     await click(button);
 
+    expect(onSelect).toHaveBeenCalledWith(attachmentCommand);
     expect(onInputCommandChange).not.toHaveBeenCalled();
-    expect(onSelect).not.toHaveBeenCalled();
     expect(document.querySelector('[data-testid="markweave-slash-upload-panel"]')).toBeNull();
   });
 
-  it("renders disabled attachment copy in English when English messages are provided", async () => {
+  it("renders English attachment copy when English messages are provided", async () => {
     const attachmentCommand = getLocalizedSlashCommandSpecs("en").find((command) => command.id === "attachment");
 
     if (!attachmentCommand) {
@@ -137,7 +137,9 @@ describe("slash command menu DOM", () => {
     const button = getByTestId<HTMLButtonElement>("markweave-slash-command-attachment");
 
     expect(button.textContent).toContain("Attachment");
-    expect(button.textContent).toContain("Temporarily unavailable.");
+    expect(button.textContent).not.toContain("Temporarily unavailable.");
+    expect(button.disabled).toBe(false);
+    expect(button.dataset.disabled).toBe("false");
   });
 
   it("centers the keyboard-selected slash option inside the scrollable list", async () => {

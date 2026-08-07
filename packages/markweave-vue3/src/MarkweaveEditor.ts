@@ -269,6 +269,7 @@ import {
   type MarkweaveUploadRequest,
   type MarkweaveUploadResult,
 } from "markweave/internal/plugins/slash-command/upload";
+import type { MarkweaveAttachmentDownloadHandler } from "markweave/internal/plugins/media/attachment-download";
 import { setMarkweaveTableMenuAxisTarget, type MarkweaveMenuCopyPayload } from "markweave/internal/plugins/table/table-clipboard";
 import { type TableCommandId, type TableMenuIconId, type TableMenuSubmenuId } from "markweave/internal/plugins/table/table-command-spec";
 import { getFirstTableDebugSnapshot } from "markweave/internal/plugins/table/table-debug-snapshot";
@@ -356,6 +357,7 @@ export interface MarkweaveVue3EditorControllerOptions {
   /** @deprecated Compatibility callback retained for existing integrations. */
   readonly onExtractToNote?: (request: FloatingToolbarAssistantRequest) => void;
   readonly onSlashCommandUpload?: MarkweaveSlashCommandUploadHandler;
+  readonly onAttachmentDownload?: MarkweaveAttachmentDownloadHandler;
   readonly onTableCopyPayload?: (payload: MarkweaveMenuCopyPayload) => void;
   readonly onTableCommandResult?: (result: TableCommandResult) => void;
   readonly onRuntimeStateChange?: (snapshot: MarkweaveEditorRuntimeSnapshot) => void;
@@ -1517,9 +1519,10 @@ const VueSlashCommandMenu = defineComponent({
       error.value = null;
       isSubmitting.value = true;
       try {
+        const uploadKind = props.inputCommand.uploadKind ?? "attachment";
         const request: MarkweaveUploadRequest = file.value
-          ? { kind: props.inputCommand.uploadKind ?? "attachment", trigger: "slash-command", source: { type: "file", file: file.value, mimeType: file.value.type } }
-          : { kind: props.inputCommand.uploadKind ?? "attachment", trigger: "slash-command", source: detectUploadSource(inputValue.value) };
+          ? { kind: uploadKind, trigger: uploadKind === "attachment" ? "attachment-insert" : "slash-command", source: { type: "file", file: file.value, mimeType: file.value.type } }
+          : { kind: uploadKind, trigger: uploadKind === "attachment" ? "attachment-insert" : "slash-command", source: detectUploadSource(inputValue.value) };
         if (!file.value && !inputValue.value.trim()) {
           error.value = props.messages.slash.uploadRequiredError;
           return;
@@ -3355,6 +3358,8 @@ export function useMarkweaveEditorController(options: MarkweaveVue3EditorControl
       linkCardResolver: options.linkCardResolver,
       onImageUpload: (request) => uploadHandler?.(request) ?? getDirectUploadResult(request) ?? Promise.reject(new Error("File upload requires an upload handler.")),
       onVideoUpload: (request) => uploadHandler?.(request) ?? getDirectUploadResult(request) ?? Promise.reject(new Error("File upload requires an upload handler.")),
+      onAttachmentUpload: (request) => options.onSlashCommandUpload?.(request) ?? getDirectUploadResult(request) ?? Promise.reject(new Error("File upload requires an upload handler.")),
+      onAttachmentDownload: (attachment, context) => options.onAttachmentDownload?.(attachment, context),
       resolveMediaSource: options.resolveMediaSource,
     }),
     content: initialContent,
@@ -3810,6 +3815,7 @@ export const MarkweaveEditor = defineComponent({
     onRewriteSelection: { type: Function as PropType<(request: FloatingToolbarAssistantRequest) => void>, default: undefined },
     onExtractToNote: { type: Function as PropType<(request: FloatingToolbarAssistantRequest) => void>, default: undefined },
     onSlashCommandUpload: { type: Function as PropType<MarkweaveSlashCommandUploadHandler>, default: undefined },
+    onAttachmentDownload: { type: Function as PropType<MarkweaveAttachmentDownloadHandler>, default: undefined },
     onTableCopyPayload: { type: Function as PropType<(payload: MarkweaveMenuCopyPayload) => void>, default: undefined },
     onTableCommandResult: { type: Function as PropType<(result: TableCommandResult) => void>, default: undefined },
     onRuntimeStateChange: { type: Function as PropType<(snapshot: MarkweaveEditorRuntimeSnapshot) => void>, default: undefined },

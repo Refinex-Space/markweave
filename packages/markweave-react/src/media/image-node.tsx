@@ -418,16 +418,22 @@ function ImageUploadPlaceholder({
       onDrop={onDrop}
     >
       <input ref={fileInputRef} data-testid="markweave-image-file-input" type="file" accept="image/*" hidden onChange={onFileChange} />
-      <div className="markweave-image-upload-icon" aria-hidden="true">
-        <ImageUp size={46} strokeWidth={1.6} />
-      </div>
-      <div className="markweave-image-upload-copy">
-        <button type="button" onClick={() => fileInputRef.current?.click()}>
-          {imageMessages.clickToUpload}
-        </button>
-        <span>{imageMessages.dragAndDrop}</span>
-      </div>
-      <div className="markweave-image-upload-note">{imageMessages.uploadNote}</div>
+      <button
+        type="button"
+        className="markweave-image-upload-trigger"
+        data-testid="markweave-image-upload-trigger"
+        aria-label={imageMessages.uploadLabel}
+        onMouseDown={(event) => event.preventDefault()}
+        onClick={() => fileInputRef.current?.click()}
+      >
+        <span className="markweave-image-upload-icon" aria-hidden="true">
+          <ImageUp size={16} strokeWidth={1.8} />
+        </span>
+        <span className="markweave-image-upload-label">{imageMessages.uploadLabel}</span>
+        <span className="markweave-image-upload-tooltip" role="tooltip">
+          {`${imageMessages.clickToUpload}${imageMessages.dragAndDrop}. ${imageMessages.uploadNote}`}
+        </span>
+      </button>
       <div className="markweave-image-upload-row">
         <input
           data-testid="markweave-image-url-input"

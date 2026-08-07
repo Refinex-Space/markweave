@@ -105,6 +105,7 @@ export interface MarkweaveMessages {
   readonly image: {
     readonly uploadFailedError: string;
     readonly uploadRequiredError: string;
+    readonly uploadLabel: string;
     readonly clickToUpload: string;
     readonly dragAndDrop: string;
     readonly uploadNote: string;
@@ -134,11 +135,23 @@ export interface MarkweaveMessages {
     readonly unsupportedUrlError: string;
     readonly nodeAriaLabel: string;
     readonly selectAriaLabel: string;
+    readonly uploadLabel: string;
     readonly clickToUpload: string;
     readonly dragAndDrop: string;
     readonly uploadNote: string;
     readonly uploadInputPlaceholder: string;
     readonly uploadInputAriaLabel: string;
+  };
+  readonly attachment: {
+    readonly download: string;
+    readonly downloadAriaLabel: string;
+    readonly delete: string;
+    readonly deleteAriaLabel: string;
+    readonly nodeAriaLabel: string;
+    readonly missingSrc: string;
+    readonly uploadLabel: string;
+    readonly uploadFailedError: string;
+    readonly uploading: string;
   };
   readonly table: {
     readonly controlsAriaLabel: string;
@@ -319,9 +332,7 @@ const baseSlashCommandSpecs = [
     category: "upload",
     executionKind: "editor",
     icon: "attachment",
-    inputKind: "upload",
     uploadKind: "attachment",
-    disabled: true,
   },
 ] as const;
 
@@ -489,7 +500,6 @@ const slashCommandsZh: Record<string, LocalizedSlashCommandText> = {
   attachment: {
     label: "附件",
     description: "插入文件附件。",
-    disabledReason: "暂不可用。",
     searchTerms: ["attachment", "file", "upload", "附件", "文件", "上传"],
   },
 };
@@ -598,7 +608,6 @@ const slashCommandsEn: Record<string, LocalizedSlashCommandText> = {
   attachment: {
     label: "Attachment",
     description: "Insert a file attachment.",
-    disabledReason: "Temporarily unavailable.",
     searchTerms: ["attachment", "file", "upload", "附件", "文件", "上传"],
   },
 };
@@ -767,6 +776,7 @@ const messagesByLang: Record<MarkweaveLang, MarkweaveMessages> = {
     image: {
       uploadFailedError: "图片上传失败。",
       uploadRequiredError: "请输入 URL、路径或 Base64。",
+      uploadLabel: "上传或嵌入图片",
       clickToUpload: "点击上传",
       dragAndDrop: " 或拖拽到此处",
       uploadNote: "URL、路径、Base64 或一个本地图片文件",
@@ -796,11 +806,23 @@ const messagesByLang: Record<MarkweaveLang, MarkweaveMessages> = {
       unsupportedUrlError: "请输入 YouTube、Bilibili 或直接视频链接。",
       nodeAriaLabel: "视频",
       selectAriaLabel: "选择视频",
+      uploadLabel: "上传或嵌入视频",
       clickToUpload: "点击上传",
       dragAndDrop: " 或拖拽到此处",
       uploadNote: "YouTube/Bilibili 链接或嵌入地址、直接视频链接，或一个本地视频文件",
       uploadInputPlaceholder: "https://www.youtube.com/embed/..., //player.bilibili.com/..., https://.../video.mp4",
       uploadInputAriaLabel: "视频链接",
+    },
+    attachment: {
+      download: "下载",
+      downloadAriaLabel: "下载附件",
+      delete: "删除",
+      deleteAriaLabel: "删除附件",
+      nodeAriaLabel: "附件",
+      missingSrc: "缺少附件地址",
+      uploadLabel: "上传或嵌入文件",
+      uploadFailedError: "附件上传失败。",
+      uploading: "上传中",
     },
     table: {
       controlsAriaLabel: "表格控件",
@@ -1050,6 +1072,7 @@ const messagesByLang: Record<MarkweaveLang, MarkweaveMessages> = {
     image: {
       uploadFailedError: "Image upload failed.",
       uploadRequiredError: "Enter a URL, path, or Base64 value.",
+      uploadLabel: "Upload or embed an image",
       clickToUpload: "Click to upload",
       dragAndDrop: " or drag and drop",
       uploadNote: "URL, path, Base64, or one local image file",
@@ -1079,11 +1102,23 @@ const messagesByLang: Record<MarkweaveLang, MarkweaveMessages> = {
       unsupportedUrlError: "Enter a YouTube, Bilibili, or direct video URL.",
       nodeAriaLabel: "Video",
       selectAriaLabel: "Select video",
+      uploadLabel: "Upload or embed a video",
       clickToUpload: "Click to upload",
       dragAndDrop: " or drag and drop",
       uploadNote: "YouTube/Bilibili link or embed URL, direct video URL, or one local video file",
       uploadInputPlaceholder: "https://www.youtube.com/embed/..., //player.bilibili.com/..., https://.../video.mp4",
       uploadInputAriaLabel: "Video URL",
+    },
+    attachment: {
+      download: "Download",
+      downloadAriaLabel: "Download attachment",
+      delete: "Delete",
+      deleteAriaLabel: "Delete attachment",
+      nodeAriaLabel: "Attachment",
+      missingSrc: "Missing attachment source",
+      uploadLabel: "Upload or embed a file",
+      uploadFailedError: "Attachment upload failed.",
+      uploading: "Uploading",
     },
     table: {
       controlsAriaLabel: "Table controls",

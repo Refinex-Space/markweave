@@ -1,6 +1,7 @@
 import type { AnyExtension, Extensions } from "@tiptap/core";
 import { getMarkweaveMessages, type MarkweaveLang, type MarkweaveMessages } from "../../i18n";
 import type { MarkweaveSlashCommandUploadHandler } from "../slash-command/upload";
+import type { MarkweaveAttachmentDownloadHandler } from "./attachment-download";
 import type { MarkweaveMediaSourceResolver } from "./media-source";
 
 export interface CreateMarkweaveMediaExtensionOptions {
@@ -30,6 +31,15 @@ export interface MarkweaveAdapterVideoExtensionOptions {
   };
 }
 
+export interface MarkweaveAdapterAttachmentExtensionOptions {
+  readonly messages: MarkweaveMessages;
+  readonly onUpload?: MarkweaveSlashCommandUploadHandler;
+  readonly onDownload?: MarkweaveAttachmentDownloadHandler;
+  readonly HTMLAttributes: {
+    readonly class: "markweave-attachment";
+  };
+}
+
 interface ConfigurableMediaExtension<Options> {
   configure(options: Options): AnyExtension;
 }
@@ -37,9 +47,12 @@ interface ConfigurableMediaExtension<Options> {
 export function createMarkweaveAdapterMediaExtensions(options: {
   readonly image: ConfigurableMediaExtension<MarkweaveAdapterImageExtensionOptions>;
   readonly video: ConfigurableMediaExtension<MarkweaveAdapterVideoExtensionOptions>;
+  readonly attachment: ConfigurableMediaExtension<MarkweaveAdapterAttachmentExtensionOptions>;
   readonly lang?: MarkweaveLang;
   readonly onImageUpload?: MarkweaveSlashCommandUploadHandler;
   readonly onVideoUpload?: MarkweaveSlashCommandUploadHandler;
+  readonly onAttachmentUpload?: MarkweaveSlashCommandUploadHandler;
+  readonly onAttachmentDownload?: MarkweaveAttachmentDownloadHandler;
   readonly resolveMediaSource?: MarkweaveMediaSourceResolver;
 }): Extensions {
   const messages = getMarkweaveMessages(options.lang);
@@ -61,6 +74,14 @@ export function createMarkweaveAdapterMediaExtensions(options: {
       resolveMediaSource: options.resolveMediaSource,
       HTMLAttributes: {
         class: "markweave-video",
+      },
+    }),
+    options.attachment.configure({
+      messages,
+      onUpload: options.onAttachmentUpload,
+      onDownload: options.onAttachmentDownload,
+      HTMLAttributes: {
+        class: "markweave-attachment",
       },
     }),
   ];

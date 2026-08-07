@@ -477,11 +477,10 @@ export function createMarkweaveEditorExtensions(options: CreateMarkweaveEditorEx
     MarkweaveMarkBoundary,
     MarkweaveSearch,
     options.linkCardExtension ?? MarkweaveLinkCard,
-    ...(options.mediaExtensions ?? [MarkweaveCoreImage, MarkweaveCoreVideo]),
+    ...(options.mediaExtensions ?? [MarkweaveCoreImage, MarkweaveCoreVideo, MarkweaveAttachment]),
     MarkweaveImageClipboard.configure({
       onUpload: options.onImageUpload,
     }),
-    MarkweaveAttachment,
     HorizontalRule.configure({
       HTMLAttributes: {
         class: "markweave-separator",

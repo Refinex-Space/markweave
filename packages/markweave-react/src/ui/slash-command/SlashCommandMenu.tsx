@@ -257,7 +257,7 @@ function UploadPanel({
     const request: MarkweaveUploadRequest = {
       kind: uploadKind,
       source,
-      trigger: "slash-command",
+      trigger: uploadKind === "attachment" ? "attachment-insert" : "slash-command",
     };
 
     const result = await resolveMarkweaveUploadResult(request, onUpload);

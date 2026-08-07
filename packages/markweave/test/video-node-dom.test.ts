@@ -169,7 +169,7 @@ describe("video node view", () => {
 
     await insertEmptyVideo(controller);
     expect(getByTestId("markweave-video-upload-placeholder")).not.toBeNull();
-    expect(getByTestId("markweave-video-upload-placeholder").textContent).toContain("点击上传");
+    expect(getByTestId("markweave-video-upload-placeholder").textContent).toContain("上传或嵌入视频");
 
     await inputValue(getByTestId<HTMLInputElement>("markweave-video-url-input"), " https://cdn.example.com/media/demo.mp4 ");
     await click(getByTestId("markweave-video-upload-submit"));
@@ -361,6 +361,6 @@ describe("video node view", () => {
 
     await insertEmptyVideo(controller);
 
-    expect(getByTestId("markweave-video-upload-placeholder").textContent).toContain("Click to upload");
+    expect(getByTestId("markweave-video-upload-placeholder").textContent).toContain("Upload or embed a video");
   });
 });

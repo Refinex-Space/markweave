@@ -1,6 +1,6 @@
 ---
 owner: refinex
-updated: 2026-07-05
+updated: 2026-08-07
 status: active
 referenced_by: AGENTS.md#knowledge-map
 ---
@@ -19,6 +19,7 @@ This directory holds repository facts and evidence for agents. Keep `AGENTS.md` 
 | Secrets, upload callbacks, media/link nodes, Mermaid rendering, or data handling | `docs/standards/security.md` |
 | Naming editor concepts and behavior contracts | `docs/domain/glossary.md` |
 | Local run, verification, build, release prep, or troubleshooting | `docs/guides/runbook.md` |
+| Attachment upload metadata and host-owned download protocol | `docs/guides/attachment-upload-protocol.md`, `docs/guides/attachment-upload-protocol-zh-cn.md` |
 | React, Vue 3, or Vue 2 product integration, upload callback wiring, or framework-specific usage | `docs/guides/react-integration.md`, `docs/guides/react-integration-zh-cn.md`, `docs/guides/vue3-integration.md`, `docs/guides/vue3-integration-zh-cn.md`, `docs/guides/vue2-integration.md`, `docs/guides/vue2-integration-zh-cn.md` |
 
 ## Maintenance Rules

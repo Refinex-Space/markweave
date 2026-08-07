@@ -417,9 +417,11 @@ describe("slash command runtime", () => {
     expect(filterSlashCommands("divider").map((command) => command.id)).toContain("separator");
     expect(filterSlashCommands("upload").map((command) => command.id)).toEqual(["image", "video", "attachment"]);
     expect(defaultSlashCommandSpecs.find((command) => command.id === "attachment")).toMatchObject({
-      disabled: true,
-      disabledReason: "暂不可用。",
+      uploadKind: "attachment",
     });
+    expect(defaultSlashCommandSpecs.find((command) => command.id === "attachment")?.inputKind).toBeUndefined();
+    expect(defaultSlashCommandSpecs.find((command) => command.id === "attachment")?.disabled).toBeUndefined();
+    expect(isExecutableSlashCommand(defaultSlashCommandSpecs.find((command) => command.id === "attachment")!)).toBe(true);
     expect(getLocalizedSlashCommandSpecs("en").find((command) => command.id === "image")).toMatchObject({
       label: "Image",
       group: "Upload",
@@ -427,7 +429,7 @@ describe("slash command runtime", () => {
   });
 
   it("executes heading 3, task list, separator, callout, emoji, math, and enabled upload commands", () => {
-    const editor = createEditor("<p>/h3</p><p>/task</p><p>/sep</p><p>/callout</p><p>/emoji</p><p>/math</p><p>/image</p><p>/video</p>");
+    const editor = createEditor("<p>/h3</p><p>/task</p><p>/sep</p><p>/callout</p><p>/emoji</p><p>/math</p><p>/image</p><p>/video</p><p>/attachment</p>");
     const runCommandAtText = (text: string, commandId: string, options = {}) => {
       expect(editor.commands.setTextSelection(textPosition(editor, text))).toBe(true);
       const state = getNextSlashCommandState(initialSlashCommandState, getSlashCommandContext(editor.state));
@@ -448,6 +450,9 @@ describe("slash command runtime", () => {
     runCommandAtText("/math", "block-math");
     runCommandAtText("/image", "image", { uploadResult: { src: "https://example.com/image.png", alt: "Example" } });
     runCommandAtText("/video", "video", { uploadResult: { src: "/video.mp4", name: "video.mp4", mimeType: "video/mp4" } });
+    runCommandAtText("/attachment", "attachment", {
+      uploadResult: { src: "./notes.pdf", name: "notes.pdf", mimeType: "application/pdf", size: 42 },
+    });
 
     expect(editor.getHTML()).toContain("<h3></h3>");
     expect(editor.getHTML()).toContain('data-type="taskList"');
@@ -457,10 +462,11 @@ describe("slash command runtime", () => {
     expect(editor.getHTML()).toContain('data-type="block-math"');
     expect(editor.getHTML()).toContain('src="https://example.com/image.png"');
     expect(editor.getHTML()).toContain('data-markweave-video="true"');
-    expect(editor.getHTML()).not.toContain('data-markweave-attachment="true"');
+    expect(editor.getHTML()).toContain('data-markweave-attachment="true"');
+    expect(editor.getHTML()).toContain('data-markweave-attachment-name="notes.pdf"');
   });
 
-  it("keeps the disabled attachment command visible but non-executable", () => {
+  it("inserts empty or filled attachments from the slash command", () => {
     const editor = createEditor("<p>/attachment</p>");
     const attachmentCommand = defaultSlashCommandSpecs.find((command) => command.id === "attachment");
 
@@ -469,19 +475,24 @@ describe("slash command runtime", () => {
     }
 
     expect(filterSlashCommands("upload").map((command) => command.id)).toContain("attachment");
-    expect(isExecutableSlashCommand(attachmentCommand)).toBe(false);
+    expect(isExecutableSlashCommand(attachmentCommand)).toBe(true);
+    expect(attachmentCommand.inputKind).toBeUndefined();
 
     expect(editor.commands.setTextSelection(textPosition(editor, "/attachment"))).toBe(true);
-    const state = getNextSlashCommandState(initialSlashCommandState, getSlashCommandContext(editor.state));
+    const emptyState = getNextSlashCommandState(initialSlashCommandState, getSlashCommandContext(editor.state));
+    expect(executeSlashCommand(editor, emptyState, attachmentCommand)).toBe(true);
+    expect(editor.getJSON().content?.some((node) => node.type === "markweaveAttachment" && node.attrs?.src == null)).toBe(true);
 
-    expect(getSlashCommandKeyboardAction({ ...state, activeIndex: 0 }, [attachmentCommand], "Enter")).toEqual({ type: "ignore" });
+    editor.commands.insertContent("<p>/attachment-filled</p>");
+    expect(editor.commands.setTextSelection(textPosition(editor, "/attachment-filled"))).toBe(true);
+    const filledState = getNextSlashCommandState(initialSlashCommandState, getSlashCommandContext(editor.state));
     expect(
-      executeSlashCommand(editor, state, attachmentCommand, {
+      executeSlashCommand(editor, filledState, attachmentCommand, {
         uploadResult: { src: "./notes.pdf", name: "notes.pdf", mimeType: "application/pdf", size: 42 },
       }),
-    ).toBe(false);
-    expect(editor.getText()).toContain("/attachment");
-    expect(editor.getHTML()).not.toContain('data-markweave-attachment="true"');
+    ).toBe(true);
+    expect(editor.getHTML()).toContain('data-markweave-attachment="true"');
+    expect(editor.getHTML()).toContain('href="./notes.pdf"');
   });
 
   it("positions slash menus within the editor frame and flips near the lower boundary", () => {
@@ -570,22 +581,17 @@ describe("slash command runtime", () => {
     expect(editor.getJSON().content?.some((node) => node.type === "markweaveVideo" && node.attrs?.src === null)).toBe(true);
   });
 
-  it("keeps input-only slash commands from mutating without a chosen emoji or upload result", () => {
-    const editor = createEditor("<p>/emoji</p><p>/attachment</p>");
+  it("keeps emoji slash command from mutating without a chosen emoji", () => {
+    const editor = createEditor("<p>/emoji</p>");
     const emojiCommand = defaultSlashCommandSpecs.find((command) => command.id === "emoji");
-    const attachmentCommand = defaultSlashCommandSpecs.find((command) => command.id === "attachment");
 
-    if (!emojiCommand || !attachmentCommand) {
-      throw new Error("Expected input-only slash commands.");
+    if (!emojiCommand) {
+      throw new Error("Expected emoji slash command.");
     }
 
     expect(editor.commands.setTextSelection(textPosition(editor, "/emoji"))).toBe(true);
     expect(executeSlashCommand(editor, getNextSlashCommandState(initialSlashCommandState, getSlashCommandContext(editor.state)), emojiCommand)).toBe(false);
     expect(editor.getText()).toContain("/emoji");
-
-    expect(editor.commands.setTextSelection(textPosition(editor, "/attachment"))).toBe(true);
-    expect(executeSlashCommand(editor, getNextSlashCommandState(initialSlashCommandState, getSlashCommandContext(editor.state)), attachmentCommand)).toBe(false);
-    expect(editor.getText()).toContain("/attachment");
   });
 
   it("keeps external AI slash commands outside the default executable slash menu", () => {

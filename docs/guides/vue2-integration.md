@@ -1,6 +1,6 @@
 ---
 owner: refinex
-updated: 2026-08-04
+updated: 2026-08-07
 status: active
 referenced_by: docs/README.md#knowledge-map
 ---
@@ -209,6 +209,8 @@ Images and videos support URL, absolute path, relative path, Base64, and local f
 
 In Live mode, pasting local `image/*` clipboard files inserts every image in order and sends each file through the same `on-slash-command-upload` handler with `kind: "image"` and `trigger: "image-insert"`. Image-only HTML `<img>` clipboard content is inserted directly when its source is HTTP(S). A standalone HTTP(S) URL is converted to an image only when its path has a common image extension; Markweave does not fetch the URL. When files and HTML/URL representations coexist, files take precedence to avoid duplicate images.
 
+The normative upload/download field contract for attachments (and shared request/result shapes) lives in [`attachment-upload-protocol.md`](./attachment-upload-protocol.md). Keep Vue 2 wiring here; keep metadata and download-handler semantics there.
+
 ```vue
 <template>
   <MarkweaveEditor :on-slash-command-upload="handleUpload" />
@@ -254,31 +256,7 @@ export default {
 </script>
 ```
 
-Upload request contract:
-
-| Field | Values |
-| --- | --- |
-| `kind` | `"image"`, `"video"`, `"attachment"` |
-| `trigger` | `"slash-command"`, `"image-insert"`, `"image-replace"`, `"video-insert"` |
-| `source.type` | `"url"`, `"absolute-path"`, `"relative-path"`, `"base64"`, `"file"` |
-| `source.value` | Present for URL/path/Base64 input. |
-| `source.file` | Present for local file input. |
-| `source.mimeType` | Browser-provided MIME type when available. |
-
-Upload result contract:
-
-```ts
-interface MarkweaveUploadResult {
-  src: string;
-  name?: string;
-  alt?: string;
-  title?: string;
-  mimeType?: string;
-  size?: number;
-}
-```
-
-Images render with preview, align, caption, resize, replace, download, and delete controls in Live mode. In View mode, hovering an image reveals a top-right preview action that opens the same fullscreen zoom and pan reader. Videos accept local upload, direct video URLs, YouTube embed URLs, Bilibili player URLs, and normal YouTube/Bilibili share links. Attachments render from existing attachment HTML fallback; the slash Attachment command is currently disabled in the default UI, but the upload type remains part of the public contract for host extensions.
+Images render with preview, align, caption, resize, replace, download, and delete controls in Live mode. In View mode, hovering an image reveals a top-right preview action that opens the same fullscreen zoom and pan reader. Videos accept local upload, direct video URLs, YouTube embed URLs, Bilibili player URLs, and normal YouTube/Bilibili share links. Attachments round-trip through `markweaveAttachment`. Slash Attachment inserts an empty inline placeholder; click to pick a local file (optional `onProgress` for percentage). Filled chips show download and delete on hover and call `onAttachmentDownload` when activated. Without that host handler, only safe `http(s)` sources open in a new tab.
 
 ## Ask AI
 

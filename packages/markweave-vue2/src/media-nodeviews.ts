@@ -10,6 +10,7 @@ import {
   Eye,
   ImageUp,
   Link2,
+  Paperclip,
   PencilLine,
   Replace,
   Trash2,
@@ -49,6 +50,15 @@ import {
   type MarkweaveCoreVideoProvider,
 } from "markweave/internal/plugins/media/core-media-nodes";
 import {
+  activateMarkweaveAttachmentDownload,
+  attrsFromMarkweaveAttachmentUploadResult,
+  createMarkweaveAttachmentRefFromAttrs,
+  createMarkweaveAttachmentUploadRequest,
+  formatMarkweaveAttachmentSize,
+  type MarkweaveAttachmentDownloadHandler,
+} from "markweave/internal/plugins/media/attachment-download";
+import { MarkweaveAttachment } from "markweave/internal/plugins/media/media-nodes";
+import {
   detectUploadSource,
   resolveMarkweaveUploadResult,
   type MarkweaveSlashCommandUploadHandler,
@@ -68,6 +78,13 @@ export interface MarkweaveVueVideoOptions extends MarkweaveCoreVideoOptions {
   readonly messages?: MarkweaveMessages;
   readonly onUpload?: MarkweaveSlashCommandUploadHandler;
   readonly resolveMediaSource?: MarkweaveMediaSourceResolver;
+}
+
+export interface MarkweaveVueAttachmentOptions {
+  readonly messages?: MarkweaveMessages;
+  readonly onUpload?: MarkweaveSlashCommandUploadHandler;
+  readonly onDownload?: MarkweaveAttachmentDownloadHandler;
+  readonly HTMLAttributes?: Record<string, unknown>;
 }
 
 export interface MarkweaveVueLinkCardOptions extends MarkweaveLinkCardExtensionOptions {
@@ -209,12 +226,22 @@ function createImageUploadPlaceholder(options: {
           input.value = "";
         },
       }),
-      h("div", { class: "markweave-image-upload-icon", "aria-hidden": "true" }, [h(ImageUp, { size: 46, strokeWidth: 1.6 })]),
-      h("div", { class: "markweave-image-upload-copy" }, [
-        h("button", { type: "button", onClick: () => fileInputRef.value?.click() }, imageMessages.clickToUpload),
-        h("span", null, imageMessages.dragAndDrop),
-      ]),
-      h("div", { class: "markweave-image-upload-note" }, imageMessages.uploadNote),
+      h(
+        "button",
+        {
+          type: "button",
+          class: "markweave-image-upload-trigger",
+          "data-testid": "markweave-image-upload-trigger",
+          "aria-label": imageMessages.uploadLabel,
+          onMousedown: (event: MouseEvent) => event.preventDefault(),
+          onClick: () => fileInputRef.value?.click(),
+        },
+        [
+          h("span", { class: "markweave-image-upload-icon", "aria-hidden": "true" }, [h(ImageUp, { size: 16, strokeWidth: 1.8 })]),
+          h("span", { class: "markweave-image-upload-label" }, imageMessages.uploadLabel),
+          h("span", { class: "markweave-image-upload-tooltip", role: "tooltip" }, `${imageMessages.clickToUpload}${imageMessages.dragAndDrop}. ${imageMessages.uploadNote}`),
+        ],
+      ),
       h("div", { class: "markweave-image-upload-row" }, [
         h("input", {
           "data-testid": "markweave-image-url-input",
@@ -302,12 +329,22 @@ function createVideoUploadPlaceholder(options: {
           input.value = "";
         },
       }),
-      h("div", { class: "markweave-video-upload-icon", "aria-hidden": "true" }, [h(VideoIcon, { size: 46, strokeWidth: 1.6 })]),
-      h("div", { class: "markweave-video-upload-copy" }, [
-        h("button", { type: "button", onClick: () => fileInputRef.value?.click() }, videoMessages.clickToUpload),
-        h("span", null, videoMessages.dragAndDrop),
-      ]),
-      h("div", { class: "markweave-video-upload-note" }, videoMessages.uploadNote),
+      h(
+        "button",
+        {
+          type: "button",
+          class: "markweave-video-upload-trigger",
+          "data-testid": "markweave-video-upload-trigger",
+          "aria-label": videoMessages.uploadLabel,
+          onMousedown: (event: MouseEvent) => event.preventDefault(),
+          onClick: () => fileInputRef.value?.click(),
+        },
+        [
+          h("span", { class: "markweave-video-upload-icon", "aria-hidden": "true" }, [h(VideoIcon, { size: 16, strokeWidth: 1.8 })]),
+          h("span", { class: "markweave-video-upload-label" }, videoMessages.uploadLabel),
+          h("span", { class: "markweave-video-upload-tooltip", role: "tooltip" }, `${videoMessages.clickToUpload}${videoMessages.dragAndDrop}. ${videoMessages.uploadNote}`),
+        ],
+      ),
       h("div", { class: "markweave-video-upload-row" }, [
         h("input", {
           "data-testid": "markweave-video-url-input",
@@ -982,6 +1019,337 @@ export const MarkweaveVueVideo = MarkweaveCoreVideo.extend<MarkweaveVueVideoOpti
 
     return VueNodeViewRenderer(MarkweaveVueVideoNodeView as unknown as Component<NodeViewProps>, {
       stopEvent: ({ event }) => isVideoUiEventTarget(event.target),
+    });
+  },
+});
+
+function isAttachmentUiEventTarget(target: EventTarget | null) {
+  return (
+    target instanceof Element &&
+    Boolean(
+      target.closest(
+        '[data-markweave-attachment-ui="true"], .markweave-attachment-upload-placeholder, .markweave-attachment-uploading',
+      ),
+    )
+  );
+}
+
+function attachmentProgressPercent(loaded: number, total: number | null) {
+  if (typeof total !== "number" || !Number.isFinite(total) || total <= 0) {
+    return null;
+  }
+  return Math.max(0, Math.min(100, Math.round((loaded / total) * 100)));
+}
+
+const MarkweaveVueAttachmentNodeView = defineComponent({
+  name: "MarkweaveVueAttachmentNodeView",
+  props: {
+    editor: { type: Object, required: true },
+    extension: { type: Object, required: true },
+    node: { type: Object, required: true },
+    getPos: { type: Function, required: true },
+    deleteNode: { type: Function, required: true },
+    updateAttributes: { type: Function, required: true },
+    selected: { type: Boolean, required: true },
+  },
+  setup(props) {
+    const options = computed(() => (props.extension as { options?: MarkweaveVueAttachmentOptions }).options);
+    const messages = computed(() => options.value?.messages ?? getMarkweaveMessages("zh"));
+    const modeState = useVueEditorModeState(props.editor as Editor);
+    const canEdit = computed(() => isMarkweaveEditorLiveEditable(modeState.value));
+    const attachment = computed(() => createMarkweaveAttachmentRefFromAttrs((props.node as NodeViewProps["node"]).attrs ?? {}));
+    const label = computed(() => attachment.value?.name ?? stringAttribute((props.node as NodeViewProps["node"]).attrs?.src) ?? messages.value.attachment.missingSrc);
+    const meta = computed(() =>
+      [
+        stringAttribute((props.node as NodeViewProps["node"]).attrs?.mimeType),
+        formatMarkweaveAttachmentSize(typeof (props.node as NodeViewProps["node"]).attrs?.size === "number" ? ((props.node as NodeViewProps["node"]).attrs.size as number) : null),
+      ]
+        .filter(Boolean)
+        .join(" · "),
+    );
+    const fileInputRef = ref<HTMLInputElement | null>(null);
+    const hovered = ref(false);
+    const isSubmitting = ref(false);
+    const uploadError = ref<string | null>(null);
+    const uploadingName = ref<string | null>(null);
+    const uploadingSize = ref<number | null>(null);
+    const uploadPercent = ref<number | null>(null);
+
+    const selectNode = () => {
+      if (!canEdit.value) {
+        return;
+      }
+      const pos = (props.getPos as () => number)();
+      if (typeof pos === "number") {
+        (props.editor as Editor).chain().focus().setNodeSelection(pos).run();
+      }
+    };
+
+    const openFilePicker = () => {
+      if (!canEdit.value || isSubmitting.value) {
+        return;
+      }
+      fileInputRef.value?.click();
+    };
+
+    const submitFile = async (file: File | null) => {
+      if (!canEdit.value || !file || isSubmitting.value) {
+        return;
+      }
+      uploadError.value = null;
+      isSubmitting.value = true;
+      uploadingName.value = file.name;
+      uploadingSize.value = file.size;
+      uploadPercent.value = null;
+      try {
+        const result = await resolveMarkweaveUploadResult(
+          {
+            ...createMarkweaveAttachmentUploadRequest({
+              type: "file",
+              file,
+              mimeType: file.type || undefined,
+            }),
+            onProgress: (progress) => {
+              uploadPercent.value = attachmentProgressPercent(progress.loaded, progress.total);
+            },
+          },
+          options.value?.onUpload,
+        );
+        (props.updateAttributes as (attrs: object) => void)(attrsFromMarkweaveAttachmentUploadResult(result));
+      } catch (errorValue) {
+        uploadError.value = errorValue instanceof Error ? errorValue.message : messages.value.attachment.uploadFailedError;
+      } finally {
+        isSubmitting.value = false;
+        uploadingName.value = null;
+        uploadingSize.value = null;
+        uploadPercent.value = null;
+        if (fileInputRef.value) {
+          fileInputRef.value.value = "";
+        }
+      }
+    };
+
+    const download = (event: MouseEvent) => {
+      event.preventDefault();
+      event.stopPropagation();
+      if (!attachment.value) {
+        return;
+      }
+      activateMarkweaveAttachmentDownload(
+        attachment.value,
+        {
+          mode: getMarkweaveEditorModeState(props.editor as Editor).mode,
+          event,
+        },
+        options.value?.onDownload,
+      );
+    };
+
+    const activate = (event: MouseEvent) => {
+      if (isAttachmentUiEventTarget(event.target)) {
+        return;
+      }
+      event.preventDefault();
+      event.stopPropagation();
+      if (!attachment.value) {
+        return;
+      }
+      download(event);
+    };
+
+    return () => {
+      const attachmentMessages = messages.value.attachment;
+      const showPlaceholder = canEdit.value && !attachment.value && !isSubmitting.value;
+      const showUploading = isSubmitting.value;
+      const showActions = Boolean(attachment.value) && (hovered.value || props.selected);
+      const uploadingMeta = [formatMarkweaveAttachmentSize(uploadingSize.value), uploadPercent.value === null ? null : `${uploadPercent.value}%`].filter(Boolean).join(" · ");
+
+      if (showPlaceholder) {
+        return h(
+          NodeViewWrapper,
+          {
+            as: "div",
+            class: "markweave-attachment markweave-attachment-upload-placeholder",
+            "data-markweave-attachment": "true",
+            "data-markweave-attachment-nodeview": "true",
+            "data-empty": "true",
+            "data-testid": "markweave-attachment-node",
+            "data-selected": props.selected ? "true" : "false",
+            "aria-label": attachmentMessages.uploadLabel,
+            onKeydown: (event: KeyboardEvent) => {
+              if (canEdit.value && props.selected && (event.key === "Delete" || event.key === "Backspace")) {
+                event.preventDefault();
+                (props.deleteNode as () => void)();
+              }
+            },
+          },
+          [
+            h("input", {
+              ref: fileInputRef,
+              type: "file",
+              hidden: true,
+              "data-testid": "markweave-attachment-file-input",
+              onChange: (event: Event) => {
+                void submitFile((event.target as HTMLInputElement).files?.[0] ?? null);
+              },
+            }),
+            // TipTap Vue2 NodeViewWrapper does not forward listeners to the root DOM node.
+            // Mirror image upload: open the file picker from a native button click.
+            h(
+              "button",
+              {
+                type: "button",
+                class: "markweave-attachment-upload-trigger",
+                "data-markweave-attachment-ui": "true",
+                "data-testid": "markweave-attachment-upload-trigger",
+                "aria-label": attachmentMessages.uploadLabel,
+                onMousedown: (event: MouseEvent) => event.preventDefault(),
+                onClick: () => openFilePicker(),
+              },
+              [
+                h("span", { class: "markweave-attachment-icon", "aria-hidden": "true" }, [icon(Upload, attachmentMessages.uploadLabel)]),
+                h("span", { class: "markweave-attachment-upload-label" }, attachmentMessages.uploadLabel),
+                uploadError.value ? h("span", { class: "markweave-attachment-upload-error" }, uploadError.value) : null,
+              ],
+            ),
+          ],
+        );
+      }
+
+      if (showUploading) {
+        return h(
+          NodeViewWrapper,
+          {
+            as: "div",
+            class: "markweave-attachment markweave-attachment-uploading",
+            "data-markweave-attachment": "true",
+            "data-markweave-attachment-nodeview": "true",
+            "data-markweave-attachment-ui": "true",
+            "data-uploading": "true",
+            "data-testid": "markweave-attachment-node",
+            "data-selected": props.selected ? "true" : "false",
+            "aria-label": attachmentMessages.uploading,
+            onMousedown: (event: MouseEvent) => {
+              event.preventDefault();
+              event.stopPropagation();
+            },
+            onKeydown: (event: KeyboardEvent) => {
+              if (canEdit.value && props.selected && (event.key === "Delete" || event.key === "Backspace")) {
+                event.preventDefault();
+                (props.deleteNode as () => void)();
+              }
+            },
+          },
+          [
+            h("span", { class: "markweave-attachment-icon", "aria-hidden": "true" }, [icon(Upload, attachmentMessages.uploading)]),
+            h("span", { class: "markweave-attachment-body" }, [
+              h("span", { class: "markweave-attachment-name" }, uploadingName.value ?? attachmentMessages.uploading),
+              h("span", { class: "markweave-attachment-meta" }, [h("span", { class: "markweave-attachment-spinner", "aria-hidden": "true" }), uploadingMeta || attachmentMessages.uploading]),
+            ]),
+          ],
+        );
+      }
+
+      return h(
+        NodeViewWrapper,
+        {
+          as: "div",
+          class: "markweave-attachment",
+          "data-markweave-attachment": "true",
+          "data-markweave-attachment-nodeview": "true",
+          "data-testid": "markweave-attachment-node",
+          "data-selected": props.selected ? "true" : "false",
+          "data-hovered": hovered.value ? "true" : "false",
+          "aria-label": attachmentMessages.nodeAriaLabel,
+          onMouseenter: () => {
+            hovered.value = true;
+          },
+          onMouseleave: () => {
+            hovered.value = false;
+          },
+          onMousedown: (event: MouseEvent) => {
+            if (!canEdit.value || isAttachmentUiEventTarget(event.target)) {
+              return;
+            }
+            event.preventDefault();
+            selectNode();
+          },
+          onKeydown: (event: KeyboardEvent) => {
+            if (canEdit.value && props.selected && (event.key === "Delete" || event.key === "Backspace")) {
+              event.preventDefault();
+              (props.deleteNode as () => void)();
+            }
+          },
+          onClick: activate,
+        },
+        [
+          h("span", { class: "markweave-attachment-icon", "aria-hidden": "true" }, [icon(Paperclip, attachmentMessages.nodeAriaLabel)]),
+          h("span", { class: "markweave-attachment-body" }, [
+            h("span", { class: "markweave-attachment-name" }, label.value),
+            meta.value ? h("span", { class: "markweave-attachment-meta" }, meta.value) : null,
+          ]),
+          showActions
+            ? h("span", { class: "markweave-attachment-actions", "data-markweave-attachment-ui": "true" }, [
+                h(
+                  "button",
+                  {
+                    type: "button",
+                    class: "markweave-attachment-download",
+                    "data-markweave-attachment-ui": "true",
+                    "data-testid": "markweave-attachment-download",
+                    "aria-label": attachmentMessages.downloadAriaLabel,
+                    onMousedown: (event: MouseEvent) => event.preventDefault(),
+                    onClick: download,
+                  },
+                  [icon(Download, attachmentMessages.download), h("span", { class: "markweave-attachment-tooltip", role: "tooltip" }, attachmentMessages.download)],
+                ),
+                canEdit.value
+                  ? h(
+                      "button",
+                      {
+                        type: "button",
+                        class: "markweave-attachment-delete",
+                        "data-markweave-attachment-ui": "true",
+                        "data-testid": "markweave-attachment-delete",
+                        "aria-label": attachmentMessages.deleteAriaLabel,
+                        onMousedown: (event: MouseEvent) => event.preventDefault(),
+                        onClick: (event: MouseEvent) => {
+                          event.preventDefault();
+                          event.stopPropagation();
+                          (props.deleteNode as () => void)();
+                        },
+                      },
+                      [icon(Trash2, attachmentMessages.delete), h("span", { class: "markweave-attachment-tooltip", role: "tooltip" }, attachmentMessages.delete)],
+                    )
+                  : null,
+              ])
+            : null,
+        ],
+      );
+    };
+  },
+});
+
+export const MarkweaveVueAttachment = MarkweaveAttachment.extend<MarkweaveVueAttachmentOptions>({
+  addOptions() {
+    return {
+      ...(this.parent?.() as object),
+      messages: getMarkweaveMessages("zh"),
+      onUpload: undefined,
+      onDownload: undefined,
+      HTMLAttributes: {
+        class: "markweave-attachment",
+      },
+    };
+  },
+
+  addNodeView() {
+    if (typeof document === "undefined") {
+      return null;
+    }
+
+    return VueNodeViewRenderer(MarkweaveVueAttachmentNodeView as unknown as Component<NodeViewProps>, {
+      stopEvent: ({ event }) => isAttachmentUiEventTarget(event.target),
     });
   },
 });

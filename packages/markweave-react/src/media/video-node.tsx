@@ -259,16 +259,22 @@ function VideoUploadPlaceholder({
       onDrop={onDrop}
     >
       <input ref={fileInputRef} data-testid="markweave-video-file-input" type="file" accept="video/*" hidden onChange={onFileChange} />
-      <div className="markweave-video-upload-icon" aria-hidden="true">
-        <VideoIcon size={46} strokeWidth={1.6} />
-      </div>
-      <div className="markweave-video-upload-copy">
-        <button type="button" onClick={() => fileInputRef.current?.click()}>
-          {videoMessages.clickToUpload}
-        </button>
-        <span>{videoMessages.dragAndDrop}</span>
-      </div>
-      <div className="markweave-video-upload-note">{videoMessages.uploadNote}</div>
+      <button
+        type="button"
+        className="markweave-video-upload-trigger"
+        data-testid="markweave-video-upload-trigger"
+        aria-label={videoMessages.uploadLabel}
+        onMouseDown={(event) => event.preventDefault()}
+        onClick={() => fileInputRef.current?.click()}
+      >
+        <span className="markweave-video-upload-icon" aria-hidden="true">
+          <VideoIcon size={16} strokeWidth={1.8} />
+        </span>
+        <span className="markweave-video-upload-label">{videoMessages.uploadLabel}</span>
+        <span className="markweave-video-upload-tooltip" role="tooltip">
+          {`${videoMessages.clickToUpload}${videoMessages.dragAndDrop}. ${videoMessages.uploadNote}`}
+        </span>
+      </button>
       <div className="markweave-video-upload-row">
         <input
           data-testid="markweave-video-url-input"

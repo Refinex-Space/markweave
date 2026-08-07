@@ -9,12 +9,23 @@ export interface MarkweaveUploadSource {
   readonly mimeType?: string;
 }
 
-export type MarkweaveUploadTrigger = "slash-command" | "image-insert" | "image-replace" | "video-insert";
+export type MarkweaveUploadTrigger =
+  | "slash-command"
+  | "image-insert"
+  | "image-replace"
+  | "video-insert"
+  | "attachment-insert";
+
+export interface MarkweaveUploadProgress {
+  readonly loaded: number;
+  readonly total: number | null;
+}
 
 export interface MarkweaveUploadRequest {
   readonly kind: SlashCommandUploadKind;
   readonly source: MarkweaveUploadSource;
   readonly trigger: MarkweaveUploadTrigger;
+  readonly onProgress?: (progress: MarkweaveUploadProgress) => void;
 }
 
 export interface MarkweaveUploadResult {

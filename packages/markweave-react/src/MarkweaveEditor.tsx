@@ -47,6 +47,7 @@ import {
 } from "markweave/internal/plugins/slash-command/slash-runtime";
 import { initialSlashCommandState, reduceSlashCommandState, type SlashCommandState } from "markweave/internal/plugins/slash-command/slash-state";
 import { getDirectUploadResult, type MarkweaveSlashCommandUploadHandler } from "markweave/internal/plugins/slash-command/upload";
+import type { MarkweaveAttachmentDownloadHandler } from "markweave/internal/plugins/media/attachment-download";
 import type { MarkweaveMenuCopyPayload } from "markweave/internal/plugins/table/table-clipboard";
 import { getFirstTableDebugSnapshot, type TableDebugSnapshot } from "markweave/internal/plugins/table/table-debug-snapshot";
 import { focusFirstTableBodyCell } from "markweave/internal/plugins/table/table-focus-position";
@@ -156,6 +157,7 @@ export interface MarkweaveEditorControllerOptions {
   /** @deprecated Compatibility callback retained for existing integrations. */
   readonly onExtractToNote?: (request: FloatingToolbarAssistantRequest) => void;
   readonly onSlashCommandUpload?: MarkweaveSlashCommandUploadHandler;
+  readonly onAttachmentDownload?: MarkweaveAttachmentDownloadHandler;
   readonly onTableCopyPayload?: (payload: MarkweaveMenuCopyPayload) => void;
   readonly onTableCommandResult?: (result: TableCommandResult) => void;
   readonly onRuntimeStateChange?: (snapshot: MarkweaveEditorRuntimeSnapshot) => void;
@@ -258,6 +260,7 @@ export function useMarkweaveEditorController({
   onRuntimeStateChange,
   onSearchControllerChange,
   onSlashCommandUpload,
+  onAttachmentDownload,
   onTableCommandResult,
   onTableCopyPayload,
   onTocChange,
@@ -296,6 +299,8 @@ export function useMarkweaveEditorController({
   const slashCommands = useMemo(() => getLocalizedSlashCommandSpecs(resolvedLang), [resolvedLang]);
   const uploadHandlerRef = useRef(onSlashCommandUpload);
   uploadHandlerRef.current = onSlashCommandUpload;
+  const attachmentDownloadHandlerRef = useRef(onAttachmentDownload);
+  attachmentDownloadHandlerRef.current = onAttachmentDownload;
   const searchControllerChangeRef = useRef(onSearchControllerChange);
   searchControllerChangeRef.current = onSearchControllerChange;
   const aiEditControllerChangeRef = useRef(onAiEditControllerChange);
@@ -330,6 +335,19 @@ export function useMarkweaveEditorController({
 
           return directResult;
         },
+        onAttachmentUpload: (request) => {
+          if (uploadHandlerRef.current) {
+            return uploadHandlerRef.current(request);
+          }
+
+          const directResult = getDirectUploadResult(request);
+          if (!directResult) {
+            throw new Error("File upload requires an upload handler.");
+          }
+
+          return directResult;
+        },
+        onAttachmentDownload: (attachment, context) => attachmentDownloadHandlerRef.current?.(attachment, context),
         linkCardResolver: (request) => linkCardResolverRef.current?.(request) ?? Promise.resolve(null),
         resolveMediaSource,
       }),

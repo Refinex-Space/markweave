@@ -51,6 +51,7 @@
       :on-rewrite-selection="handleFloatingToolbarAssistantRequest"
       :on-runtime-state-change="handleRuntimeStateChange"
       :on-slash-command-upload="handleSlashUpload"
+      :on-attachment-download="handleAttachmentDownload"
       :on-table-command-result="handleTableCommandResult"
       :on-table-copy-payload="handleTableCopyPayload"
       :on-ai-edit-controller-change="handleAiEditControllerChange"
@@ -124,6 +125,7 @@ import {
 } from "@markweave/vue3";
 import {
   createPlaygroundUploadResult,
+  downloadPlaygroundAttachment,
   initialPlaygroundDocument,
   largeDocumentPerformanceFixture,
   largeMissingMediaPerformanceFixture,
@@ -221,9 +223,13 @@ function handleRuntimeStateChange(snapshot: MarkweaveEditorRuntimeSnapshot) {
   runtimeSnapshot.value = snapshot;
 }
 
-function handleSlashUpload(request: MarkweaveUploadRequest): MarkweaveUploadResult {
+async function handleSlashUpload(request: MarkweaveUploadRequest): Promise<MarkweaveUploadResult> {
   lastSlashUploadRequest.value = request;
   return createPlaygroundUploadResult(request);
+}
+
+async function handleAttachmentDownload(attachment: Parameters<typeof downloadPlaygroundAttachment>[0]) {
+  await downloadPlaygroundAttachment(attachment);
 }
 
 function handleTableCommandResult(result: TableCommandResult) {

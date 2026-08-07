@@ -315,19 +315,41 @@ export function getPlaygroundUploadResultName(value: string) {
   return value.split("/").filter(Boolean).at(-1);
 }
 
-export function createPlaygroundUploadResult(request: {
+function sleep(ms: number) {
+  return new Promise((resolve) => {
+    window.setTimeout(resolve, ms);
+  });
+}
+
+export async function createPlaygroundUploadResult(request: {
+  readonly kind?: string;
   readonly source: {
     readonly file?: File;
     readonly value?: string;
     readonly mimeType?: string;
   };
+  readonly onProgress?: (progress: { readonly loaded: number; readonly total: number | null }) => void;
 }) {
   if (request.source.file) {
+    const file = request.source.file;
+    const total = file.size;
+
+    if (request.kind === "attachment" && request.onProgress && total > 0) {
+      const steps = 8;
+      for (let step = 1; step <= steps; step += 1) {
+        request.onProgress({
+          loaded: Math.round((total * step) / steps),
+          total,
+        });
+        await sleep(60);
+      }
+    }
+
     return {
-      src: URL.createObjectURL(request.source.file),
-      name: request.source.file.name,
-      mimeType: request.source.file.type,
-      size: request.source.file.size,
+      src: URL.createObjectURL(file),
+      name: file.name,
+      mimeType: file.type,
+      size: file.size,
     };
   }
 
@@ -340,6 +362,28 @@ export function createPlaygroundUploadResult(request: {
   }
 
   throw new Error("Unsupported upload source.");
+}
+
+export async function downloadPlaygroundAttachment(attachment: {
+  readonly src: string;
+  readonly name: string | null;
+  readonly mimeType: string | null;
+}) {
+  const response = await fetch(attachment.src);
+  if (!response.ok) {
+    throw new Error(`Playground attachment download failed (${response.status}).`);
+  }
+
+  const blob = await response.blob();
+  const objectUrl = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = objectUrl;
+  anchor.download = attachment.name ?? "attachment";
+  anchor.rel = "noopener";
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  window.setTimeout(() => URL.revokeObjectURL(objectUrl), 0);
 }
 
 export interface PlaygroundAskAiRequest {

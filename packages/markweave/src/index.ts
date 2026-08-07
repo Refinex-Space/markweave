@@ -60,7 +60,20 @@ export type {
   TableEditWithAiRequest,
 } from "./core/public-types";
 export { createMarkweaveAiEditController } from "./plugins/ai-edit/ai-edit-controller";
-export type { MarkweaveUploadRequest, MarkweaveUploadResult, MarkweaveSlashCommandUploadHandler } from "./plugins/slash-command/upload";
+export type { MarkweaveUploadProgress, MarkweaveUploadRequest, MarkweaveUploadResult, MarkweaveSlashCommandUploadHandler } from "./plugins/slash-command/upload";
+export type {
+  MarkweaveAttachmentDownloadContext,
+  MarkweaveAttachmentDownloadHandler,
+  MarkweaveAttachmentRef,
+} from "./plugins/media/attachment-download";
+export {
+  activateMarkweaveAttachmentDownload,
+  attrsFromMarkweaveAttachmentUploadResult,
+  createMarkweaveAttachmentRefFromAttrs,
+  createMarkweaveAttachmentUploadRequest,
+  formatMarkweaveAttachmentSize,
+  openMarkweaveAttachmentFallbackDownload,
+} from "./plugins/media/attachment-download";
 export type {
   MarkweaveMediaKind,
   MarkweaveMediaPriority,
