@@ -4,6 +4,7 @@ import type { MarkweaveMessages } from "markweave/internal/i18n";
 import {
   getMarkweaveInnerTocRailHeight,
   observeMarkweaveInnerTocContainerPosition,
+  observeMarkweaveInnerTocRailOverflow,
   scrollToMarkweaveTocItem,
   type MarkweaveInnerTocPlacement,
   type MarkweaveTocItem,
@@ -32,6 +33,14 @@ export function MarkweaveInnerToc({ editor, state, messages, editable, placement
 
     return observeMarkweaveInnerTocContainerPosition(tocElement.current);
   }, [placement]);
+
+  useEffect(() => {
+    if (!tocElement.current || !state.items.length) {
+      return undefined;
+    }
+
+    return observeMarkweaveInnerTocRailOverflow(tocElement.current, state.items.length);
+  }, [state.items.length]);
 
   if (!state.items.length) {
     return null;

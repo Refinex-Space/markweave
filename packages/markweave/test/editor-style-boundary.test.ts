@@ -265,9 +265,14 @@ describe("editor style boundary", () => {
     expect(editorCss).toContain('.markweave-video-node[data-selected="true"]');
     expect(editorCss).toContain(".markweave-inner-toc");
     expect(editorCss).toContain(".markweave-inner-toc-rail");
-    expect(editorCss).toContain("height: var(--markweave-inner-toc-rail-height, 15.5px)");
-    expect(editorCss).toContain("max-height: min(42vh, 288px)");
-    expect(editorCss).toMatch(/\.markweave-inner-toc-rail\s*\{[^}]*overflow:\s*hidden;[^}]*justify-content:\s*space-between;[^}]*gap:\s*0;/s);
+    expect(editorCss).toContain("height: min(var(--markweave-inner-toc-rail-height, 15px), 70vh)");
+    expect(editorCss).toContain("max-height: 70vh");
+    expect(editorCss).toMatch(/\.markweave-inner-toc-rail\s*\{[^}]*overflow:\s*hidden;[^}]*justify-content:\s*flex-start;[^}]*gap:\s*5px;/s);
+    expect(editorCss).toContain('data-markweave-inner-toc-rail-overflow="true"');
+    expect(editorCss).toContain("mask-image: linear-gradient(to bottom, #000 0%, #000 calc(100% - 28px), transparent 100%)");
+    expect(editorCss).toMatch(/\.markweave-inner-toc-rail span\s*\{[^}]*height:\s*1px;[^}]*min-height:\s*1px;/s);
+    expect(editorCss).toContain('.markweave-inner-toc-rail span[data-active="true"]');
+    expect(editorCss).toMatch(/\.markweave-inner-toc-rail span\[data-active="true"\]\s*\{[^}]*height:\s*1px;/s);
     expect(editorCss).toContain(".markweave-inner-toc-panel");
     expect(editorCss).toContain(".markweave-inner-toc-item");
     expect(editorCss).toContain(".markweave-inner-toc:hover .markweave-inner-toc-panel");

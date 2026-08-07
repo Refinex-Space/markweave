@@ -167,6 +167,7 @@ import {
   getValidMarkweaveTocActiveId,
   normalizeMarkweaveInnerTocPlacement,
   observeMarkweaveInnerTocContainerPosition,
+  observeMarkweaveInnerTocRailOverflow,
   scrollToMarkweaveTocItem,
   type MarkweaveInnerTocPlacement,
   type MarkweaveTocState,
@@ -3194,16 +3195,30 @@ const VueInnerToc = defineComponent({
   setup(props) {
     const tocElement = ref<HTMLElement | null>(null);
     let stopPositioning: (() => void) | undefined;
+    let stopOverflow: (() => void) | undefined;
     const syncPositioning = () => {
       stopPositioning?.();
       stopPositioning = props.placement === "container" && tocElement.value
         ? observeMarkweaveInnerTocContainerPosition(tocElement.value)
         : undefined;
     };
+    const syncOverflow = () => {
+      stopOverflow?.();
+      stopOverflow = tocElement.value && props.state.items.length
+        ? observeMarkweaveInnerTocRailOverflow(tocElement.value, props.state.items.length)
+        : undefined;
+    };
 
-    onMounted(syncPositioning);
-    onBeforeUnmount(() => stopPositioning?.());
+    onMounted(() => {
+      syncPositioning();
+      syncOverflow();
+    });
+    onBeforeUnmount(() => {
+      stopPositioning?.();
+      stopOverflow?.();
+    });
     watch(() => props.placement, syncPositioning);
+    watch(() => props.state.items.length, syncOverflow, { flush: "post" });
 
     return () =>
       props.state.items.length

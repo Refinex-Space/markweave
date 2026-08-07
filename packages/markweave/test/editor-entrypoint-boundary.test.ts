@@ -93,7 +93,7 @@ describe("editor entrypoint boundary", () => {
         version?: string;
       };
 
-      expect(packageJson.version).toBe("0.5.0");
+      expect(packageJson.version).toBe("0.5.1");
       expect(packageJson.homepage).toBe(homepageUrl);
       expect(packageJson.bugs).toEqual({ url: bugsUrl });
       expect(packageJson.repository).toEqual({

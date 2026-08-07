@@ -35,22 +35,59 @@ export const markweaveTocProjectionPluginKey = new PluginKey<
 >("markweaveTocProjection");
 
 const compactInnerTocContainerWidth = 900;
-const innerTocRailMarkerHeight = 1.5;
-const innerTocRailMarkerGap = 4;
+const innerTocRailMarkerHeight = 1;
+const innerTocRailMarkerGap = 5;
 const innerTocRailPadding = 14;
+const innerTocRailMaxViewportRatio = 0.7;
 
 export function normalizeMarkweaveInnerTocPlacement(value: unknown): MarkweaveInnerTocPlacement {
   return value === "viewport" ? "viewport" : "container";
 }
 
-export function getMarkweaveInnerTocRailHeight(itemCount: number) {
+export function getMarkweaveInnerTocRailNaturalHeightPx(itemCount: number) {
   const normalizedItemCount = Number.isFinite(itemCount)
     ? Math.max(1, Math.floor(itemCount))
     : 1;
   const markerHeight = normalizedItemCount * innerTocRailMarkerHeight;
   const markerGaps = (normalizedItemCount - 1) * innerTocRailMarkerGap;
 
-  return `${markerHeight + markerGaps + innerTocRailPadding}px`;
+  return markerHeight + markerGaps + innerTocRailPadding;
+}
+
+export function getMarkweaveInnerTocRailHeight(itemCount: number) {
+  return `${getMarkweaveInnerTocRailNaturalHeightPx(itemCount)}px`;
+}
+
+export function shouldMarkweaveInnerTocRailOverflow(
+  itemCount: number,
+  viewportHeight = typeof window !== "undefined" ? window.innerHeight : 0,
+) {
+  if (!Number.isFinite(viewportHeight) || viewportHeight <= 0) {
+    return false;
+  }
+
+  return getMarkweaveInnerTocRailNaturalHeightPx(itemCount) > viewportHeight * innerTocRailMaxViewportRatio;
+}
+
+export function observeMarkweaveInnerTocRailOverflow(tocElement: HTMLElement, itemCount: number) {
+  if (typeof window === "undefined") {
+    return () => undefined;
+  }
+
+  const syncOverflow = () => {
+    tocElement.setAttribute(
+      "data-markweave-inner-toc-rail-overflow",
+      shouldMarkweaveInnerTocRailOverflow(itemCount) ? "true" : "false",
+    );
+  };
+
+  syncOverflow();
+  window.addEventListener("resize", syncOverflow);
+
+  return () => {
+    window.removeEventListener("resize", syncOverflow);
+    tocElement.removeAttribute("data-markweave-inner-toc-rail-overflow");
+  };
 }
 
 export function observeMarkweaveInnerTocContainerPosition(tocElement: HTMLElement) {

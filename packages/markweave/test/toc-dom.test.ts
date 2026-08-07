@@ -53,7 +53,8 @@ describe("Markweave inner TOC DOM", () => {
     expect(container.querySelector('[data-testid="markweave-editor-frame"]')?.getAttribute("data-markweave-inner-toc")).toBe("true");
     expect(container.querySelector('[data-testid="markweave-editor-frame"]')?.getAttribute("data-markweave-inner-toc-placement")).toBe("container");
     expect(container.querySelector(".markweave-inner-toc-title")).toBeNull();
-    expect((toc as HTMLElement | null)?.style.getPropertyValue("--markweave-inner-toc-rail-height")).toBe("15.5px");
+    expect((toc as HTMLElement | null)?.style.getPropertyValue("--markweave-inner-toc-rail-height")).toBe("15px");
+    expect((toc as HTMLElement | null)?.getAttribute("data-markweave-inner-toc-rail-overflow")).toBe("false");
     expect(items.map((item) => item.textContent)).toEqual(["二级标题"]);
     expect(items[0]?.getAttribute("aria-label")).toBe("跳转到标题: 二级标题");
   });
@@ -128,7 +129,8 @@ describe("Markweave inner TOC DOM", () => {
     const container = await renderReact(createElement(MarkweaveEditor, { defaultContent: content }));
     const toc = container.querySelector<HTMLElement>('[data-testid="markweave-inner-toc"]');
 
-    expect(toc?.style.getPropertyValue("--markweave-inner-toc-rail-height")).toBe("670px");
+    expect(toc?.style.getPropertyValue("--markweave-inner-toc-rail-height")).toBe("729px");
+    expect(toc?.getAttribute("data-markweave-inner-toc-rail-overflow")).toBe("true");
     expect(container.querySelectorAll(".markweave-inner-toc-rail span")).toHaveLength(headingCount);
     expect(container.querySelectorAll(".markweave-inner-toc-item")).toHaveLength(headingCount);
   });
