@@ -232,6 +232,10 @@ export function getNextSlashCommandState(previous: SlashCommandState, context: S
   return reduceSlashCommandState(opened, { type: "change-query", query: context.query });
 }
 
+export function isMarkweaveSlashMenuScrollTarget(target: EventTarget | null) {
+  return target instanceof Element && Boolean(target.closest(".markweave-slash-menu, .markweave-slash-trigger"));
+}
+
 export function isSlashCommandAnchorVisible(
   anchorRect: SlashCommandPositionRect,
   options: SlashCommandPositionOptions = {},

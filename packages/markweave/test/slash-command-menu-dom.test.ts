@@ -139,4 +139,107 @@ describe("slash command menu DOM", () => {
     expect(button.textContent).toContain("Attachment");
     expect(button.textContent).toContain("Temporarily unavailable.");
   });
+
+  it("centers the keyboard-selected slash option inside the scrollable list", async () => {
+    const commands = defaultSlashCommandSpecs.slice(0, 8);
+    const getBoundingClientRect = vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(function mockRect(this: HTMLElement) {
+      if (this.classList.contains("markweave-slash-command-list")) {
+        return {
+          bottom: 160,
+          height: 160,
+          left: 0,
+          right: 280,
+          top: 0,
+          width: 280,
+          x: 0,
+          y: 0,
+          toJSON: () => ({}),
+        } as DOMRect;
+      }
+
+      if (this.getAttribute("data-active") === "true") {
+        return {
+          bottom: 220,
+          height: 32,
+          left: 0,
+          right: 280,
+          top: 188,
+          width: 280,
+          x: 0,
+          y: 188,
+          toJSON: () => ({}),
+        } as DOMRect;
+      }
+
+      return {
+        bottom: 0,
+        height: 0,
+        left: 0,
+        right: 0,
+        top: 0,
+        width: 0,
+        x: 0,
+        y: 0,
+        toJSON: () => ({}),
+      } as DOMRect;
+    });
+
+    const host = await renderReact(
+      createElement(SlashCommandMenu, {
+        commands,
+        state: {
+          name: "keyboard-selecting",
+          query: "",
+          activeIndex: commands.length - 1,
+          triggerFrom: 0,
+          triggerTo: 1,
+        },
+        position: {
+          left: 20,
+          top: 40,
+          triggerLeft: 20,
+          triggerTop: 10,
+          maxHeight: 160,
+          placement: "bottom",
+        },
+        onSelect: vi.fn(),
+      }),
+    );
+
+    const list = host.querySelector<HTMLElement>(".markweave-slash-command-list");
+    if (!list) {
+      throw new Error("Expected slash command list.");
+    }
+
+    Object.defineProperty(list, "clientHeight", { configurable: true, value: 160 });
+    Object.defineProperty(list, "scrollHeight", { configurable: true, value: 480 });
+
+    await act(async () => {
+      activeRoot?.render(
+        createElement(SlashCommandMenu, {
+          commands,
+          state: {
+            name: "keyboard-selecting",
+            query: "",
+            activeIndex: Math.max(0, commands.length - 2),
+            triggerFrom: 0,
+            triggerTo: 1,
+          },
+          position: {
+            left: 20,
+            top: 40,
+            triggerLeft: 20,
+            triggerTop: 10,
+            maxHeight: 160,
+            placement: "bottom",
+          },
+          onSelect: vi.fn(),
+        }),
+      );
+    });
+    await flushReact();
+
+    expect(list.scrollTop).toBe(124);
+    expect(getBoundingClientRect).toHaveBeenCalled();
+  });
 });

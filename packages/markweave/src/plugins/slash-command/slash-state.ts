@@ -46,9 +46,22 @@ export function reduceSlashCommandState(state: SlashCommandState, event: SlashCo
     case "open-menu":
       return state.name === "trigger-detected" ? { ...state, name: "menu-open" } : state;
     case "change-query":
-      return state.name === "idle" || state.name === "closed"
-        ? state
-        : { ...state, name: event.query.length > 0 ? "filtering" : "menu-open", query: event.query, activeIndex: 0 };
+      if (state.name === "idle" || state.name === "closed") {
+        return state;
+      }
+
+      // Identical queries must not reset keyboard selection; menu autoscroll also
+      // fires captured window scroll listeners that resync the same slash context.
+      if (state.query === event.query) {
+        return state;
+      }
+
+      return {
+        ...state,
+        name: event.query.length > 0 ? "filtering" : "menu-open",
+        query: event.query,
+        activeIndex: 0,
+      };
     case "move-active":
       if (event.optionCount <= 0 || (state.name !== "menu-open" && state.name !== "filtering" && state.name !== "keyboard-selecting")) {
         return state;

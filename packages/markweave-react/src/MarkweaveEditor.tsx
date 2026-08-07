@@ -40,6 +40,7 @@ import {
   getNextSlashCommandState,
   getSlashCommandAnchoredMenuPosition,
   getSlashCommandContext,
+  isMarkweaveSlashMenuScrollTarget,
   isSlashCommandAnchorVisible,
   type ExecuteSlashCommandOptions,
   type SlashCommandMenuPosition,
@@ -707,7 +708,13 @@ export function useMarkweaveEditorController({
         syncSlashCommandStateFromView(editor.view);
       }
     });
-    const scheduleSlashMenuPositionUpdate = () => slashMenuPositionScheduler.schedule();
+    const scheduleSlashMenuPositionUpdate = (event?: Event) => {
+      if (event?.type === "scroll" && isMarkweaveSlashMenuScrollTarget(event.target)) {
+        return;
+      }
+
+      slashMenuPositionScheduler.schedule();
+    };
 
     window.addEventListener("resize", scheduleSlashMenuPositionUpdate);
     window.addEventListener("scroll", scheduleSlashMenuPositionUpdate, true);

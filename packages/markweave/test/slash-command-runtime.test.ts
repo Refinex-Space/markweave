@@ -745,6 +745,33 @@ describe("slash command runtime", () => {
     expect(reduceSlashCommandState({ ...state, activeIndex: 2 }, { type: "move-active", delta: 1, optionCount: 3 }).activeIndex).toBe(0);
   });
 
+  it("preserves keyboard selection when the slash query is unchanged during resync", () => {
+    const editor = createEditor("<p>/</p>");
+    expect(editor.commands.setTextSelection(textPosition(editor, "/"))).toBe(true);
+    const openState = getNextSlashCommandState(initialSlashCommandState, getSlashCommandContext(editor.state));
+    const selected = reduceSlashCommandState(openState, {
+      type: "move-active",
+      delta: 1,
+      optionCount: defaultSlashCommandSpecs.length,
+    });
+    const selectedAgain = reduceSlashCommandState(selected, {
+      type: "move-active",
+      delta: 1,
+      optionCount: defaultSlashCommandSpecs.length,
+    });
+
+    expect(openState.name).toBe("menu-open");
+    expect(selectedAgain.name).toBe("keyboard-selecting");
+    expect(selectedAgain.activeIndex).toBe(2);
+    expect(reduceSlashCommandState(selectedAgain, { type: "change-query", query: selectedAgain.query })).toEqual(selectedAgain);
+    expect(getNextSlashCommandState(selectedAgain, getSlashCommandContext(editor.state))).toEqual(selectedAgain);
+    expect(reduceSlashCommandState(selectedAgain, { type: "change-query", query: "list" })).toMatchObject({
+      activeIndex: 0,
+      name: "filtering",
+      query: "list",
+    });
+  });
+
   it("lets slash menu hover set the active command used by Enter and Tab", () => {
     const state = {
       ...initialSlashCommandState,

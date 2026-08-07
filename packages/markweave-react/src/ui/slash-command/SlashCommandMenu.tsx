@@ -1,4 +1,4 @@
-import { useMemo, useState, type CSSProperties, type KeyboardEvent } from "react";
+import { useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent } from "react";
 import {
   AlertTriangle,
   Braces,
@@ -31,6 +31,7 @@ import {
   type SlashCommandUploadKind,
 } from "markweave/internal/plugins/slash-command/command-spec";
 import { isSlashCommandMenuState } from "markweave/internal/plugins/slash-command/slash-keyboard";
+import { scrollSlashCommandItemIntoView } from "markweave/internal/plugins/slash-command/slash-menu-scroll";
 import type { SlashCommandMenuPosition } from "markweave/internal/plugins/slash-command/slash-runtime";
 import type { SlashCommandState } from "markweave/internal/plugins/slash-command/slash-state";
 import {
@@ -341,6 +342,19 @@ export function SlashCommandMenu({
   onUpload,
 }: SlashCommandMenuProps) {
   const presentation = getSlashCommandMenuPresentation(state, commands, position);
+  const commandListRef = useRef<HTMLDivElement | null>(null);
+
+  useLayoutEffect(() => {
+    if (!presentation.visible || presentation.empty || state.name !== "keyboard-selecting") {
+      return;
+    }
+
+    const listElement = commandListRef.current;
+    const itemElement = listElement?.querySelector<HTMLElement>('[data-active="true"]');
+    if (listElement && itemElement) {
+      scrollSlashCommandItemIntoView(listElement, itemElement);
+    }
+  }, [commands, presentation.activeIndex, presentation.empty, presentation.visible, state.name]);
 
   if (!presentation.visible || !position) {
     return null;
@@ -383,7 +397,7 @@ export function SlashCommandMenu({
             {messages.slash.noResults}
           </div>
         ) : (
-          <div className="markweave-slash-command-list">
+          <div className="markweave-slash-command-list" ref={commandListRef}>
             {groupedCommands.map((groupEntry) => (
               <section key={groupEntry.group} className="markweave-slash-group" aria-label={groupEntry.group}>
                 <div className="markweave-slash-group-title">{groupEntry.group}</div>

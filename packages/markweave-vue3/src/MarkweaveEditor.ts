@@ -248,12 +248,14 @@ import {
 import { getMermaidPreviewState, type MermaidPreviewMode } from "markweave/internal/plugins/mermaid/mermaid-renderer";
 import { filterSlashCommands, isExecutableSlashCommand, type SlashCommandIconName, type SlashCommandSpec } from "markweave/internal/plugins/slash-command/command-spec";
 import { getSlashCommandKeyboardAction } from "markweave/internal/plugins/slash-command/slash-keyboard";
+import { scrollSlashCommandItemIntoView } from "markweave/internal/plugins/slash-command/slash-menu-scroll";
 import {
   areSlashCommandMenuPositionsEquivalent,
   executeSlashCommand,
   getNextSlashCommandState,
   getSlashCommandAnchoredMenuPosition,
   getSlashCommandContext,
+  isMarkweaveSlashMenuScrollTarget,
   isSlashCommandAnchorVisible,
   type ExecuteSlashCommandOptions,
   type SlashCommandMenuPosition,
@@ -1483,6 +1485,7 @@ const VueSlashCommandMenu = defineComponent({
     const isSubmitting = ref(false);
     const emojiQuery = ref("");
     const emojiActiveIndex = ref(0);
+    const commandListRef = ref<HTMLElement | null>(null);
     const visibleEmojiItems = computed(() => {
       const query = emojiQuery.value.trim().toLowerCase();
       const items = query
@@ -1490,6 +1493,22 @@ const VueSlashCommandMenu = defineComponent({
         : props.messages.slash.emojiItems;
       return items.slice(0, 12);
     });
+
+    watch(
+      () => [props.state.name, props.state.activeIndex, props.commands.length, props.inputCommand?.id ?? null] as const,
+      async () => {
+        if (props.state.name !== "keyboard-selecting" || props.inputCommand || !props.commands.length) {
+          return;
+        }
+        await nextTick();
+        const listElement = commandListRef.value;
+        const itemElement = listElement?.querySelector<HTMLElement>('[data-active="true"]');
+        if (listElement && itemElement) {
+          scrollSlashCommandItemIntoView(listElement, itemElement);
+        }
+      },
+      { flush: "post" },
+    );
 
     const insertUpload = async () => {
       if (!props.inputCommand) {
@@ -1631,7 +1650,7 @@ const VueSlashCommandMenu = defineComponent({
                 ]),
               ])
                 : props.commands.length
-                  ? h("div", { class: "markweave-slash-command-list" }, groupedCommands.map((entry) =>
+                  ? h("div", { ref: commandListRef, class: "markweave-slash-command-list" }, groupedCommands.map((entry) =>
                       h("section", { key: entry.group, class: "markweave-slash-group", "aria-label": entry.group }, [
                         h("div", { class: "markweave-slash-group-title" }, entry.group),
                         ...entry.commands.map((command) => {
@@ -3668,7 +3687,11 @@ export function useMarkweaveEditorController(options: MarkweaveVue3EditorControl
       syncSlashCommandStateFromView(editor.value.view);
     }
   });
-  const scheduleSlashMenuPositionUpdate = () => {
+  const scheduleSlashMenuPositionUpdate = (event?: Event) => {
+    if (event?.type === "scroll" && isMarkweaveSlashMenuScrollTarget(event.target)) {
+      return;
+    }
+
     if (slashMenuPosition.value) {
       slashMenuPositionScheduler.schedule();
     }
