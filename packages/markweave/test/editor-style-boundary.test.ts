@@ -83,12 +83,32 @@ describe("editor style boundary", () => {
     expect(packageJson.sideEffects).toContain("**/*.css");
   });
 
-  it("keeps the table selection overlay transparent so selected cell content remains visible", () => {
+  it("uses one border layer for table cell selections without synthetic grid lines", () => {
+    const nativeSelectedCellRule = editorCss.match(/\.markweave-editor-surface \.selectedCell\s*\{([\s\S]*?)\n\}/)?.[1];
+    const selectionCellRule = editorCss.match(
+      /\.markweave-editor-surface th\.markweave-selection-cell,\s*\.markweave-editor-surface td\.markweave-selection-cell\s*\{([\s\S]*?)\n\}/,
+    )?.[1];
     const overlayRule = editorCss.match(/\.markweave-table-selection-overlay\s*\{([\s\S]*?)\n\}/)?.[1];
 
+    expect(nativeSelectedCellRule).toContain("background: transparent;");
+    expect(nativeSelectedCellRule).toContain("outline: none;");
+    expect(selectionCellRule).toContain("background: var(--markweave-selection);");
+    expect(selectionCellRule).toContain("box-shadow: none;");
     expect(overlayRule).toBeDefined();
-    expect(overlayRule).toContain("background:");
-    expect(overlayRule).not.toContain("var(--markweave-selection);");
+    expect(overlayRule).toContain("border: 2px solid var(--markweave-table-selection-border);");
+    expect(overlayRule).toContain("background: transparent;");
+    expect(overlayRule).not.toContain("linear-gradient");
+    expect(editorCss).not.toContain(".markweave-selection-cell::after");
+    expect(editorCss).not.toContain(".markweave-selection-anchor-cell");
+    expect(editorCss).not.toContain(".markweave-selection-head-cell");
+  });
+
+  it("keeps table headers on the same background as regular cells", () => {
+    const tableHeaderRule = editorCss.match(/\.markweave-editor-surface th\s*\{([\s\S]*?)\n\}/)?.[1];
+
+    expect(tableHeaderRule).toBeDefined();
+    expect(tableHeaderRule).not.toContain("background");
+    expect(editorCss).not.toContain('.markweave-editor-frame[data-markweave-theme="dark"] .markweave-editor-surface th');
   });
 
   it("lets axis overlays own merged-cell selection paint and suppresses expanded native selected cells", () => {
@@ -100,9 +120,6 @@ describe("editor style boundary", () => {
     expect(editorCss).toContain(".selectedCell.markweave-selection-excluded-cell");
     expect(editorCss).toContain('.markweave-table-selection-overlay[data-axis-target="row"]');
     expect(editorCss).toContain('.markweave-table-selection-overlay[data-axis-target="column"]');
-    expect(editorCss).toMatch(
-      /\.markweave-table-selection-overlay\[data-axis-target="row"\],[\s\S]*?\.markweave-table-selection-overlay\[data-axis-target="column"\]\s*\{[^}]*background-image:\s*none;/s,
-    );
     expect(editorCss).toContain("background-color: var(--markweave-table-axis-selection-fill);");
     expect(editorCss).not.toContain("background-color: var(--markweave-selection);");
     expect(axisSelectionFillValues).toHaveLength(2);
