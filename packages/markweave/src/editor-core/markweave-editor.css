@@ -1591,10 +1591,21 @@
 }
 
 .markweave-editor-surface hr.markweave-separator {
-  height: 1px;
-  margin: 1.25em 0;
+  height: 20px;
+  margin: 0.65em 0;
   border: 0;
-  background: #e5e7eb;
+  border-radius: 4px;
+  background: linear-gradient(#e5e7eb, #e5e7eb) center / calc(100% - 24px) 1px no-repeat;
+}
+
+.markweave-editor-surface[contenteditable="true"] hr.markweave-separator {
+  cursor: pointer;
+}
+
+.markweave-editor-surface hr.markweave-separator.ProseMirror-selectednode {
+  background:
+    linear-gradient(var(--markweave-focus), var(--markweave-focus)) center / calc(100% - 24px) 1px no-repeat,
+    var(--markweave-selection);
 }
 
 .markweave-editor-surface ul,
@@ -5157,6 +5168,16 @@ body:has(.markweave-mermaid-fullscreen-layer, .markweave-image-preview-layer) .m
 .markweave-editor-frame[data-markweave-theme="dark"] .markweave-editor-surface blockquote {
   border-left-color: var(--markweave-border-strong);
   background: var(--markweave-surface-muted);
+}
+
+.markweave-editor-frame[data-markweave-theme="dark"] .markweave-editor-surface hr.markweave-separator {
+  background: linear-gradient(var(--markweave-border-strong), var(--markweave-border-strong)) center / calc(100% - 24px) 1px no-repeat;
+}
+
+.markweave-editor-frame[data-markweave-theme="dark"] .markweave-editor-surface hr.markweave-separator.ProseMirror-selectednode {
+  background:
+    linear-gradient(var(--markweave-focus), var(--markweave-focus)) center / calc(100% - 24px) 1px no-repeat,
+    var(--markweave-selection);
 }
 
 .markweave-editor-frame[data-markweave-theme="dark"] .markweave-inner-toc-item:hover,

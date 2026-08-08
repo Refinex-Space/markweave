@@ -375,6 +375,27 @@ describe("editor style boundary", () => {
     );
   });
 
+  it("gives separators a practical click target and visible node selection state", () => {
+    const separatorRule = editorCss.match(
+      /\.markweave-editor-surface hr\.markweave-separator\s*\{([\s\S]*?)\n\}/,
+    )?.[1];
+    const selectedSeparatorRule = editorCss.match(
+      /\.markweave-editor-surface hr\.markweave-separator\.ProseMirror-selectednode\s*\{([\s\S]*?)\n\}/,
+    )?.[1];
+
+    expect(separatorRule).toContain("height: 20px;");
+    expect(separatorRule).toContain("calc(100% - 24px) 1px no-repeat;");
+    expect(editorCss).toMatch(
+      /\.markweave-editor-surface\[contenteditable="true"\] hr\.markweave-separator\s*\{[^}]*cursor:\s*pointer;/s,
+    );
+    expect(selectedSeparatorRule).toContain("var(--markweave-selection);");
+    expect(selectedSeparatorRule).toContain("calc(100% - 24px) 1px no-repeat,");
+    expect(selectedSeparatorRule).not.toContain("box-shadow");
+    expect(editorCss).toMatch(
+      /\.markweave-editor-frame\[data-markweave-theme="dark"\] \.markweave-editor-surface hr\.markweave-separator\.ProseMirror-selectednode\s*\{[^}]*var\(--markweave-focus\)[^}]*var\(--markweave-selection\);/s,
+    );
+  });
+
   it("keeps table selection, handles, and menus compact across light and dark themes", () => {
     expect(editorCss).toContain("--markweave-table-selection-border: #7296c8");
     expect(editorCss).toContain("--markweave-table-selection-border: #86a8d8");
