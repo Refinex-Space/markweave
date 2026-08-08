@@ -363,6 +363,18 @@ describe("editor style boundary", () => {
     );
   });
 
+  it("keeps dark attachment cards subdued and readable", () => {
+    expect(editorCss).toMatch(
+      /\.markweave-editor-frame\[data-markweave-theme="dark"\] \.markweave-attachment\s*\{[^}]*border-color:\s*var\(--markweave-border\);[^}]*background:\s*var\(--markweave-surface-muted\);[^}]*color:\s*var\(--markweave-text\);/s,
+    );
+    expect(editorCss).toMatch(
+      /\.markweave-editor-frame\[data-markweave-theme="dark"\] \.markweave-attachment :is\([^)]*\.markweave-attachment-icon[^)]*\.markweave-attachment-meta[^)]*\)\s*\{[^}]*color:\s*var\(--markweave-text-muted\);/s,
+    );
+    expect(editorCss).toMatch(
+      /\.markweave-editor-frame\[data-markweave-theme="dark"\] \.markweave-attachment-name\s*\{[^}]*color:\s*var\(--markweave-text\);/s,
+    );
+  });
+
   it("keeps table selection, handles, and menus compact across light and dark themes", () => {
     expect(editorCss).toContain("--markweave-table-selection-border: #7296c8");
     expect(editorCss).toContain("--markweave-table-selection-border: #86a8d8");

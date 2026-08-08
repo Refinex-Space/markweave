@@ -4932,11 +4932,49 @@ body:has(.markweave-mermaid-fullscreen-layer, .markweave-image-preview-layer) .m
 }
 
 .markweave-editor-frame[data-markweave-theme="dark"] .markweave-image-upload-placeholder,
-.markweave-editor-frame[data-markweave-theme="dark"] .markweave-video-upload-placeholder {
+.markweave-editor-frame[data-markweave-theme="dark"] .markweave-video-upload-placeholder,
+.markweave-editor-frame[data-markweave-theme="dark"] .markweave-attachment-upload-placeholder,
+.markweave-editor-frame[data-markweave-theme="dark"] .markweave-attachment-uploading {
   background: var(--markweave-surface-muted, var(--markweave-surface));
   border-color: transparent;
   box-shadow: none;
   color: var(--markweave-text-muted);
+}
+
+.markweave-editor-frame[data-markweave-theme="dark"] .markweave-attachment {
+  border-color: var(--markweave-border);
+  background: var(--markweave-surface-muted);
+  color: var(--markweave-text);
+}
+
+.markweave-editor-frame[data-markweave-theme="dark"] .markweave-attachment :is(.markweave-attachment-icon, .markweave-attachment-meta, .markweave-attachment-download, .markweave-attachment-delete) {
+  color: var(--markweave-text-muted);
+}
+
+.markweave-editor-frame[data-markweave-theme="dark"] .markweave-attachment-name {
+  color: var(--markweave-text);
+}
+
+.markweave-editor-frame[data-markweave-theme="dark"] .markweave-attachment-upload-placeholder:hover,
+.markweave-editor-frame[data-markweave-theme="dark"] .markweave-attachment-download:hover:not(:disabled),
+.markweave-editor-frame[data-markweave-theme="dark"] .markweave-attachment-download:focus-visible:not(:disabled) {
+  background: var(--markweave-surface-raised);
+  color: var(--markweave-text);
+}
+
+.markweave-editor-frame[data-markweave-theme="dark"] .markweave-attachment-delete:hover:not(:disabled),
+.markweave-editor-frame[data-markweave-theme="dark"] .markweave-attachment-delete:focus-visible:not(:disabled) {
+  background: var(--markweave-danger-surface);
+  color: var(--markweave-danger);
+}
+
+.markweave-editor-frame[data-markweave-theme="dark"] .markweave-attachment-upload-error {
+  color: var(--markweave-danger);
+}
+
+.markweave-editor-frame[data-markweave-theme="dark"] .markweave-attachment-spinner {
+  border-color: var(--markweave-border-strong);
+  border-top-color: var(--markweave-text-muted);
 }
 
 .markweave-editor-frame[data-markweave-theme="dark"] :is(
