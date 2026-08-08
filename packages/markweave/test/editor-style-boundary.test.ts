@@ -83,12 +83,32 @@ describe("editor style boundary", () => {
     expect(packageJson.sideEffects).toContain("**/*.css");
   });
 
-  it("keeps the table selection overlay transparent so selected cell content remains visible", () => {
+  it("uses one border layer for table cell selections without synthetic grid lines", () => {
+    const nativeSelectedCellRule = editorCss.match(/\.markweave-editor-surface \.selectedCell\s*\{([\s\S]*?)\n\}/)?.[1];
+    const selectionCellRule = editorCss.match(
+      /\.markweave-editor-surface th\.markweave-selection-cell,\s*\.markweave-editor-surface td\.markweave-selection-cell\s*\{([\s\S]*?)\n\}/,
+    )?.[1];
     const overlayRule = editorCss.match(/\.markweave-table-selection-overlay\s*\{([\s\S]*?)\n\}/)?.[1];
 
+    expect(nativeSelectedCellRule).toContain("background: transparent;");
+    expect(nativeSelectedCellRule).toContain("outline: none;");
+    expect(selectionCellRule).toContain("background: var(--markweave-selection);");
+    expect(selectionCellRule).toContain("box-shadow: none;");
     expect(overlayRule).toBeDefined();
-    expect(overlayRule).toContain("background:");
-    expect(overlayRule).not.toContain("var(--markweave-selection);");
+    expect(overlayRule).toContain("border: 2px solid var(--markweave-table-selection-border);");
+    expect(overlayRule).toContain("background: transparent;");
+    expect(overlayRule).not.toContain("linear-gradient");
+    expect(editorCss).not.toContain(".markweave-selection-cell::after");
+    expect(editorCss).not.toContain(".markweave-selection-anchor-cell");
+    expect(editorCss).not.toContain(".markweave-selection-head-cell");
+  });
+
+  it("keeps table headers on the same background as regular cells", () => {
+    const tableHeaderRule = editorCss.match(/\.markweave-editor-surface th\s*\{([\s\S]*?)\n\}/)?.[1];
+
+    expect(tableHeaderRule).toBeDefined();
+    expect(tableHeaderRule).not.toContain("background");
+    expect(editorCss).not.toContain('.markweave-editor-frame[data-markweave-theme="dark"] .markweave-editor-surface th');
   });
 
   it("lets axis overlays own merged-cell selection paint and suppresses expanded native selected cells", () => {
@@ -100,9 +120,6 @@ describe("editor style boundary", () => {
     expect(editorCss).toContain(".selectedCell.markweave-selection-excluded-cell");
     expect(editorCss).toContain('.markweave-table-selection-overlay[data-axis-target="row"]');
     expect(editorCss).toContain('.markweave-table-selection-overlay[data-axis-target="column"]');
-    expect(editorCss).toMatch(
-      /\.markweave-table-selection-overlay\[data-axis-target="row"\],[\s\S]*?\.markweave-table-selection-overlay\[data-axis-target="column"\]\s*\{[^}]*background-image:\s*none;/s,
-    );
     expect(editorCss).toContain("background-color: var(--markweave-table-axis-selection-fill);");
     expect(editorCss).not.toContain("background-color: var(--markweave-selection);");
     expect(axisSelectionFillValues).toHaveLength(2);
@@ -265,9 +282,14 @@ describe("editor style boundary", () => {
     expect(editorCss).toContain('.markweave-video-node[data-selected="true"]');
     expect(editorCss).toContain(".markweave-inner-toc");
     expect(editorCss).toContain(".markweave-inner-toc-rail");
-    expect(editorCss).toContain("height: var(--markweave-inner-toc-rail-height, 15.5px)");
-    expect(editorCss).toContain("max-height: min(42vh, 288px)");
-    expect(editorCss).toMatch(/\.markweave-inner-toc-rail\s*\{[^}]*overflow:\s*hidden;[^}]*justify-content:\s*space-between;[^}]*gap:\s*0;/s);
+    expect(editorCss).toContain("height: min(var(--markweave-inner-toc-rail-height, 15px), 70vh)");
+    expect(editorCss).toContain("max-height: 70vh");
+    expect(editorCss).toMatch(/\.markweave-inner-toc-rail\s*\{[^}]*overflow:\s*hidden;[^}]*justify-content:\s*flex-start;[^}]*gap:\s*5px;/s);
+    expect(editorCss).toContain('data-markweave-inner-toc-rail-overflow="true"');
+    expect(editorCss).toContain("mask-image: linear-gradient(to bottom, #000 0%, #000 calc(100% - 28px), transparent 100%)");
+    expect(editorCss).toMatch(/\.markweave-inner-toc-rail span\s*\{[^}]*height:\s*1px;[^}]*min-height:\s*1px;/s);
+    expect(editorCss).toContain('.markweave-inner-toc-rail span[data-active="true"]');
+    expect(editorCss).toMatch(/\.markweave-inner-toc-rail span\[data-active="true"\]\s*\{[^}]*height:\s*1px;/s);
     expect(editorCss).toContain(".markweave-inner-toc-panel");
     expect(editorCss).toContain(".markweave-inner-toc-item");
     expect(editorCss).toContain(".markweave-inner-toc:hover .markweave-inner-toc-panel");
@@ -324,6 +346,54 @@ describe("editor style boundary", () => {
     expect(editorCss).toContain(".katex .katex-mathml");
     expect(editorCss).toContain(".katex .hide-tail");
     expect(editorCss).toContain("width: 100%");
+  });
+
+  it("keeps dark code and Mermaid blocks transparent", () => {
+    expect(editorCss).toMatch(
+      /\.markweave-editor-frame\[data-markweave-theme="dark"\] \.markweave-editor-surface pre,\s*\.markweave-editor-frame\[data-markweave-theme="dark"\] \.markweave-editor-surface pre\.markweave-code-block\s*\{[^}]*background:\s*transparent;/s,
+    );
+    expect(editorCss).toMatch(
+      /\.markweave-editor-frame\[data-markweave-theme="dark"\] \.markweave-editor-surface pre code\s*\{[^}]*background:\s*transparent;/s,
+    );
+    expect(editorCss).toMatch(
+      /\.markweave-editor-frame\[data-markweave-theme="dark"\] \.markweave-mermaid-preview\s*\{[^}]*background:\s*transparent;/s,
+    );
+    expect(editorCss).toMatch(
+      /\.markweave-editor-frame\[data-markweave-theme="dark"\] \.markweave-mermaid-preview svg\s*\{[^}]*background:\s*transparent;/s,
+    );
+  });
+
+  it("keeps dark attachment cards subdued and readable", () => {
+    expect(editorCss).toMatch(
+      /\.markweave-editor-frame\[data-markweave-theme="dark"\] \.markweave-attachment\s*\{[^}]*border-color:\s*var\(--markweave-border\);[^}]*background:\s*var\(--markweave-surface-muted\);[^}]*color:\s*var\(--markweave-text\);/s,
+    );
+    expect(editorCss).toMatch(
+      /\.markweave-editor-frame\[data-markweave-theme="dark"\] \.markweave-attachment :is\([^)]*\.markweave-attachment-icon[^)]*\.markweave-attachment-meta[^)]*\)\s*\{[^}]*color:\s*var\(--markweave-text-muted\);/s,
+    );
+    expect(editorCss).toMatch(
+      /\.markweave-editor-frame\[data-markweave-theme="dark"\] \.markweave-attachment-name\s*\{[^}]*color:\s*var\(--markweave-text\);/s,
+    );
+  });
+
+  it("gives separators a practical click target and visible node selection state", () => {
+    const separatorRule = editorCss.match(
+      /\.markweave-editor-surface hr\.markweave-separator\s*\{([\s\S]*?)\n\}/,
+    )?.[1];
+    const selectedSeparatorRule = editorCss.match(
+      /\.markweave-editor-surface hr\.markweave-separator\.ProseMirror-selectednode\s*\{([\s\S]*?)\n\}/,
+    )?.[1];
+
+    expect(separatorRule).toContain("height: 20px;");
+    expect(separatorRule).toContain("calc(100% - 24px) 1px no-repeat;");
+    expect(editorCss).toMatch(
+      /\.markweave-editor-surface\[contenteditable="true"\] hr\.markweave-separator\s*\{[^}]*cursor:\s*pointer;/s,
+    );
+    expect(selectedSeparatorRule).toContain("var(--markweave-selection);");
+    expect(selectedSeparatorRule).toContain("calc(100% - 24px) 1px no-repeat,");
+    expect(selectedSeparatorRule).not.toContain("box-shadow");
+    expect(editorCss).toMatch(
+      /\.markweave-editor-frame\[data-markweave-theme="dark"\] \.markweave-editor-surface hr\.markweave-separator\.ProseMirror-selectednode\s*\{[^}]*var\(--markweave-focus\)[^}]*var\(--markweave-selection\);/s,
+    );
   });
 
   it("keeps table selection, handles, and menus compact across light and dark themes", () => {

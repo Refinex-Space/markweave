@@ -6,6 +6,7 @@ import { focusFirstTableBodyCell } from "../table/table-focus-position";
 import { isExecutableSlashCommand, type SlashCommandSpec } from "./command-spec";
 import { initialSlashCommandState, reduceSlashCommandState, type SlashCommandState } from "./slash-state";
 import type { MarkweaveUploadResult } from "./upload";
+import { attrsFromMarkweaveAttachmentUploadResult } from "../media/attachment-download";
 
 export interface SlashCommandContext {
   readonly query: string;
@@ -232,6 +233,10 @@ export function getNextSlashCommandState(previous: SlashCommandState, context: S
   return reduceSlashCommandState(opened, { type: "change-query", query: context.query });
 }
 
+export function isMarkweaveSlashMenuScrollTarget(target: EventTarget | null) {
+  return target instanceof Element && Boolean(target.closest(".markweave-slash-menu, .markweave-slash-trigger"));
+}
+
 export function isSlashCommandAnchorVisible(
   anchorRect: SlashCommandPositionRect,
   options: SlashCommandPositionOptions = {},
@@ -346,11 +351,6 @@ export function executeSlashCommand(editor: Editor, state: SlashCommandState, co
         return false;
       }
       return editor.chain().focus().deleteRange({ from: deleteFrom, to: deleteTo }).insertContent(options.emoji).run();
-    case "attachment":
-      if (!options.uploadResult) {
-        return false;
-      }
-      break;
     default:
       break;
   }
@@ -435,18 +435,21 @@ export function executeSlashCommand(editor: Editor, state: SlashCommandState, co
               },
         })
         .run();
-    case "attachment":
+    case "attachment": {
       return chain
         .insertContent({
           type: "markweaveAttachment",
-          attrs: {
-            src: options.uploadResult?.src,
-            name: options.uploadResult?.name ?? options.uploadResult?.src,
-            mimeType: options.uploadResult?.mimeType,
-            size: options.uploadResult?.size,
-          },
+          attrs: options.uploadResult
+            ? attrsFromMarkweaveAttachmentUploadResult(options.uploadResult)
+            : {
+                src: null,
+                name: null,
+                mimeType: null,
+                size: null,
+              },
         })
         .run();
+    }
     case "mermaid":
       return chain
         .setCodeBlock({ language: "mermaid" })

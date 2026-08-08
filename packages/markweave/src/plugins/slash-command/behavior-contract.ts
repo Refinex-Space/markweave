@@ -4,6 +4,7 @@ export const slashCommandLifecycle = [
   "filter-by-label-description-search-terms",
   "show-empty-menu-without-execution",
   "arrow-key-active-option",
+  "arrow-key-scroll-active-option-into-view",
   "hover-focus-active-option",
   "enter-executes-active-command",
   "tab-executes-active-command",

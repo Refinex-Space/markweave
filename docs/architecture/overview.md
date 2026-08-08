@@ -1,6 +1,6 @@
 ---
 owner: refinex
-updated: 2026-08-04
+updated: 2026-08-07
 status: active
 referenced_by: AGENTS.md#knowledge-map
 ---
@@ -37,7 +37,7 @@ The core package exports `markweave`, `markweave/styles.css`, and the internal `
 
 `MarkweaveEditor` is Markdown-first at the content API boundary. `defaultContent` and controlled `content` default to Markdown parsing, and legacy HTML/JSON inputs must declare `defaultContentFormat` or `contentFormat` explicitly. Small controlled integrations may read `onUpdate.markdown` immediately; large-document hosts should use uncontrolled `defaultContent`, retain the lazy update payload, and read `payload.markdown` only at their debounce/flush boundary. `mode="live"` and `mode="view"` are UI-only rendering modes and do not change the serialized document output.
 
-The built-in document outline is enabled by default with `innerToc={true}`. A ProseMirror plugin state maps unaffected heading positions through normal transactions and rescans only changed top-level ranges, with a full-scan fallback for complex replacements. The outline exposes that data through `runtimeSnapshot.toc` and `onTocChange`, uses logarithmic layout reads while scrolling, and does not write heading ids or TOC metadata into serialized Markdown/HTML. Container placement keeps the fixed outline outside CSS query-container semantics and uses the existing `ResizeObserver` positioning helper to mark narrow frames, avoiding Chromium 106 fixed-position containing-block drift. The collapsed rail preserves every heading marker but bounds its height to the visible viewport and compresses marker spacing for long outlines; the expanded panel remains independently scrollable. Hosts can pass `innerToc={false}` to hide the default Octarine-style side outline while rendering their own TOC from the same state.
+The built-in document outline is enabled by default with `innerToc={true}`. A ProseMirror plugin state maps unaffected heading positions through normal transactions and rescans only changed top-level ranges, with a full-scan fallback for complex replacements. The outline exposes that data through `runtimeSnapshot.toc` and `onTocChange`, uses logarithmic layout reads while scrolling, and does not write heading ids or TOC metadata into serialized Markdown/HTML. Container placement keeps the fixed outline outside CSS query-container semantics and uses the existing `ResizeObserver` positioning helper to mark narrow frames, avoiding Chromium 106 fixed-position containing-block drift. The collapsed rail keeps natural marker spacing, bounds its height to about 70% of the viewport, and fades overflow markers at the bottom for long outlines; the expanded panel remains independently scrollable. Hosts can pass `innerToc={false}` to hide the default Octarine-style side outline while rendering their own TOC from the same state.
 
 ## Editor Core
 

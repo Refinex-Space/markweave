@@ -1,6 +1,6 @@
 ---
 owner: refinex
-updated: 2026-08-01
+updated: 2026-08-07
 status: active
 referenced_by: AGENTS.md#knowledge-map
 ---
@@ -29,6 +29,8 @@ Markweave is a browser-side editor package. Treat editor content, Markdown sourc
 
 - Upload behavior is exposed through host-provided callback types such as `MarkweaveSlashCommandUploadHandler`.
 - The package defines image, video, and attachment nodes; verify node attributes and rendering behavior when changing media support.
+- Attachment uploads return host-owned metadata (`src`, `name`, `mimeType`, `size`). Markweave does not own object storage or authenticated download transport. Hosts should implement `MarkweaveAttachmentDownloadHandler` for non-public locators; see `docs/guides/attachment-upload-protocol.md`.
+- Do not persist upload credentials, short-lived signed download tokens, or secrets inside attachment document attrs.
 - Image insertion can create an empty browser-side upload placeholder before a `src` exists. Local file uploads, including pasted clipboard images, still require the host upload handler. Pasted remote images are accepted only from HTTP(S) HTML `<img>` sources or standalone URLs with a known image extension; Markweave does not fetch remote URLs to detect their MIME type. URL, path, and Base64 image sources entered through the upload UI may continue to resolve directly in the browser.
 - Video insertion can create an empty browser-side upload placeholder before a `src` exists. Local video files still require the host upload handler. Direct video URLs render as `<video>`. YouTube and Bilibili sharing URLs are converted to iframe embeds, while whitelisted platform embed sources keep their original query strings. Do not resolve network redirects or accept arbitrary iframe hosts.
 - Do not add network calls, storage assumptions, or production upload endpoints to the package without an explicit API design.

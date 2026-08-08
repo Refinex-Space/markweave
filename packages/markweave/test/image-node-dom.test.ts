@@ -213,7 +213,7 @@ describe("image node view", () => {
 
     await insertEmptyImage(controller);
     expect(getByTestId("markweave-image-upload-placeholder")).not.toBeNull();
-    expect(getByTestId("markweave-image-upload-placeholder").textContent).toContain("点击上传");
+    expect(getByTestId("markweave-image-upload-placeholder").textContent).toContain("上传或嵌入图片");
 
     await inputValue(getByTestId<HTMLInputElement>("markweave-image-url-input"), " https://example.com/image.png ");
     await click(getByTestId("markweave-image-upload-submit"));
@@ -294,7 +294,7 @@ describe("image node view", () => {
 
     await insertEmptyImage(controller);
 
-    expect(getByTestId("markweave-image-upload-placeholder").textContent).toContain("Click to upload");
+    expect(getByTestId("markweave-image-upload-placeholder").textContent).toContain("Upload or embed an image");
 
     await inputValue(getByTestId<HTMLInputElement>("markweave-image-url-input"), "https://example.com/image.png");
     await click(getByTestId("markweave-image-upload-submit"));

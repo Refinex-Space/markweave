@@ -167,6 +167,7 @@ import {
   getValidMarkweaveTocActiveId,
   normalizeMarkweaveInnerTocPlacement,
   observeMarkweaveInnerTocContainerPosition,
+  observeMarkweaveInnerTocRailOverflow,
   scrollToMarkweaveTocItem,
   type MarkweaveInnerTocPlacement,
   type MarkweaveTocState,
@@ -247,12 +248,14 @@ import {
 import { getMermaidPreviewState, type MermaidPreviewMode } from "markweave/internal/plugins/mermaid/mermaid-renderer";
 import { filterSlashCommands, isExecutableSlashCommand, type SlashCommandIconName, type SlashCommandSpec } from "markweave/internal/plugins/slash-command/command-spec";
 import { getSlashCommandKeyboardAction } from "markweave/internal/plugins/slash-command/slash-keyboard";
+import { scrollSlashCommandItemIntoView } from "markweave/internal/plugins/slash-command/slash-menu-scroll";
 import {
   areSlashCommandMenuPositionsEquivalent,
   executeSlashCommand,
   getNextSlashCommandState,
   getSlashCommandAnchoredMenuPosition,
   getSlashCommandContext,
+  isMarkweaveSlashMenuScrollTarget,
   isSlashCommandAnchorVisible,
   type ExecuteSlashCommandOptions,
   type SlashCommandMenuPosition,
@@ -266,6 +269,7 @@ import {
   type MarkweaveUploadRequest,
   type MarkweaveUploadResult,
 } from "markweave/internal/plugins/slash-command/upload";
+import type { MarkweaveAttachmentDownloadHandler } from "markweave/internal/plugins/media/attachment-download";
 import { setMarkweaveTableMenuAxisTarget, type MarkweaveMenuCopyPayload } from "markweave/internal/plugins/table/table-clipboard";
 import { type TableCommandId, type TableMenuIconId, type TableMenuSubmenuId } from "markweave/internal/plugins/table/table-command-spec";
 import { getFirstTableDebugSnapshot } from "markweave/internal/plugins/table/table-debug-snapshot";
@@ -353,6 +357,7 @@ export interface MarkweaveVue3EditorControllerOptions {
   /** @deprecated Compatibility callback retained for existing integrations. */
   readonly onExtractToNote?: (request: FloatingToolbarAssistantRequest) => void;
   readonly onSlashCommandUpload?: MarkweaveSlashCommandUploadHandler;
+  readonly onAttachmentDownload?: MarkweaveAttachmentDownloadHandler;
   readonly onTableCopyPayload?: (payload: MarkweaveMenuCopyPayload) => void;
   readonly onTableCommandResult?: (result: TableCommandResult) => void;
   readonly onRuntimeStateChange?: (snapshot: MarkweaveEditorRuntimeSnapshot) => void;
@@ -1482,6 +1487,7 @@ const VueSlashCommandMenu = defineComponent({
     const isSubmitting = ref(false);
     const emojiQuery = ref("");
     const emojiActiveIndex = ref(0);
+    const commandListRef = ref<HTMLElement | null>(null);
     const visibleEmojiItems = computed(() => {
       const query = emojiQuery.value.trim().toLowerCase();
       const items = query
@@ -1490,6 +1496,22 @@ const VueSlashCommandMenu = defineComponent({
       return items.slice(0, 12);
     });
 
+    watch(
+      () => [props.state.name, props.state.activeIndex, props.commands.length, props.inputCommand?.id ?? null] as const,
+      async () => {
+        if (props.state.name !== "keyboard-selecting" || props.inputCommand || !props.commands.length) {
+          return;
+        }
+        await nextTick();
+        const listElement = commandListRef.value;
+        const itemElement = listElement?.querySelector<HTMLElement>('[data-active="true"]');
+        if (listElement && itemElement) {
+          scrollSlashCommandItemIntoView(listElement, itemElement);
+        }
+      },
+      { flush: "post" },
+    );
+
     const insertUpload = async () => {
       if (!props.inputCommand) {
         return;
@@ -1497,9 +1519,10 @@ const VueSlashCommandMenu = defineComponent({
       error.value = null;
       isSubmitting.value = true;
       try {
+        const uploadKind = props.inputCommand.uploadKind ?? "attachment";
         const request: MarkweaveUploadRequest = file.value
-          ? { kind: props.inputCommand.uploadKind ?? "attachment", trigger: "slash-command", source: { type: "file", file: file.value, mimeType: file.value.type } }
-          : { kind: props.inputCommand.uploadKind ?? "attachment", trigger: "slash-command", source: detectUploadSource(inputValue.value) };
+          ? { kind: uploadKind, trigger: uploadKind === "attachment" ? "attachment-insert" : "slash-command", source: { type: "file", file: file.value, mimeType: file.value.type } }
+          : { kind: uploadKind, trigger: uploadKind === "attachment" ? "attachment-insert" : "slash-command", source: detectUploadSource(inputValue.value) };
         if (!file.value && !inputValue.value.trim()) {
           error.value = props.messages.slash.uploadRequiredError;
           return;
@@ -1630,7 +1653,7 @@ const VueSlashCommandMenu = defineComponent({
                 ]),
               ])
                 : props.commands.length
-                  ? h("div", { class: "markweave-slash-command-list" }, groupedCommands.map((entry) =>
+                  ? h("div", { ref: commandListRef, class: "markweave-slash-command-list" }, groupedCommands.map((entry) =>
                       h("section", { key: entry.group, class: "markweave-slash-group", "aria-label": entry.group }, [
                         h("div", { class: "markweave-slash-group-title" }, entry.group),
                         ...entry.commands.map((command) => {
@@ -3227,16 +3250,30 @@ const VueInnerToc = defineComponent({
   setup(props) {
     const tocElement = ref<HTMLElement | null>(null);
     let stopPositioning: (() => void) | undefined;
+    let stopOverflow: (() => void) | undefined;
     const syncPositioning = () => {
       stopPositioning?.();
       stopPositioning = props.placement === "container" && tocElement.value
         ? observeMarkweaveInnerTocContainerPosition(tocElement.value)
         : undefined;
     };
+    const syncOverflow = () => {
+      stopOverflow?.();
+      stopOverflow = tocElement.value && props.state.items.length
+        ? observeMarkweaveInnerTocRailOverflow(tocElement.value, props.state.items.length)
+        : undefined;
+    };
 
-    onMounted(syncPositioning);
-    onBeforeUnmount(() => stopPositioning?.());
+    onMounted(() => {
+      syncPositioning();
+      syncOverflow();
+    });
+    onBeforeUnmount(() => {
+      stopPositioning?.();
+      stopOverflow?.();
+    });
     watch(() => props.placement, syncPositioning);
+    watch(() => props.state.items.length, syncOverflow, { flush: "post" });
 
     return () =>
       props.state.items.length
@@ -3321,6 +3358,8 @@ export function useMarkweaveEditorController(options: MarkweaveVue3EditorControl
       linkCardResolver: options.linkCardResolver,
       onImageUpload: (request) => uploadHandler?.(request) ?? getDirectUploadResult(request) ?? Promise.reject(new Error("File upload requires an upload handler.")),
       onVideoUpload: (request) => uploadHandler?.(request) ?? getDirectUploadResult(request) ?? Promise.reject(new Error("File upload requires an upload handler.")),
+      onAttachmentUpload: (request) => options.onSlashCommandUpload?.(request) ?? getDirectUploadResult(request) ?? Promise.reject(new Error("File upload requires an upload handler.")),
+      onAttachmentDownload: (attachment, context) => options.onAttachmentDownload?.(attachment, context),
       resolveMediaSource: options.resolveMediaSource,
     }),
     content: initialContent,
@@ -3653,7 +3692,11 @@ export function useMarkweaveEditorController(options: MarkweaveVue3EditorControl
       syncSlashCommandStateFromView(editor.value.view);
     }
   });
-  const scheduleSlashMenuPositionUpdate = () => {
+  const scheduleSlashMenuPositionUpdate = (event?: Event) => {
+    if (event?.type === "scroll" && isMarkweaveSlashMenuScrollTarget(event.target)) {
+      return;
+    }
+
     if (slashMenuPosition.value) {
       slashMenuPositionScheduler.schedule();
     }
@@ -3772,6 +3815,7 @@ export const MarkweaveEditor = defineComponent({
     onRewriteSelection: { type: Function as PropType<(request: FloatingToolbarAssistantRequest) => void>, default: undefined },
     onExtractToNote: { type: Function as PropType<(request: FloatingToolbarAssistantRequest) => void>, default: undefined },
     onSlashCommandUpload: { type: Function as PropType<MarkweaveSlashCommandUploadHandler>, default: undefined },
+    onAttachmentDownload: { type: Function as PropType<MarkweaveAttachmentDownloadHandler>, default: undefined },
     onTableCopyPayload: { type: Function as PropType<(payload: MarkweaveMenuCopyPayload) => void>, default: undefined },
     onTableCommandResult: { type: Function as PropType<(result: TableCommandResult) => void>, default: undefined },
     onRuntimeStateChange: { type: Function as PropType<(snapshot: MarkweaveEditorRuntimeSnapshot) => void>, default: undefined },

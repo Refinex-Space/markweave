@@ -10,6 +10,7 @@ import {
   getMarkweaveTocItems,
   getMarkweaveTocItemsFromState,
   scrollToMarkweaveTocItem,
+  shouldMarkweaveInnerTocRailOverflow,
 } from "../src/core/toc-state";
 
 let activeEditor: Editor | null = null;
@@ -50,10 +51,13 @@ afterEach(() => {
 
 describe("markweave table of contents model", () => {
   it("calculates a Chromium 106-safe intrinsic rail height from the heading count", () => {
-    expect(getMarkweaveInnerTocRailHeight(1)).toBe("15.5px");
-    expect(getMarkweaveInnerTocRailHeight(120)).toBe("670px");
-    expect(getMarkweaveInnerTocRailHeight(0)).toBe("15.5px");
-    expect(getMarkweaveInnerTocRailHeight(Number.NaN)).toBe("15.5px");
+    expect(getMarkweaveInnerTocRailHeight(1)).toBe("15px");
+    expect(getMarkweaveInnerTocRailHeight(120)).toBe("729px");
+    expect(getMarkweaveInnerTocRailHeight(0)).toBe("15px");
+    expect(getMarkweaveInnerTocRailHeight(Number.NaN)).toBe("15px");
+    expect(shouldMarkweaveInnerTocRailOverflow(1, 800)).toBe(false);
+    expect(shouldMarkweaveInnerTocRailOverflow(120, 800)).toBe(true);
+    expect(shouldMarkweaveInnerTocRailOverflow(120, 0)).toBe(false);
   });
 
   it("registers only the optimized task-list extension", () => {

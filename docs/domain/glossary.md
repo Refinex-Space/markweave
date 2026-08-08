@@ -1,6 +1,6 @@
 ---
 owner: refinex
-updated: 2026-08-04
+updated: 2026-08-07
 status: active
 referenced_by: AGENTS.md#knowledge-map
 ---
@@ -20,6 +20,9 @@ referenced_by: AGENTS.md#knowledge-map
 | Runtime snapshot | The state payload from `MarkweaveEditorRuntimeSnapshot`, including selection, slash command, table, code block, Mermaid, and debug state. |
 | Behavior contract | Source-level list of expected behaviors used to guide tests and prevent regressions. |
 | Slash command | The `/` command menu flow handled by slash-command plugins and UI. |
+| Upload handler | Host-owned `MarkweaveSlashCommandUploadHandler` that receives `MarkweaveUploadRequest` and returns `MarkweaveUploadResult` metadata for image, video, or attachment sources. |
+| Attachment | The `markweaveAttachment` block node that persists host-owned file metadata (`src`, `name`, `mimeType`, `size`) without Markweave storing the binary. |
+| Attachment download handler | Host-owned `MarkweaveAttachmentDownloadHandler` that performs authenticated download UX when a user activates an attachment. |
 | Table interaction layer | Table focus, selection, keyboard, clipboard, command, and overlay behavior. |
 | Floating toolbar | Selection-based toolbar UI for formatting and assistant actions. |
 | Ask AI session | An ephemeral, host-handled Markdown generation session that maps a text or table target, renders a target-local in-place proposal without mutating the document, and applies content only after explicit acceptance. |

@@ -3,6 +3,7 @@ import { Eye, ListChecks, Moon, PencilLine, Sparkles, Sun } from "lucide-react";
 import {
   MarkweaveEditor,
   type MarkweaveAiEditController,
+  type MarkweaveAttachmentDownloadHandler,
   type MarkweaveContentFormat,
   type FloatingToolbarAssistantRequest,
   type MarkweaveEditorMode,
@@ -16,6 +17,7 @@ import {
 } from "@markweave/react";
 import {
   createPlaygroundUploadResult,
+  downloadPlaygroundAttachment,
   initialPlaygroundDocument,
   largeDocumentPerformanceFixture,
   largeMissingMediaPerformanceFixture,
@@ -65,9 +67,13 @@ export function MarkweaveEditorPlayground() {
     resetDebugState();
   };
 
-  const handleSlashUpload = (request: MarkweaveUploadRequest): MarkweaveUploadResult => {
+  const handleSlashUpload = async (request: MarkweaveUploadRequest): Promise<MarkweaveUploadResult> => {
     setLastSlashUploadRequest(request);
     return createPlaygroundUploadResult(request);
+  };
+
+  const handleAttachmentDownload: MarkweaveAttachmentDownloadHandler = async (attachment) => {
+    await downloadPlaygroundAttachment(attachment);
   };
 
   const runHostAiEdit = async () => {
@@ -196,6 +202,7 @@ export function MarkweaveEditorPlayground() {
         onRewriteSelection={setLastFloatingToolbarAssistantRequest}
         onRuntimeStateChange={benchmarkMode ? undefined : setRuntimeSnapshot}
         onSlashCommandUpload={handleSlashUpload}
+        onAttachmentDownload={handleAttachmentDownload}
         onTableCommandResult={setLastTableCommandResult}
         onTableCopyPayload={setLastTableCopyPayload}
         onAiEditControllerChange={setAiEditController}

@@ -340,6 +340,7 @@ describe("Markweave Vue3 editor", () => {
                 content: [
                   { type: "image", attrs: { src: null, align: "center", caption: null } },
                   { type: "markweaveVideo", attrs: { src: null } },
+                  { type: "markweaveAttachment", attrs: { src: null } },
                   { type: "markweaveAttachment", attrs: { src: "markweave://sample/spec.pdf", name: "spec.pdf", mimeType: "application/pdf", size: 1280 } },
                 ],
               },
@@ -355,9 +356,19 @@ describe("Markweave Vue3 editor", () => {
     expect(container.querySelector(".markweave-media-placeholder")).toBeNull();
     expect(container.querySelector(".markweave-video-delete")).toBeNull();
 
-    const attachment = container.querySelector<HTMLAnchorElement>('a.markweave-attachment[data-markweave-attachment="true"]');
-    expect(attachment?.textContent).toBe("spec.pdf");
-    expect(attachment?.getAttribute("href")).toBe("markweave://sample/spec.pdf");
+    const emptyAttachment = container.querySelector<HTMLElement>('.markweave-attachment-upload-placeholder[data-testid="markweave-attachment-node"]');
+    expect(emptyAttachment?.textContent).toContain("上传或嵌入文件");
+    expect(emptyAttachment?.querySelector('[data-testid="markweave-attachment-file-input"]')).toBeTruthy();
+
+    const filledAttachment = container.querySelector<HTMLElement>('.markweave-attachment[data-testid="markweave-attachment-node"]:not([data-empty="true"])');
+    expect(filledAttachment?.textContent).toContain("spec.pdf");
+    expect(filledAttachment?.textContent).toContain("application/pdf");
+
+    filledAttachment?.dispatchEvent(new MouseEvent("mouseenter", { bubbles: true }));
+    await flushVue();
+    expect(filledAttachment?.querySelector('[data-testid="markweave-attachment-download"]')).toBeTruthy();
+    expect(filledAttachment?.querySelector('[data-testid="markweave-attachment-delete"]')).toBeTruthy();
+    expect(filledAttachment?.querySelector('.markweave-attachment-tooltip[role="tooltip"]')?.textContent).toBeTruthy();
   });
 
   it("aligns Vue image toolbar, caption, resize handles, and upload DOM with React", async () => {

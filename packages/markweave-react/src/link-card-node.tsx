@@ -126,7 +126,7 @@ function LinkCardNodeView(props: NodeViewProps) {
           {mediaUrl ? <img src={mediaUrl} alt="" loading="lazy" referrerPolicy="no-referrer" onError={() => setImageFailed(true)} /> : !imageFailed && attrs.faviconUrl ? <img className="markweave-link-card-favicon" src={attrs.faviconUrl} alt="" loading="lazy" referrerPolicy="no-referrer" onError={() => setImageFailed(true)} /> : <b>{host.slice(0, 1).toUpperCase()}</b>}
         </span>
       </a>
-      {editable && hovered ? (
+      {editable ? (
         <div className="markweave-link-card-tools" data-markweave-link-card-ui="true" aria-label={copy.toolsAriaLabel}>
           <CardButton label={copy.convertToLink} icon={Link2} onClick={convertToLink} testId="markweave-link-card-convert" />
           <CardButton label={copy.copyAddress} icon={Copy} onClick={() => void copyText(attrs.href)} testId="markweave-link-card-copy" />

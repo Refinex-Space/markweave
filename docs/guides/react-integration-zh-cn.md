@@ -1,6 +1,6 @@
 ---
 owner: refinex
-updated: 2026-08-04
+updated: 2026-08-07
 status: active
 referenced_by: docs/README.md#knowledge-map
 ---
@@ -145,6 +145,8 @@ export function ControlledEditor({ value }: { value: string }) {
 
 Live 模式下，粘贴本地 `image/*` 剪贴板文件会按顺序插入全部图片，并通过同一个 `onSlashCommandUpload` 处理器逐个上传，请求使用 `kind: "image"` 和 `trigger: "image-insert"`。仅包含图片的 HTML `<img>` 剪贴板内容在来源为 HTTP(S) 时直接插入；单独的 HTTP(S) URL 只有路径带常见图片扩展名时才转换为图片，Markweave 不会请求远端判断类型。同一次剪贴板同时存在文件和 HTML/URL 表示时优先处理文件，避免重复插入。
 
+附件元数据与宿主下载协议的规范字段见 [`attachment-upload-protocol-zh-cn.md`](./attachment-upload-protocol-zh-cn.md)。本页只保留 React 接线示例，避免与协议文档重复。
+
 ```tsx
 import {
   MarkweaveEditor,
@@ -190,31 +192,7 @@ export function EditorWithUploads() {
 }
 ```
 
-上传请求字段：
-
-| 字段 | 取值 |
-| --- | --- |
-| `kind` | `"image"`、`"video"`、`"attachment"` |
-| `trigger` | `"slash-command"`、`"image-insert"`、`"image-replace"`、`"video-insert"` |
-| `source.type` | `"url"`、`"absolute-path"`、`"relative-path"`、`"base64"`、`"file"` |
-| `source.value` | URL/path/Base64 输入时存在。 |
-| `source.file` | 本地文件输入时存在。 |
-| `source.mimeType` | 浏览器能识别时提供。 |
-
-上传结果字段：
-
-```ts
-interface MarkweaveUploadResult {
-  src: string;
-  name?: string;
-  alt?: string;
-  title?: string;
-  mimeType?: string;
-  size?: number;
-}
-```
-
-图片在 Live 模式下支持预览、对齐、Caption、缩放、替换、下载和删除；View 模式下 Hover 图片右上角会出现预览入口，可打开支持缩放与拖拽平移的大图预览。视频支持本地上传、直接视频 URL、YouTube embed URL、Bilibili player URL、普通 YouTube/Bilibili 分享链接。附件节点可以渲染已有 attachment HTML fallback；默认 slash Attachment 入口目前是禁用状态，但 `attachment` 仍保留在公开上传协议中，方便宿主后续扩展。
+图片在 Live 模式下支持预览、对齐、Caption、缩放、替换、下载和删除；View 模式下 Hover 图片右上角会出现预览入口，可打开支持缩放与拖拽平移的大图预览。视频支持本地上传、直接视频 URL、YouTube embed URL、Bilibili player URL、普通 YouTube/Bilibili 分享链接。附件经 `markweaveAttachment` 往返。Slash 附件插入空行内占位，点击选择本地文件上传（可选 `onProgress` 显示百分比）；完成后 hover 显示下载与删除，激活时调用 `onAttachmentDownload`；未提供宿主回调时，仅安全的 `http(s)` 源会新开标签页。
 
 ## Ask AI
 

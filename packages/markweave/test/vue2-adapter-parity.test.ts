@@ -106,6 +106,7 @@ describe("Vue2 adapter parity source contract", () => {
       "innerTocPlacement",
       "data-markweave-inner-toc-placement",
       "observeMarkweaveInnerTocContainerPosition",
+      "observeMarkweaveInnerTocRailOverflow",
       "getMarkweaveInnerTocRailHeight",
       "--markweave-inner-toc-rail-height",
       "data-markweave-mode",

@@ -23,5 +23,17 @@ describe("slash command adapter positioning parity", () => {
     expect(source).toContain('window.addEventListener("scroll", scheduleSlashMenuPositionUpdate, true)');
     expect(source).toContain('window.removeEventListener("resize", scheduleSlashMenuPositionUpdate)');
     expect(source).toContain('window.removeEventListener("scroll", scheduleSlashMenuPositionUpdate, true)');
+    expect(source).toContain("isMarkweaveSlashMenuScrollTarget");
+  });
+
+  it.each([
+    ["React", "packages/markweave-react/src/ui/slash-command/SlashCommandMenu.tsx"],
+    ["Vue 2", "packages/markweave-vue2/src/MarkweaveEditor.ts"],
+    ["Vue 3", "packages/markweave-vue3/src/MarkweaveEditor.ts"],
+  ] as const)("keeps %s slash keyboard selection scrolled into view", (_name, path) => {
+    const source = readWorkspaceFile(path);
+
+    expect(source).toContain("scrollSlashCommandItemIntoView");
+    expect(source).toContain("keyboard-selecting");
   });
 });
