@@ -348,6 +348,21 @@ describe("editor style boundary", () => {
     expect(editorCss).toContain("width: 100%");
   });
 
+  it("keeps dark code and Mermaid blocks transparent", () => {
+    expect(editorCss).toMatch(
+      /\.markweave-editor-frame\[data-markweave-theme="dark"\] \.markweave-editor-surface pre,\s*\.markweave-editor-frame\[data-markweave-theme="dark"\] \.markweave-editor-surface pre\.markweave-code-block\s*\{[^}]*background:\s*transparent;/s,
+    );
+    expect(editorCss).toMatch(
+      /\.markweave-editor-frame\[data-markweave-theme="dark"\] \.markweave-editor-surface pre code\s*\{[^}]*background:\s*transparent;/s,
+    );
+    expect(editorCss).toMatch(
+      /\.markweave-editor-frame\[data-markweave-theme="dark"\] \.markweave-mermaid-preview\s*\{[^}]*background:\s*transparent;/s,
+    );
+    expect(editorCss).toMatch(
+      /\.markweave-editor-frame\[data-markweave-theme="dark"\] \.markweave-mermaid-preview svg\s*\{[^}]*background:\s*transparent;/s,
+    );
+  });
+
   it("keeps table selection, handles, and menus compact across light and dark themes", () => {
     expect(editorCss).toContain("--markweave-table-selection-border: #7296c8");
     expect(editorCss).toContain("--markweave-table-selection-border: #86a8d8");

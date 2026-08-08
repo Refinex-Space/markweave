@@ -5175,10 +5175,22 @@ body:has(.markweave-mermaid-fullscreen-layer, .markweave-image-preview-layer) .m
   color: var(--markweave-focus);
 }
 
-.markweave-editor-frame[data-markweave-theme="dark"] .markweave-editor-surface :is(code, pre, pre.markweave-code-block) {
+.markweave-editor-frame[data-markweave-theme="dark"] .markweave-editor-surface code {
   background: var(--markweave-code-surface);
   color: var(--markweave-code);
   border-color: var(--markweave-border);
+}
+
+.markweave-editor-frame[data-markweave-theme="dark"] .markweave-editor-surface pre,
+.markweave-editor-frame[data-markweave-theme="dark"] .markweave-editor-surface pre.markweave-code-block {
+  background: transparent;
+  color: var(--markweave-code);
+  border-color: var(--markweave-border);
+}
+
+.markweave-editor-frame[data-markweave-theme="dark"] .markweave-editor-surface pre code {
+  background: transparent;
+  border-color: transparent;
 }
 
 .markweave-editor-frame[data-markweave-theme="dark"] :is(.markweave-link, .markweave-inner-toc-item[data-active="true"]) {
@@ -5306,12 +5318,12 @@ body:has(.markweave-mermaid-fullscreen-layer, .markweave-image-preview-layer) .m
 
 .markweave-editor-frame[data-markweave-theme="dark"] .markweave-mermaid-preview {
   border-color: var(--markweave-border);
-  background: var(--markweave-code-surface);
+  background: transparent;
   color: var(--markweave-text);
 }
 
 .markweave-editor-frame[data-markweave-theme="dark"] .markweave-mermaid-preview svg {
-  background: var(--markweave-code-surface);
+  background: transparent;
 }
 
 .markweave-editor-frame[data-markweave-theme="dark"] .markweave-mermaid-preview svg :is(.node rect, .node polygon, .node circle, .node ellipse, .cluster rect, .edgeLabel rect) {
