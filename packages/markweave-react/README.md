@@ -37,3 +37,7 @@ const [aiEdit, setAiEdit] = useState<MarkweaveAiEditController | null>(null);
 ```
 
 The callback receives a controller after editor creation and `null` before teardown or recreation. See the full integration guide for `captureSelection`, cumulative streaming, default/headless controls, conflicts, acceptance, and error handling.
+
+## Command Registry And Host Extensions
+
+Version 0.6.0 adds `commandGroups`, `commands`, `builtinCommands`, `editorExtensions`, `onCommandControllerChange`, and `onCommandError`. The stable command controller executes the same async command path as Slash; host extensions are additive-only creation-time schema code and require a keyed remount when changed. See the full command/extension protocol for result placement, cancellation, conflicts, the 1 MiB result cap, and Tiptap 3.27.x compatibility.

@@ -5,6 +5,7 @@ export type SlashCommandKeyboardAction =
   | { readonly type: "ignore" }
   | { readonly type: "close" }
   | { readonly type: "move-active"; readonly delta: 1 | -1; readonly optionCount: number }
+  | { readonly type: "set-active"; readonly index: number; readonly optionCount: number }
   | { readonly type: "execute-active"; readonly command: SlashCommandSpec };
 
 export interface SlashCommandKeyboardOptions {
@@ -39,6 +40,14 @@ export function getSlashCommandKeyboardAction(
 
   if (key === "ArrowUp" && commands.length > 0) {
     return { type: "move-active", delta: -1, optionCount: commands.length };
+  }
+
+  if (key === "Home" && commands.length > 0) {
+    return { type: "set-active", index: 0, optionCount: commands.length };
+  }
+
+  if (key === "End" && commands.length > 0) {
+    return { type: "set-active", index: commands.length - 1, optionCount: commands.length };
   }
 
   if (key === "Enter" || key === "Tab") {

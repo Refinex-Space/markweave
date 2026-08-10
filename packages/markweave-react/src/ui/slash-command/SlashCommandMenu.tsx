@@ -26,6 +26,7 @@ import {
 import {
   isExecutableSlashCommand,
   type SlashCommandGroup,
+  type SlashCommandIcon,
   type SlashCommandIconName,
   type SlashCommandSpec,
   type SlashCommandUploadKind,
@@ -51,6 +52,8 @@ interface SlashCommandMenuProps {
   readonly state: SlashCommandState;
   readonly position: SlashCommandMenuPosition | null;
   readonly inputCommand?: SlashCommandSpec | null;
+  readonly busy?: boolean;
+  readonly error?: string | null;
   readonly onActiveIndexChange?: (index: number) => void;
   readonly onInputCommandChange?: (command: SlashCommandSpec | null) => void;
   readonly onSelect: (command: SlashCommandSpec, options?: SlashCommandSelectOptions) => void;
@@ -100,7 +103,13 @@ const slashIconMap: Record<SlashCommandIconName, LucideIcon> = {
   attachment: Paperclip,
 };
 
-function SlashIcon({ name }: { readonly name: SlashCommandIconName }) {
+function SlashIcon({ name }: { readonly name: SlashCommandIcon }) {
+  if (typeof name !== "string") {
+    if (name.kind === "text") {
+      return <span className="markweave-slash-command-text-icon" aria-hidden="true">{name.text}</span>;
+    }
+    name = name.name;
+  }
   const Icon = slashIconMap[name];
   return <Icon aria-hidden="true" absoluteStrokeWidth size={18} strokeWidth={1.6} />;
 }
@@ -134,14 +143,14 @@ export function getSlashCommandMenuPresentation(
 }
 
 function groupSlashCommands(commands: readonly SlashCommandSpec[], messages: MarkweaveMessages) {
-  const slashCommandGroupOrder = Object.values(messages.slash.groups) as readonly SlashCommandGroup[];
-
-  return slashCommandGroupOrder
-    .map((group) => ({
-      group,
-      commands: commands.filter((command) => command.group === group),
-    }))
-    .filter((entry) => entry.commands.length > 0);
+  void messages;
+  const groups = new Map<SlashCommandGroup, SlashCommandSpec[]>();
+  for (const command of commands) {
+    const entries = groups.get(command.group) ?? [];
+    entries.push(command);
+    groups.set(command.group, entries);
+  }
+  return [...groups].map(([group, groupedCommands]) => ({ group, commands: groupedCommands }));
 }
 
 function getUploadKindLabel(kind: SlashCommandUploadKind, messages: MarkweaveMessages) {
@@ -340,6 +349,8 @@ export function SlashCommandMenu({
   onInputCommandChange,
   onSelect,
   onUpload,
+  busy = false,
+  error = null,
 }: SlashCommandMenuProps) {
   const presentation = getSlashCommandMenuPresentation(state, commands, position);
   const commandListRef = useRef<HTMLDivElement | null>(null);
@@ -381,10 +392,12 @@ export function SlashCommandMenu({
         <em>{state.query ? state.query : messages.slash.filterPlaceholder}</em>
       </div>
       <div
+        id="markweave-slash-command-listbox"
         className="markweave-slash-menu"
         style={style}
         role="listbox"
         aria-label={messages.slash.ariaLabel}
+        aria-busy={busy}
         data-placement={position.placement}
         data-testid="markweave-slash-menu"
       >
@@ -408,6 +421,7 @@ export function SlashCommandMenu({
                   const disabled = Boolean(command.disabled);
                   return (
                     <button
+                      id={`markweave-slash-command-option-${flatIndex}`}
                       key={command.id}
                       type="button"
                       role="option"
@@ -444,6 +458,9 @@ export function SlashCommandMenu({
             ))}
           </div>
         )}
+      </div>
+      <div className="markweave-slash-command-live-region" role="status" aria-live="polite" aria-atomic="true">
+        {error ?? ""}
       </div>
     </>
   );

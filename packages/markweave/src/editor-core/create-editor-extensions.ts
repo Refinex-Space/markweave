@@ -1,4 +1,4 @@
-import { mergeAttributes, Node, type AnyExtension, type Extensions, type JSONContent, type MarkdownRendererHelpers, type MarkdownTokenizer, type RenderContext } from "@tiptap/core";
+import { flattenExtensions, mergeAttributes, Node, type AnyExtension, type Extensions, type JSONContent, type MarkdownRendererHelpers, type MarkdownTokenizer, type RenderContext } from "@tiptap/core";
 import CodeBlockLowlight from "@tiptap/extension-code-block-lowlight";
 import Emoji, { emojis } from "@tiptap/extension-emoji";
 import Highlight from "@tiptap/extension-highlight";
@@ -20,6 +20,7 @@ import { Color, TextStyle } from "@tiptap/extension-text-style";
 import TaskItem from "@tiptap/extension-task-item";
 import Underline from "@tiptap/extension-underline";
 import StarterKit from "@tiptap/starter-kit";
+import "./tiptap-type-augmentations";
 import { MarkweaveCompositionGuard } from "./composition-guard";
 import { MarkweaveLinkClick } from "./link-click";
 import { MarkweaveMarkBoundary } from "./mark-boundary";
@@ -51,12 +52,14 @@ import { MarkweaveMarkdownTableInput } from "../plugins/table/table-markdown-inp
 import { getMarkweaveMessages, type MarkweaveLang } from "../i18n";
 import type { MarkweaveSlashCommandUploadHandler } from "../plugins/slash-command/upload";
 import { MarkweaveTocProjection } from "../core/toc-state";
+import { MarkweaveCommands } from "../commands/command-runtime";
 
 export interface CreateMarkweaveEditorExtensionsOptions {
   readonly lang?: MarkweaveLang;
   readonly mediaExtensions?: Extensions;
   readonly linkCardExtension?: AnyExtension;
   readonly onImageUpload?: MarkweaveSlashCommandUploadHandler;
+  readonly editorExtensions?: readonly AnyExtension[];
 }
 
 const markweaveLowlight = createMarkweaveLowlight();
@@ -387,8 +390,9 @@ function stripMarkdownIndent(line: string, count: number) {
 export function createMarkweaveEditorExtensions(options: CreateMarkweaveEditorExtensionsOptions = {}) {
   const messages = getMarkweaveMessages(options.lang);
 
-  return [
+  const extensions: Extensions = [
     MarkweaveCompositionGuard,
+    MarkweaveCommands.configure({ lang: options.lang === "en" ? "en" : "zh" }),
     MarkweaveAskAi,
     MarkweaveAiEdit.configure({
       lang: options.lang === "en" ? "en" : "zh",
@@ -513,5 +517,18 @@ export function createMarkweaveEditorExtensions(options: CreateMarkweaveEditorEx
     MarkweaveTableArrowNavigation,
     MarkweaveTableInteractionLayer,
     MarkweaveTableKeyboard,
+    ...(options.editorExtensions ?? []),
   ];
+
+  const seen = new Set<string>();
+  const duplicates = new Set<string>();
+  for (const extension of flattenExtensions(extensions)) {
+    if (seen.has(extension.name)) duplicates.add(extension.name);
+    seen.add(extension.name);
+  }
+  if (duplicates.size > 0) {
+    throw new Error(`Duplicate Markweave editor extension name: ${[...duplicates].sort().join(", ")}.`);
+  }
+
+  return extensions;
 }

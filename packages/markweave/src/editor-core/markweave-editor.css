@@ -3876,6 +3876,28 @@
   line-height: 1.35;
 }
 
+.markweave-slash-command-text-icon {
+  display: inline-flex;
+  min-width: 18px;
+  height: 18px;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  line-height: 1;
+}
+
+.markweave-slash-command-live-region {
+  position: fixed;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 .markweave-slash-subpanel {
   display: grid;
   gap: 10px;

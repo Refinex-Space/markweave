@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   MarkweaveEditor,
   type MarkweaveAiEditController,
+  type MarkweaveCommandController,
   type MarkweaveEditorMode,
   type MarkweaveEditorRuntimeSnapshot,
   type TableCommandResult,
@@ -221,6 +222,35 @@ function getByTestId<T extends HTMLElement = HTMLElement>(container: HTMLElement
 }
 
 describe("Markweave Vue3 editor", () => {
+  it("installs host commands before publishing the command controller", async () => {
+    const controllers: (MarkweaveCommandController | null)[] = [];
+    await mountVue(
+      defineComponent({
+        setup() {
+          return () => h(MarkweaveEditor, {
+            defaultContent: "Host command target",
+            commandGroups: [{ id: "test.host", label: "Host" }],
+            commands: [{
+              id: "test.host.cancel",
+              label: "Host cancel",
+              groupId: "test.host",
+              execute: () => ({ kind: "cancel" as const }),
+            }],
+            onCommandControllerChange: (controller: MarkweaveCommandController | null) => controllers.push(controller),
+          });
+        },
+      }),
+    );
+
+    const controller = controllers.find((candidate) => candidate !== null);
+    expect(controller?.getCommands({ surface: "api" }).some((command) => command.id === "test.host.cancel")).toBe(true);
+    await expect(controller?.execute("test.host.cancel")).resolves.toMatchObject({ ok: true, outcome: "cancelled" });
+
+    activeApp?.unmount();
+    activeApp = null;
+    expect(controllers.at(-1)).toBeNull();
+  });
+
   it("exposes the AI edit controller and clears the bridge on unmount", async () => {
     const controllers: (MarkweaveAiEditController | null)[] = [];
     await mountVue(

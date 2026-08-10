@@ -1,6 +1,43 @@
+import "./editor-core/tiptap-type-augmentations";
+
 export { createMarkweaveEditorExtensions } from "./editor-core/create-editor-extensions";
 export type { CreateMarkweaveEditorExtensionsOptions } from "./editor-core/create-editor-extensions";
 export type { MarkweaveLang } from "./i18n";
+export type {
+  MarkweaveBuiltinCommandIconName,
+  MarkweaveBuiltinCommandsConfig,
+  MarkweaveCommandContent,
+  MarkweaveCommandContext,
+  MarkweaveCommandController,
+  MarkweaveCommandErrorCode,
+  MarkweaveCommandErrorHandler,
+  MarkweaveCommandExecutionError,
+  MarkweaveCommandExecutionResult,
+  MarkweaveCommandGroupSpec,
+  MarkweaveCommandHandler,
+  MarkweaveCommandIcon,
+  MarkweaveCommandInvocation,
+  MarkweaveCommandPredicate,
+  MarkweaveCommandReasonResolver,
+  MarkweaveCommandRegistry,
+  MarkweaveCommandRegistryIssue,
+  MarkweaveCommandRegistryOptions,
+  MarkweaveCommandResult,
+  MarkweaveCommandRuntimeState,
+  MarkweaveCommandSource,
+  MarkweaveCommandSpec,
+  MarkweaveCommandSurface,
+  MarkweaveResolvedCommand,
+} from "./commands/command-types";
+export {
+  createMarkweaveCommandRegistry,
+  markweaveBuiltinCommandGroupIds,
+  markweaveBuiltinCommandIds,
+} from "./commands/command-registry";
+export {
+  createMarkweaveCommandController,
+  markweaveCommandResultMaxBytes,
+} from "./commands/command-runtime";
 export type { MarkweaveEditorMode, MarkweaveEditorModeState } from "./core/editor-mode-state";
 export {
   getMarkweaveEditorModeState,

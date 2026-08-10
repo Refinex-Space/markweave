@@ -1,4 +1,5 @@
 import { createMarkweaveEditorExtensions as createMarkweaveCoreEditorExtensions } from "markweave/internal/editor-core/create-editor-extensions";
+import type { AnyExtension } from "@tiptap/core";
 import { getMarkweaveMessages, type MarkweaveLang } from "markweave/internal/i18n";
 import type { MarkweaveAttachmentDownloadHandler } from "markweave/internal/plugins/media/attachment-download";
 import type { MarkweaveLinkCardResolver } from "markweave/internal/plugins/link-card/link-card";
@@ -18,6 +19,7 @@ export interface CreateMarkweaveReactEditorExtensionsOptions {
   readonly onAttachmentDownload?: MarkweaveAttachmentDownloadHandler;
   readonly linkCardResolver?: MarkweaveLinkCardResolver;
   readonly resolveMediaSource?: MarkweaveMediaSourceResolver;
+  readonly editorExtensions?: readonly AnyExtension[];
 }
 
 export function createMarkweaveReactEditorExtensions(options: CreateMarkweaveReactEditorExtensionsOptions = {}) {
@@ -40,6 +42,7 @@ export function createMarkweaveReactEditorExtensions(options: CreateMarkweaveRea
       onAttachmentDownload: options.onAttachmentDownload,
       resolveMediaSource: options.resolveMediaSource,
     }),
+    editorExtensions: options.editorExtensions,
   });
 }
 

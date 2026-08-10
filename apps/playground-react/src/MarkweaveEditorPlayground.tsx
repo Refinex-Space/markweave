@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Eye, ListChecks, Moon, PencilLine, Sparkles, Sun } from "lucide-react";
 import {
+  createMarkweaveEditorExtensions,
   MarkweaveEditor,
   type MarkweaveAiEditController,
   type MarkweaveAttachmentDownloadHandler,
@@ -10,6 +11,7 @@ import {
   type MarkweaveTheme,
   type MarkweaveEditorRuntimeSnapshot,
   type MarkweaveMenuCopyPayload,
+  type MarkweaveCommandController,
   type MarkweaveUploadRequest,
   type MarkweaveUploadResult,
   type TableCommandResult,
@@ -17,6 +19,8 @@ import {
 } from "@markweave/react";
 import {
   createPlaygroundUploadResult,
+  createPlaygroundHostCommands,
+  createPlaygroundHostExtension,
   downloadPlaygroundAttachment,
   initialPlaygroundDocument,
   largeDocumentPerformanceFixture,
@@ -25,11 +29,17 @@ import {
   largeValidMediaPerformanceFixture,
   mergedTablePlaygroundDocument,
   playgroundAskAiConfig,
+  playgroundCommandGroups,
   resolvePlaygroundLinkCard,
   resolvePlaygroundMediaSource,
   streamPlaygroundAiEditProposal,
   stressDocumentPerformanceFixture,
 } from "@markweave/playground-fixtures";
+
+const playgroundHostCommands = createPlaygroundHostCommands();
+const playgroundParagraphExtension = createMarkweaveEditorExtensions().find((extension) => extension.name === "paragraph");
+if (!playgroundParagraphExtension) throw new Error("The playground requires the paragraph extension.");
+const playgroundHostExtension = createPlaygroundHostExtension(playgroundParagraphExtension);
 
 export function MarkweaveEditorPlayground() {
   const [benchmarkMode] = useState(
@@ -50,6 +60,8 @@ export function MarkweaveEditorPlayground() {
   const [lastSlashUploadRequest, setLastSlashUploadRequest] = useState<MarkweaveUploadRequest | null>(null);
   const [aiEditController, setAiEditController] = useState<MarkweaveAiEditController | null>(null);
   const [lastAiEditStatus, setLastAiEditStatus] = useState<string | null>(null);
+  const [commandController, setCommandController] = useState<MarkweaveCommandController | null>(null);
+  const [lastCommandStatus, setLastCommandStatus] = useState<string | null>(null);
 
   const resetDebugState = () => {
     setRuntimeSnapshot(null);
@@ -144,6 +156,20 @@ export function MarkweaveEditorPlayground() {
       <div className="markweave-playground-toolbar" aria-label="Playground controls">
         <button
           type="button"
+          className="markweave-playground-command-toggle"
+          disabled={!commandController || !isLiveMode}
+          aria-label="通过宿主工具栏执行通用命令"
+          title="通过宿主工具栏执行通用命令"
+          onClick={() => {
+            void commandController?.execute("playground.host.insert-status").then((result) => {
+              setLastCommandStatus(result.ok ? result.outcome : `${result.code}: ${result.message}`);
+            });
+          }}
+        >
+          Host
+        </button>
+        <button
+          type="button"
           className="markweave-playground-ai-edit-toggle"
           disabled={!aiEditController || !isLiveMode}
           aria-label="运行宿主 AI 预编辑（请先选择文本）"
@@ -206,6 +232,11 @@ export function MarkweaveEditorPlayground() {
         onTableCommandResult={setLastTableCommandResult}
         onTableCopyPayload={setLastTableCopyPayload}
         onAiEditControllerChange={setAiEditController}
+        commandGroups={playgroundCommandGroups}
+        commands={playgroundHostCommands}
+        editorExtensions={[playgroundHostExtension]}
+        onCommandControllerChange={setCommandController}
+        onCommandError={(error) => setLastCommandStatus(`${error.code}: ${error.message}`)}
       />
       <details className="markweave-debug-panel">
         <summary>Debug</summary>
@@ -233,6 +264,7 @@ export function MarkweaveEditorPlayground() {
           </button>
         </div>
         {lastAiEditStatus ? <div className="markweave-debug-ai">Host AI edit: {lastAiEditStatus}</div> : null}
+        {lastCommandStatus ? <div className="markweave-debug-command">Host command: {lastCommandStatus}</div> : null}
         {lastTableCopyPayload ? (
           <div className="markweave-debug-copy" data-testid="markweave-debug-copy">
             <div>Last table copy: {lastTableCopyPayload.kind}</div>

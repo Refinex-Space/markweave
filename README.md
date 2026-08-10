@@ -4,6 +4,8 @@ Language: English | [中文](./README.zh-CN.md)
 
 Markdown-first WYSIWYG editor built on Tiptap and CodeMirror, providing Typora-like editing experience with block-level structure, slash commands, and rich text tooling.
 
+Markweave 0.6.0 adds one framework-neutral Command Registry/Controller for builtin and host commands, async cancellation/conflict handling, and additive-only trusted `editorExtensions`. See the [command and extension protocol](./docs/guides/command-extension-protocol.md) or [中文协议](./docs/guides/command-extension-protocol-zh-cn.md).
+
 Markweave publishes a framework-neutral core package plus React, Vue 2, and Vue 3 adapter packages. The playground apps are private workspace demos for local development checks and are not included in any npm package.
 
 ## Full Integration Guides

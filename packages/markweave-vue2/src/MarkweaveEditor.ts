@@ -1,6 +1,6 @@
 import type { EditorView } from "@tiptap/pm/view";
 import type { Transaction } from "@tiptap/pm/state";
-import type { Editor as CoreEditor } from "@tiptap/core";
+import type { AnyExtension, Editor as CoreEditor } from "@tiptap/core";
 import { BubbleMenu } from "@tiptap/vue-2/menus";
 import { Editor as VueEditor, EditorContent } from "@tiptap/vue-2";
 import {
@@ -172,7 +172,7 @@ import {
   type MarkweaveInnerTocPlacement,
   type MarkweaveTocState,
 } from "markweave/internal/core/toc-state";
-import { getLocalizedSlashCommandSpecs, getMarkweaveMessages, normalizeMarkweaveLang, type MarkweaveLang, type MarkweaveMessages } from "markweave/internal/i18n";
+import { getMarkweaveMessages, normalizeMarkweaveLang, type MarkweaveLang, type MarkweaveMessages } from "markweave/internal/i18n";
 import {
   copyActiveCodeBlock,
   codeBlockCollapsePluginKey,
@@ -246,12 +246,11 @@ import {
   setReadonlyMermaidPreviewMode,
 } from "markweave/internal/plugins/mermaid/mermaid-inline-preview";
 import { getMermaidPreviewState, type MermaidPreviewMode } from "markweave/internal/plugins/mermaid/mermaid-renderer";
-import { filterSlashCommands, isExecutableSlashCommand, type SlashCommandIconName, type SlashCommandSpec } from "markweave/internal/plugins/slash-command/command-spec";
+import { createResolvedSlashCommandSpecs, isExecutableSlashCommand, type SlashCommandIcon, type SlashCommandIconName, type SlashCommandSpec } from "markweave/internal/plugins/slash-command/command-spec";
 import { getSlashCommandKeyboardAction } from "markweave/internal/plugins/slash-command/slash-keyboard";
 import { scrollSlashCommandItemIntoView } from "markweave/internal/plugins/slash-command/slash-menu-scroll";
 import {
   areSlashCommandMenuPositionsEquivalent,
-  executeSlashCommand,
   getNextSlashCommandState,
   getSlashCommandAnchoredMenuPosition,
   getSlashCommandContext,
@@ -260,6 +259,20 @@ import {
   type ExecuteSlashCommandOptions,
   type SlashCommandMenuPosition,
 } from "markweave/internal/plugins/slash-command/slash-runtime";
+import {
+  createMarkweaveCommandController,
+  executeMarkweaveSlashCommand,
+  setMarkweaveCommandContentFormat,
+  setMarkweaveCommandRegistry,
+} from "markweave/internal/commands/command-runtime";
+import { createMarkweaveCommandRegistry } from "markweave/internal/commands/command-registry";
+import type {
+  MarkweaveBuiltinCommandsConfig,
+  MarkweaveCommandController,
+  MarkweaveCommandErrorHandler,
+  MarkweaveCommandGroupSpec,
+  MarkweaveCommandSpec,
+} from "markweave/internal/commands/command-types";
 import { initialSlashCommandState, reduceSlashCommandState, type SlashCommandState } from "markweave/internal/plugins/slash-command/slash-state";
 import {
   detectUploadSource,
@@ -362,6 +375,12 @@ export interface MarkweaveVue2EditorControllerOptions {
   readonly onTableCommandResult?: (result: TableCommandResult) => void;
   readonly onRuntimeStateChange?: (snapshot: MarkweaveEditorRuntimeSnapshot) => void;
   readonly onAiEditControllerChange?: (controller: MarkweaveAiEditController | null) => void;
+  readonly commandGroups?: readonly MarkweaveCommandGroupSpec[];
+  readonly commands?: readonly MarkweaveCommandSpec[];
+  readonly builtinCommands?: MarkweaveBuiltinCommandsConfig;
+  readonly editorExtensions?: readonly AnyExtension[];
+  readonly onCommandControllerChange?: (controller: MarkweaveCommandController | null) => void;
+  readonly onCommandError?: MarkweaveCommandErrorHandler;
   readonly onTocChange?: (state: MarkweaveTocState) => void;
   readonly linkCardResolver?: MarkweaveLinkCardResolver;
   readonly resolveMediaSource?: MarkweaveMediaSourceResolver;
@@ -392,6 +411,7 @@ interface VueControllerRenderState {
   readonly slashState: Ref<SlashCommandState>;
   readonly slashMenuPosition: Ref<SlashCommandMenuPosition | null>;
   readonly slashInputCommand: Ref<SlashCommandSpec | null>;
+  readonly slashCommandError: Ref<string | null>;
   readonly runSlashCommand: (command: SlashCommandSpec, options?: ExecuteSlashCommandOptions) => void;
   readonly handleEditorKeyDown: (event: KeyboardEvent) => void;
   readonly setSlashInputCommand: (command: SlashCommandSpec | null) => void;
@@ -564,7 +584,13 @@ const slashIconMap: Record<SlashCommandIconName, Component> = {
   attachment: Paperclip,
 };
 
-function createSlashIcon(name: SlashCommandIconName) {
+function createSlashIcon(name: SlashCommandIcon) {
+  if (typeof name !== "string") {
+    if (name.kind === "text") {
+      return h("span", { class: "markweave-slash-command-text-icon", "aria-hidden": "true" }, name.text);
+    }
+    name = name.name;
+  }
   const Icon = slashIconMap[name];
   return h(Icon, { size: 18, strokeWidth: 1.6, absoluteStrokeWidth: true, "aria-hidden": "true" });
 }
@@ -1462,6 +1488,7 @@ const VueSlashCommandMenu = defineComponent({
     state: { type: Object as PropType<SlashCommandState>, required: true },
     position: { type: Object as PropType<SlashCommandMenuPosition | null>, default: null },
     inputCommand: { type: Object as PropType<SlashCommandSpec | null>, default: null },
+    errorMessage: { type: String, default: undefined },
     messages: { type: Object as PropType<MarkweaveMessages>, required: true },
     onSelect: { type: Function as PropType<(command: SlashCommandSpec, options?: ExecuteSlashCommandOptions) => void>, required: true },
     onInputCommandChange: { type: Function as PropType<(command: SlashCommandSpec | null) => void>, required: true },
@@ -1538,7 +1565,7 @@ const VueSlashCommandMenu = defineComponent({
     };
 
     return () => {
-      if (!props.position) {
+      if (!props.position || props.state.name === "executing") {
         return null;
       }
 
@@ -1553,9 +1580,12 @@ const VueSlashCommandMenu = defineComponent({
         top: `${props.position.triggerTop}px`,
       };
 
-      const groupedCommands = (Object.values(props.messages.slash.groups) as string[])
-        .map((group: string) => ({ group, commands: props.commands.filter((command: SlashCommandSpec) => command.group === group) }))
-        .filter((entry) => entry.commands.length);
+      const groupedCommands = [...props.commands.reduce((groups: Map<string, SlashCommandSpec[]>, command: SlashCommandSpec) => {
+        const entries = groups.get(command.group) ?? [];
+        entries.push(command);
+        groups.set(command.group, entries);
+        return groups;
+      }, new Map<string, SlashCommandSpec[]>())].map(([group, commands]) => ({ group, commands }));
 
       return h("div", { class: "markweave-slash-layer", style: { display: "contents" }, "data-testid": "markweave-slash-layer" }, [
         h("div", { class: "markweave-slash-trigger", style: triggerStyle, "aria-hidden": "true", "data-testid": "markweave-slash-trigger" }, [
@@ -1564,7 +1594,7 @@ const VueSlashCommandMenu = defineComponent({
         ]),
         h(
           "div",
-          { class: "markweave-slash-menu", style, role: "listbox", "aria-label": props.messages.slash.ariaLabel, "data-placement": props.position.placement, "data-testid": "markweave-slash-menu" },
+          { id: "markweave-slash-command-listbox", class: "markweave-slash-menu", style, role: "listbox", "aria-label": props.messages.slash.ariaLabel, "aria-busy": false, "data-placement": props.position.placement, "data-testid": "markweave-slash-menu" },
           [
             props.inputCommand?.inputKind === "emoji"
               ? h("div", { class: "markweave-slash-subpanel", "data-testid": "markweave-slash-emoji-picker" }, [
@@ -1651,6 +1681,7 @@ const VueSlashCommandMenu = defineComponent({
                             "button",
                             {
                               key: command.id,
+                              id: `markweave-slash-command-option-${flatIndex}`,
                               type: "button",
                               role: "option",
                               "aria-selected": active,
@@ -1680,6 +1711,7 @@ const VueSlashCommandMenu = defineComponent({
                   : h("div", { class: "markweave-slash-menu__empty", role: "option", "aria-disabled": "true" }, props.messages.slash.noResults),
           ],
         ),
+        h("div", { class: "markweave-slash-command-live-region", role: "status", "aria-live": "polite", "aria-atomic": "true" }, props.errorMessage ?? ""),
       ]);
     };
   },
@@ -3279,7 +3311,12 @@ const VueInnerToc = defineComponent({
 export function useMarkweaveEditorController(options: MarkweaveVue2EditorControllerOptions = {}): MarkweaveVue2EditorController {
   const resolvedLang = normalizeMarkweaveLang(options.lang);
   const messages = getMarkweaveMessages(resolvedLang);
-  const slashCommands = getLocalizedSlashCommandSpecs(resolvedLang);
+  const commandRegistry = computed(() => createMarkweaveCommandRegistry({
+    lang: resolvedLang,
+    commandGroups: options.commandGroups,
+    commands: options.commands,
+    builtinCommands: options.builtinCommands,
+  }));
   const editorMode = ref(normalizeMarkweaveEditorMode(options.mode));
   const resolvedTheme = computed(() => normalizeMarkweaveTheme(options.theme));
   const effectiveEditable = computed(() => editorMode.value === "live" && options.editable !== false);
@@ -3288,6 +3325,7 @@ export function useMarkweaveEditorController(options: MarkweaveVue2EditorControl
   const slashState = ref<SlashCommandState>(initialSlashCommandState);
   const slashMenuPosition = shallowRef<SlashCommandMenuPosition | null>(null);
   const slashInputCommand = shallowRef<SlashCommandSpec | null>(null);
+  const slashCommandError = ref<string | null>(null);
   const mermaidMode = ref<MermaidPreviewMode>("code");
   const mathTarget = shallowRef<MarkweaveMathTarget | null>(null);
   const tableInteractionState = shallowRef<TableInteractionState>(initialTableInteractionState);
@@ -3320,6 +3358,7 @@ export function useMarkweaveEditorController(options: MarkweaveVue2EditorControl
 
   const uploadHandler = options.onSlashCommandUpload;
   const editorRef = shallowRef<VueEditor | null>(null);
+  let commandControllerPublished = false;
 
   editorRef.value = new VueEditor({
     extensions: createMarkweaveVue2EditorExtensions({
@@ -3330,6 +3369,7 @@ export function useMarkweaveEditorController(options: MarkweaveVue2EditorControl
       onAttachmentUpload: (request) => options.onSlashCommandUpload?.(request) ?? getDirectUploadResult(request) ?? Promise.reject(new Error("File upload requires an upload handler.")),
       onAttachmentDownload: (attachment, context) => options.onAttachmentDownload?.(attachment, context),
       resolveMediaSource: options.resolveMediaSource,
+      editorExtensions: options.editorExtensions,
     }),
     content: initialContent,
     contentType: getMarkweaveContentType(activeFormat),
@@ -3399,6 +3439,13 @@ export function useMarkweaveEditorController(options: MarkweaveVue2EditorControl
     },
     onSelectionUpdate: ({ editor }) => syncSelectionState(editor),
     onCreate: ({ editor }) => {
+      setMarkweaveCommandRegistry(editor, commandRegistry.value, (error) => {
+        slashCommandError.value = error.message;
+        options.onCommandError?.(error);
+      });
+      setMarkweaveCommandContentFormat(editor, activeFormat);
+      commandControllerPublished = true;
+      options.onCommandControllerChange?.(createMarkweaveCommandController(editor));
       setMarkweaveEditorModeState(editor, { mode: editorMode.value, editable: effectiveEditable.value });
       setMarkweaveMermaidTheme(editor, resolvedTheme.value);
       setMermaidInlinePreviewEditorMode(editor, effectiveEditable.value ? "live" : "view");
@@ -3436,6 +3483,30 @@ export function useMarkweaveEditorController(options: MarkweaveVue2EditorControl
       }
     },
   });
+  const commandControllerEditor = editorRef.value;
+  setMarkweaveCommandRegistry(commandControllerEditor, commandRegistry.value, (error) => {
+    slashCommandError.value = error.message;
+    options.onCommandError?.(error);
+  });
+  setMarkweaveCommandContentFormat(commandControllerEditor, activeFormat);
+  watch(commandRegistry, (registry) => {
+    if (!editorRef.value) return;
+    setMarkweaveCommandRegistry(editorRef.value, registry, (error) => {
+      slashCommandError.value = error.message;
+      options.onCommandError?.(error);
+    });
+  });
+  watch(
+    () => [options.content === undefined ? options.defaultContentFormat : options.contentFormat, options.content] as const,
+    () => {
+      if (editorRef.value) {
+        setMarkweaveCommandContentFormat(
+          editorRef.value,
+          normalizeMarkweaveContentFormat(options.content === undefined ? options.defaultContentFormat : options.contentFormat),
+        );
+      }
+    },
+  );
   const aiEditControllerEditor = editorRef.value;
   const aiEditControllerForHost = createMarkweaveAiEditController(aiEditControllerEditor);
   let aiEditControllerDisposed = false;
@@ -3521,7 +3592,17 @@ export function useMarkweaveEditorController(options: MarkweaveVue2EditorControl
   const tocItems = computed(() => (editor.value ? getMarkweaveTocItemsFromState(editor.value.state) : emptyMarkweaveTocState.items));
   const normalizedTocActiveId = computed(() => getValidMarkweaveTocActiveId(tocItems.value, tocActiveId.value));
   const tocState = computed(() => createMarkweaveTocState(tocItems.value, normalizedTocActiveId.value));
-  const filteredSlashCommands = computed(() => filterSlashCommands(slashState.value.query, slashCommands));
+  const filteredSlashCommands = computed(() => {
+    void revision.value;
+    void selectionSnapshot.value;
+    void effectiveEditable.value;
+    const activeEditor = editor.value;
+    if (!activeEditor) return createResolvedSlashCommandSpecs(commandRegistry.value.commands, resolvedLang);
+    return createResolvedSlashCommandSpecs(
+      createMarkweaveCommandController(activeEditor).getCommands({ surface: "slash", query: slashState.value.query }),
+      resolvedLang,
+    );
+  });
 
   const runtimeSnapshot = computed<MarkweaveEditorRuntimeSnapshot>(() => createMarkweaveEditorRuntimeSnapshot({
     revision: revision.value,
@@ -3567,13 +3648,31 @@ export function useMarkweaveEditorController(options: MarkweaveVue2EditorControl
       slashInputCommand.value = command;
       return;
     }
-    executeSlashCommand(editor.value, slashState.value, command, executeOptions);
+    const slashContext = getSlashCommandContext(editor.value.state);
+    if (!slashContext) return;
+    slashCommandError.value = null;
     slashState.value = reduceSlashCommandState(slashState.value, { type: "execute" });
-    closeSlashMenu();
+    slashInputCommand.value = null;
+    const activeEditor = editor.value;
+    void executeMarkweaveSlashCommand(activeEditor, command.id, slashContext, executeOptions).then((result) => {
+      if (result.ok && result.outcome === "applied") {
+        closeSlashMenu();
+        return;
+      }
+      if (!result.ok) slashCommandError.value = result.message;
+      syncSlashCommandState(activeEditor);
+      activeEditor.commands.focus();
+    });
   }
 
   function handleEditorKeyDown(event: KeyboardEvent) {
     if (!editor.value || slashInputCommand.value || !effectiveEditable.value) {
+      return;
+    }
+    if (slashState.value.name === "executing" && event.key === "Escape") {
+      event.preventDefault();
+      createMarkweaveCommandController(editor.value).cancel();
+      closeSlashMenu();
       return;
     }
     const action = getSlashCommandKeyboardAction(slashState.value, filteredSlashCommands.value, event.key, {
@@ -3584,12 +3683,17 @@ export function useMarkweaveEditorController(options: MarkweaveVue2EditorControl
     }
     event.preventDefault();
     if (action.type === "close") {
+      createMarkweaveCommandController(editor.value).cancel();
       slashState.value = reduceSlashCommandState(slashState.value, { type: "escape" });
       closeSlashMenu();
       return;
     }
     if (action.type === "move-active") {
       slashState.value = reduceSlashCommandState(slashState.value, { type: "move-active", delta: action.delta, optionCount: action.optionCount });
+      return;
+    }
+    if (action.type === "set-active") {
+      slashState.value = reduceSlashCommandState(slashState.value, action);
       return;
     }
     runSlashCommand(action.command);
@@ -3731,6 +3835,9 @@ export function useMarkweaveEditorController(options: MarkweaveVue2EditorControl
     if (aiEditControllerPublished) {
       options.onAiEditControllerChange?.(null);
     }
+    if (commandControllerPublished) {
+      options.onCommandControllerChange?.(null);
+    }
     const editorToDestroy = editorRef.value;
     editorRef.value = null;
     void nextTick(() => editorToDestroy?.destroy());
@@ -3758,6 +3865,7 @@ export function useMarkweaveEditorController(options: MarkweaveVue2EditorControl
       slashState,
       slashMenuPosition,
       slashInputCommand,
+      slashCommandError,
       runSlashCommand,
       handleEditorKeyDown,
       setSlashInputCommand: (command: SlashCommandSpec | null) => {
@@ -3798,6 +3906,12 @@ export const MarkweaveEditor = defineComponent({
     onTableCommandResult: { type: Function as PropType<(result: TableCommandResult) => void>, default: undefined },
     onRuntimeStateChange: { type: Function as PropType<(snapshot: MarkweaveEditorRuntimeSnapshot) => void>, default: undefined },
     onAiEditControllerChange: { type: Function as PropType<(controller: MarkweaveAiEditController | null) => void>, default: undefined },
+    commandGroups: { type: Array as PropType<readonly MarkweaveCommandGroupSpec[]>, default: undefined },
+    commands: { type: Array as PropType<readonly MarkweaveCommandSpec[]>, default: undefined },
+    builtinCommands: { type: Object as PropType<MarkweaveBuiltinCommandsConfig>, default: undefined },
+    editorExtensions: { type: Array as PropType<readonly AnyExtension[]>, default: undefined },
+    onCommandControllerChange: { type: Function as PropType<(controller: MarkweaveCommandController | null) => void>, default: undefined },
+    onCommandError: { type: Function as PropType<MarkweaveCommandErrorHandler>, default: undefined },
     onTocChange: { type: Function as PropType<(state: MarkweaveTocState) => void>, default: undefined },
   },
   setup(props) {
@@ -3816,7 +3930,14 @@ export const MarkweaveEditor = defineComponent({
         "section",
         {
           class: frameClassName,
+          role: "combobox",
           "aria-label": props.ariaLabel ?? render.messages.common.editorAriaLabel,
+          "aria-expanded": render.slashMenuPosition.value !== null && render.slashState.value.name !== "executing",
+          "aria-controls": "markweave-slash-command-listbox",
+          "aria-activedescendant": render.filteredSlashCommands.value.length && render.slashState.value.name !== "executing"
+            ? `markweave-slash-command-option-${Math.min(render.filteredSlashCommands.value.length - 1, Math.max(0, render.slashState.value.activeIndex))}`
+            : undefined,
+          "aria-busy": render.slashState.value.name === "executing",
           "data-testid": "markweave-editor-frame",
           "data-markweave-mode": controller.runtimeSnapshot.value.mode,
           "data-markweave-theme": normalizeMarkweaveTheme(props.theme),
@@ -3835,6 +3956,7 @@ export const MarkweaveEditor = defineComponent({
                 state: render.slashState.value,
                 position: render.slashMenuPosition.value,
                 inputCommand: render.slashInputCommand.value,
+                errorMessage: render.slashCommandError.value ?? undefined,
                 messages: render.messages,
                 onSelect: render.runSlashCommand,
                 onInputCommandChange: render.setSlashInputCommand,

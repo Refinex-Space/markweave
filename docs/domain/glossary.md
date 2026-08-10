@@ -1,6 +1,6 @@
 ---
 owner: refinex
-updated: 2026-08-07
+updated: 2026-08-10
 status: active
 referenced_by: AGENTS.md#knowledge-map
 ---
@@ -20,6 +20,10 @@ referenced_by: AGENTS.md#knowledge-map
 | Runtime snapshot | The state payload from `MarkweaveEditorRuntimeSnapshot`, including selection, slash command, table, code block, Mermaid, and debug state. |
 | Behavior contract | Source-level list of expected behaviors used to guide tests and prevent regressions. |
 | Slash command | The `/` command menu flow handled by slash-command plugins and UI. |
+| Command Registry | Immutable merged snapshot of builtin and host command groups/specs, validated and resolved against the current readonly editor context. |
+| Command Controller | Stable per-editor API for discovering, executing, subscribing to, and cancelling commands across Slash and host UI surfaces. |
+| Command target | Captured selection, cursor, or Slash trigger range that is mapped through outside transactions and fails closed when directly modified. |
+| Host Extension | Trusted creation-time Tiptap Node, Mark, or Extension appended through `editorExtensions`; it is additive-only and requires keyed remount for schema changes. |
 | Upload handler | Host-owned `MarkweaveSlashCommandUploadHandler` that receives `MarkweaveUploadRequest` and returns `MarkweaveUploadResult` metadata for image, video, or attachment sources. |
 | Attachment | The `markweaveAttachment` block node that persists host-owned file metadata (`src`, `name`, `mimeType`, `size`) without Markweave storing the binary. |
 | Attachment download handler | Host-owned `MarkweaveAttachmentDownloadHandler` that performs authenticated download UX when a user activates an attachment. |

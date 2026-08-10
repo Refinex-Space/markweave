@@ -1,4 +1,5 @@
 import { createMarkweaveEditorExtensions as createMarkweaveCoreEditorExtensions } from "markweave/internal/editor-core/create-editor-extensions";
+import type { AnyExtension } from "@tiptap/core";
 import { getMarkweaveMessages, type MarkweaveLang } from "markweave/internal/i18n";
 import type { MarkweaveAttachmentDownloadHandler } from "markweave/internal/plugins/media/attachment-download";
 import type { MarkweaveLinkCardResolver } from "markweave/internal/plugins/link-card/link-card";
@@ -15,6 +16,7 @@ export interface CreateMarkweaveVue2EditorExtensionsOptions {
   readonly onAttachmentDownload?: MarkweaveAttachmentDownloadHandler;
   readonly linkCardResolver?: MarkweaveLinkCardResolver;
   readonly resolveMediaSource?: MarkweaveMediaSourceResolver;
+  readonly editorExtensions?: readonly AnyExtension[];
 }
 
 export function createMarkweaveVue2EditorExtensions(options: CreateMarkweaveVue2EditorExtensionsOptions = {}) {
@@ -33,6 +35,7 @@ export function createMarkweaveVue2EditorExtensions(options: CreateMarkweaveVue2
       onAttachmentDownload: options.onAttachmentDownload,
       resolveMediaSource: options.resolveMediaSource,
     }),
+    editorExtensions: options.editorExtensions,
   });
 }
 

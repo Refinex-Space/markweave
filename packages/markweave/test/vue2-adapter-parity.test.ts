@@ -46,7 +46,7 @@ describe("Vue2 adapter parity source contract", () => {
       "hasMarkweaveAskAiPreview",
       "getSlashCommandContext",
       "getSlashCommandAnchoredMenuPosition",
-      "executeSlashCommand",
+      "executeMarkweaveSlashCommand",
       "getTableFocusState",
       "getTableSelectionOverlayState",
       "targetTableAxisFromCell",

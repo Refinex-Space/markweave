@@ -69,4 +69,11 @@ export type {
   MarkweaveMediaSourceRequest,
   MarkweaveMediaSourceResolver,
   MarkweaveMediaSourceResult,
+  MarkweaveBuiltinCommandsConfig,
+  MarkweaveCommandController,
+  MarkweaveCommandErrorHandler,
+  MarkweaveCommandExecutionResult,
+  MarkweaveCommandGroupSpec,
+  MarkweaveCommandSpec,
+  MarkweaveResolvedCommand,
 } from "markweave";

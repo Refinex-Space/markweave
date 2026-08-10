@@ -40,6 +40,7 @@ Markweave is a pnpm workspace for a Markdown-first WYSIWYG editor built on Tipta
 - Runbook -> read `docs/guides/runbook.md` for local development, verification, release prep, or troubleshooting.
 - Framework integration docs -> read `docs/guides/react-integration.md`, `docs/guides/react-integration-zh-cn.md`, `docs/guides/vue3-integration.md`, `docs/guides/vue3-integration-zh-cn.md`, `docs/guides/vue2-integration.md`, or `docs/guides/vue2-integration-zh-cn.md` before changing public usage guidance, adapter examples, upload callback documentation, or framework-specific integration behavior.
 - Attachment upload/download host protocol -> read `docs/guides/attachment-upload-protocol.md` or `docs/guides/attachment-upload-protocol-zh-cn.md` before changing attachment metadata contracts, upload triggers, download handlers, or related public types.
+- Command Registry, Controller, async command results, or trusted host extensions -> read `docs/guides/command-extension-protocol.md` or `docs/guides/command-extension-protocol-zh-cn.md` before changing command IDs, result placement, cancellation/conflict behavior, command props, or `editorExtensions`.
 - Documentation routes -> read `docs/README.md` before adding, moving, or deprecating docs.
 
 ## Knowledge Maintenance

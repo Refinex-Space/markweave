@@ -7,6 +7,7 @@ Full guides:
 - React: [English](https://github.com/Refinex-Space/markweave/blob/main/docs/guides/react-integration.md) | [中文](https://github.com/Refinex-Space/markweave/blob/main/docs/guides/react-integration-zh-cn.md)
 - Vue 3: [English](https://github.com/Refinex-Space/markweave/blob/main/docs/guides/vue3-integration.md) | [中文](https://github.com/Refinex-Space/markweave/blob/main/docs/guides/vue3-integration-zh-cn.md)
 - Vue 2: [English](https://github.com/Refinex-Space/markweave/blob/main/docs/guides/vue2-integration.md) | [中文](https://github.com/Refinex-Space/markweave/blob/main/docs/guides/vue2-integration-zh-cn.md)
+- Commands and host extensions: [English](https://github.com/Refinex-Space/markweave/blob/main/docs/guides/command-extension-protocol.md) | [中文](https://github.com/Refinex-Space/markweave/blob/main/docs/guides/command-extension-protocol-zh-cn.md)
 
 ## Install
 
@@ -115,6 +116,10 @@ Since 0.3.5, fixed outline positioning no longer depends on CSS query containers
 
 Markweave 0.2.3 exports `createMarkweaveSearchController` and the shared `MarkweaveSearch` extension. The default extension bundle already registers it. Controllers support Unicode-aware literal and regex queries, case and whole-word options, cyclic navigation, ProseMirror result decorations, subscriptions, and editable-only replacement.
 
+## Command Registry And Host Extensions
+
+Markweave 0.6.0 exports command group/spec/context/result/error types, `createMarkweaveCommandRegistry`, builtin ID constants, and `MarkweaveCommandController`. All adapters expose optional `commandGroups`, `commands`, `builtinCommands`, `editorExtensions`, `onCommandControllerChange`, and `onCommandError` props. Slash and host UI execute one shared async runtime; successful result application is atomic and failures do not mutate history. Host extensions are creation-time, additive-only, duplicate-name checked, and require a keyed remount when the schema changes.
+
 ## Host-Driven AI Edit Review
 
 Markweave 0.5.0 lets `createMarkweaveAiEditController` create a `MarkweaveAiEditController` that lazily exposes the current selection and explicitly captures an exact selection, covering blocks, or the full document. Complete block/document proposals render as bounded structural multi-hunk diffs with count/navigation, global decisions, and staged per-hunk decisions; the accepted subset applies atomically in one undo step. Markweave never sends model requests or receives provider credentials.
@@ -144,10 +149,12 @@ Every selectable language identifier is registered with either a dedicated Highl
 | Inner TOC | Yes | Yes | Yes |
 | Upload and AI callbacks | Yes | Yes | Yes |
 | Host-driven AI edit review | Yes | Yes | Yes |
+| Host commands and Controller | Yes | Yes | Yes |
+| Trusted additive extensions | Yes | Yes | Yes |
 
 ## Exports
 
-- `markweave`: framework-neutral types and helpers, including content format, mode, lang, TOC, upload, table payloads, and the AI edit controller factory.
+- `markweave`: framework-neutral types and helpers, including content format, mode, lang, TOC, upload, table payloads, AI edit, Command Registry/Controller, and host Extension options.
 - `@markweave/react`: React editor component, controller hook, React extension factory, and `@markweave/react/styles.css`.
 - `@markweave/vue2`: Vue 2 editor component, controller helper, Vue 2 extension factory, and `@markweave/vue2/styles.css`.
 - `@markweave/vue3`: Vue 3 editor component, composable, Vue 3 extension factory, and `@markweave/vue3/styles.css`.

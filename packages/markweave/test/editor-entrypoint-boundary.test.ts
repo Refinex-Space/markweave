@@ -10,6 +10,7 @@ import {
   MarkweaveEditor,
   useMarkweaveEditorController,
   type MarkweaveAiEditController,
+  type MarkweaveCommandController,
   type MarkweaveContentFormat,
   type MarkweaveEditorController,
   type MarkweaveEditorMode,
@@ -93,7 +94,7 @@ describe("editor entrypoint boundary", () => {
         version?: string;
       };
 
-      expect(packageJson.version).toBe("0.5.3");
+      expect(packageJson.version).toBe("0.6.0");
       expect(packageJson.homepage).toBe(homepageUrl);
       expect(packageJson.bugs).toEqual({ url: bugsUrl });
       expect(packageJson.repository).toEqual({
@@ -169,6 +170,11 @@ describe("editor entrypoint boundary", () => {
     expect(indexSource).toContain("formatMarkweaveAttachmentSize");
     expect(indexSource).toContain("openMarkweaveAttachmentFallbackDownload");
     expect(indexSource).toContain("MarkweaveUploadProgress");
+    expect(indexSource).toContain("createMarkweaveCommandRegistry");
+    expect(indexSource).toContain("markweaveBuiltinCommandIds");
+    expect(indexSource).toContain("MarkweaveCommandController");
+    expect(indexSource).toContain("MarkweaveCommandExecutionResult");
+    expect(indexSource).toContain("markweaveCommandResultMaxBytes");
     expect(indexSource).not.toContain("runMarkweaveAskAiHandler");
     expect(reactShim).toContain('from "@markweave/react"');
     expect(vue2Shim).toContain('from "@markweave/vue2"');
@@ -198,6 +204,11 @@ describe("editor entrypoint boundary", () => {
     expect(vue3IndexSource).toContain("MarkweaveAiEditSelectionSnapshot");
     expect(vue3IndexSource).toContain("MarkweaveAttachmentRef");
     expect(vue3IndexSource).toContain("MarkweaveAttachmentDownloadHandler");
+    for (const source of [reactIndexSource, vue2IndexSource, vue3IndexSource]) {
+      expect(source).toContain("MarkweaveCommandController");
+      expect(source).toContain("MarkweaveCommandSpec");
+      expect(source).toContain("MarkweaveCommandGroupSpec");
+    }
 
     const defaultFormat: MarkweaveContentFormat = "markdown";
     const tocState: MarkweaveTocState = { activeId: null, items: [] };
@@ -301,6 +312,56 @@ describe("editor entrypoint boundary", () => {
       expect(source).toContain("createMarkweaveCoreEditorExtensions");
       expect(source).toContain("onImageUpload: options.onImageUpload");
     }
+  });
+
+  it("passes editorExtensions through every adapter factory", () => {
+    for (const path of [
+      "packages/markweave-react/src/create-editor-extensions.ts",
+      "packages/markweave-vue2/src/create-editor-extensions.ts",
+      "packages/markweave-vue3/src/create-editor-extensions.ts",
+    ]) {
+      const source = readWorkspaceFile(path);
+      expect(source).toContain("editorExtensions?: readonly AnyExtension[]");
+      expect(source).toContain("editorExtensions: options.editorExtensions");
+    }
+  });
+
+  it("keeps one React command controller while registry props update", async () => {
+    const commandGroups = [{ id: "host.test", label: "Host" }] as const;
+    const lifecycle = vi.fn<(controller: MarkweaveCommandController | null) => void>();
+    let editorController: MarkweaveEditorController | null = null;
+
+    function Harness({ value }: { readonly value: string }) {
+      editorController = useMarkweaveEditorController({
+        defaultContent: "",
+        commandGroups,
+        commands: [{
+          id: "host.test.insert",
+          label: value,
+          groupId: "host.test",
+          execute: () => ({ kind: "apply", content: { format: "text", value } }),
+        }],
+        onCommandControllerChange: lifecycle,
+      });
+      return editorController.editor ? createElement("section", editorController.frameProps) : null;
+    }
+    const getEditorController = () => editorController as MarkweaveEditorController | null;
+
+    await renderReact(createElement(Harness, { value: "one" }));
+    const firstEditor = getEditorController()?.editor;
+    const firstCommandController = lifecycle.mock.calls.findLast(([controller]) => controller)?.[0] ?? null;
+    expect(firstCommandController?.getCommands({ surface: "api" }).find((command) => command.id === "host.test.insert")?.label).toBe("one");
+
+    await act(async () => activeRoot?.render(createElement(Harness, { value: "two" })));
+    await flushReact();
+    expect(getEditorController()?.editor).toBe(firstEditor);
+    expect(lifecycle.mock.calls.findLast(([controller]) => controller)?.[0]).toBe(firstCommandController);
+    expect(firstCommandController?.getCommands({ surface: "api" }).find((command) => command.id === "host.test.insert")?.label).toBe("two");
+    await expect(firstCommandController?.execute("host.test.insert")).resolves.toMatchObject({ ok: true, outcome: "applied" });
+
+    activeRoot?.unmount();
+    activeRoot = null;
+    expect(lifecycle).toHaveBeenLastCalledWith(null);
   });
 
   it("renders the complete editor frame through the public component", async () => {

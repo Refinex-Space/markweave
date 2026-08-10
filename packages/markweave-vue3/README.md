@@ -34,3 +34,7 @@ Version 0.5.0 exposes lazy selection snapshots plus explicit selection, block, a
 ```
 
 The callback receives a controller after editor creation and `null` before teardown or recreation. See the full integration guide for `captureSelection`, cumulative streaming, default/headless controls, conflicts, acceptance, and error handling.
+
+## Command Registry And Host Extensions
+
+Version 0.6.0 adds `:command-groups`, `:commands`, `:builtin-commands`, `:editor-extensions`, `:on-command-controller-change`, and `:on-command-error`. Vue 3 keeps callback props rather than a second emit contract. Registry updates preserve the Editor; Extension schema updates require a keyed remount.

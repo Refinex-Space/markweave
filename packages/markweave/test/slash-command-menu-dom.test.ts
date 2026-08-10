@@ -56,6 +56,41 @@ afterEach(() => {
 });
 
 describe("slash command menu DOM", () => {
+  it("renders host groups, text icons, disabled reasons, and accessible listbox state", async () => {
+    const hostCommand = {
+      id: "host.test.insert",
+      label: "Host command",
+      description: "Host description",
+      group: "Host tools",
+      groupId: "host.test",
+      groupOrder: 250,
+      order: 10,
+      category: "insert" as const,
+      executionKind: "editor" as const,
+      icon: { kind: "text" as const, text: "Host" },
+      searchTerms: ["host"],
+      disabled: true,
+      disabledReason: "Select a field first.",
+    };
+
+    const host = await renderReact(createElement(SlashCommandMenu, {
+      commands: [hostCommand],
+      state: { name: "filtering", query: "", activeIndex: 0, triggerFrom: 0, triggerTo: 1 },
+      position: { left: 20, top: 40, triggerLeft: 20, triggerTop: 10, maxHeight: 320, placement: "bottom" },
+      error: "Safe host error",
+      onSelect: vi.fn(),
+    }));
+
+    const listbox = host.querySelector('[role="listbox"]');
+    const option = getByTestId("markweave-slash-command-host.test.insert");
+    expect(listbox?.id).toBe("markweave-slash-command-listbox");
+    expect(option.id).toBe("markweave-slash-command-option-0");
+    expect(option.getAttribute("aria-disabled")).toBe("true");
+    expect(option.textContent).toContain("Host");
+    expect(option.textContent).toContain("Select a field first.");
+    expect(host.querySelector('[role="status"]')?.textContent).toBe("Safe host error");
+  });
+
   it("selects the attachment command without opening the upload panel", async () => {
     const attachmentCommand = defaultSlashCommandSpecs.find((command) => command.id === "attachment");
 

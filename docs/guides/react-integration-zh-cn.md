@@ -1,6 +1,6 @@
 ---
 owner: refinex
-updated: 2026-08-07
+updated: 2026-08-10
 status: active
 referenced_by: docs/README.md#knowledge-map
 ---
@@ -413,3 +413,20 @@ React 适配器提供完整 Markweave UI：浮动工具栏、链接弹层、slas
 - 不要接受任意 iframe host。Markweave 只处理直接视频和受支持的 YouTube/Bilibili embed 形态。
 - Markweave 面向浏览器运行；SSR 框架中应在客户端渲染编辑器。
 - View 模式安全链接会拒绝 `javascript:`、`data:`、`vbscript:` 等不安全协议。
+## 通用命令与宿主 Extension
+
+Markweave 0.6.0 支持 `commandGroups`、`commands`、`builtinCommands` 和创建时 `editorExtensions`。外部工具栏通过 `onCommandControllerChange` 保存稳定 Controller，与 Slash 共用命令执行路径；销毁前回调 `null`。Registry props 可在不重建 Editor 的情况下更新，并会取消旧 handler；`editorExtensions` 属于 schema，变化时必须 keyed remount。
+
+```tsx
+<MarkweaveEditor
+  key={schemaVersion}
+  commandGroups={commandGroups}
+  commands={commands}
+  builtinCommands={{ exclude: ["video"] }}
+  editorExtensions={[DecisionFieldNode]}
+  onCommandControllerChange={setCommandController}
+  onCommandError={reportCommandError}
+/>
+```
+
+完整 ID 校验、异步结果、placement、取消/冲突、1 MiB 上限和 Tiptap 3.27.x 边界见[通用命令与宿主 Extension 接入协议](./command-extension-protocol-zh-cn.md)。

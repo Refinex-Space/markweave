@@ -1,3 +1,4 @@
+import type { AnyExtension } from "@tiptap/core";
 import type { EditorView } from "@tiptap/pm/view";
 import { EditorContent, useEditor, type Editor } from "@tiptap/react";
 import { useCallback, useEffect, useMemo, useRef, useState, type ComponentProps, type CSSProperties, type HTMLAttributes, type KeyboardEvent as ReactKeyboardEvent } from "react";
@@ -19,7 +20,7 @@ import {
   markweaveRuntimeProjectionDelayMs,
   type EditorSelectionSnapshot,
 } from "markweave/internal/editor-core/selection-state";
-import { getLocalizedSlashCommandSpecs, getMarkweaveMessages, normalizeMarkweaveLang, type MarkweaveLang } from "markweave/internal/i18n";
+import { getMarkweaveMessages, normalizeMarkweaveLang, type MarkweaveLang } from "markweave/internal/i18n";
 import { getActiveCodeBlockState, markweaveCodeBlockBehavior, type MarkweaveCodeBlockState } from "markweave/internal/plugins/codeblock/codeblock-behavior";
 import { isMermaidInlinePreviewTransaction, setMarkweaveMermaidTheme, setMermaidInlinePreviewEditorMode } from "markweave/internal/plugins/mermaid/mermaid-inline-preview";
 import { getMermaidPreviewState, type MermaidPreviewMode, type MermaidPreviewState } from "markweave/internal/plugins/mermaid/mermaid-renderer";
@@ -32,11 +33,10 @@ import {
   setMarkweaveMathSelectionInView,
   type MarkweaveMathTarget,
 } from "markweave/internal/plugins/math/math-ui-model";
-import { filterSlashCommands, isExecutableSlashCommand, type SlashCommandSpec } from "markweave/internal/plugins/slash-command/command-spec";
+import { createResolvedSlashCommandSpecs, filterSlashCommands, isExecutableSlashCommand, type SlashCommandSpec } from "markweave/internal/plugins/slash-command/command-spec";
 import { getSlashCommandKeyboardAction } from "markweave/internal/plugins/slash-command/slash-keyboard";
 import {
   areSlashCommandMenuPositionsEquivalent,
-  executeSlashCommand,
   getNextSlashCommandState,
   getSlashCommandAnchoredMenuPosition,
   getSlashCommandContext,
@@ -45,6 +45,20 @@ import {
   type ExecuteSlashCommandOptions,
   type SlashCommandMenuPosition,
 } from "markweave/internal/plugins/slash-command/slash-runtime";
+import {
+  createMarkweaveCommandController,
+  executeMarkweaveSlashCommand,
+  setMarkweaveCommandContentFormat,
+  setMarkweaveCommandRegistry,
+} from "markweave/internal/commands/command-runtime";
+import { createMarkweaveCommandRegistry } from "markweave/internal/commands/command-registry";
+import type {
+  MarkweaveBuiltinCommandsConfig,
+  MarkweaveCommandController,
+  MarkweaveCommandErrorHandler,
+  MarkweaveCommandGroupSpec,
+  MarkweaveCommandSpec,
+} from "markweave/internal/commands/command-types";
 import { initialSlashCommandState, reduceSlashCommandState, type SlashCommandState } from "markweave/internal/plugins/slash-command/slash-state";
 import { getDirectUploadResult, type MarkweaveSlashCommandUploadHandler } from "markweave/internal/plugins/slash-command/upload";
 import type { MarkweaveAttachmentDownloadHandler } from "markweave/internal/plugins/media/attachment-download";
@@ -163,6 +177,12 @@ export interface MarkweaveEditorControllerOptions {
   readonly onRuntimeStateChange?: (snapshot: MarkweaveEditorRuntimeSnapshot) => void;
   readonly onAiEditControllerChange?: (controller: MarkweaveAiEditController | null) => void;
   readonly onSearchControllerChange?: (controller: MarkweaveSearchController | null) => void;
+  readonly commandGroups?: readonly MarkweaveCommandGroupSpec[];
+  readonly commands?: readonly MarkweaveCommandSpec[];
+  readonly builtinCommands?: MarkweaveBuiltinCommandsConfig;
+  readonly editorExtensions?: readonly AnyExtension[];
+  readonly onCommandControllerChange?: (controller: MarkweaveCommandController | null) => void;
+  readonly onCommandError?: MarkweaveCommandErrorHandler;
   readonly onTocChange?: (state: MarkweaveTocState) => void;
   readonly linkCardResolver?: MarkweaveLinkCardResolver;
   readonly resolveMediaSource?: MarkweaveMediaSourceResolver;
@@ -237,6 +257,20 @@ function cancelAnimationFrameSafe(id: number) {
   globalThis.clearTimeout(id);
 }
 
+function areSlashCommandSpecsEquivalent(left: readonly SlashCommandSpec[], right: readonly SlashCommandSpec[]) {
+  return left.length === right.length && left.every((command, index) => {
+    const candidate = right[index];
+    return candidate
+      && command.id === candidate.id
+      && command.label === candidate.label
+      && command.description === candidate.description
+      && command.group === candidate.group
+      && command.disabled === candidate.disabled
+      && command.disabledReason === candidate.disabledReason
+      && JSON.stringify(command.icon) === JSON.stringify(candidate.icon);
+  });
+}
+
 export function useMarkweaveEditorController({
   askAi,
   ariaLabel,
@@ -259,6 +293,12 @@ export function useMarkweaveEditorController({
   onAiEditControllerChange,
   onRuntimeStateChange,
   onSearchControllerChange,
+  commandGroups,
+  commands,
+  builtinCommands,
+  editorExtensions,
+  onCommandControllerChange,
+  onCommandError,
   onSlashCommandUpload,
   onAttachmentDownload,
   onTableCommandResult,
@@ -296,7 +336,13 @@ export function useMarkweaveEditorController({
   }
   const resolvedLang = langRef.current;
   const messages = useMemo(() => getMarkweaveMessages(resolvedLang), [resolvedLang]);
-  const slashCommands = useMemo(() => getLocalizedSlashCommandSpecs(resolvedLang), [resolvedLang]);
+  const commandRegistry = useMemo(() => createMarkweaveCommandRegistry({
+    lang: resolvedLang,
+    commandGroups,
+    commands,
+    builtinCommands,
+  }), [builtinCommands, commandGroups, commands, resolvedLang]);
+  const editorExtensionsRef = useRef(editorExtensions);
   const uploadHandlerRef = useRef(onSlashCommandUpload);
   uploadHandlerRef.current = onSlashCommandUpload;
   const attachmentDownloadHandlerRef = useRef(onAttachmentDownload);
@@ -305,6 +351,10 @@ export function useMarkweaveEditorController({
   searchControllerChangeRef.current = onSearchControllerChange;
   const aiEditControllerChangeRef = useRef(onAiEditControllerChange);
   aiEditControllerChangeRef.current = onAiEditControllerChange;
+  const commandControllerChangeRef = useRef(onCommandControllerChange);
+  commandControllerChangeRef.current = onCommandControllerChange;
+  const commandErrorRef = useRef(onCommandError);
+  commandErrorRef.current = onCommandError;
   const linkCardResolverRef = useRef(linkCardResolver);
   linkCardResolverRef.current = linkCardResolver;
   const extensions = useMemo(
@@ -350,6 +400,7 @@ export function useMarkweaveEditorController({
         onAttachmentDownload: (attachment, context) => attachmentDownloadHandlerRef.current?.(attachment, context),
         linkCardResolver: (request) => linkCardResolverRef.current?.(request) ?? Promise.resolve(null),
         resolveMediaSource,
+        editorExtensions: editorExtensionsRef.current,
       }),
     [resolveMediaSource, resolvedLang],
   );
@@ -357,6 +408,10 @@ export function useMarkweaveEditorController({
   const [slashState, setSlashState] = useState<SlashCommandState>(initialSlashCommandState);
   const [slashMenuPosition, setSlashMenuPosition] = useState<SlashCommandMenuPosition | null>(null);
   const [slashInputCommand, setSlashInputCommand] = useState<SlashCommandSpec | null>(null);
+  const [slashCommands, setSlashCommands] = useState<readonly SlashCommandSpec[]>(
+    () => createResolvedSlashCommandSpecs(commandRegistry.commands, resolvedLang),
+  );
+  const [slashCommandError, setSlashCommandError] = useState<string | null>(null);
   const [mermaidMode, setMermaidMode] = useState<MermaidPreviewMode>("code");
   const [mathTarget, setMathTarget] = useState<MarkweaveMathTarget | null>(null);
   const [tableInteractionState, setTableInteractionState] = useState<TableInteractionState>(initialTableInteractionState);
@@ -636,6 +691,39 @@ export function useMarkweaveEditorController({
       return;
     }
 
+    commandControllerChangeRef.current?.(createMarkweaveCommandController(editor));
+    return () => commandControllerChangeRef.current?.(null);
+  }, [editor]);
+
+  useEffect(() => {
+    if (!editor) {
+      const nextCommands = createResolvedSlashCommandSpecs(commandRegistry.commands, resolvedLang);
+      setSlashCommands((current) => areSlashCommandSpecsEquivalent(current, nextCommands) ? current : nextCommands);
+      return;
+    }
+
+    setMarkweaveCommandRegistry(editor, commandRegistry, (error) => {
+      setSlashCommandError(error.message);
+      commandErrorRef.current?.(error);
+    });
+    setMarkweaveCommandContentFormat(editor, activeContentFormat);
+  }, [activeContentFormat, commandRegistry, editor, resolvedLang]);
+
+  useEffect(() => {
+    if (!editor) return;
+    const resolved = createMarkweaveCommandController(editor).getCommands({
+      surface: "slash",
+      query: slashState.query,
+    });
+    const nextCommands = createResolvedSlashCommandSpecs(resolved, resolvedLang);
+    setSlashCommands((current) => areSlashCommandSpecsEquivalent(current, nextCommands) ? current : nextCommands);
+  }, [commandRegistry, editor, effectiveEditable, resolvedLang, revision, selectionSnapshot, slashState.query]);
+
+  useEffect(() => {
+    if (!editor) {
+      return;
+    }
+
     aiEditControllerChangeRef.current?.(createMarkweaveAiEditController(editor));
 
     return () => {
@@ -863,11 +951,22 @@ export function useMarkweaveEditorController({
         return;
       }
 
-      executeSlashCommand(editor, slashState, command, options);
+      const context = getSlashCommandContext(editor.state);
+      if (!context) return;
+      setSlashCommandError(null);
       setSlashState((state) => reduceSlashCommandState(state, { type: "execute" }));
-      closeSlashMenu();
+      setSlashInputCommand(null);
+      void executeMarkweaveSlashCommand(editor, command.id, context, options).then((result) => {
+        if (result.ok && result.outcome === "applied") {
+          closeSlashMenu();
+          return;
+        }
+        if (!result.ok) setSlashCommandError(result.message);
+        syncSlashCommandState(editor);
+        editor.commands.focus();
+      });
     },
-    [closeSlashMenu, effectiveEditable, editor, slashState],
+    [closeSlashMenu, effectiveEditable, editor, syncSlashCommandState],
   );
 
   const setSlashActiveIndex = useCallback(
@@ -889,6 +988,13 @@ export function useMarkweaveEditorController({
         return;
       }
 
+      if (slashState.name === "executing" && event.key === "Escape") {
+        event.preventDefault();
+        createMarkweaveCommandController(editor).cancel();
+        closeSlashMenu();
+        return;
+      }
+
       const action = getSlashCommandKeyboardAction(slashState, filteredSlashCommands, event.key, {
         isComposing: event.nativeEvent.isComposing || isEditorComposing(editor.state),
       });
@@ -899,6 +1005,7 @@ export function useMarkweaveEditorController({
 
       if (action.type === "close") {
         event.preventDefault();
+        createMarkweaveCommandController(editor).cancel();
         setSlashState((state) => reduceSlashCommandState(state, { type: "escape" }));
         closeSlashMenu();
         return;
@@ -913,6 +1020,12 @@ export function useMarkweaveEditorController({
             optionCount: action.optionCount,
           }),
         );
+        return;
+      }
+
+      if (action.type === "set-active") {
+        event.preventDefault();
+        setSlashState((state) => reduceSlashCommandState(state, action));
         return;
       }
 
@@ -953,10 +1066,16 @@ export function useMarkweaveEditorController({
   const frameProps = useMemo<MarkweaveEditorFrameProps>(
     () => ({
       className: "markweave-editor-frame",
+      role: "combobox",
       "aria-label": ariaLabel ?? messages.common.editorAriaLabel,
+      "aria-expanded": slashMenuPosition !== null && slashState.name !== "executing",
+      "aria-controls": "markweave-slash-command-listbox",
+      "aria-activedescendant": filteredSlashCommands.length && slashState.name !== "executing"
+        ? `markweave-slash-command-option-${Math.min(filteredSlashCommands.length - 1, Math.max(0, slashState.activeIndex))}`
+        : undefined,
       "data-testid": "markweave-editor-frame",
       "data-markweave-mode": editorMode,
-      "aria-busy": largeDocumentLoading,
+      "aria-busy": largeDocumentLoading || slashState.name === "executing",
       "data-markweave-large-document-loading": largeDocumentLoading ? "true" : "false",
       "data-markweave-theme": resolvedTheme,
       style: resolvedCanvasColor ? ({ "--markweave-canvas": resolvedCanvasColor } as CSSProperties) : undefined,
@@ -966,7 +1085,7 @@ export function useMarkweaveEditorController({
       "data-table-focus-mode": tableFocusState.mode,
       onKeyDownCapture: handleEditorKeyDown,
     }),
-    [ariaLabel, editorMode, handleEditorKeyDown, innerToc, largeDocumentLoading, mermaidPreviewState.mode, messages.common.editorAriaLabel, resolvedCanvasColor, resolvedInnerTocPlacement, resolvedTheme, tableFocusState.mode],
+    [ariaLabel, editorMode, filteredSlashCommands.length, handleEditorKeyDown, innerToc, largeDocumentLoading, mermaidPreviewState.mode, messages.common.editorAriaLabel, resolvedCanvasColor, resolvedInnerTocPlacement, resolvedTheme, slashMenuPosition, slashState.activeIndex, slashState.name, tableFocusState.mode],
   );
 
   const overlayProps = useMemo<MarkweaveEditorOverlayProps>(
@@ -988,6 +1107,8 @@ export function useMarkweaveEditorController({
             state: slashState,
             position: slashMenuPosition,
             inputCommand: slashInputCommand,
+            busy: slashState.name === "executing",
+            error: slashCommandError,
             messages,
             onActiveIndexChange: setSlashActiveIndex,
             onInputCommandChange: setSlashInputCommand,
@@ -1060,6 +1181,7 @@ export function useMarkweaveEditorController({
       selectionSnapshot,
       setSlashActiveIndex,
       slashInputCommand,
+      slashCommandError,
       slashMenuPosition,
       slashState,
       tableFocusState,

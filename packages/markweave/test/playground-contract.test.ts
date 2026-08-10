@@ -54,6 +54,10 @@ const requiredEditorProps = [
   ["onSlashCommandUpload", "on-slash-command-upload"],
   ["onTableCommandResult", "on-table-command-result"],
   ["onTableCopyPayload", "on-table-copy-payload"],
+  ["commandGroups", "command-groups"],
+  ["commands", ":commands"],
+  ["editorExtensions", "editor-extensions"],
+  ["onCommandControllerChange", "on-command-controller-change"],
 ] as const;
 
 describe("playground integration contract", () => {
@@ -71,6 +75,8 @@ describe("playground integration contract", () => {
       "toc",
       "upload-callback",
       "ai-callback",
+      "host-command-registry",
+      "editor-extensions",
     ]);
   });
 
@@ -81,6 +87,8 @@ describe("playground integration contract", () => {
       expect(source).toContain("mergedTablePlaygroundDocument");
       expect(source).toContain("createPlaygroundUploadResult");
       expect(source).toContain("markweave-playground-mode-toggle");
+      expect(source).toContain("createPlaygroundHostCommands");
+      expect(source).toContain("createPlaygroundHostExtension");
     }
   });
 

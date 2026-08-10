@@ -154,7 +154,127 @@ export const initialPlaygroundDocument = [
   "",
   "Finish by switching between Live and View. Content should remain stable while editing-only overlays disappear and read-only utilities remain available.",
   "",
+  ":::playground-widget status",
+  "This block comes from the playground host through `editorExtensions`.",
+  ":::",
+  "",
 ].join("\n");
+
+export const playgroundCommandGroups = [
+  { id: "playground.host", label: "宿主命令", order: 250 },
+] as const;
+
+function waitForPlaygroundCommand(signal: AbortSignal, duration: number) {
+  return new Promise<void>((resolve, reject) => {
+    const timer = globalThis.setTimeout(resolve, duration);
+    signal.addEventListener("abort", () => {
+      globalThis.clearTimeout(timer);
+      reject(new DOMException("Aborted", "AbortError"));
+    }, { once: true });
+  });
+}
+
+export function createPlaygroundHostCommands() {
+  return [
+    {
+      id: "playground.host.insert-status",
+      label: "插入宿主状态",
+      description: "从 Slash 或外部工具栏插入宿主提供的状态文本。",
+      groupId: "playground.host",
+      order: 10,
+      keywords: ["host", "status", "宿主", "状态"],
+      icon: { kind: "text" as const, text: "宿主" },
+      execute: () => ({
+        kind: "apply" as const,
+        content: { format: "text" as const, value: "[Host command applied]" },
+      }),
+    },
+    {
+      id: "playground.host.async-template",
+      label: "异步插入模板",
+      description: "模拟异步选择器完成后返回 Markdown。",
+      groupId: "playground.host",
+      order: 20,
+      keywords: ["async", "template", "异步", "模板"],
+      icon: { kind: "text" as const, text: "异步" },
+      execute: async ({ signal }: { readonly signal: AbortSignal }) => {
+        await waitForPlaygroundCommand(signal, 900);
+        return {
+          kind: "apply" as const,
+          content: {
+            format: "markdown" as const,
+            value: ":::tip\n异步宿主模板已完成。\n:::",
+          },
+        };
+      },
+    },
+    {
+      id: "playground.host.conflict-demo",
+      label: "延迟冲突演示",
+      description: "等待 4 秒；等待期间修改命令目标可观察 conflict，按 Escape 可取消。",
+      groupId: "playground.host",
+      order: 30,
+      keywords: ["cancel", "conflict", "取消", "冲突"],
+      icon: { kind: "text" as const, text: "4s" },
+      execute: async ({ signal }: { readonly signal: AbortSignal }) => {
+        await waitForPlaygroundCommand(signal, 4_000);
+        return {
+          kind: "apply" as const,
+          content: { format: "text" as const, value: "[Delayed host result]" },
+          placement: "replace-selection" as const,
+        };
+      },
+    },
+  ] as const;
+}
+
+export function createPlaygroundHostExtension<T extends { extend: (config: Record<string, unknown>) => unknown }>(baseExtension: T): T {
+  return baseExtension.extend({
+    name: "playgroundHostBlock",
+    markdownTokenName: "playgroundHostBlock",
+    group: "block",
+    content: "inline*",
+    defining: true,
+    addAttributes() {
+      return {
+        kind: {
+          default: "status",
+          parseHTML: (element: Element) => element.getAttribute("data-kind") ?? "status",
+        },
+      };
+    },
+    parseHTML() {
+      return [{ tag: "section[data-playground-host-block]" }];
+    },
+    renderHTML({ node }: { readonly node: { readonly attrs: Record<string, unknown> } }) {
+      return ["section", {
+        class: "playground-host-block",
+        "data-playground-host-block": "true",
+        "data-kind": String(node.attrs.kind ?? "status"),
+      }, 0];
+    },
+    markdownTokenizer: {
+      name: "playgroundHostBlock",
+      level: "block",
+      start: (src: string) => src.search(/^:::playground-widget\b/m),
+      tokenize: (src: string, _tokens: unknown[], lexer: { inlineTokens: (value: string) => unknown[] }) => {
+        const match = src.match(/^:::playground-widget\s+([a-z-]+)\s*\n([\s\S]*?)\n:::/);
+        return match ? {
+          type: "playgroundHostBlock",
+          raw: match[0],
+          kind: match[1],
+          tokens: lexer.inlineTokens(match[2] ?? ""),
+        } : undefined;
+      },
+    },
+    parseMarkdown(token: { readonly kind?: string; readonly tokens?: unknown[] }, helpers: { createNode: (name: string, attrs: Record<string, unknown>, content: unknown) => unknown; parseChildren: (tokens: unknown[]) => unknown }) {
+      return helpers.createNode("playgroundHostBlock", { kind: token.kind ?? "status" }, helpers.parseChildren(token.tokens ?? []));
+    },
+    renderMarkdown(node: { readonly attrs?: Record<string, unknown>; readonly content?: unknown[] }, helpers: { renderChildren: (content: unknown[]) => string }) {
+      return `:::playground-widget ${String(node.attrs?.kind ?? "status")}\n${helpers.renderChildren(node.content ?? [])}\n:::`;
+    },
+  }) as T;
+}
 
 export async function resolvePlaygroundLinkCard(request: { readonly href: string; readonly title: string; readonly signal: AbortSignal }) {
   if (request.signal.aborted) return null;
@@ -300,6 +420,8 @@ export const playgroundCapabilityContract = [
   "toc",
   "upload-callback",
   "ai-callback",
+  "host-command-registry",
+  "editor-extensions",
 ] as const;
 
 export const playgroundDebugTestIds = [
