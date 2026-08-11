@@ -246,7 +246,7 @@ import {
   setReadonlyMermaidPreviewMode,
 } from "markweave/internal/plugins/mermaid/mermaid-inline-preview";
 import { getMermaidPreviewState, type MermaidPreviewMode } from "markweave/internal/plugins/mermaid/mermaid-renderer";
-import { createResolvedSlashCommandSpecs, isExecutableSlashCommand, type SlashCommandIcon, type SlashCommandIconName, type SlashCommandSpec } from "markweave/internal/plugins/slash-command/command-spec";
+import { createResolvedSlashCommandSpecs, getSlashCommandTextIconLength, isExecutableSlashCommand, type SlashCommandIcon, type SlashCommandIconName, type SlashCommandSpec } from "markweave/internal/plugins/slash-command/command-spec";
 import { getSlashCommandKeyboardAction } from "markweave/internal/plugins/slash-command/slash-keyboard";
 import { scrollSlashCommandItemIntoView } from "markweave/internal/plugins/slash-command/slash-menu-scroll";
 import {
@@ -284,6 +284,10 @@ import {
 } from "markweave/internal/plugins/slash-command/upload";
 import type { MarkweaveAttachmentDownloadHandler } from "markweave/internal/plugins/media/attachment-download";
 import { setMarkweaveTableMenuAxisTarget, type MarkweaveMenuCopyPayload } from "markweave/internal/plugins/table/table-clipboard";
+import {
+  isMarkweaveTableCapabilityAllowed,
+  type MarkweaveTableCapabilityResolver,
+} from "markweave/internal/plugins/table/table-capabilities";
 import { type TableCommandId, type TableMenuIconId, type TableMenuSubmenuId } from "markweave/internal/plugins/table/table-command-spec";
 import { getFirstTableDebugSnapshot } from "markweave/internal/plugins/table/table-debug-snapshot";
 import { focusFirstTableBodyCell } from "markweave/internal/plugins/table/table-focus-position";
@@ -373,6 +377,7 @@ export interface MarkweaveVue2EditorControllerOptions {
   readonly onAttachmentDownload?: MarkweaveAttachmentDownloadHandler;
   readonly onTableCopyPayload?: (payload: MarkweaveMenuCopyPayload) => void;
   readonly onTableCommandResult?: (result: TableCommandResult) => void;
+  readonly tableCapabilities?: MarkweaveTableCapabilityResolver;
   readonly onRuntimeStateChange?: (snapshot: MarkweaveEditorRuntimeSnapshot) => void;
   readonly onAiEditControllerChange?: (controller: MarkweaveAiEditController | null) => void;
   readonly commandGroups?: readonly MarkweaveCommandGroupSpec[];
@@ -587,7 +592,7 @@ const slashIconMap: Record<SlashCommandIconName, Component> = {
 function createSlashIcon(name: SlashCommandIcon) {
   if (typeof name !== "string") {
     if (name.kind === "text") {
-      return h("span", { class: "markweave-slash-command-text-icon", "aria-hidden": "true" }, name.text);
+      return h("span", { class: "markweave-slash-command-text-icon", "data-icon-length": getSlashCommandTextIconLength(name), "aria-hidden": "true" }, name.text);
     }
     name = name.name;
   }
@@ -1689,6 +1694,7 @@ const VueSlashCommandMenu = defineComponent({
                               "data-active": active,
                               "data-disabled": command.disabled ? "true" : "false",
                               "data-execution-kind": command.executionKind,
+                              "data-text-icon-length": getSlashCommandTextIconLength(command.icon) ?? undefined,
                               "data-testid": `markweave-slash-command-${command.id}`,
                               title: command.disabledReason,
                               onMousedown: preventVuePointerFocusLoss,
@@ -1784,6 +1790,7 @@ const VueTableControls = defineComponent({
     let dragOrigin: { readonly axis: "row" | "column"; readonly index: number } | null = null;
     let dragTarget: number | null = null;
     const askAiEnabled = computed(() => props.askAi?.enabled === true && typeof props.askAi.handler === "function");
+    const structureEditable = () => isMarkweaveTableCapabilityAllowed(props.editor.state, "structure");
 
     const focusState = computed(() => (props.active ? getTableFocusState(props.editor.state) : outsideTableFocusState));
     const rowAxisModel = computed(() => getTableControlAxisSelectionModel(props.editor, props.interactionState, "row", focusState.value.activeCellPos));
@@ -2034,6 +2041,11 @@ const VueTableControls = defineComponent({
     };
 
     const startAxisDrag = (axis: "row" | "column", index: number, event: DragEvent) => {
+      if (!structureEditable()) {
+        event.preventDefault();
+        return;
+      }
+
       dragOrigin = { axis, index };
       dragTarget = index;
       event.dataTransfer?.setData("application/x-markweave-table-axis", `${axis}:${index}`);
@@ -2303,10 +2315,10 @@ const VueTableControls = defineComponent({
             hasCellMenuCommands.value && selectionEdgePosition.value
               ? h("button", { ref: selectionEdgeRef, type: "button", class: "markweave-table-edge-handle markweave-table-edge-handle--selection", "aria-label": props.messages.table.selectionActions, "aria-expanded": openMenu.value === "selection" && menuAnchor.value === "selection-edge", "aria-haspopup": "menu", title: props.messages.table.selectionActions, "data-testid": "markweave-table-cell-handle", style: { left: `${selectionEdgePosition.value.left}px`, top: `${selectionEdgePosition.value.top}px`, width: `${selectionEdgePosition.value.width}px`, height: `${selectionEdgePosition.value.height}px` }, onMousedown: preventVuePointerFocusLoss, onClick: openSelectionMenuFromEdge }, [h(MoreVertical, { size: 14, "aria-hidden": "true" })])
               : null,
-            rowExtendPosition.value
+            structureEditable() && rowExtendPosition.value
               ? h("button", { type: "button", class: "markweave-table-extend-button markweave-table-extend-button--row", "aria-label": props.messages.table.addRow, title: props.messages.table.addRow, "data-testid": "markweave-table-add-row", style: { left: `${rowExtendPosition.value.left}px`, top: `${rowExtendPosition.value.top}px`, width: `${rowExtendPosition.value.width}px`, height: `${rowExtendPosition.value.height}px` }, onMousedown: preventVuePointerFocusLoss, onClick: () => runExtendCommand("row") }, [h(Plus, { size: 14, "aria-hidden": "true" })])
               : null,
-            columnExtendPosition.value
+            structureEditable() && columnExtendPosition.value
               ? h("button", { type: "button", class: "markweave-table-extend-button markweave-table-extend-button--column", "aria-label": props.messages.table.addColumn, title: props.messages.table.addColumn, "data-testid": "markweave-table-add-column", style: { left: `${columnExtendPosition.value.left}px`, top: `${columnExtendPosition.value.top}px`, width: `${columnExtendPosition.value.width}px`, height: `${columnExtendPosition.value.height}px` }, onMousedown: preventVuePointerFocusLoss, onClick: () => runExtendCommand("column") }, [h(Plus, { size: 14, "aria-hidden": "true" })])
               : null,
             menu(),
@@ -3369,6 +3381,7 @@ export function useMarkweaveEditorController(options: MarkweaveVue2EditorControl
       onAttachmentUpload: (request) => options.onSlashCommandUpload?.(request) ?? getDirectUploadResult(request) ?? Promise.reject(new Error("File upload requires an upload handler.")),
       onAttachmentDownload: (attachment, context) => options.onAttachmentDownload?.(attachment, context),
       resolveMediaSource: options.resolveMediaSource,
+      tableCapabilities: (context) => options.tableCapabilities?.(context),
       editorExtensions: options.editorExtensions,
     }),
     content: initialContent,
@@ -3904,6 +3917,7 @@ export const MarkweaveEditor = defineComponent({
     onAttachmentDownload: { type: Function as PropType<MarkweaveAttachmentDownloadHandler>, default: undefined },
     onTableCopyPayload: { type: Function as PropType<(payload: MarkweaveMenuCopyPayload) => void>, default: undefined },
     onTableCommandResult: { type: Function as PropType<(result: TableCommandResult) => void>, default: undefined },
+    tableCapabilities: { type: Function as PropType<MarkweaveTableCapabilityResolver>, default: undefined },
     onRuntimeStateChange: { type: Function as PropType<(snapshot: MarkweaveEditorRuntimeSnapshot) => void>, default: undefined },
     onAiEditControllerChange: { type: Function as PropType<(controller: MarkweaveAiEditController | null) => void>, default: undefined },
     commandGroups: { type: Array as PropType<readonly MarkweaveCommandGroupSpec[]>, default: undefined },

@@ -1,6 +1,6 @@
 ---
 owner: refinex
-updated: 2026-08-10
+updated: 2026-08-11
 status: active
 referenced_by: AGENTS.md#knowledge-map
 ---
@@ -21,6 +21,7 @@ This directory holds repository facts and evidence for agents. Keep `AGENTS.md` 
 | Local run, verification, build, release prep, or troubleshooting | `docs/guides/runbook.md` |
 | Attachment upload metadata and host-owned download protocol | `docs/guides/attachment-upload-protocol.md`, `docs/guides/attachment-upload-protocol-zh-cn.md` |
 | Command Registry, Controller, async command results, or trusted host Tiptap extensions | `docs/guides/command-extension-protocol.md`, `docs/guides/command-extension-protocol-zh-cn.md` |
+| Per-table host capability constraints, protected native tables, or repeat-template table integration | `docs/guides/table-capability-protocol.md`, `docs/guides/table-capability-protocol-zh-cn.md` |
 | React, Vue 3, or Vue 2 product integration, upload callback wiring, or framework-specific usage | `docs/guides/react-integration.md`, `docs/guides/react-integration-zh-cn.md`, `docs/guides/vue3-integration.md`, `docs/guides/vue3-integration-zh-cn.md`, `docs/guides/vue2-integration.md`, `docs/guides/vue2-integration-zh-cn.md` |
 
 ## Maintenance Rules

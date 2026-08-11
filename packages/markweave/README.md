@@ -120,6 +120,8 @@ Markweave 0.2.3 exports `createMarkweaveSearchController` and the shared `Markwe
 
 Markweave 0.6.0 exports command group/spec/context/result/error types, `createMarkweaveCommandRegistry`, builtin ID constants, and `MarkweaveCommandController`. All adapters expose optional `commandGroups`, `commands`, `builtinCommands`, `editorExtensions`, `onCommandControllerChange`, and `onCommandError` props. Slash and host UI execute one shared async runtime; successful result application is atomic and failures do not mutate history. Host extensions are creation-time, additive-only, duplicate-name checked, and require a keyed remount when the schema changes.
 
+Markweave 0.7.0 exports `MarkweaveTableCapabilityResolver` and related readonly context/capability types. Pass `tableCapabilities` to the core or adapter extension factory to constrain Markweave-owned structure, formatting, copy, and table-AI paths for native tables nested in host nodes. Resolver failures fail closed; the protocol is a UI/behavior contract, not authorization.
+
 ## Host-Driven AI Edit Review
 
 Markweave 0.5.0 lets `createMarkweaveAiEditController` create a `MarkweaveAiEditController` that lazily exposes the current selection and explicitly captures an exact selection, covering blocks, or the full document. Complete block/document proposals render as bounded structural multi-hunk diffs with count/navigation, global decisions, and staged per-hunk decisions; the accepted subset applies atomically in one undo step. Markweave never sends model requests or receives provider credentials.

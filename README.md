@@ -4,6 +4,8 @@ Language: English | [中文](./README.zh-CN.md)
 
 Markdown-first WYSIWYG editor built on Tiptap and CodeMirror, providing Typora-like editing experience with block-level structure, slash commands, and rich text tooling.
 
+Markweave 0.7.0 adds a framework-neutral per-table capability resolver for protected native tables and fixes 1–4 character host text icons across React, Vue 2, and Vue 3. See the [table capability protocol](./docs/guides/table-capability-protocol.md) or [中文协议](./docs/guides/table-capability-protocol-zh-cn.md).
+
 Markweave 0.6.0 adds one framework-neutral Command Registry/Controller for builtin and host commands, async cancellation/conflict handling, and additive-only trusted `editorExtensions`. See the [command and extension protocol](./docs/guides/command-extension-protocol.md) or [中文协议](./docs/guides/command-extension-protocol-zh-cn.md).
 
 Markweave publishes a framework-neutral core package plus React, Vue 2, and Vue 3 adapter packages. The playground apps are private workspace demos for local development checks and are not included in any npm package.
@@ -17,6 +19,8 @@ Read the guide for your framework when integrating the complete editor surface, 
 | React | [React Integration](./docs/guides/react-integration.md) | [React 接入手册](./docs/guides/react-integration-zh-cn.md) |
 | Vue 3 | [Vue 3 Integration](./docs/guides/vue3-integration.md) | [Vue 3 接入手册](./docs/guides/vue3-integration-zh-cn.md) |
 | Vue 2 | [Vue 2 Integration](./docs/guides/vue2-integration.md) | [Vue 2 接入手册](./docs/guides/vue2-integration-zh-cn.md) |
+
+Host command and table extension protocols: [commands](./docs/guides/command-extension-protocol.md), [table capabilities](./docs/guides/table-capability-protocol.md).
 
 ## Install
 

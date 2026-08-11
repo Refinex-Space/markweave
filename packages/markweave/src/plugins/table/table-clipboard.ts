@@ -6,6 +6,10 @@ import { Plugin, PluginKey } from "prosemirror-state";
 import type { Transaction } from "prosemirror-state";
 import { isSelectionInsideCodeBlock } from "../codeblock/codeblock-behavior";
 import { focusFirstTableBodyCell } from "./table-focus-position";
+import {
+  getMarkweaveTableCapabilityContext,
+  isMarkweaveTableCapabilityAllowed,
+} from "./table-capabilities";
 
 export type ClipboardTableSource = "html" | "markdown" | "tsv";
 export type TableMenuCopyKind = "table" | "column" | "row";
@@ -885,6 +889,10 @@ export function replaceSelectedTableCellsWithRichHtml(state: EditorState, dispat
 }
 
 export function runMarkweaveTableCopy(state: EditorState, clipboardData: Pick<DataTransfer, "setData">) {
+  if (!isMarkweaveTableCapabilityAllowed(state, "copy")) {
+    return false;
+  }
+
   const { selection } = state;
 
   if (!(selection instanceof CellSelection)) {
@@ -928,6 +936,10 @@ export function runMarkweaveTablePaste(editor: Editor, clipboardData: Pick<DataT
   });
 
   if (!parsedTable) {
+    return false;
+  }
+
+  if (getMarkweaveTableCapabilityContext(editor.state) && !isMarkweaveTableCapabilityAllowed(editor.state, "structure")) {
     return false;
   }
 

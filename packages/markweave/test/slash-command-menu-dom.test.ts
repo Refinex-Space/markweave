@@ -86,6 +86,8 @@ describe("slash command menu DOM", () => {
     expect(listbox?.id).toBe("markweave-slash-command-listbox");
     expect(option.id).toBe("markweave-slash-command-option-0");
     expect(option.getAttribute("aria-disabled")).toBe("true");
+    expect(option.dataset.textIconLength).toBe("4");
+    expect(option.querySelector<HTMLElement>(".markweave-slash-command-text-icon")?.dataset.iconLength).toBe("4");
     expect(option.textContent).toContain("Host");
     expect(option.textContent).toContain("Select a field first.");
     expect(host.querySelector('[role="status"]')?.textContent).toBe("Safe host error");

@@ -23,6 +23,10 @@ import {
   setMarkweaveTableMenuAxisTarget,
 } from "./table-clipboard";
 import type { TableCommandId } from "./table-command-spec";
+import {
+  isMarkweaveTableCapabilityAllowed,
+  isMarkweaveTableCommandAllowed,
+} from "./table-capabilities";
 
 export type TableAxisKind = "row" | "column";
 export type TableCellHorizontalAlignment = "left" | "center" | "right";
@@ -254,6 +258,10 @@ function runDuplicateColumnCommand(editor: Editor) {
 }
 
 export function setTargetedTableAxisCellStyle(editor: Editor, kind: TableAxisKind, patch: TableCellStylePatch) {
+  if (!isMarkweaveTableCapabilityAllowed(editor.state, "formatting")) {
+    return false;
+  }
+
   const target = getTargetedAxisCellPositions(editor, kind);
 
   if (!target) {
@@ -297,6 +305,10 @@ export function getTargetedTableAxisCellStyle(editor: Editor, kind: TableAxisKin
 }
 
 export function moveTargetedTableAxis(editor: Editor, kind: TableAxisKind, from: number, to: number) {
+  if (!isMarkweaveTableCapabilityAllowed(editor.state, "structure")) {
+    return false;
+  }
+
   const rect = getCurrentTableRect(editor);
 
   if (!rect || from === to || from < 0 || to < 0 || (kind === "row" ? Math.max(from, to) >= rect.map.height : Math.max(from, to) >= rect.map.width)) {
@@ -512,6 +524,10 @@ function runTargetedDeleteColumnCommand(editor: Editor) {
 }
 
 export function canRunMarkweaveTableCommand(editor: Editor, commandId: TableCommandId) {
+  if (!isMarkweaveTableCommandAllowed(editor.state, commandId)) {
+    return false;
+  }
+
   const rect = getCurrentTableRect(editor);
 
   switch (commandId) {

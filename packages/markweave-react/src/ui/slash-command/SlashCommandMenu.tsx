@@ -24,6 +24,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import {
+  getSlashCommandTextIconLength,
   isExecutableSlashCommand,
   type SlashCommandGroup,
   type SlashCommandIcon,
@@ -106,7 +107,7 @@ const slashIconMap: Record<SlashCommandIconName, LucideIcon> = {
 function SlashIcon({ name }: { readonly name: SlashCommandIcon }) {
   if (typeof name !== "string") {
     if (name.kind === "text") {
-      return <span className="markweave-slash-command-text-icon" aria-hidden="true">{name.text}</span>;
+      return <span className="markweave-slash-command-text-icon" data-icon-length={getSlashCommandTextIconLength(name)} aria-hidden="true">{name.text}</span>;
     }
     name = name.name;
   }
@@ -430,6 +431,7 @@ export function SlashCommandMenu({
                       data-active={active}
                       data-disabled={disabled ? "true" : "false"}
                       data-execution-kind={command.executionKind}
+                      data-text-icon-length={getSlashCommandTextIconLength(command.icon) ?? undefined}
                       data-testid={`markweave-slash-command-${command.id}`}
                       title={disabled ? command.disabledReason : undefined}
                       onFocus={() => onActiveIndexChange?.(flatIndex)}

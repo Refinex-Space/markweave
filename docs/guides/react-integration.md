@@ -1,6 +1,6 @@
 ---
 owner: refinex
-updated: 2026-08-10
+updated: 2026-08-11
 status: active
 referenced_by: docs/README.md#knowledge-map
 ---
@@ -426,3 +426,7 @@ Markweave 0.6.0 accepts `commandGroups`, `commands`, `builtinCommands`, and crea
 ```
 
 See [Command Registry And Host Extension Protocol](./command-extension-protocol.md) for ID validation, async results, placement, cancellation/conflicts, the 1 MiB cap, and Tiptap 3.27.x compatibility.
+
+## Protected Native Tables
+
+Markweave 0.7.0 accepts `tableCapabilities`. The synchronous resolver receives readonly table and ancestor descriptors and can disable Markweave-owned structure, formatting, copy, or table-AI paths for the active native table. Resolver failures fail closed. See [Host Table Capability Protocol](./table-capability-protocol.md).

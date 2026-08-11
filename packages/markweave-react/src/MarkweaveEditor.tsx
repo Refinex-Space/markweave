@@ -63,6 +63,7 @@ import { initialSlashCommandState, reduceSlashCommandState, type SlashCommandSta
 import { getDirectUploadResult, type MarkweaveSlashCommandUploadHandler } from "markweave/internal/plugins/slash-command/upload";
 import type { MarkweaveAttachmentDownloadHandler } from "markweave/internal/plugins/media/attachment-download";
 import type { MarkweaveMenuCopyPayload } from "markweave/internal/plugins/table/table-clipboard";
+import type { MarkweaveTableCapabilityResolver } from "markweave/internal/plugins/table/table-capabilities";
 import { getFirstTableDebugSnapshot, type TableDebugSnapshot } from "markweave/internal/plugins/table/table-debug-snapshot";
 import { focusFirstTableBodyCell } from "markweave/internal/plugins/table/table-focus-position";
 import { getTableFocusState, type TableFocusState } from "markweave/internal/plugins/table/table-focus-state";
@@ -174,6 +175,7 @@ export interface MarkweaveEditorControllerOptions {
   readonly onAttachmentDownload?: MarkweaveAttachmentDownloadHandler;
   readonly onTableCopyPayload?: (payload: MarkweaveMenuCopyPayload) => void;
   readonly onTableCommandResult?: (result: TableCommandResult) => void;
+  readonly tableCapabilities?: MarkweaveTableCapabilityResolver;
   readonly onRuntimeStateChange?: (snapshot: MarkweaveEditorRuntimeSnapshot) => void;
   readonly onAiEditControllerChange?: (controller: MarkweaveAiEditController | null) => void;
   readonly onSearchControllerChange?: (controller: MarkweaveSearchController | null) => void;
@@ -303,6 +305,7 @@ export function useMarkweaveEditorController({
   onAttachmentDownload,
   onTableCommandResult,
   onTableCopyPayload,
+  tableCapabilities,
   onTocChange,
   onUpdate,
   linkCardResolver,
@@ -343,6 +346,8 @@ export function useMarkweaveEditorController({
     builtinCommands,
   }), [builtinCommands, commandGroups, commands, resolvedLang]);
   const editorExtensionsRef = useRef(editorExtensions);
+  const tableCapabilitiesRef = useRef(tableCapabilities);
+  tableCapabilitiesRef.current = tableCapabilities;
   const uploadHandlerRef = useRef(onSlashCommandUpload);
   uploadHandlerRef.current = onSlashCommandUpload;
   const attachmentDownloadHandlerRef = useRef(onAttachmentDownload);
@@ -400,6 +405,7 @@ export function useMarkweaveEditorController({
         onAttachmentDownload: (attachment, context) => attachmentDownloadHandlerRef.current?.(attachment, context),
         linkCardResolver: (request) => linkCardResolverRef.current?.(request) ?? Promise.resolve(null),
         resolveMediaSource,
+        tableCapabilities: (context) => tableCapabilitiesRef.current?.(context),
         editorExtensions: editorExtensionsRef.current,
       }),
     [resolveMediaSource, resolvedLang],

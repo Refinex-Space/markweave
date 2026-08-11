@@ -120,6 +120,13 @@ export type {
 } from "./plugins/media/media-source";
 export type { MarkweaveMenuCopyPayload } from "./plugins/table/table-clipboard";
 export type {
+  MarkweaveTableCapabilities,
+  MarkweaveTableCapability,
+  MarkweaveTableCapabilityContext,
+  MarkweaveTableCapabilityResolver,
+  MarkweaveTableNodeDescriptor,
+} from "./plugins/table/table-capabilities";
+export type {
   MarkweaveSearchController,
   MarkweaveSearchOptions,
   MarkweaveSearchState,

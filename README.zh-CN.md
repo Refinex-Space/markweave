@@ -4,6 +4,8 @@
 
 Markweave 是一个 Markdown-first 的 WYSIWYG 编辑器，基于 Tiptap 和 ProseMirror，提供接近 Typora 的编辑体验、结构化块、slash 命令、表格、媒体、Mermaid、数学公式和富文本工具。
 
+Markweave 0.7.0 新增框架无关的逐表能力 resolver，用于约束宿主节点内的原生表格，并统一修复 React、Vue 2、Vue 3 中 1–4 字符宿主文本图标的布局。参见[宿主表格能力约束协议](./docs/guides/table-capability-protocol-zh-cn.md)。
+
 Markweave 0.6.0 新增框架无关的 Command Registry/Controller、异步取消与冲突处理，以及 additive-only 的受信任 `editorExtensions`。参见[通用命令与宿主 Extension 接入协议](./docs/guides/command-extension-protocol-zh-cn.md)。
 
 Markweave 发布一个框架无关核心包和三个框架适配包：React、Vue 2、Vue 3。`apps/playground-react`、`apps/playground-vue2`、`apps/playground-vue3` 是私有本地示例，不会发布到 npm。

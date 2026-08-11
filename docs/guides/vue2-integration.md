@@ -1,6 +1,6 @@
 ---
 owner: refinex
-updated: 2026-08-10
+updated: 2026-08-11
 status: active
 referenced_by: docs/README.md#knowledge-map
 ---
@@ -407,3 +407,7 @@ Vue 2 keeps callback props for the 0.6.0 command protocol. Bind `:command-groups
 ```
 
 See [Command Registry And Host Extension Protocol](./command-extension-protocol.md) for the async runtime and security boundary.
+
+## Protected Native Tables
+
+Markweave 0.7.0 adds the `:table-capabilities` callback prop. The synchronous resolver receives readonly table and ancestor descriptors and can disable Markweave-owned structure, formatting, copy, or table-AI paths for the active native table. Resolver failures fail closed. See [Host Table Capability Protocol](./table-capability-protocol.md).

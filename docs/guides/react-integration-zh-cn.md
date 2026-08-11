@@ -1,6 +1,6 @@
 ---
 owner: refinex
-updated: 2026-08-10
+updated: 2026-08-11
 status: active
 referenced_by: docs/README.md#knowledge-map
 ---
@@ -430,3 +430,7 @@ Markweave 0.6.0 支持 `commandGroups`、`commands`、`builtinCommands` 和创�
 ```
 
 完整 ID 校验、异步结果、placement、取消/冲突、1 MiB 上限和 Tiptap 3.27.x 边界见[通用命令与宿主 Extension 接入协议](./command-extension-protocol-zh-cn.md)。
+
+## 受约束的原生表格
+
+Markweave 0.7.0 新增 `tableCapabilities`。同步 resolver 只接收表格与祖先节点的只读描述，可以按当前原生表格关闭 Markweave 自有的结构、格式、复制或表格 AI 操作；resolver 异常时 fail-closed。完整规则见[宿主表格能力约束协议](./table-capability-protocol-zh-cn.md)。

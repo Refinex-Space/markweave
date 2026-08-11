@@ -45,6 +45,7 @@ import { MarkweaveSearch } from "../plugins/search/search-controller";
 import { MarkweaveSlashEmptyLinePlaceholder } from "../plugins/slash-command/empty-line-placeholder";
 import { MarkweaveTableClipboard } from "../plugins/table/table-clipboard";
 import { MarkweaveTableArrowNavigation } from "../plugins/table/table-arrow-navigation";
+import { MarkweaveTableCapabilities, type MarkweaveTableCapabilityResolver } from "../plugins/table/table-capabilities";
 import { MarkweaveTableInteractionLayer } from "../plugins/table/table-interaction-layer";
 import { MarkweaveTableKeyboard } from "../plugins/table/table-keyboard";
 import { MarkweaveMarkdownTableInput } from "../plugins/table/table-markdown-input";
@@ -59,6 +60,7 @@ export interface CreateMarkweaveEditorExtensionsOptions {
   readonly mediaExtensions?: Extensions;
   readonly linkCardExtension?: AnyExtension;
   readonly onImageUpload?: MarkweaveSlashCommandUploadHandler;
+  readonly tableCapabilities?: MarkweaveTableCapabilityResolver;
   readonly editorExtensions?: readonly AnyExtension[];
 }
 
@@ -512,6 +514,7 @@ export function createMarkweaveEditorExtensions(options: CreateMarkweaveEditorEx
     TableRow,
     MarkweaveTableHeader,
     MarkweaveTableCell,
+    MarkweaveTableCapabilities.configure({ resolver: options.tableCapabilities }),
     MarkweaveTableClipboard,
     MarkweaveMarkdownTableInput,
     MarkweaveTableArrowNavigation,

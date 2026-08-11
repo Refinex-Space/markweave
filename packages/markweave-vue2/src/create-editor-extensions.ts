@@ -5,6 +5,7 @@ import type { MarkweaveAttachmentDownloadHandler } from "markweave/internal/plug
 import type { MarkweaveLinkCardResolver } from "markweave/internal/plugins/link-card/link-card";
 import type { MarkweaveSlashCommandUploadHandler } from "markweave/internal/plugins/slash-command/upload";
 import type { MarkweaveMediaSourceResolver } from "markweave/internal/plugins/media/media-source";
+import type { MarkweaveTableCapabilityResolver } from "markweave/internal/plugins/table/table-capabilities";
 import { createMarkweaveAdapterMediaExtensions } from "markweave/internal/plugins/media/media-extension-factory";
 import { MarkweaveVueAttachment, MarkweaveVueImage, MarkweaveVueLinkCard, MarkweaveVueVideo } from "./media-nodeviews";
 
@@ -16,6 +17,7 @@ export interface CreateMarkweaveVue2EditorExtensionsOptions {
   readonly onAttachmentDownload?: MarkweaveAttachmentDownloadHandler;
   readonly linkCardResolver?: MarkweaveLinkCardResolver;
   readonly resolveMediaSource?: MarkweaveMediaSourceResolver;
+  readonly tableCapabilities?: MarkweaveTableCapabilityResolver;
   readonly editorExtensions?: readonly AnyExtension[];
 }
 
@@ -23,6 +25,7 @@ export function createMarkweaveVue2EditorExtensions(options: CreateMarkweaveVue2
   return createMarkweaveCoreEditorExtensions({
     lang: options.lang,
     onImageUpload: options.onImageUpload,
+    tableCapabilities: options.tableCapabilities,
     linkCardExtension: MarkweaveVueLinkCard.configure({ lang: options.lang, messages: getMarkweaveMessages(options.lang), resolver: options.linkCardResolver }),
     mediaExtensions: createMarkweaveAdapterMediaExtensions({
       image: MarkweaveVueImage,

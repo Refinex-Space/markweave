@@ -25,6 +25,9 @@ export const requiredTableBehaviors = [
   "multi-line-cell-content",
   "nested-inline-formatting",
   "table-command-undo-redo",
+  "host-table-capability-context",
+  "host-table-capability-fail-closed",
+  "host-table-structure-lock-across-menu-keyboard-edge-drag-and-paste",
 ] as const;
 
 export type RequiredTableBehavior = (typeof requiredTableBehaviors)[number];

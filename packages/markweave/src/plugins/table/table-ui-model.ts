@@ -15,6 +15,10 @@ import {
   type TableMenuCopyKind,
 } from "./table-clipboard";
 import { canRunMarkweaveTableCommand, runMarkweaveTableCommand } from "./table-command-runtime";
+import {
+  isMarkweaveTableCapabilityAllowed,
+  isMarkweaveTableCommandAllowed,
+} from "./table-capabilities";
 export { moveTargetedTableAxis } from "./table-command-runtime";
 export {
   applyTableAxisAlignment,
@@ -781,6 +785,10 @@ async function writeMarkweavePlainTextPayloadToClipboard(payload: MarkweaveMenuC
 }
 
 export async function copyMarkweaveTableMenuPayload(editor: Editor, kind: TableMenuCopyKind, clipboard?: ClipboardWriter) {
+  if (!isMarkweaveTableCapabilityAllowed(editor.state, "copy")) {
+    return false;
+  }
+
   const payload = getMarkweaveMenuCopyPayloadFromState(editor.state, kind);
 
   if (!payload) {
@@ -818,6 +826,10 @@ export function canRunTableCommand(editor: Editor, commandId: TableCommandId) {
 }
 
 export function runTableCommand(editor: Editor, commandId: TableCommandId, clipboard?: ClipboardWriter) {
+  if (!isMarkweaveTableCommandAllowed(editor.state, commandId)) {
+    return false;
+  }
+
   switch (commandId) {
     case "copy-row":
       return copyMarkweaveTableMenuPayload(editor, "row", clipboard);
@@ -882,7 +894,17 @@ export function getTableMenuItems(
   options: { readonly askAiEnabled?: boolean } = {},
 ): readonly TableMenuItemSpec[] {
   const items = menu === "selection" ? getSelectionMenuItems(editor) : getAxisMenuItems(menu);
-  return options.askAiEnabled ? items : items.filter((item) => item.id !== "edit-with-ai");
+  return items.filter((item) => {
+    if (item.id === "edit-with-ai") {
+      return options.askAiEnabled === true && isMarkweaveTableCapabilityAllowed(editor.state, "ask-ai");
+    }
+
+    if (item.submenuId) {
+      return isMarkweaveTableCapabilityAllowed(editor.state, "formatting");
+    }
+
+    return item.commandId === null || isMarkweaveTableCommandAllowed(editor.state, item.commandId);
+  });
 }
 
 export function getTableMenuItemGroup(item: TableMenuItemSpec) {
@@ -930,6 +952,10 @@ function getCellSelectionPositions(selection: CellSelection) {
 }
 
 export function getTableEditWithAiRequest(editor: Editor, source: TableEditWithAiRequest["source"]): TableEditWithAiRequest | null {
+  if (!isMarkweaveTableCapabilityAllowed(editor.state, "ask-ai")) {
+    return null;
+  }
+
   if (source === "row" || source === "column") {
     const payload = getMarkweaveMenuCopyPayloadFromState(editor.state, source);
     const axisTarget = getMarkweaveTableMenuAxisTarget(editor.state);

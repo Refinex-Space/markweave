@@ -15,6 +15,12 @@ export type SlashCommandIcon = SlashCommandIconName | MarkweaveCommandIcon;
 
 export type SlashCommandUploadKind = "image" | "video" | "attachment";
 
+export function getSlashCommandTextIconLength(icon: SlashCommandIcon) {
+  return typeof icon !== "string" && icon.kind === "text"
+    ? Math.min(4, Math.max(1, Array.from(icon.text.trim()).length))
+    : null;
+}
+
 export interface SlashCommandSpec {
   readonly id: string;
   readonly label: string;

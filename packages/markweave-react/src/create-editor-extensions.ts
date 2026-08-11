@@ -5,6 +5,7 @@ import type { MarkweaveAttachmentDownloadHandler } from "markweave/internal/plug
 import type { MarkweaveLinkCardResolver } from "markweave/internal/plugins/link-card/link-card";
 import type { MarkweaveSlashCommandUploadHandler } from "markweave/internal/plugins/slash-command/upload";
 import type { MarkweaveMediaSourceResolver } from "markweave/internal/plugins/media/media-source";
+import type { MarkweaveTableCapabilityResolver } from "markweave/internal/plugins/table/table-capabilities";
 import { createMarkweaveAdapterMediaExtensions } from "markweave/internal/plugins/media/media-extension-factory";
 import { MarkweaveReactAttachment } from "./media/attachment-node";
 import { MarkweaveImage } from "./media/image-node";
@@ -19,6 +20,7 @@ export interface CreateMarkweaveReactEditorExtensionsOptions {
   readonly onAttachmentDownload?: MarkweaveAttachmentDownloadHandler;
   readonly linkCardResolver?: MarkweaveLinkCardResolver;
   readonly resolveMediaSource?: MarkweaveMediaSourceResolver;
+  readonly tableCapabilities?: MarkweaveTableCapabilityResolver;
   readonly editorExtensions?: readonly AnyExtension[];
 }
 
@@ -26,6 +28,7 @@ export function createMarkweaveReactEditorExtensions(options: CreateMarkweaveRea
   return createMarkweaveCoreEditorExtensions({
     lang: options.lang,
     onImageUpload: options.onImageUpload,
+    tableCapabilities: options.tableCapabilities,
     linkCardExtension: MarkweaveReactLinkCard.configure({
       lang: options.lang,
       messages: getMarkweaveMessages(options.lang),

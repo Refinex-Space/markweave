@@ -4,6 +4,8 @@ Vue 2 adapter for Markweave.
 
 Full guide: [Vue 2 Integration](https://github.com/Refinex-Space/markweave/blob/main/docs/guides/vue2-integration.md) | [Vue 2 接入手册](https://github.com/Refinex-Space/markweave/blob/main/docs/guides/vue2-integration-zh-cn.md)
 
+Version 0.7.0 adds the `table-capabilities` callback prop, a synchronous per-table resolver for Markweave-owned structure, formatting, copy, and table-AI operations. It receives readonly table and ancestor descriptors and fails closed on resolver errors.
+
 ```sh
 pnpm add @markweave/vue2
 ```
