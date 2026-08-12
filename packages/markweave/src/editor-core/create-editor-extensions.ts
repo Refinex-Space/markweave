@@ -30,6 +30,10 @@ import { MarkweaveAiEdit } from "../plugins/ai-edit/ai-edit-controller";
 import { MarkweaveCodeBlockClickFocus, MarkweaveCodeBlockCollapse, markweaveCodeBlockBehavior } from "../plugins/codeblock/codeblock-behavior";
 import { createMarkweaveLowlight } from "../plugins/codeblock/codeblock-lowlight";
 import { MarkweaveIndent } from "../plugins/indent/indent-extension";
+import {
+  MarkweaveInternalLinkCard,
+  type MarkweaveInternalLinkCardConfig,
+} from "../plugins/internal-link-card/internal-link-card";
 import { MarkweaveLinkCard } from "../plugins/link-card/link-card-node";
 import { MarkweaveMarkdownInput } from "../plugins/markdown/markdown-input";
 import {
@@ -41,6 +45,10 @@ import { MarkweaveCoreImage, MarkweaveCoreVideo } from "../plugins/media/core-me
 import { MarkweaveImageClipboard } from "../plugins/media/image-clipboard";
 import { MarkweaveAttachment } from "../plugins/media/media-nodes";
 import { MarkweaveMermaidInlinePreview } from "../plugins/mermaid/mermaid-inline-preview";
+import {
+  MarkweaveReferenceSuggestion,
+  type MarkweaveReferenceSuggestionConfig,
+} from "../plugins/reference/reference-suggestion";
 import { MarkweaveSearch } from "../plugins/search/search-controller";
 import { MarkweaveSlashEmptyLinePlaceholder } from "../plugins/slash-command/empty-line-placeholder";
 import { MarkweaveSlashTriggerDecoration } from "../plugins/slash-command/slash-trigger-decoration";
@@ -62,6 +70,8 @@ export interface CreateMarkweaveEditorExtensionsOptions {
   readonly linkCardExtension?: AnyExtension;
   readonly onImageUpload?: MarkweaveSlashCommandUploadHandler;
   readonly tableCapabilities?: MarkweaveTableCapabilityResolver;
+  readonly referenceSuggestion?: MarkweaveReferenceSuggestionConfig | null;
+  readonly internalLinkCard?: MarkweaveInternalLinkCardConfig | null;
   readonly editorExtensions?: readonly AnyExtension[];
 }
 
@@ -524,6 +534,12 @@ export function createMarkweaveEditorExtensions(options: CreateMarkweaveEditorEx
     MarkweaveTableArrowNavigation,
     MarkweaveTableInteractionLayer,
     MarkweaveTableKeyboard,
+    MarkweaveReferenceSuggestion.configure({
+      config: options.referenceSuggestion ?? null,
+    }),
+    MarkweaveInternalLinkCard.configure({
+      config: options.internalLinkCard ?? null,
+    }),
     ...(options.editorExtensions ?? []),
   ];
 

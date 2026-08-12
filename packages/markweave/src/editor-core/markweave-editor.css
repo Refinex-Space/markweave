@@ -1558,6 +1558,70 @@
   color: var(--markweave-text);
 }
 
+.markweave-editor-frame p[data-internal-link-card="true"] > a.markweave-link {
+  display: none;
+}
+
+.markweave-internal-link-card {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  max-width: 100%;
+  margin: 2px 0;
+  padding: 8px 12px;
+  border: 1px solid var(--markweave-border);
+  border-radius: 8px;
+  background: var(--markweave-surface);
+  color: var(--markweave-text);
+  text-decoration: none;
+  line-height: 1.35;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.markweave-internal-link-card:hover {
+  border-color: var(--markweave-border-strong);
+  background: var(--markweave-surface-raised);
+}
+
+.markweave-internal-link-card-icon {
+  display: inline-flex;
+  flex: 0 0 auto;
+  color: var(--markweave-focus);
+}
+
+.markweave-internal-link-card-body {
+  display: inline-flex;
+  flex-direction: column;
+  min-width: 0;
+  gap: 1px;
+}
+
+.markweave-internal-link-card-title {
+  overflow: hidden;
+  color: var(--markweave-text);
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.markweave-internal-link-card-subtitle {
+  overflow: hidden;
+  color: var(--markweave-text-muted);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.markweave-internal-link-card[data-exists="false"] {
+  border-style: dashed;
+  border-color: var(--markweave-border-strong);
+}
+
+.markweave-internal-link-card[data-exists="false"] .markweave-internal-link-card-icon,
+.markweave-internal-link-card[data-exists="false"] .markweave-internal-link-card-title {
+  color: var(--markweave-text-subtle);
+}
+
 @media (max-width: 560px) {
   .markweave-link-card {
     --markweave-link-card-height: 102px;

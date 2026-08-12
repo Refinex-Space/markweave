@@ -104,7 +104,9 @@ import {
   type MarkweaveTocState,
 } from "markweave/internal/core/toc-state";
 import { createMarkweaveReactEditorExtensions } from "./create-editor-extensions";
+import type { MarkweaveInternalLinkCardConfig } from "markweave/internal/plugins/internal-link-card/internal-link-card";
 import type { MarkweaveLinkCardResolver } from "markweave/internal/plugins/link-card/link-card";
+import type { MarkweaveReferenceSuggestionConfig } from "markweave/internal/plugins/reference/reference-suggestion";
 import type { MarkweaveMediaSourceResolver } from "markweave/internal/plugins/media/media-source";
 import { splitMarkweaveLargeMarkdown } from "markweave/internal/core/large-document";
 import {
@@ -188,6 +190,8 @@ export interface MarkweaveEditorControllerOptions {
   readonly onTocChange?: (state: MarkweaveTocState) => void;
   readonly linkCardResolver?: MarkweaveLinkCardResolver;
   readonly resolveMediaSource?: MarkweaveMediaSourceResolver;
+  readonly referenceSuggestion?: MarkweaveReferenceSuggestionConfig | null;
+  readonly internalLinkCard?: MarkweaveInternalLinkCardConfig | null;
 }
 
 export interface MarkweaveEditorProps extends MarkweaveEditorControllerOptions {
@@ -310,6 +314,8 @@ export function useMarkweaveEditorController({
   onUpdate,
   linkCardResolver,
   resolveMediaSource,
+  referenceSuggestion,
+  internalLinkCard,
 }: MarkweaveEditorControllerOptions = {}): MarkweaveEditorController {
   const editorMode = normalizeMarkweaveEditorMode(mode);
   const resolvedTheme = normalizeMarkweaveTheme(theme);
@@ -362,6 +368,15 @@ export function useMarkweaveEditorController({
   commandErrorRef.current = onCommandError;
   const linkCardResolverRef = useRef(linkCardResolver);
   linkCardResolverRef.current = linkCardResolver;
+  const referenceSuggestionRef = useRef(referenceSuggestion);
+  referenceSuggestionRef.current = referenceSuggestion;
+  const referenceSuggestionEnabledRef = useRef(Boolean(referenceSuggestion));
+  const referenceSuggestionHasRenderRef = useRef(Boolean(referenceSuggestion?.render));
+  const referenceSuggestionHasCommandRef = useRef(Boolean(referenceSuggestion?.command));
+  const internalLinkCardRef = useRef(internalLinkCard);
+  internalLinkCardRef.current = internalLinkCard;
+  const internalLinkCardEnabledRef = useRef(Boolean(internalLinkCard));
+  const internalLinkCardHasResolveRef = useRef(Boolean(internalLinkCard?.resolve));
   const extensions = useMemo(
     () =>
       createMarkweaveReactEditorExtensions({
@@ -406,6 +421,33 @@ export function useMarkweaveEditorController({
         linkCardResolver: (request) => linkCardResolverRef.current?.(request) ?? Promise.resolve(null),
         resolveMediaSource,
         tableCapabilities: (context) => tableCapabilitiesRef.current?.(context),
+        referenceSuggestion: referenceSuggestionEnabledRef.current
+          ? {
+              char: referenceSuggestionRef.current?.char,
+              allowSpaces: referenceSuggestionRef.current?.allowSpaces,
+              allowedPrefixes: referenceSuggestionRef.current?.allowedPrefixes,
+              minQueryLength: referenceSuggestionRef.current?.minQueryLength,
+              debounce: referenceSuggestionRef.current?.debounce,
+              items: (request) =>
+                referenceSuggestionRef.current?.items(request) ?? [],
+              render: referenceSuggestionHasRenderRef.current
+                ? () => referenceSuggestionRef.current!.render!()
+                : undefined,
+              command: referenceSuggestionHasCommandRef.current
+                ? (request) => referenceSuggestionRef.current!.command!(request)
+                : undefined,
+              onInsert: (item) => referenceSuggestionRef.current?.onInsert?.(item),
+            }
+          : null,
+        internalLinkCard: internalLinkCardEnabledRef.current
+          ? {
+              isInternalLink: (href) =>
+                internalLinkCardRef.current?.isInternalLink(href) ?? false,
+              resolve: internalLinkCardHasResolveRef.current
+                ? (request) => internalLinkCardRef.current!.resolve!(request)
+                : undefined,
+            }
+          : null,
         editorExtensions: editorExtensionsRef.current,
       }),
     [resolveMediaSource, resolvedLang],
