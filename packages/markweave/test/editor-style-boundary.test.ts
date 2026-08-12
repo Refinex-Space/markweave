@@ -25,7 +25,7 @@ const editorRuntimeSelectors = [
   ".markweave-floating-toolbar-color-popover",
   ".markweave-floating-toolbar-more-menu",
   ".markweave-slash-menu",
-  ".markweave-slash-trigger",
+  ".markweave-slash-trigger-active",
   ".markweave-slash-empty-line-placeholder",
   ".markweave-slash-command-list",
   ".markweave-slash-emoji-grid",
@@ -259,7 +259,8 @@ describe("editor style boundary", () => {
     expect(editorCss).toContain(".markweave-floating-toolbar-link-popover");
     expect(editorCss).toContain(".markweave-floating-toolbar-color-popover");
     expect(editorCss).toContain(".markweave-floating-toolbar-more-menu");
-    expect(editorCss).toContain(".markweave-slash-trigger");
+    expect(editorCss).toContain('.markweave-editor-surface[contenteditable="true"]:focus .markweave-slash-trigger-active');
+    expect(editorCss).toContain("content: attr(data-markweave-slash-filter)");
     expect(editorCss).toContain('.markweave-editor-surface[contenteditable="true"]:focus .markweave-slash-empty-line-placeholder::before');
     expect(editorCss).toContain("content: attr(data-markweave-slash-placeholder)");
     expect(editorCss).toContain(".markweave-slash-emoji-grid");

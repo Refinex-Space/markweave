@@ -410,6 +410,55 @@ describe("image node view", () => {
     );
   });
 
+  it("resolves an offscreen image through the idle backstop without any viewport signal", async () => {
+    installStalledIntersectionObserver();
+    const idleGlobals = window as unknown as Record<string, unknown>;
+    const previousRequestIdleCallback = idleGlobals.requestIdleCallback;
+    const previousCancelIdleCallback = idleGlobals.cancelIdleCallback;
+    idleGlobals.requestIdleCallback = (
+      cb: (deadline: { didTimeout: boolean; timeRemaining: () => number }) => void,
+    ) => window.setTimeout(() => cb({ didTimeout: false, timeRemaining: () => 50 }), 0);
+    idleGlobals.cancelIdleCallback = (handle: number) => window.clearTimeout(handle);
+
+    // The node never comes near the viewport and never receives focus/visibility
+    // wake events, so only the guaranteed idle backstop can resolve it.
+    lightweightImageRect = createRect(0, window.innerHeight * 8, 400, 240);
+    const resolveMediaSource = vi.fn<MarkweaveMediaSourceResolver>(() => ({
+      src: "asset://resolved/backstop.png",
+      width: 320,
+      height: 200,
+    }));
+
+    try {
+      await renderEditor(
+        '<p>Before</p><img src="madora-asset://backstop" alt="Backstop">',
+        undefined,
+        undefined,
+        "view",
+        resolveMediaSource,
+      );
+      await flushReact();
+
+      expect(resolveMediaSource).toHaveBeenCalledWith(
+        expect.objectContaining({
+          priority: "background",
+          src: "madora-asset://backstop",
+        }),
+      );
+
+      const image = await completeLightweightImageLoad();
+      const imageNode = document.querySelector<HTMLElement>(
+        '[data-markweave-lightweight-image="true"]',
+      );
+      expect(imageNode?.dataset.mediaState).toBe("resolved");
+      expect(image.src).toContain("asset://resolved/backstop.png");
+      expect(image.hidden).toBe(false);
+    } finally {
+      idleGlobals.requestIdleCallback = previousRequestIdleCallback;
+      idleGlobals.cancelIdleCallback = previousCancelIdleCallback;
+    }
+  });
+
   it("opens resolved lightweight images from the View mode preview action", async () => {
     const resolveMediaSource = vi.fn<MarkweaveMediaSourceResolver>(() => ({
       src: "https://example.com/resolved-view.png",

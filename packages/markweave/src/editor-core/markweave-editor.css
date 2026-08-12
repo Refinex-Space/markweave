@@ -3713,35 +3713,21 @@
   transform-origin: top left;
 }
 
-.markweave-slash-trigger {
-  position: fixed;
-  z-index: 59;
-  display: inline-flex;
-  align-items: center;
-  height: 26px;
-  max-width: 112px;
-  border-radius: 8px;
-  background: #f3f4f6;
-  padding: 0 8px;
-  color: #a2a7af;
-  font-size: 14px;
-  line-height: 1;
-  pointer-events: none;
-  transform: translateX(-8px);
-}
-
-.markweave-slash-trigger span {
+.markweave-editor-surface[contenteditable="true"]:focus .markweave-slash-trigger-active {
+  border-radius: 4px;
+  background: rgba(47, 69, 255, 0.08);
   color: #2f45ff;
-  margin-right: 1px;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
 }
 
-.markweave-slash-trigger em {
-  min-width: 0;
-  overflow: hidden;
+.markweave-editor-surface[contenteditable="true"]:focus .markweave-slash-trigger-active[data-markweave-slash-filter]::after {
+  content: attr(data-markweave-slash-filter);
+  margin-left: 3px;
   color: #a2a7af;
   font-style: normal;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  pointer-events: none;
+  user-select: none;
 }
 
 .markweave-slash-command-list,
@@ -5367,6 +5353,15 @@ body:has(.markweave-mermaid-fullscreen-layer, .markweave-image-preview-layer) .m
 }
 
 .markweave-editor-frame[data-markweave-theme="dark"] :is(.markweave-floating-toolbar-menu-icon, .markweave-slash-group > button svg, .markweave-slash-group > button small, .markweave-slash-menu__empty) {
+  color: var(--markweave-text-muted);
+}
+
+.markweave-editor-frame[data-markweave-theme="dark"] .markweave-editor-surface[contenteditable="true"]:focus .markweave-slash-trigger-active {
+  background: rgba(122, 162, 255, 0.16);
+  color: #9db4ff;
+}
+
+.markweave-editor-frame[data-markweave-theme="dark"] .markweave-editor-surface[contenteditable="true"]:focus .markweave-slash-trigger-active[data-markweave-slash-filter]::after {
   color: var(--markweave-text-muted);
 }
 

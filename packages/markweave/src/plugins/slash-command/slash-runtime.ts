@@ -16,8 +16,6 @@ export interface SlashCommandContext {
 export interface SlashCommandMenuPosition {
   readonly left: number;
   readonly top: number;
-  readonly triggerLeft: number;
-  readonly triggerTop: number;
   readonly maxHeight: number;
   readonly placement: "bottom" | "top";
 }
@@ -232,7 +230,7 @@ export function getNextSlashCommandState(previous: SlashCommandState, context: S
 }
 
 export function isMarkweaveSlashMenuScrollTarget(target: EventTarget | null) {
-  return target instanceof Element && Boolean(target.closest(".markweave-slash-menu, .markweave-slash-trigger"));
+  return target instanceof Element && Boolean(target.closest(".markweave-slash-menu"));
 }
 
 export function isSlashCommandAnchorVisible(
@@ -273,8 +271,6 @@ export function areSlashCommandMenuPositionsEquivalent(
   return (
     Math.abs(current.left - next.left) <= tolerance &&
     Math.abs(current.top - next.top) <= tolerance &&
-    Math.abs(current.triggerLeft - next.triggerLeft) <= tolerance &&
-    Math.abs(current.triggerTop - next.triggerTop) <= tolerance &&
     Math.abs(current.maxHeight - next.maxHeight) <= tolerance
   );
 }
@@ -314,8 +310,6 @@ export function getSlashCommandAnchoredMenuPosition(
   return {
     left,
     top,
-    triggerLeft,
-    triggerTop,
     maxHeight,
     placement,
   };

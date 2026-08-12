@@ -43,6 +43,7 @@ import { MarkweaveAttachment } from "../plugins/media/media-nodes";
 import { MarkweaveMermaidInlinePreview } from "../plugins/mermaid/mermaid-inline-preview";
 import { MarkweaveSearch } from "../plugins/search/search-controller";
 import { MarkweaveSlashEmptyLinePlaceholder } from "../plugins/slash-command/empty-line-placeholder";
+import { MarkweaveSlashTriggerDecoration } from "../plugins/slash-command/slash-trigger-decoration";
 import { MarkweaveTableClipboard } from "../plugins/table/table-clipboard";
 import { MarkweaveTableArrowNavigation } from "../plugins/table/table-arrow-navigation";
 import { MarkweaveTableCapabilities, type MarkweaveTableCapabilityResolver } from "../plugins/table/table-capabilities";
@@ -402,6 +403,9 @@ export function createMarkweaveEditorExtensions(options: CreateMarkweaveEditorEx
     }),
     MarkweaveSlashEmptyLinePlaceholder.configure({
       placeholder: messages.slash.emptyLinePlaceholder,
+    }),
+    MarkweaveSlashTriggerDecoration.configure({
+      filterPlaceholder: messages.slash.filterPlaceholder,
     }),
     MarkweaveTocProjection,
     Markdown.configure({

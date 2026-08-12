@@ -798,7 +798,7 @@ export function useMarkweaveEditorController({
         return;
       }
 
-      if (target.closest(".markweave-slash-menu") || target.closest(".markweave-slash-trigger")) {
+      if (target.closest(".markweave-slash-menu")) {
         return;
       }
 

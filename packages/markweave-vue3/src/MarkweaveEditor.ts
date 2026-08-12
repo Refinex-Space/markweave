@@ -1593,11 +1593,6 @@ const VueSlashCommandMenu = defineComponent({
         maxHeight: `${props.position.maxHeight}px`,
         "--markweave-slash-menu-max-height": `${props.position.maxHeight}px`,
       };
-      const triggerStyle = {
-        left: `${props.position.triggerLeft}px`,
-        top: `${props.position.triggerTop}px`,
-      };
-
       const groupedCommands = [...props.commands.reduce((groups: Map<string, SlashCommandSpec[]>, command: SlashCommandSpec) => {
         const entries = groups.get(command.group) ?? [];
         entries.push(command);
@@ -1606,10 +1601,6 @@ const VueSlashCommandMenu = defineComponent({
       }, new Map<string, SlashCommandSpec[]>())].map(([group, commands]) => ({ group, commands }));
 
       return [
-        h("div", { class: "markweave-slash-trigger", style: triggerStyle, "aria-hidden": "true", "data-testid": "markweave-slash-trigger" }, [
-          h("span", null, "/"),
-          h("em", null, props.state.query || props.messages.slash.filterPlaceholder),
-        ]),
         h(
           "div",
           { id: "markweave-slash-command-listbox", class: "markweave-slash-menu", style, role: "listbox", "aria-label": props.messages.slash.ariaLabel, "aria-busy": false, "data-placement": props.position.placement, "data-testid": "markweave-slash-menu" },

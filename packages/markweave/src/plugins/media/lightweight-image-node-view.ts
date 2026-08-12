@@ -18,6 +18,7 @@ import {
   type MarkweaveCoreImageAlign,
 } from "./core-media-nodes";
 import { openMarkweaveImagePreview } from "./image-preview";
+import { enrollMarkweaveMediaBackstop } from "./media-idle-backstop";
 import {
   resolveMarkweaveMediaSource,
   type MarkweaveMediaPriority,
@@ -183,6 +184,7 @@ class MarkweaveLightweightImageNodeView implements NodeView {
   private mountCheckScheduled = false;
   private mountCheckTimer: number | null = null;
   private unsubscribeViewportWake: (() => void) | null = null;
+  private unenrollBackstop: (() => void) | null = null;
   private previewTrigger: HTMLButtonElement | null = null;
   private toolbar: HTMLElement | null = null;
   private captionInput: HTMLInputElement | null = null;
@@ -237,6 +239,7 @@ class MarkweaveLightweightImageNodeView implements NodeView {
     this.observeProximity();
     this.startViewportWakeListeners();
     this.scheduleMountedProximityCheck();
+    this.enrollResolutionBackstop();
   }
 
   update(node: NodeViewRendererProps["node"]) {
@@ -260,6 +263,7 @@ class MarkweaveLightweightImageNodeView implements NodeView {
       this.setMediaState("pending");
       this.startViewportWakeListeners();
       this.scheduleMountedProximityCheck();
+      this.enrollResolutionBackstop();
     }
 
     return true;
@@ -293,6 +297,7 @@ class MarkweaveLightweightImageNodeView implements NodeView {
     this.observer?.disconnect();
     this.clearMountedProximityCheck();
     this.stopViewportWakeListeners();
+    this.dropResolutionBackstop();
     this.unsubscribeMode();
     this.unmountEditingControls();
     this.previewTrigger?.remove();
@@ -431,22 +436,50 @@ class MarkweaveLightweightImageNodeView implements NodeView {
     this.unsubscribeViewportWake = null;
   }
 
+  private enrollResolutionBackstop() {
+    if (this.unenrollBackstop || this.destroyed) {
+      return;
+    }
+    if (!stringAttribute(this.node.attrs.src)) {
+      return;
+    }
+    this.unenrollBackstop = enrollMarkweaveMediaBackstop(
+      this.dom.ownerDocument,
+      () => {
+        // The backstop already removed this job before invoking it; drop the
+        // stored unenroll handle so resolveSource does not mutate the drain's
+        // pending set while it is iterating.
+        this.unenrollBackstop = null;
+        this.resolveSource("background");
+      },
+    );
+  }
+
+  private dropResolutionBackstop() {
+    this.unenrollBackstop?.();
+    this.unenrollBackstop = null;
+  }
+
   private resolveSource(priority: MarkweaveMediaPriority) {
     const src = stringAttribute(this.node.attrs.src);
     if (!src) {
       return;
     }
+    // Any resolution attempt for the current source supersedes the idle
+    // backstop: either we start resolving now, or it is already resolving or
+    // resolved. In every case the guaranteed fallback is no longer needed.
+    this.dropResolutionBackstop();
     if (
       this.resolvingSource === src &&
       this.resolveController &&
       !this.resolveController.signal.aborted &&
-      (this.resolvingPriority === "visible" || priority === "nearby")
+      (this.resolvingPriority === "visible" || priority !== "visible")
     ) {
       return;
     }
     if (
       this.resolvedSource === src &&
-      (this.resolvedPriority === "visible" || priority === "nearby")
+      (this.resolvedPriority === "visible" || priority !== "visible")
     ) {
       return;
     }
