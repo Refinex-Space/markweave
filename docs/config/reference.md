@@ -1,6 +1,6 @@
 ---
 owner: refinex
-updated: 2026-07-30
+updated: 2026-08-11
 status: active
 referenced_by: AGENTS.md#knowledge-map
 ---
@@ -54,6 +54,14 @@ The adapter packages build with Vite library mode:
 - `packages/markweave-vue3` outputs `@markweave/vue3` from `src/index.ts`.
 
 Adapter packages externalize `markweave`, `markweave/internal/*`, their Tiptap framework adapter, and the host framework runtime.
+
+### Tiptap Runtime Alignment
+
+All published `@tiptap/*` runtime dependencies are pinned to the same exact version (`3.29.2` for Markweave `0.7.2`). Markweave's direct `prosemirror-model`, `prosemirror-state`, and `prosemirror-view` dependencies are also pinned to the versions resolved by that Tiptap suite. This prevents npm consumers from installing multiple Tiptap or ProseMirror runtimes when an adapter package and `markweave` are installed together.
+
+Framework adapter builds bundle their Tiptap `*/menus` subpath while keeping the main framework adapter external. This preserves one host-owned Tiptap runtime and avoids exposing package `exports` subpaths to legacy bundlers such as Webpack 4.
+
+Hosts that define custom editor extensions must import `@tiptap/core` and `@tiptap/pm` from the same resolved runtime version. The package-boundary test rejects release metadata that introduces a different Tiptap version or a semver range in any publishable package.
 
 Every publishable package defines `prepack: pnpm run build`. `pnpm pack` and `pnpm publish` therefore remove and regenerate that package's ignored `dist` directory before npm reads `files`; publishing a previously generated `dist` without rebuilding is not a supported path.
 
