@@ -115,6 +115,7 @@ describe("markweave internal link card", () => {
         ...relativeInternalLink,
         resolve: () => ({
           title: "Alpha",
+          description: "First paragraph of the document body for preview.",
           subtitle: "notes/a.md",
           exists: false,
         }),
@@ -132,6 +133,9 @@ describe("markweave internal link card", () => {
     expect(
       card?.querySelector(".markweave-internal-link-card-title")?.textContent,
     ).toBe("Alpha");
+    expect(
+      card?.querySelector(".markweave-internal-link-card-description")?.textContent,
+    ).toBe("First paragraph of the document body for preview.");
     expect(
       card?.querySelector(".markweave-internal-link-card-path")?.textContent,
     ).toBe("notes/a.md");

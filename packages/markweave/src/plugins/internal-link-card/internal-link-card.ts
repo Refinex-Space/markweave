@@ -11,7 +11,12 @@ import { Decoration, DecorationSet, type EditorView } from "@tiptap/pm/view";
 export interface MarkweaveInternalLinkCardMeta {
   /** Overrides the displayed title (defaults to the link text). */
   readonly title?: string | null;
-  /** Secondary line, e.g. a workspace-relative path or breadcrumb. */
+  /**
+   * Short body preview shown under the title (about two lines). Prefer plain
+   * text without frontmatter / Markdown chrome.
+   */
+  readonly description?: string | null;
+  /** Accent path line, e.g. a workspace-relative path. */
   readonly subtitle?: string | null;
   /** Icon hint exposed as `data-icon-name` for host CSS theming. */
   readonly iconName?: string | null;
@@ -123,9 +128,25 @@ function applyCardMeta(
     root.dataset.exists = "true";
   }
 
+  const description =
+    typeof meta.description === "string" ? meta.description.trim() : "";
+  let descriptionEl = copyEl.querySelector<HTMLElement>(
+    ".markweave-internal-link-card-description",
+  );
+  if (description) {
+    if (!descriptionEl) {
+      descriptionEl = document.createElement("span");
+      descriptionEl.className = "markweave-internal-link-card-description";
+      const pathEl = copyEl.querySelector(".markweave-internal-link-card-path");
+      copyEl.insertBefore(descriptionEl, pathEl);
+    }
+    descriptionEl.textContent = description;
+  } else if (descriptionEl) {
+    descriptionEl.remove();
+  }
+
   const subtitle = typeof meta.subtitle === "string" ? meta.subtitle.trim() : "";
   if (subtitle) {
-    // Prefer the host-resolved workspace path over the raw href for the accent line.
     const pathEl = copyEl.querySelector<HTMLElement>(
       ".markweave-internal-link-card-path",
     );
@@ -137,8 +158,8 @@ function applyCardMeta(
 
 /**
  * Builds a full-width card that mirrors the external link-card layout: copy on
- * the left (title + path) and a document media panel on the right. Storage is
- * unchanged — this element is only a decoration widget.
+ * the left (title + description + path) and a document media panel on the right.
+ * Storage is unchanged — this element is only a decoration widget.
  */
 function createCardElement(
   target: InternalLinkCardTarget,

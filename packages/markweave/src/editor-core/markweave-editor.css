@@ -1559,6 +1559,13 @@
 }
 
 .markweave-editor-frame p[data-internal-link-card="true"] {
+  /* Widget cards live inside the paragraph; absolute stretch forces full
+     content width even when ProseMirror treats the widget as shrink-to-fit. */
+  position: relative;
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  min-height: var(--markweave-internal-link-card-height, 118px);
   margin: 1.05em 0;
 }
 
@@ -1566,11 +1573,23 @@
   display: none;
 }
 
+.markweave-editor-frame p[data-internal-link-card="true"] > .markweave-internal-link-card {
+  position: absolute;
+  inset-inline: 0;
+  top: 0;
+  width: 100%;
+  max-width: 100%;
+  min-width: 100%;
+  box-sizing: border-box;
+}
+
 .markweave-internal-link-card {
   --markweave-internal-link-card-height: 118px;
   position: relative;
   display: block;
   width: 100%;
+  max-width: 100%;
+  min-width: 0;
   height: var(--markweave-internal-link-card-height);
   margin: 0;
   border: 1px solid var(--markweave-border);
@@ -1579,6 +1598,7 @@
   color: var(--markweave-text);
   text-decoration: none;
   overflow: hidden;
+  box-sizing: border-box;
   transition: border-color 0.15s ease, background 0.15s ease;
 }
 
@@ -1607,7 +1627,6 @@
 }
 
 .markweave-internal-link-card-title,
-.markweave-internal-link-card-subtitle,
 .markweave-internal-link-card-path {
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1621,9 +1640,16 @@
   line-height: 1.3;
 }
 
-.markweave-internal-link-card-subtitle {
+.markweave-internal-link-card-description {
+  display: -webkit-box;
+  overflow: hidden;
   color: var(--markweave-text-muted);
   font: 14px/1.45 ui-sans-serif, system-ui, sans-serif;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  white-space: normal;
+  word-break: break-word;
 }
 
 .markweave-internal-link-card-path {
@@ -1661,13 +1687,18 @@
   color: var(--markweave-text-subtle);
 }
 
-.markweave-internal-link-card[data-exists="false"] .markweave-internal-link-card-path {
+.markweave-internal-link-card[data-exists="false"] .markweave-internal-link-card-path,
+.markweave-internal-link-card[data-exists="false"] .markweave-internal-link-card-description {
   color: var(--markweave-text-muted);
 }
 
 @media (max-width: 560px) {
   .markweave-internal-link-card {
     --markweave-internal-link-card-height: 102px;
+  }
+
+  .markweave-editor-frame p[data-internal-link-card="true"] {
+    min-height: var(--markweave-internal-link-card-height, 102px);
   }
 
   .markweave-internal-link-card-main {
