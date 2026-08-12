@@ -66,9 +66,6 @@ export const INTERNAL_LINK_CARD_ATTRIBUTE = "data-internal-link-card";
 export const INTERNAL_LINK_CARD_SELECTOR =
   "[data-markweave-internal-link-card='true']";
 
-const DOCUMENT_ICON_SVG =
-  '<svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M9 13h6"/><path d="M9 17h4"/></svg>';
-
 function getLinkHref(node: ProseMirrorNode): string | null {
   const mark = node.marks.find((candidate) => candidate.type.name === "link");
   const href = mark?.attrs.href;
@@ -192,17 +189,9 @@ function createCardElement(
   pathEl.textContent = target.href;
 
   copyEl.append(titleEl, pathEl);
-
-  const mediaEl = document.createElement("span");
-  mediaEl.className = "markweave-internal-link-card-media";
-  mediaEl.setAttribute("aria-hidden", "true");
-
-  const iconEl = document.createElement("b");
-  iconEl.className = "markweave-internal-link-card-icon";
-  iconEl.innerHTML = DOCUMENT_ICON_SVG;
-  mediaEl.appendChild(iconEl);
-
-  mainEl.append(copyEl, mediaEl);
+  // Single-column layout (title + fading preview + path). No media/cover panel —
+  // that affordance belongs to external link cards with real OG images.
+  mainEl.appendChild(copyEl);
   root.appendChild(mainEl);
 
   if (config.resolve) {
