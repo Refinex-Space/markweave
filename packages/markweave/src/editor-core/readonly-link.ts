@@ -13,6 +13,16 @@ export function openMarkweaveReadonlyLinkFromEvent(event: MouseEvent) {
     return false;
   }
 
+  // Host-owned projections (external link cards / internal document cards) must
+  // not open in a browser tab — the host intercepts those clicks itself.
+  if (
+    anchor.closest('[data-markweave-link-card="true"]') ||
+    anchor.closest('[data-markweave-internal-link-card="true"]')
+  ) {
+    event.preventDefault();
+    return true;
+  }
+
   const href = normalizeMarkdownLinkHref(anchor.getAttribute("href") ?? "");
   event.preventDefault();
 

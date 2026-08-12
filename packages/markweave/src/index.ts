@@ -158,6 +158,7 @@ export type {
 } from "./plugins/internal-link-card/internal-link-card";
 export {
   INTERNAL_LINK_CARD_ATTRIBUTE,
+  INTERNAL_LINK_CARD_SELECTOR,
   MarkweaveInternalLinkCard,
   markweaveInternalLinkCardPluginKey,
 } from "./plugins/internal-link-card/internal-link-card";

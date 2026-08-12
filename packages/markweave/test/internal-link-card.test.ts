@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { Editor } from "@tiptap/core";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { createMarkweaveEditorExtensions } from "../src/editor-core/create-editor-extensions";
 import {
   markweaveInternalLinkCardPluginKey,
@@ -133,8 +133,9 @@ describe("markweave internal link card", () => {
       card?.querySelector(".markweave-internal-link-card-title")?.textContent,
     ).toBe("Alpha");
     expect(
-      card?.querySelector(".markweave-internal-link-card-subtitle")?.textContent,
+      card?.querySelector(".markweave-internal-link-card-path")?.textContent,
     ).toBe("notes/a.md");
+    expect(card?.getAttribute("data-markweave-internal-link-card")).toBe("true");
   });
 
   it("keeps storage as plain Markdown regardless of the card projection", () => {
@@ -150,5 +151,34 @@ describe("markweave internal link card", () => {
     expect(paragraph?.firstChild?.marks.some((m) => m.type.name === "link")).toBe(
       true,
     );
+  });
+
+  it("consumes card clicks so ordinary link handlers cannot window.open", () => {
+    const editor = createEditor({
+      content: '<p><a href="notes/a.md">A</a></p><p>tail</p>',
+      internalLinkCard: relativeInternalLink,
+    });
+
+    editor.commands.setTextSelection(editor.state.doc.content.size);
+
+    const card = cardElement(editor);
+    expect(card).not.toBeNull();
+
+    const openSpy = vi.spyOn(window, "open").mockImplementation(() => null);
+    const event = new MouseEvent("click", {
+      bubbles: true,
+      cancelable: true,
+      ctrlKey: true,
+    });
+    Object.defineProperty(event, "target", { value: card });
+
+    const handled = editor.view.someProp("handleClick", (handler) =>
+      handler(editor.view, 1, event),
+    );
+
+    expect(handled).toBe(true);
+    expect(event.defaultPrevented).toBe(true);
+    expect(openSpy).not.toHaveBeenCalled();
+    openSpy.mockRestore();
   });
 });

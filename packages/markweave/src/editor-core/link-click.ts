@@ -7,7 +7,13 @@ function getOrdinaryLinkTarget(event: MouseEvent) {
   if (!(target instanceof Element)) return null;
 
   const anchor = target.closest<HTMLAnchorElement>("a[href]");
-  return anchor && !anchor.closest('[data-markweave-link-card="true"]') ? anchor : null;
+  // External link cards and host-driven internal document cards own their own
+  // navigation; never fall through to window.open for those.
+  return anchor &&
+    !anchor.closest('[data-markweave-link-card="true"]') &&
+    !anchor.closest('[data-markweave-internal-link-card="true"]')
+    ? anchor
+    : null;
 }
 
 /**

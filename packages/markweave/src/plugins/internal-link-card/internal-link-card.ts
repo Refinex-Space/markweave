@@ -58,9 +58,11 @@ export const markweaveInternalLinkCardPluginKey = new PluginKey(
 );
 
 export const INTERNAL_LINK_CARD_ATTRIBUTE = "data-internal-link-card";
+export const INTERNAL_LINK_CARD_SELECTOR =
+  "[data-markweave-internal-link-card='true']";
 
 const DOCUMENT_ICON_SVG =
-  '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M9 13h6"/><path d="M9 17h4"/></svg>';
+  '<svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M9 13h6"/><path d="M9 17h4"/></svg>';
 
 function getLinkHref(node: ProseMirrorNode): string | null {
   const mark = node.marks.find((candidate) => candidate.type.name === "link");
@@ -99,7 +101,7 @@ function readInternalLinkTarget(
 function applyCardMeta(
   root: HTMLElement,
   titleEl: HTMLElement,
-  bodyEl: HTMLElement,
+  copyEl: HTMLElement,
   meta: MarkweaveInternalLinkCardMeta | null,
 ) {
   if (!meta) {
@@ -123,18 +125,21 @@ function applyCardMeta(
 
   const subtitle = typeof meta.subtitle === "string" ? meta.subtitle.trim() : "";
   if (subtitle) {
-    let subtitleEl = bodyEl.querySelector<HTMLElement>(
-      ".markweave-internal-link-card-subtitle",
+    // Prefer the host-resolved workspace path over the raw href for the accent line.
+    const pathEl = copyEl.querySelector<HTMLElement>(
+      ".markweave-internal-link-card-path",
     );
-    if (!subtitleEl) {
-      subtitleEl = document.createElement("span");
-      subtitleEl.className = "markweave-internal-link-card-subtitle";
-      bodyEl.appendChild(subtitleEl);
+    if (pathEl) {
+      pathEl.textContent = subtitle;
     }
-    subtitleEl.textContent = subtitle;
   }
 }
 
+/**
+ * Builds a full-width card that mirrors the external link-card layout: copy on
+ * the left (title + path) and a document media panel on the right. Storage is
+ * unchanged — this element is only a decoration widget.
+ */
 function createCardElement(
   target: InternalLinkCardTarget,
   config: MarkweaveInternalLinkCardConfig,
@@ -144,35 +149,52 @@ function createCardElement(
   root.setAttribute("href", target.href);
   root.setAttribute("contenteditable", "false");
   root.setAttribute("role", "link");
+  root.setAttribute("data-markweave-internal-link-card", "true");
   root.dataset.cardFrom = String(target.from);
+  // Host navigation only — never let the browser follow a relative .md href.
+  root.addEventListener("click", (event) => {
+    event.preventDefault();
+  });
 
-  const iconEl = document.createElement("span");
-  iconEl.className = "markweave-internal-link-card-icon";
-  iconEl.setAttribute("aria-hidden", "true");
-  iconEl.innerHTML = DOCUMENT_ICON_SVG;
+  const mainEl = document.createElement("span");
+  mainEl.className = "markweave-internal-link-card-main";
 
-  const bodyEl = document.createElement("span");
-  bodyEl.className = "markweave-internal-link-card-body";
+  const copyEl = document.createElement("span");
+  copyEl.className = "markweave-internal-link-card-copy";
 
-  const titleEl = document.createElement("span");
+  const titleEl = document.createElement("strong");
   titleEl.className = "markweave-internal-link-card-title";
   titleEl.textContent = target.title;
 
-  bodyEl.appendChild(titleEl);
-  root.append(iconEl, bodyEl);
+  const pathEl = document.createElement("small");
+  pathEl.className = "markweave-internal-link-card-path";
+  pathEl.textContent = target.href;
+
+  copyEl.append(titleEl, pathEl);
+
+  const mediaEl = document.createElement("span");
+  mediaEl.className = "markweave-internal-link-card-media";
+  mediaEl.setAttribute("aria-hidden", "true");
+
+  const iconEl = document.createElement("b");
+  iconEl.className = "markweave-internal-link-card-icon";
+  iconEl.innerHTML = DOCUMENT_ICON_SVG;
+  mediaEl.appendChild(iconEl);
+
+  mainEl.append(copyEl, mediaEl);
+  root.appendChild(mainEl);
 
   if (config.resolve) {
-    const controller = new AbortController();
     Promise.resolve(
       config.resolve({
         href: target.href,
         title: target.title,
-        signal: controller.signal,
+        signal: new AbortController().signal,
       }),
     )
       .then((meta) => {
         if (root.isConnected) {
-          applyCardMeta(root, titleEl, bodyEl, meta);
+          applyCardMeta(root, titleEl, copyEl, meta);
         }
       })
       .catch(() => {
@@ -247,37 +269,36 @@ function handleInternalLinkCardClick(
     return false;
   }
 
-  const card = target.closest<HTMLElement>(".markweave-internal-link-card");
+  const card = target.closest<HTMLElement>(INTERNAL_LINK_CARD_SELECTOR);
   if (!card) {
     return false;
   }
 
-  // Modifier clicks are reserved for host navigation (the card is an <a href>).
-  if (event.metaKey || event.ctrlKey) {
-    return false;
+  // Never allow the browser to follow a relative workspace href. Host apps open
+  // the document themselves (Madora via capture). Alt+click in live mode drops
+  // into the underlying Markdown link for editing.
+  event.preventDefault();
+
+  if (view.editable && event.altKey) {
+    const from = Number(card.dataset.cardFrom);
+    if (!Number.isFinite(from)) {
+      return true;
+    }
+
+    const node = view.state.doc.nodeAt(from);
+    if (!node || node.type.name !== "paragraph") {
+      return true;
+    }
+
+    const caret = from + node.nodeSize - 1;
+    view.dispatch(
+      view.state.tr
+        .setSelection(TextSelection.create(view.state.doc, caret))
+        .scrollIntoView(),
+    );
+    view.focus();
   }
 
-  if (!view.editable) {
-    return false;
-  }
-
-  const from = Number(card.dataset.cardFrom);
-  if (!Number.isFinite(from)) {
-    return false;
-  }
-
-  const node = view.state.doc.nodeAt(from);
-  if (!node || node.type.name !== "paragraph") {
-    return false;
-  }
-
-  const caret = from + node.nodeSize - 1;
-  view.dispatch(
-    view.state.tr
-      .setSelection(TextSelection.create(view.state.doc, caret))
-      .scrollIntoView(),
-  );
-  view.focus();
   return true;
 }
 

@@ -1558,23 +1558,27 @@
   color: var(--markweave-text);
 }
 
+.markweave-editor-frame p[data-internal-link-card="true"] {
+  margin: 1.05em 0;
+}
+
 .markweave-editor-frame p[data-internal-link-card="true"] > a.markweave-link {
   display: none;
 }
 
 .markweave-internal-link-card {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  max-width: 100%;
-  margin: 2px 0;
-  padding: 8px 12px;
+  --markweave-internal-link-card-height: 118px;
+  position: relative;
+  display: block;
+  width: 100%;
+  height: var(--markweave-internal-link-card-height);
+  margin: 0;
   border: 1px solid var(--markweave-border);
-  border-radius: 8px;
+  border-radius: 10px;
   background: var(--markweave-surface);
   color: var(--markweave-text);
   text-decoration: none;
-  line-height: 1.35;
+  overflow: hidden;
   transition: border-color 0.15s ease, background 0.15s ease;
 }
 
@@ -1583,46 +1587,97 @@
   background: var(--markweave-surface-raised);
 }
 
-.markweave-internal-link-card-icon {
-  display: inline-flex;
-  flex: 0 0 auto;
-  color: var(--markweave-focus);
+.markweave-internal-link-card-main {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(140px, 28%);
+  width: 100%;
+  height: 100%;
+  color: inherit;
+  text-decoration: none;
+  overflow: hidden;
+  border-radius: inherit;
 }
 
-.markweave-internal-link-card-body {
-  display: inline-flex;
-  flex-direction: column;
+.markweave-internal-link-card-copy {
+  display: grid;
+  align-content: center;
+  gap: 6px;
   min-width: 0;
-  gap: 1px;
+  padding: 14px 18px;
+}
+
+.markweave-internal-link-card-title,
+.markweave-internal-link-card-subtitle,
+.markweave-internal-link-card-path {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .markweave-internal-link-card-title {
-  overflow: hidden;
   color: var(--markweave-text);
-  font-weight: 500;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.3;
 }
 
 .markweave-internal-link-card-subtitle {
-  overflow: hidden;
   color: var(--markweave-text-muted);
-  font-size: 12px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  font: 14px/1.45 ui-sans-serif, system-ui, sans-serif;
+}
+
+.markweave-internal-link-card-path {
+  color: var(--markweave-focus);
+  font: 13px/1.3 ui-sans-serif, system-ui, sans-serif;
+}
+
+.markweave-internal-link-card-media {
+  display: grid;
+  place-items: center;
+  min-width: 0;
+  height: 100%;
+  background: var(--markweave-surface-muted);
+  color: var(--markweave-focus);
+  overflow: hidden;
+}
+
+.markweave-internal-link-card-icon {
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  border-radius: 12px;
+  background: var(--markweave-surface);
+  color: inherit;
+  box-shadow: inset 0 0 0 1px var(--markweave-border);
 }
 
 .markweave-internal-link-card[data-exists="false"] {
   border-style: dashed;
-  border-color: var(--markweave-border-strong);
 }
 
-.markweave-internal-link-card[data-exists="false"] .markweave-internal-link-card-icon,
-.markweave-internal-link-card[data-exists="false"] .markweave-internal-link-card-title {
+.markweave-internal-link-card[data-exists="false"] .markweave-internal-link-card-title,
+.markweave-internal-link-card[data-exists="false"] .markweave-internal-link-card-media {
   color: var(--markweave-text-subtle);
 }
 
+.markweave-internal-link-card[data-exists="false"] .markweave-internal-link-card-path {
+  color: var(--markweave-text-muted);
+}
+
 @media (max-width: 560px) {
+  .markweave-internal-link-card {
+    --markweave-internal-link-card-height: 102px;
+  }
+
+  .markweave-internal-link-card-main {
+    grid-template-columns: 1fr;
+  }
+
+  .markweave-internal-link-card-media {
+    display: none;
+  }
+
   .markweave-link-card {
     --markweave-link-card-height: 102px;
   }
