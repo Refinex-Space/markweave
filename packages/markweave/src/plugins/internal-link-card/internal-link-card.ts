@@ -148,15 +148,24 @@ function applyCardMeta(
       ".markweave-internal-link-card-path",
     );
     if (pathEl) {
-      pathEl.textContent = subtitle;
+      pathEl.textContent = decodeDisplayPath(subtitle);
+      pathEl.hidden = false;
     }
   }
 }
 
+function decodeDisplayPath(value: string): string {
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return value;
+  }
+}
+
 /**
- * Builds a full-width card that mirrors the external link-card layout: copy on
- * the left (title + description + path) and a document media panel on the right.
- * Storage is unchanged — this element is only a decoration widget.
+ * Builds a full-width card that mirrors the external link-card copy layout:
+ * title, fading body preview, and workspace path. Storage is unchanged — this
+ * element is only a decoration widget placed after the source paragraph.
  */
 function createCardElement(
   target: InternalLinkCardTarget,
@@ -186,11 +195,12 @@ function createCardElement(
 
   const pathEl = document.createElement("small");
   pathEl.className = "markweave-internal-link-card-path";
-  pathEl.textContent = target.href;
+  // Prefer host-resolved workspace path via resolve(); avoid showing a
+  // document-relative href (often just the bare filename) as the final label.
+  pathEl.textContent = "";
 
   copyEl.append(titleEl, pathEl);
-  // Single-column layout (title + fading preview + path). No media/cover panel —
-  // that affordance belongs to external link cards with real OG images.
+  // Single-column layout (title + fading preview + path). No media/cover panel.
   mainEl.appendChild(copyEl);
   root.appendChild(mainEl);
 
@@ -252,9 +262,12 @@ function buildInternalLinkCardDecorations(
         [INTERNAL_LINK_CARD_ATTRIBUTE]: "true",
       }),
     );
+    // Place the card AFTER the paragraph so it participates as a block-level
+    // sibling (same width model as external link-card nodes). Inside-paragraph
+    // widgets shrink-to-fit and leave a fake "right gutter".
     decorations.push(
       Decoration.widget(
-        target.from + 1,
+        target.to,
         () => createCardElement(target, config),
         {
           key: `markweave-internal-link-card-${target.from}-${target.href}`,

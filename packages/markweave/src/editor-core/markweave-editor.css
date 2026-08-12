@@ -1559,28 +1559,20 @@
 }
 
 .markweave-editor-frame p[data-internal-link-card="true"] {
-  /* Widget cards live inside the paragraph; absolute stretch forces full
-     content width even when ProseMirror treats the widget as shrink-to-fit. */
-  position: relative;
-  display: block;
-  width: 100%;
-  max-width: 100%;
-  min-height: var(--markweave-internal-link-card-height, 96px);
-  margin: 1.05em 0;
+  /* Source paragraph is projected as a following block widget; collapse it so
+     only the full-width card is visible. */
+  height: 0 !important;
+  min-height: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  overflow: hidden !important;
+  opacity: 0;
+  pointer-events: none;
 }
 
 .markweave-editor-frame p[data-internal-link-card="true"] > a.markweave-link {
   display: none;
-}
-
-.markweave-editor-frame p[data-internal-link-card="true"] > .markweave-internal-link-card {
-  position: absolute;
-  inset-inline: 0;
-  top: 0;
-  width: 100%;
-  max-width: 100%;
-  min-width: 100%;
-  box-sizing: border-box;
 }
 
 .markweave-internal-link-card {
@@ -1591,7 +1583,7 @@
   max-width: 100%;
   min-width: 0;
   height: var(--markweave-internal-link-card-height);
-  margin: 0;
+  margin: 1.05em 0;
   border: 1px solid var(--markweave-border);
   border-radius: 10px;
   background: var(--markweave-surface);
@@ -1621,6 +1613,7 @@
   display: grid;
   align-content: center;
   gap: 6px;
+  width: 100%;
   min-width: 0;
   height: 100%;
   padding: 14px 18px;
@@ -1642,6 +1635,7 @@
 }
 
 .markweave-internal-link-card-description {
+  position: relative;
   display: block;
   overflow: hidden;
   max-height: 2.9em;
@@ -1649,26 +1643,38 @@
   font: 14px/1.45 ui-sans-serif, system-ui, sans-serif;
   white-space: normal;
   word-break: break-word;
-  /* Fade the preview out toward the bottom instead of a hard ellipsis cut. */
-  -webkit-mask-image: linear-gradient(
+}
+
+/* Overlay fade is more reliable than mask-image inside Tauri/WebKit. */
+.markweave-internal-link-card-description::after {
+  content: "";
+  position: absolute;
+  inset-inline: 0;
+  bottom: 0;
+  height: 1.45em;
+  pointer-events: none;
+  background: linear-gradient(
     to bottom,
-    #000 0%,
-    #000 48%,
-    rgba(0, 0, 0, 0.55) 72%,
-    transparent 100%
+    color-mix(in oklab, var(--markweave-surface) 0%, transparent),
+    var(--markweave-surface)
   );
-  mask-image: linear-gradient(
+}
+
+.markweave-internal-link-card:hover .markweave-internal-link-card-description::after {
+  background: linear-gradient(
     to bottom,
-    #000 0%,
-    #000 48%,
-    rgba(0, 0, 0, 0.55) 72%,
-    transparent 100%
+    color-mix(in oklab, var(--markweave-surface-raised) 0%, transparent),
+    var(--markweave-surface-raised)
   );
 }
 
 .markweave-internal-link-card-path {
   color: var(--markweave-focus);
   font: 13px/1.3 ui-sans-serif, system-ui, sans-serif;
+}
+
+.markweave-internal-link-card-path:empty {
+  display: none;
 }
 
 .markweave-internal-link-card[data-exists="false"] {
@@ -1687,10 +1693,6 @@
 @media (max-width: 560px) {
   .markweave-internal-link-card {
     --markweave-internal-link-card-height: 88px;
-  }
-
-  .markweave-editor-frame p[data-internal-link-card="true"] {
-    min-height: var(--markweave-internal-link-card-height, 88px);
   }
 
   .markweave-link-card {
