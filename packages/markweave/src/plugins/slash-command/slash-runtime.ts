@@ -1,12 +1,10 @@
 import type { Editor } from "@tiptap/core";
 import type { EditorState } from "@tiptap/pm/state";
+import { executeMarkweaveBuiltinCommand } from "../../commands/builtin-command-runtime";
 import { isEditorComposing } from "../../editor-core/composition-guard";
-import { insertMarkweaveBlockMath } from "../math/math-ui-model";
-import { focusFirstTableBodyCell } from "../table/table-focus-position";
 import { isExecutableSlashCommand, type SlashCommandSpec } from "./command-spec";
 import { initialSlashCommandState, reduceSlashCommandState, type SlashCommandState } from "./slash-state";
 import type { MarkweaveUploadResult } from "./upload";
-import { attrsFromMarkweaveAttachmentUploadResult } from "../media/attachment-download";
 
 export interface SlashCommandContext {
   readonly query: string;
@@ -344,119 +342,5 @@ export function executeSlashCommand(editor: Editor, state: SlashCommandState, co
 
   const deleteFrom = state.triggerFrom ?? editor.state.selection.from;
   const deleteTo = editor.state.selection.from;
-
-  switch (command.id) {
-    case "emoji":
-      if (!options.emoji) {
-        return false;
-      }
-      return editor.chain().focus().deleteRange({ from: deleteFrom, to: deleteTo }).insertContent(options.emoji).run();
-    default:
-      break;
-  }
-
-  const chain = editor.chain().focus().deleteRange({ from: deleteFrom, to: deleteTo });
-
-  switch (command.id) {
-    case "paragraph":
-      return chain.setParagraph().run();
-    case "heading-1":
-      return chain.toggleHeading({ level: 1 }).run();
-    case "heading-2":
-      return chain.toggleHeading({ level: 2 }).run();
-    case "heading-3":
-      return chain.toggleHeading({ level: 3 }).run();
-    case "bullet-list":
-      return chain.toggleBulletList().run();
-    case "ordered-list":
-      return chain.toggleOrderedList().run();
-    case "task-list":
-      return chain.toggleTaskList().run();
-    case "blockquote":
-      return chain.toggleBlockquote().run();
-    case "code-block":
-      return chain.setCodeBlock({ language: "text" }).run();
-    case "separator":
-      return chain.setHorizontalRule().run();
-    case "block-math":
-      chain.run();
-      return insertMarkweaveBlockMath(editor, "x");
-    case "callout-info":
-    case "callout-tip":
-    case "callout-warning":
-    case "callout-error":
-    case "callout-success":
-      return chain
-        .insertContent({
-          type: "markweaveCallout",
-          attrs: {
-            type: command.calloutType ?? "info",
-          },
-          content: [{ type: "paragraph" }],
-        })
-        .run();
-    case "table": {
-      const inserted = chain.insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run();
-
-      if (inserted) {
-        focusFirstTableBodyCell(editor, { from: deleteFrom });
-      }
-
-      return inserted;
-    }
-    case "image":
-      return chain
-        .insertContent({
-          type: "image",
-          attrs: options.uploadResult
-            ? {
-                src: options.uploadResult.src,
-                alt: options.uploadResult.alt ?? options.uploadResult.name,
-                title: options.uploadResult.title,
-              }
-            : {
-                src: null,
-                align: "center",
-              },
-        })
-        .run();
-    case "video":
-      return chain
-        .insertContent({
-          type: "markweaveVideo",
-          attrs: options.uploadResult
-            ? {
-                src: options.uploadResult.src,
-                title: options.uploadResult.title ?? options.uploadResult.name,
-                mimeType: options.uploadResult.mimeType,
-              }
-            : {
-                src: null,
-              },
-        })
-        .run();
-    case "attachment": {
-      return chain
-        .insertContent({
-          type: "markweaveAttachment",
-          attrs: options.uploadResult
-            ? attrsFromMarkweaveAttachmentUploadResult(options.uploadResult)
-            : {
-                src: null,
-                name: null,
-                mimeType: null,
-                size: null,
-              },
-        })
-        .run();
-    }
-    case "mermaid":
-      return chain
-        .setCodeBlock({ language: "mermaid" })
-        .updateAttributes("codeBlock", { mermaidPreviewMode: "code" })
-        .insertContent("graph TD\n  A[Start] --> B[End]")
-        .run();
-    default:
-      return chain.run();
-  }
+  return executeMarkweaveBuiltinCommand(editor, command.id, { from: deleteFrom, to: deleteTo }, options);
 }

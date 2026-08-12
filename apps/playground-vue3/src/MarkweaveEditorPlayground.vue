@@ -3,6 +3,16 @@
     <div class="markweave-playground-toolbar" aria-label="Playground controls">
       <button
         type="button"
+        class="markweave-playground-command-toggle"
+        :disabled="!commandController || !isLiveMode"
+        aria-label="通过宿主工具栏执行通用命令"
+        title="通过宿主工具栏执行通用命令"
+        @click="runHostCommand"
+      >
+        Host
+      </button>
+      <button
+        type="button"
         class="markweave-playground-ai-edit-toggle"
         :disabled="!aiEditController || !isLiveMode"
         aria-label="运行宿主 AI 预编辑（请先选择文本）"
@@ -55,6 +65,11 @@
       :on-table-command-result="handleTableCommandResult"
       :on-table-copy-payload="handleTableCopyPayload"
       :on-ai-edit-controller-change="handleAiEditControllerChange"
+      :command-groups="playgroundCommandGroups"
+      :commands="playgroundHostCommands"
+      :editor-extensions="playgroundEditorExtensions"
+      :on-command-controller-change="handleCommandControllerChange"
+      :on-command-error="handleCommandError"
     />
 
     <details class="markweave-debug-panel">
@@ -70,6 +85,7 @@
       </div>
 
       <div v-if="lastAiEditStatus" class="markweave-debug-ai">Host AI edit: {{ lastAiEditStatus }}</div>
+      <div v-if="lastCommandStatus" class="markweave-debug-command">Host command: {{ lastCommandStatus }}</div>
 
       <div v-if="lastTableCopyPayload" class="markweave-debug-copy" data-testid="markweave-debug-copy">
         <div>Last table copy: {{ lastTableCopyPayload.kind }}</div>
@@ -110,6 +126,7 @@
 import { computed, ref } from "vue";
 import { Eye, Moon, PencilLine, Sparkles, Sun } from "lucide-vue-next";
 import {
+  createMarkweaveEditorExtensions,
   MarkweaveEditor,
   type MarkweaveAiEditController,
   type FloatingToolbarAssistantRequest,
@@ -118,6 +135,7 @@ import {
   type MarkweaveTheme,
   type MarkweaveEditorRuntimeSnapshot,
   type MarkweaveMenuCopyPayload,
+  type MarkweaveCommandController,
   type MarkweaveUploadRequest,
   type MarkweaveUploadResult,
   type TableCommandResult,
@@ -125,6 +143,8 @@ import {
 } from "@markweave/vue3";
 import {
   createPlaygroundUploadResult,
+  createPlaygroundHostCommands,
+  createPlaygroundHostExtension,
   downloadPlaygroundAttachment,
   initialPlaygroundDocument,
   largeDocumentPerformanceFixture,
@@ -133,11 +153,17 @@ import {
   largeValidMediaPerformanceFixture,
   mergedTablePlaygroundDocument,
   playgroundAskAiConfig,
+  playgroundCommandGroups,
   resolvePlaygroundLinkCard,
   resolvePlaygroundMediaSource,
   streamPlaygroundAiEditProposal,
   stressDocumentPerformanceFixture,
 } from "@markweave/playground-fixtures";
+
+const playgroundHostCommands = createPlaygroundHostCommands();
+const playgroundParagraphExtension = createMarkweaveEditorExtensions().find((extension) => extension.name === "paragraph");
+if (!playgroundParagraphExtension) throw new Error("The playground requires the paragraph extension.");
+const playgroundEditorExtensions = [createPlaygroundHostExtension(playgroundParagraphExtension)];
 
 const fixtureContent = ref(initialPlaygroundDocument);
 const fixtureFormat = ref<MarkweaveContentFormat>("markdown");
@@ -152,6 +178,8 @@ const lastFloatingToolbarAssistantRequest = ref<FloatingToolbarAssistantRequest 
 const lastSlashUploadRequest = ref<MarkweaveUploadRequest | null>(null);
 const aiEditController = ref<MarkweaveAiEditController | null>(null);
 const lastAiEditStatus = ref<string | null>(null);
+const commandController = ref<MarkweaveCommandController | null>(null);
+const lastCommandStatus = ref<string | null>(null);
 
 const isLiveMode = computed(() => editorMode.value === "live");
 const modeIcon = computed(() => (isLiveMode.value ? Eye : PencilLine));
@@ -185,6 +213,19 @@ function toggleTheme() {
 
 function handleAiEditControllerChange(controller: MarkweaveAiEditController | null) {
   aiEditController.value = controller;
+}
+
+function handleCommandControllerChange(controller: MarkweaveCommandController | null) {
+  commandController.value = controller;
+}
+
+function handleCommandError(error: { readonly code: string; readonly message: string }) {
+  lastCommandStatus.value = `${error.code}: ${error.message}`;
+}
+
+async function runHostCommand() {
+  const result = await commandController.value?.execute("playground.host.insert-status");
+  if (result) lastCommandStatus.value = result.ok ? result.outcome : `${result.code}: ${result.message}`;
 }
 
 async function runHostAiEdit() {

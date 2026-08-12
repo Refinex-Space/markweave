@@ -618,7 +618,7 @@ describe("slash command runtime", () => {
     expect(tableShape(editor)).toEqual([]);
   });
 
-  it("models slash keyboard intent for Escape, arrows, Enter, and Tab", () => {
+  it("models slash keyboard intent for Escape, arrows, Home/End, Enter, and Tab", () => {
     const editor = createEditor("<p>/table</p>");
     expect(editor.commands.setTextSelection(textPosition(editor, "/table"))).toBe(true);
     const state = getNextSlashCommandState(initialSlashCommandState, getSlashCommandContext(editor.state));
@@ -637,6 +637,16 @@ describe("slash command runtime", () => {
     expect(getSlashCommandKeyboardAction(state, commands, "ArrowUp")).toEqual({
       type: "move-active",
       delta: -1,
+      optionCount: commands.length,
+    });
+    expect(getSlashCommandKeyboardAction(state, commands, "Home")).toEqual({
+      type: "set-active",
+      index: 0,
+      optionCount: commands.length,
+    });
+    expect(getSlashCommandKeyboardAction(state, commands, "End")).toEqual({
+      type: "set-active",
+      index: commands.length - 1,
       optionCount: commands.length,
     });
 

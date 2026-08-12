@@ -12,6 +12,7 @@ const externalPackages = [
   "react",
   "react-dom",
 ];
+const bundledAdapterSubpaths = new Set(["@tiptap/react/menus"]);
 
 export default defineConfig({
   plugins: [react()],
@@ -22,7 +23,8 @@ export default defineConfig({
       fileName: () => "index.js",
     },
     rollupOptions: {
-      external: (id) => externalPackages.some((packageName) => id === packageName || id.startsWith(`${packageName}/`)),
+      external: (id) => !bundledAdapterSubpaths.has(id)
+        && externalPackages.some((packageName) => id === packageName || id.startsWith(`${packageName}/`)),
     },
   },
 });

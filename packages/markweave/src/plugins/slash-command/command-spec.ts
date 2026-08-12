@@ -1,34 +1,25 @@
 import type { MarkweaveCalloutType } from "../callout/callout-node";
 import { getLocalizedSlashCommandSpecs } from "../../i18n";
+import type {
+  MarkweaveBuiltinCommandIconName,
+  MarkweaveCommandIcon,
+  MarkweaveResolvedCommand,
+} from "../../commands/command-types";
 
 export type SlashCommandGroup = string;
 export type SlashCommandCategory = "structure" | "callout" | "insert" | "table" | "upload" | "ai";
 export type SlashCommandExecutionKind = "editor" | "external-ai";
 export type SlashCommandInputKind = "emoji" | "upload";
-export type SlashCommandIconName =
-  | "type"
-  | "heading-1"
-  | "heading-2"
-  | "heading-3"
-  | "bullet-list"
-  | "ordered-list"
-  | "task-list"
-  | "blockquote"
-  | "code-block"
-  | "info"
-  | "tip"
-  | "warning"
-  | "error"
-  | "success"
-  | "emoji"
-  | "math"
-  | "table"
-  | "separator"
-  | "image"
-  | "video"
-  | "attachment";
+export type SlashCommandIconName = MarkweaveBuiltinCommandIconName;
+export type SlashCommandIcon = SlashCommandIconName | MarkweaveCommandIcon;
 
 export type SlashCommandUploadKind = "image" | "video" | "attachment";
+
+export function getSlashCommandTextIconLength(icon: SlashCommandIcon) {
+  return typeof icon !== "string" && icon.kind === "text"
+    ? Math.min(4, Math.max(1, Array.from(icon.text.trim()).length))
+    : null;
+}
 
 export interface SlashCommandSpec {
   readonly id: string;
@@ -37,8 +28,11 @@ export interface SlashCommandSpec {
   readonly group: SlashCommandGroup;
   readonly category: SlashCommandCategory;
   readonly executionKind: SlashCommandExecutionKind;
-  readonly icon: SlashCommandIconName;
+  readonly icon: SlashCommandIcon;
   readonly searchTerms: readonly string[];
+  readonly groupId?: string;
+  readonly groupOrder?: number;
+  readonly order?: number;
   readonly calloutType?: MarkweaveCalloutType;
   readonly inputKind?: SlashCommandInputKind;
   readonly uploadKind?: SlashCommandUploadKind;
@@ -134,6 +128,34 @@ export { getLocalizedSlashCommandSpecs };
 export const editorSlashCommandSpecs: readonly SlashCommandSpec[] = getLocalizedSlashCommandSpecs("zh");
 
 export const defaultSlashCommandSpecs: readonly SlashCommandSpec[] = [...editorSlashCommandSpecs] as const;
+
+export function createResolvedSlashCommandSpecs(
+  commands: readonly MarkweaveResolvedCommand[],
+  lang: "zh" | "en" = "zh",
+): readonly SlashCommandSpec[] {
+  const builtinById = new Map(getLocalizedSlashCommandSpecs(lang).map((command) => [command.id, command]));
+  return commands.map((command) => {
+    const builtin = builtinById.get(command.id);
+    return Object.freeze({
+      id: command.id,
+      label: command.label,
+      description: command.description ?? "",
+      group: command.groupLabel,
+      groupId: command.groupId,
+      groupOrder: command.groupOrder,
+      order: command.order,
+      category: builtin?.category ?? "insert",
+      executionKind: "editor",
+      icon: command.icon ?? "type",
+      searchTerms: command.keywords,
+      calloutType: builtin?.calloutType,
+      inputKind: builtin?.inputKind,
+      uploadKind: builtin?.uploadKind,
+      disabled: !command.enabled,
+      disabledReason: command.disabledReason,
+    } satisfies SlashCommandSpec);
+  });
+}
 
 export function isExecutableSlashCommand(command: SlashCommandSpec) {
   return command.executionKind === "editor" && !command.disabled;

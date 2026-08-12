@@ -1,6 +1,6 @@
 ---
 owner: refinex
-updated: 2026-08-07
+updated: 2026-08-11
 status: active
 referenced_by: docs/README.md#knowledge-map
 ---
@@ -409,3 +409,24 @@ React receives the complete Markweave UI: floating toolbar, link popover, slash 
 - Do not allow arbitrary iframe hosts. Markweave only handles direct video plus supported YouTube/Bilibili embed forms.
 - Markweave is browser-oriented. In SSR frameworks, render the editor on the client side.
 - Safe View-mode links reject unsafe protocols such as `javascript:`, `data:`, and `vbscript:`.
+## Command Registry And Host Extensions
+
+Markweave 0.6.0 accepts `commandGroups`, `commands`, `builtinCommands`, and creation-time `editorExtensions`. Store the stable controller from `onCommandControllerChange` when host toolbar buttons must execute the same commands as Slash; teardown reports `null`. Registry props may change without rebuilding the Editor and cancel an active old handler. `editorExtensions` are schema-level and require a keyed remount when changed.
+
+```tsx
+<MarkweaveEditor
+  key={schemaVersion}
+  commandGroups={commandGroups}
+  commands={commands}
+  builtinCommands={{ exclude: ["video"] }}
+  editorExtensions={[DecisionFieldNode]}
+  onCommandControllerChange={setCommandController}
+  onCommandError={reportCommandError}
+/>
+```
+
+See [Command Registry And Host Extension Protocol](./command-extension-protocol.md) for ID validation, async results, placement, cancellation/conflicts, the 1 MiB cap, and Tiptap 3.27.x compatibility.
+
+## Protected Native Tables
+
+Markweave 0.7.0 accepts `tableCapabilities`. The synchronous resolver receives readonly table and ancestor descriptors and can disable Markweave-owned structure, formatting, copy, or table-AI paths for the active native table. Resolver failures fail closed. See [Host Table Capability Protocol](./table-capability-protocol.md).

@@ -1,6 +1,6 @@
 ---
 owner: refinex
-updated: 2026-08-07
+updated: 2026-08-11
 status: active
 referenced_by: AGENTS.md#knowledge-map
 ---
@@ -25,7 +25,7 @@ Markweave is a Markdown-first WYSIWYG editor package family. The workspace has e
 The core package root exports from `packages/markweave/src/index.ts` are framework-neutral:
 
 - `createMarkweaveEditorExtensions`
-- public update payload, editor mode, content format, lang, upload, TOC, and table-copy types
+- public update payload, editor mode, content format, lang, upload, TOC, table-copy, per-table capability resolver, Command Registry, Controller, command result/error, and host Extension types
 
 Framework adapters are exposed through adapter packages:
 
@@ -42,6 +42,11 @@ The built-in document outline is enabled by default with `innerToc={true}`. A Pr
 ## Editor Core
 
 `packages/markweave/src/editor-core/create-editor-extensions.ts` composes the framework-neutral Tiptap/ProseMirror extension set and accepts framework-specific media extensions from React, Vue 2, or Vue 3 adapters. The current extension boundary includes:
+
+The table capability policy is a synchronous, fail-closed host resolver that receives only readonly table and ancestor descriptors. The shared core applies it to Markweave-owned menu, keyboard, edge-add, drag, paste, formatting, copy, and table-AI paths; raw trusted-host Tiptap calls remain outside this UI contract.
+
+- host command protocol: `packages/markweave/src/commands` owns immutable Registry snapshots, the 21-command builtin inventory, predicates/search/sorting, one-per-editor Controller, async execution cancellation/conflict mapping, safe result validation, the fixed 1 MiB result cap, and atomic result application; adapters only bridge props, DOM, icons, accessibility, and lifecycle callbacks
+- advanced extension boundary: `editorExtensions` appends trusted host extensions after all builtins and framework media/LinkCard extensions; the core factory flattens StarterKit children and rejects duplicate names before Editor creation, while runtime array changes require a keyed remount
 
 - core editing: StarterKit, composition guard, mark boundary, indent, text style, color, underline, highlight, links, math, emoji
 - blocks and media: code blocks through lowlight, callouts, images, videos, attachments, horizontal rules, task lists

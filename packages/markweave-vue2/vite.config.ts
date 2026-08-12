@@ -9,6 +9,7 @@ const externalPackages = [
   "markweave",
   "vue",
 ];
+const bundledAdapterSubpaths = new Set(["@tiptap/vue-2/menus"]);
 
 export default defineConfig({
   build: {
@@ -18,7 +19,8 @@ export default defineConfig({
       fileName: () => "index.js",
     },
     rollupOptions: {
-      external: (id) => externalPackages.some((packageName) => id === packageName || id.startsWith(`${packageName}/`)),
+      external: (id) => !bundledAdapterSubpaths.has(id)
+        && externalPackages.some((packageName) => id === packageName || id.startsWith(`${packageName}/`)),
     },
   },
 });

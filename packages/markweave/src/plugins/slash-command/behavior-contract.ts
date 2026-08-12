@@ -5,6 +5,7 @@ export const slashCommandLifecycle = [
   "show-empty-menu-without-execution",
   "arrow-key-active-option",
   "arrow-key-scroll-active-option-into-view",
+  "home-end-first-last-option",
   "hover-focus-active-option",
   "enter-executes-active-command",
   "tab-executes-active-command",
@@ -18,6 +19,10 @@ export const slashCommandLifecycle = [
   "reposition-on-scroll-and-resize",
   "close-when-trigger-leaves-visible-editor",
   "remove-query-range-only",
+  "shared-registry-groups-builtins-and-host-commands",
+  "async-command-busy-cancel-conflict-and-safe-error",
+  "delete-query-only-after-successful-atomic-apply",
+  "combobox-listbox-option-live-region-aria",
 ] as const;
 
 export type SlashCommandLifecycleStep = (typeof slashCommandLifecycle)[number];

@@ -10,6 +10,7 @@ import {
   MarkweaveEditor,
   useMarkweaveEditorController,
   type MarkweaveAiEditController,
+  type MarkweaveCommandController,
   type MarkweaveContentFormat,
   type MarkweaveEditorController,
   type MarkweaveEditorMode,
@@ -93,7 +94,7 @@ describe("editor entrypoint boundary", () => {
         version?: string;
       };
 
-      expect(packageJson.version).toBe("0.5.3");
+      expect(packageJson.version).toBe("0.7.2");
       expect(packageJson.homepage).toBe(homepageUrl);
       expect(packageJson.bugs).toEqual({ url: bugsUrl });
       expect(packageJson.repository).toEqual({
@@ -169,6 +170,11 @@ describe("editor entrypoint boundary", () => {
     expect(indexSource).toContain("formatMarkweaveAttachmentSize");
     expect(indexSource).toContain("openMarkweaveAttachmentFallbackDownload");
     expect(indexSource).toContain("MarkweaveUploadProgress");
+    expect(indexSource).toContain("createMarkweaveCommandRegistry");
+    expect(indexSource).toContain("markweaveBuiltinCommandIds");
+    expect(indexSource).toContain("MarkweaveCommandController");
+    expect(indexSource).toContain("MarkweaveCommandExecutionResult");
+    expect(indexSource).toContain("markweaveCommandResultMaxBytes");
     expect(indexSource).not.toContain("runMarkweaveAskAiHandler");
     expect(reactShim).toContain('from "@markweave/react"');
     expect(vue2Shim).toContain('from "@markweave/vue2"');
@@ -198,6 +204,11 @@ describe("editor entrypoint boundary", () => {
     expect(vue3IndexSource).toContain("MarkweaveAiEditSelectionSnapshot");
     expect(vue3IndexSource).toContain("MarkweaveAttachmentRef");
     expect(vue3IndexSource).toContain("MarkweaveAttachmentDownloadHandler");
+    for (const source of [reactIndexSource, vue2IndexSource, vue3IndexSource]) {
+      expect(source).toContain("MarkweaveCommandController");
+      expect(source).toContain("MarkweaveCommandSpec");
+      expect(source).toContain("MarkweaveCommandGroupSpec");
+    }
 
     const defaultFormat: MarkweaveContentFormat = "markdown";
     const tocState: MarkweaveTocState = { activeId: null, items: [] };
@@ -271,19 +282,19 @@ describe("editor entrypoint boundary", () => {
     };
     const publishedCoreDependency = `^${corePackage.version}`;
 
-    expect(reactPackage.dependencies).toEqual(expect.objectContaining({ markweave: "workspace:^", "@tiptap/react": "^3.27.1" }));
+    expect(reactPackage.dependencies).toEqual(expect.objectContaining({ markweave: "workspace:^", "@tiptap/react": "3.29.2" }));
     expect(publishedCoreDependency).toBe(`^${corePackage.version}`);
     expect(reactPackage.peerDependencies).toEqual({ react: "^18.2.0 || ^19.0.0", "react-dom": "^18.2.0 || ^19.0.0" });
     expect(reactPackage.dependencies).not.toHaveProperty("@tiptap/vue-2");
     expect(reactPackage.dependencies).not.toHaveProperty("@tiptap/vue-3");
 
-    expect(vue2Package.dependencies).toEqual(expect.objectContaining({ markweave: "workspace:^", "@tiptap/vue-2": "3.27.1" }));
+    expect(vue2Package.dependencies).toEqual(expect.objectContaining({ markweave: "workspace:^", "@tiptap/vue-2": "3.29.2" }));
     expect(publishedCoreDependency).toBe(`^${corePackage.version}`);
     expect(vue2Package.peerDependencies).toEqual({ vue: "^2.6.12" });
     expect(vue2Package.dependencies).not.toHaveProperty("@tiptap/react");
     expect(vue2Package.dependencies).not.toHaveProperty("@tiptap/vue-3");
 
-    expect(vue3Package.dependencies).toEqual(expect.objectContaining({ markweave: "workspace:^", "@tiptap/vue-3": "^3.27.1" }));
+    expect(vue3Package.dependencies).toEqual(expect.objectContaining({ markweave: "workspace:^", "@tiptap/vue-3": "3.29.2" }));
     expect(publishedCoreDependency).toBe(`^${corePackage.version}`);
     expect(vue3Package.peerDependencies).toEqual({ vue: "^3.3.0" });
     expect(vue3Package.dependencies).not.toHaveProperty("@tiptap/react");
@@ -301,6 +312,131 @@ describe("editor entrypoint boundary", () => {
       expect(source).toContain("createMarkweaveCoreEditorExtensions");
       expect(source).toContain("onImageUpload: options.onImageUpload");
     }
+  });
+
+  it("bundles adapter menu subpaths for legacy bundler compatibility", () => {
+    const adapterConfigs = [
+      ["packages/markweave-react/vite.config.ts", "@tiptap/react/menus"],
+      ["packages/markweave-vue2/vite.config.ts", "@tiptap/vue-2/menus"],
+      ["packages/markweave-vue3/vite.config.ts", "@tiptap/vue-3/menus"],
+    ] as const;
+
+    for (const [path, menuSubpath] of adapterConfigs) {
+      const source = readWorkspaceFile(path);
+      expect(source).toContain(`const bundledAdapterSubpaths = new Set(["${menuSubpath}"])`);
+      expect(source).toContain("!bundledAdapterSubpaths.has(id)");
+    }
+  });
+
+  it("pins the published Tiptap dependency suite to one runtime version", () => {
+    const packagePaths = [
+      "packages/markweave",
+      "packages/markweave-react",
+      "packages/markweave-vue2",
+      "packages/markweave-vue3",
+    ];
+
+    for (const packagePath of packagePaths) {
+      const packageJson = JSON.parse(readWorkspaceFile(`${packagePath}/package.json`)) as {
+        dependencies?: Record<string, string>;
+      };
+      const tiptapDependencies = Object.entries(packageJson.dependencies ?? {})
+        .filter(([name]) => name.startsWith("@tiptap/"));
+
+      expect(tiptapDependencies.length).toBeGreaterThan(0);
+      for (const [, version] of tiptapDependencies) {
+        expect(version).toBe("3.29.2");
+      }
+    }
+
+    const corePackage = JSON.parse(readWorkspaceFile("packages/markweave/package.json")) as {
+      dependencies?: Record<string, string>;
+    };
+    expect(corePackage.dependencies).toEqual(expect.objectContaining({
+      "prosemirror-model": "1.25.11",
+      "prosemirror-state": "1.4.4",
+      "prosemirror-view": "1.42.2",
+    }));
+
+    const starterKitRuntimeDependencies = [
+      "@tiptap/core",
+      "@tiptap/extension-blockquote",
+      "@tiptap/extension-bold",
+      "@tiptap/extension-bullet-list",
+      "@tiptap/extension-code",
+      "@tiptap/extension-code-block",
+      "@tiptap/extension-document",
+      "@tiptap/extension-dropcursor",
+      "@tiptap/extension-gapcursor",
+      "@tiptap/extension-hard-break",
+      "@tiptap/extension-heading",
+      "@tiptap/extension-horizontal-rule",
+      "@tiptap/extension-italic",
+      "@tiptap/extension-link",
+      "@tiptap/extension-list",
+      "@tiptap/extension-list-item",
+      "@tiptap/extension-list-keymap",
+      "@tiptap/extension-ordered-list",
+      "@tiptap/extension-paragraph",
+      "@tiptap/extension-strike",
+      "@tiptap/extension-text",
+      "@tiptap/extension-underline",
+      "@tiptap/extensions",
+      "@tiptap/pm",
+    ];
+    for (const dependency of starterKitRuntimeDependencies) {
+      expect(corePackage.dependencies?.[dependency]).toBe("3.29.2");
+    }
+  });
+
+  it("passes editorExtensions through every adapter factory", () => {
+    for (const path of [
+      "packages/markweave-react/src/create-editor-extensions.ts",
+      "packages/markweave-vue2/src/create-editor-extensions.ts",
+      "packages/markweave-vue3/src/create-editor-extensions.ts",
+    ]) {
+      const source = readWorkspaceFile(path);
+      expect(source).toContain("editorExtensions?: readonly AnyExtension[]");
+      expect(source).toContain("editorExtensions: options.editorExtensions");
+    }
+  });
+
+  it("keeps one React command controller while registry props update", async () => {
+    const commandGroups = [{ id: "host.test", label: "Host" }] as const;
+    const lifecycle = vi.fn<(controller: MarkweaveCommandController | null) => void>();
+    let editorController: MarkweaveEditorController | null = null;
+
+    function Harness({ value }: { readonly value: string }) {
+      editorController = useMarkweaveEditorController({
+        defaultContent: "",
+        commandGroups,
+        commands: [{
+          id: "host.test.insert",
+          label: value,
+          groupId: "host.test",
+          execute: () => ({ kind: "apply", content: { format: "text", value } }),
+        }],
+        onCommandControllerChange: lifecycle,
+      });
+      return editorController.editor ? createElement("section", editorController.frameProps) : null;
+    }
+    const getEditorController = () => editorController as MarkweaveEditorController | null;
+
+    await renderReact(createElement(Harness, { value: "one" }));
+    const firstEditor = getEditorController()?.editor;
+    const firstCommandController = lifecycle.mock.calls.findLast(([controller]) => controller)?.[0] ?? null;
+    expect(firstCommandController?.getCommands({ surface: "api" }).find((command) => command.id === "host.test.insert")?.label).toBe("one");
+
+    await act(async () => activeRoot?.render(createElement(Harness, { value: "two" })));
+    await flushReact();
+    expect(getEditorController()?.editor).toBe(firstEditor);
+    expect(lifecycle.mock.calls.findLast(([controller]) => controller)?.[0]).toBe(firstCommandController);
+    expect(firstCommandController?.getCommands({ surface: "api" }).find((command) => command.id === "host.test.insert")?.label).toBe("two");
+    await expect(firstCommandController?.execute("host.test.insert")).resolves.toMatchObject({ ok: true, outcome: "applied" });
+
+    activeRoot?.unmount();
+    activeRoot = null;
+    expect(lifecycle).toHaveBeenLastCalledWith(null);
   });
 
   it("renders the complete editor frame through the public component", async () => {

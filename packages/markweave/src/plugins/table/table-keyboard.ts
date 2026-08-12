@@ -2,6 +2,7 @@ import { Extension, type Editor } from "@tiptap/core";
 import type { ResolvedPos } from "@tiptap/pm/model";
 import { TextSelection } from "@tiptap/pm/state";
 import { CellSelection, cellAround } from "@tiptap/pm/tables";
+import { isMarkweaveTableCapabilityAllowed } from "./table-capabilities";
 
 export type MarkweaveTableKeyboardShortcutId =
   | "enter-cell-inline-stable"
@@ -93,6 +94,10 @@ export function runMarkweaveTableShiftEnter(editor: Editor) {
 export function runMarkweaveTableTab(editor: Editor) {
   if (editor.commands.goToNextCell()) {
     return true;
+  }
+
+  if (!isMarkweaveTableCapabilityAllowed(editor.state, "structure")) {
+    return isTableSelectionBoundary(editor);
   }
 
   if (!editor.can().addRowAfter()) {

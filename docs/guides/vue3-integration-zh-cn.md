@@ -1,6 +1,6 @@
 ---
 owner: refinex
-updated: 2026-08-07
+updated: 2026-08-11
 status: active
 referenced_by: docs/README.md#knowledge-map
 ---
@@ -359,3 +359,12 @@ Vue 3 适配器提供完整 Markweave UI：浮动工具栏、链接弹层、slas
 - 不要接受任意 iframe host。Markweave 只处理直接视频和受支持的 YouTube/Bilibili embed 形态。
 - Markweave 面向浏览器运行；Nuxt 等 SSR 框架中应在客户端渲染编辑器。
 - View 模式安全链接会拒绝 `javascript:`、`data:`、`vbscript:` 等不安全协议。
+## 通用命令与宿主 Extension
+
+Vue 3 的 0.6.0 命令协议继续使用 callback props：绑定 `:command-groups`、`:commands`、`:builtin-commands`、`:editor-extensions`、`:on-command-controller-change` 和 `:on-command-error`，不新增另一套 emit。Registry props 更新不会重建 Editor；Extension schema 变化时必须 keyed remount。
+
+完整 ID、结构化结果、取消/冲突、1 MiB 上限和 Tiptap 兼容边界见[通用命令与宿主 Extension 接入协议](./command-extension-protocol-zh-cn.md)。
+
+## 受约束的原生表格
+
+Markweave 0.7.0 新增 `:table-capabilities` callback prop。同步 resolver 只接收表格与祖先节点的只读描述，可以按当前原生表格关闭 Markweave 自有的结构、格式、复制或表格 AI 操作；resolver 异常时 fail-closed。完整规则见[宿主表格能力约束协议](./table-capability-protocol-zh-cn.md)。

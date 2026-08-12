@@ -4,6 +4,8 @@ Vue 3 adapter for Markweave.
 
 Full guide: [Vue 3 Integration](https://github.com/Refinex-Space/markweave/blob/main/docs/guides/vue3-integration.md) | [Vue 3 接入手册](https://github.com/Refinex-Space/markweave/blob/main/docs/guides/vue3-integration-zh-cn.md)
 
+Version 0.7.0 adds the `table-capabilities` callback prop, a synchronous per-table resolver for Markweave-owned structure, formatting, copy, and table-AI operations. It receives readonly table and ancestor descriptors and fails closed on resolver errors.
+
 ```sh
 pnpm add @markweave/vue3
 ```
@@ -34,3 +36,7 @@ Version 0.5.0 exposes lazy selection snapshots plus explicit selection, block, a
 ```
 
 The callback receives a controller after editor creation and `null` before teardown or recreation. See the full integration guide for `captureSelection`, cumulative streaming, default/headless controls, conflicts, acceptance, and error handling.
+
+## Command Registry And Host Extensions
+
+Version 0.6.0 adds `:command-groups`, `:commands`, `:builtin-commands`, `:editor-extensions`, `:on-command-controller-change`, and `:on-command-error`. Vue 3 keeps callback props rather than a second emit contract. Registry updates preserve the Editor; Extension schema updates require a keyed remount.

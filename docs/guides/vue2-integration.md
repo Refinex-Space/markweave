@@ -1,6 +1,6 @@
 ---
 owner: refinex
-updated: 2026-08-07
+updated: 2026-08-11
 status: active
 referenced_by: docs/README.md#knowledge-map
 ---
@@ -392,3 +392,22 @@ Vue 2 receives the complete Markweave UI: floating toolbar, link popover, slash 
 - Do not allow arbitrary iframe hosts. Markweave only handles direct video plus supported YouTube/Bilibili embed forms.
 - Markweave is browser-oriented. In SSR setups, render the editor on the client side.
 - Safe View-mode links reject unsafe protocols such as `javascript:`, `data:`, and `vbscript:`.
+## Command Registry And Host Extensions
+
+Vue 2 keeps callback props for the 0.6.0 command protocol. Bind `:command-groups`, `:commands`, `:builtin-commands`, `:editor-extensions`, `:on-command-controller-change`, and `:on-command-error`; no separate emit protocol is added. Registry props update in place, while a changed Extension schema requires a keyed component replacement.
+
+```vue
+<MarkweaveEditor
+  :key="schemaVersion"
+  :command-groups="commandGroups"
+  :commands="commands"
+  :editor-extensions="editorExtensions"
+  :on-command-controller-change="setCommandController"
+/>
+```
+
+See [Command Registry And Host Extension Protocol](./command-extension-protocol.md) for the async runtime and security boundary.
+
+## Protected Native Tables
+
+Markweave 0.7.0 adds the `:table-capabilities` callback prop. The synchronous resolver receives readonly table and ancestor descriptors and can disable Markweave-owned structure, formatting, copy, or table-AI paths for the active native table. Resolver failures fail closed. See [Host Table Capability Protocol](./table-capability-protocol.md).

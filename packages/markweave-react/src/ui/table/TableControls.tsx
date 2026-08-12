@@ -34,6 +34,7 @@ import {
   setMarkweaveTableMenuAxisTarget,
   type MarkweaveMenuCopyPayload,
 } from "markweave/internal/plugins/table/table-clipboard";
+import { isMarkweaveTableCapabilityAllowed } from "markweave/internal/plugins/table/table-capabilities";
 import {
   type TableCommandId,
   type TableMenuIconId,
@@ -511,6 +512,7 @@ export function TableControls({
   const rowAxisModel = getTableControlAxisSelectionModel(editor, interactionState, "row", focusState?.activeCellPos ?? null);
   const columnAxisModel = getTableControlAxisSelectionModel(editor, interactionState, "column", focusState?.activeCellPos ?? null);
   const askAiEnabled = askAi?.enabled === true && typeof askAi.handler === "function";
+  const structureEditable = isMarkweaveTableCapabilityAllowed(editor.state, "structure");
   const hasCellMenuCommands = getTableMenuItems(editor, "selection", { askAiEnabled }).length > 0;
   const menuItems = openMenu ? getTableMenuItems(editor, openMenu, { askAiEnabled }) : [];
   const runMenuCommand = async (commandId: TableCommandId, menuOverride?: TableMenuKind) => {
@@ -566,6 +568,11 @@ export function TableControls({
   };
 
   const startAxisDrag = (axis: "row" | "column", index: number, event: DragEvent<HTMLButtonElement>) => {
+    if (!structureEditable) {
+      event.preventDefault();
+      return;
+    }
+
     dragOriginRef.current = { axis, index };
     dragTargetRef.current = index;
     event.dataTransfer.effectAllowed = "move";
@@ -635,7 +642,7 @@ export function TableControls({
           data-axis-visual-cells={rowAxisModel?.visualCellCount ?? ""}
           data-axis-visual-size={rowAxisModel?.visualHeight ?? ""}
           style={{ left: rowEdgePosition.left, top: rowEdgePosition.top, width: rowEdgePosition.width, height: rowEdgePosition.height }}
-          draggable
+          draggable={structureEditable}
           onDragStart={(event) => startAxisDrag("row", rowAxisModel?.index ?? 0, event)}
           onDragEnd={() => {
             dragOriginRef.current = null;
@@ -663,7 +670,7 @@ export function TableControls({
           data-axis-visual-cells={columnAxisModel?.visualCellCount ?? ""}
           data-axis-visual-size={columnAxisModel?.visualWidth ?? ""}
           style={{ left: columnEdgePosition.left, top: columnEdgePosition.top, width: columnEdgePosition.width, height: columnEdgePosition.height }}
-          draggable
+          draggable={structureEditable}
           onDragStart={(event) => startAxisDrag("column", columnAxisModel?.index ?? 0, event)}
           onDragEnd={() => {
             dragOriginRef.current = null;
@@ -676,7 +683,7 @@ export function TableControls({
           <MoreVertical aria-hidden="true" size={14} />
         </button>
       ) : null}
-      {rowExtendPosition ? (
+      {structureEditable && rowExtendPosition ? (
         <button
           type="button"
           className="markweave-table-extend-button markweave-table-extend-button--row"
@@ -690,7 +697,7 @@ export function TableControls({
           <Plus aria-hidden="true" size={16} />
         </button>
       ) : null}
-      {columnExtendPosition ? (
+      {structureEditable && columnExtendPosition ? (
         <button
           type="button"
           className="markweave-table-extend-button markweave-table-extend-button--column"

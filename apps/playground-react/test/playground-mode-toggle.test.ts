@@ -6,10 +6,15 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 const markweaveMocks = vi.hoisted(() => ({
   MarkweaveEditor: vi.fn((props: { readonly mode?: string; readonly theme?: string }) => createElement("div", { "data-testid": "mock-markweave-editor", "data-mode": props.mode, "data-theme": props.theme })),
+  createMarkweaveEditorExtensions: vi.fn(() => [{
+    name: "paragraph",
+    extend: () => ({ name: "playgroundHostBlock" }),
+  }]),
 }));
 
 vi.mock("@markweave/react", () => ({
   MarkweaveEditor: markweaveMocks.MarkweaveEditor,
+  createMarkweaveEditorExtensions: markweaveMocks.createMarkweaveEditorExtensions,
 }));
 
 import { MarkweaveEditorPlayground } from "../src/MarkweaveEditorPlayground";

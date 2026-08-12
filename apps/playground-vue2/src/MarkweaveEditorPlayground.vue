@@ -3,6 +3,16 @@
     <div class="markweave-playground-toolbar" aria-label="Playground controls">
       <button
         type="button"
+        class="markweave-playground-command-toggle"
+        :disabled="!commandController || !isLiveMode"
+        aria-label="通过宿主工具栏执行通用命令"
+        title="通过宿主工具栏执行通用命令"
+        @click="runHostCommand"
+      >
+        Host
+      </button>
+      <button
+        type="button"
         class="markweave-playground-ai-edit-toggle"
         :disabled="!aiEditController || !isLiveMode"
         aria-label="运行宿主 AI 预编辑（请先选择文本）"
@@ -122,6 +132,11 @@
       :on-table-command-result="handleTableCommandResult"
       :on-table-copy-payload="handleTableCopyPayload"
       :on-ai-edit-controller-change="handleAiEditControllerChange"
+      :command-groups="playgroundCommandGroups"
+      :commands="playgroundHostCommands"
+      :editor-extensions="playgroundEditorExtensions"
+      :on-command-controller-change="handleCommandControllerChange"
+      :on-command-error="handleCommandError"
     />
 
     <details class="markweave-debug-panel">
@@ -137,6 +152,7 @@
       </div>
 
       <div v-if="lastAiEditStatus" class="markweave-debug-ai">Host AI edit: {{ lastAiEditStatus }}</div>
+      <div v-if="lastCommandStatus" class="markweave-debug-command">Host command: {{ lastCommandStatus }}</div>
 
       <div v-if="lastTableCopyPayload" class="markweave-debug-copy" data-testid="markweave-debug-copy">
         <div>Last table copy: {{ lastTableCopyPayload.kind }}</div>
@@ -174,9 +190,11 @@
 </template>
 
 <script>
-import { MarkweaveEditor } from "@markweave/vue2";
+import { createMarkweaveEditorExtensions, MarkweaveEditor } from "@markweave/vue2";
 import {
   createPlaygroundUploadResult,
+  createPlaygroundHostCommands,
+  createPlaygroundHostExtension,
   downloadPlaygroundAttachment,
   initialPlaygroundDocument,
   largeDocumentPerformanceFixture,
@@ -185,11 +203,17 @@ import {
   largeValidMediaPerformanceFixture,
   mergedTablePlaygroundDocument,
   playgroundAskAiConfig,
+  playgroundCommandGroups,
   resolvePlaygroundLinkCard,
   resolvePlaygroundMediaSource,
   runPlaygroundAiEditProposal,
   stressDocumentPerformanceFixture,
 } from "@markweave/playground-fixtures";
+
+const playgroundHostCommands = createPlaygroundHostCommands();
+const playgroundParagraphExtension = createMarkweaveEditorExtensions().find((extension) => extension.name === "paragraph");
+if (!playgroundParagraphExtension) throw new Error("The playground requires the paragraph extension.");
+const playgroundEditorExtensions = [createPlaygroundHostExtension(playgroundParagraphExtension)];
 
 export default {
   name: "MarkweaveEditorPlayground",
@@ -204,6 +228,7 @@ export default {
       largeTextPerformanceFixture,
       largeValidMediaPerformanceFixture,
       mergedTablePlaygroundDocument,
+      playgroundAskAiConfig,
       resolvePlaygroundLinkCard,
       resolvePlaygroundMediaSource,
       stressDocumentPerformanceFixture,
@@ -219,6 +244,11 @@ export default {
       lastSlashUploadRequest: null,
       aiEditController: null,
       lastAiEditStatus: null,
+      commandController: null,
+      lastCommandStatus: null,
+      playgroundCommandGroups,
+      playgroundHostCommands,
+      playgroundEditorExtensions,
     };
   },
   computed: {
@@ -254,6 +284,16 @@ export default {
     },
     handleAiEditControllerChange(controller) {
       this.aiEditController = controller;
+    },
+    handleCommandControllerChange(controller) {
+      this.commandController = controller;
+    },
+    handleCommandError(error) {
+      this.lastCommandStatus = `${error.code}: ${error.message}`;
+    },
+    async runHostCommand() {
+      const result = await this.commandController?.execute("playground.host.insert-status");
+      if (result) this.lastCommandStatus = result.ok ? result.outcome : `${result.code}: ${result.message}`;
     },
     async runHostAiEdit() {
       const controller = this.aiEditController;
