@@ -1575,10 +1575,31 @@
   display: none;
 }
 
+/* Keep a non-collapsing gap when two document cards are adjacent
+   (DOM: card + collapsed source paragraph + card). Match the collapsed
+   1.05em rhythm used between a document card and an external link card. */
+.markweave-editor-frame
+  .markweave-internal-link-card:has(
+    + p[data-internal-link-card="true"] + .markweave-internal-link-card
+  ) {
+  margin-bottom: 0;
+}
+
+.markweave-editor-frame .markweave-internal-link-card + p[data-internal-link-card="true"] {
+  padding-bottom: 1.05em !important;
+}
+
+.markweave-editor-frame
+  .markweave-internal-link-card
+  + p[data-internal-link-card="true"]
+  + .markweave-internal-link-card {
+  margin-top: 0;
+}
+
 .markweave-internal-link-card {
   --markweave-internal-link-card-height: 96px;
   position: relative;
-  display: block;
+  display: flow-root;
   width: 100%;
   max-width: 100%;
   min-width: 0;
