@@ -1,6 +1,6 @@
 ---
 owner: refinex
-updated: 2026-08-10
+updated: 2026-08-13
 status: active
 referenced_by: docs/README.md#knowledge-map
 ---
@@ -124,7 +124,7 @@ Controller 提供：
 
 宿主 Extension 在 Markweave 内置扩展和框架媒体/LinkCard 扩展之后追加。创建前会扁平化 StarterKit 子扩展和宿主扩展；任何同名 Node、Mark、Extension 或内部插件都会立即抛错，不能替换 `paragraph`、StarterKit、Markweave 内置节点或内部插件。
 
-运行时更换数组不会修改现有 schema，宿主必须改变 `key` 完整重建 Editor。自定义 Node 必须同时验证 Markdown tokenizer/parse/render、HTML parse/render、JSON schema、Markdown 往返和 View 模式。宿主必须与当前 Markweave 包解析到同一个 Tiptap 3.27.x 实例；不承诺跨 Tiptap 主版本兼容。
+运行时更换数组不会修改现有 schema，宿主必须改变 `key` 完整重建 Editor。自定义 Node 必须同时验证 Markdown tokenizer/parse/render、HTML parse/render、JSON schema、Markdown 往返和 View 模式。对于可能进入文字颜色、块对齐、缩进、上标/下标、合并或样式化表格等原生 HTML fallback 的节点，`renderHTML` 必须输出稳定的节点判别属性和完整业务属性，`parseHTML` 必须据此无损重建节点；Markweave 会使用包含宿主 Extension 的完整 Schema 生成 fallback，而不是把未知节点降级为空文本。宿主必须与当前 Markweave 包解析到同一个 Tiptap 实例；不承诺跨 Tiptap 主版本兼容。
 
 ## 安全边界
 

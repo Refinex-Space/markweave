@@ -1,14 +1,48 @@
 // @vitest-environment jsdom
 
-import { Editor, type JSONContent } from "@tiptap/core";
+import { Editor, Node, type AnyExtension, type JSONContent } from "@tiptap/core";
 import { afterEach, describe, expect, it } from "vitest";
 import { createMarkweaveEditorExtensions } from "../src/editor-core/create-editor-extensions";
 
 let activeEditors: Editor[] = [];
 
-function createEditor(content: string, contentType: "html" | "markdown") {
+const TestHostField = Node.create({
+  name: "testHostField",
+  group: "inline",
+  inline: true,
+  atom: true,
+
+  addAttributes() {
+    return {
+      fieldCode: {
+        default: "",
+        parseHTML: (element: HTMLElement) => element.getAttribute("data-test-host-field") ?? "",
+        rendered: false,
+      },
+    };
+  },
+
+  parseHTML() {
+    return [{ tag: "span[data-test-host-field]" }];
+  },
+
+  renderHTML({ node }) {
+    const fieldCode = String(node.attrs.fieldCode ?? "");
+    return ["span", { "data-test-host-field": fieldCode }, `{{${fieldCode}}}`];
+  },
+
+  renderMarkdown(node) {
+    return `{{${String(node.attrs?.fieldCode ?? "")}}}`;
+  },
+});
+
+function createEditor(
+  content: string,
+  contentType: "html" | "markdown",
+  editorExtensions: readonly AnyExtension[] = [],
+) {
   const editor = new Editor({
-    extensions: createMarkweaveEditorExtensions(),
+    extensions: createMarkweaveEditorExtensions({ editorExtensions }),
     content,
     contentType,
   });
@@ -27,6 +61,65 @@ afterEach(() => {
 });
 
 describe("lossless Markdown fallbacks", () => {
+  it("preserves trusted host inline nodes in aligned blocks, colored marks, and merged tables", () => {
+    const editor = createEditor(
+      '<p style="text-align: center">Before <span data-test-host-field="invoice_no">{{invoice_no}}</span> after</p>' +
+        '<h2 style="text-align: right">Title <span data-test-host-field="title_no">{{title_no}}</span></h2>' +
+        '<p><span style="color: #e11d48"><span data-test-host-field="owner">{{owner}}</span></span></p>' +
+        '<table><tbody><tr><td colspan="2"><p><span data-test-host-field="amount">{{amount}}</span></p></td></tr><tr><td><p>Left</p></td><td><p>Right</p></td></tr></tbody></table>',
+      "html",
+      [TestHostField],
+    );
+
+    const markdown = getMarkdown(editor);
+
+    expect(markdown).toContain('data-test-host-field="invoice_no"');
+    expect(markdown).toContain('data-test-host-field="title_no"');
+    expect(markdown).toContain('data-test-host-field="owner"');
+    expect(markdown).toContain('data-test-host-field="amount"');
+
+    const reloaded = createEditor(markdown, "markdown", [TestHostField]);
+    const hostFieldCodes: string[] = [];
+    let ownerTextColor: unknown = null;
+    reloaded.state.doc.descendants((node) => {
+      if (node.type.name === "testHostField") {
+        hostFieldCodes.push(String(node.attrs.fieldCode));
+        if (node.attrs.fieldCode === "owner") {
+          ownerTextColor = node.marks.find((mark) => mark.type.name === "textStyle")?.attrs.color;
+        }
+      }
+    });
+
+    expect(hostFieldCodes).toEqual(["invoice_no", "title_no", "owner", "amount"]);
+    expect(ownerTextColor).toBe("rgb(225, 29, 72)");
+  });
+
+  it("round-trips subscript, superscript, and paragraph or heading indentation", () => {
+    const editor = createEditor(
+      '<p>H<sub>2</sub>O and x<sup>2</sup></p>' +
+        '<p data-markweave-indent-level="2">Indented paragraph</p>' +
+        '<h3 data-markweave-indent-level="1">Indented heading</h3>',
+      "html",
+    );
+
+    const markdown = getMarkdown(editor);
+
+    expect(markdown).toContain("H<sub>2</sub>O and x<sup>2</sup>");
+    expect(markdown).toContain('<p data-markweave-indent-level="2">Indented paragraph</p>');
+    expect(markdown).toContain('<h3 data-markweave-indent-level="1">Indented heading</h3>');
+
+    const reloaded = createEditor(markdown, "markdown");
+    const documentJson = reloaded.getJSON() as JSONContent;
+    const formulaParagraph = documentJson.content?.[0];
+    const indentedParagraph = documentJson.content?.[1];
+    const indentedHeading = documentJson.content?.[2];
+
+    expect(formulaParagraph?.content?.some((node) => node.marks?.some((mark) => mark.type === "subscript"))).toBe(true);
+    expect(formulaParagraph?.content?.some((node) => node.marks?.some((mark) => mark.type === "superscript"))).toBe(true);
+    expect(indentedParagraph?.attrs?.markweaveIndentLevel).toBe(2);
+    expect(indentedHeading?.attrs?.markweaveIndentLevel).toBe(1);
+  });
+
   it("uses native HTML only for alignments, colored marks, and merged tables", () => {
     const editor = createEditor(
       '<p>Plain Markdown</p><p>Colored <span style="color: #e11d48">red</span> <mark data-color="#fde68a" style="background-color: #fde68a; color: inherit">highlighted</mark></p><p style="text-align: center;">Aligned</p><table><tbody><tr><td colspan="2"><p>Merged</p></td></tr><tr><td><p>Left</p></td><td><p>Right</p></td></tr></tbody></table>',
@@ -36,10 +129,10 @@ describe("lossless Markdown fallbacks", () => {
     const markdown = getMarkdown(editor);
 
     expect(markdown).toContain("Plain Markdown");
-    expect(markdown).toContain('<p style="text-align: center">Aligned</p>');
+    expect(markdown).toMatch(/<p style="text-align: center;?">Aligned<\/p>/);
     expect(markdown).toContain('<span style="color: #e11d48">red</span>');
     expect(markdown).toContain('<mark data-color="#fde68a">highlighted</mark>');
-    expect(markdown).toContain('<td colspan="2"><p>Merged</p></td>');
+    expect(markdown).toMatch(/<td colspan="2"(?: rowspan="1")?><p>Merged<\/p><\/td>/);
 
     const reloaded = createEditor(markdown, "markdown");
     const documentJson = reloaded.getJSON() as JSONContent;
@@ -78,7 +171,11 @@ describe("lossless Markdown fallbacks", () => {
     );
     const markdown = getMarkdown(editor);
 
-    expect(markdown).toContain('<th style="color: rgb(50, 125, 169); background-color: rgb(254, 249, 195); text-align: center; vertical-align: top">');
+    expect(markdown).toContain("<th");
+    expect(markdown).toContain("color: rgb(50, 125, 169)");
+    expect(markdown).toContain("background-color: rgb(254, 249, 195)");
+    expect(markdown).toContain("text-align: center");
+    expect(markdown).toContain("vertical-align: top");
 
     const reloaded = createEditor(markdown, "markdown");
     const cell = (reloaded.getJSON() as JSONContent).content?.find((node) => node.type === "table")?.content?.[0]?.content?.[0];

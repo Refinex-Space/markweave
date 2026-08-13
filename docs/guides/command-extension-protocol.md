@@ -1,6 +1,6 @@
 ---
 owner: refinex
-updated: 2026-08-10
+updated: 2026-08-13
 status: active
 referenced_by: docs/README.md#knowledge-map
 ---
@@ -73,4 +73,4 @@ Only one command runs per editor. Outside edits map the target; target edits, to
 
 Host extensions are appended after builtin and framework media/LinkCard extensions. Markweave flattens StarterKit children before editor creation and rejects every duplicate Node, Mark, Extension, or internal-plugin name. Builtins cannot be replaced.
 
-The array is not hot-swapped. Change the component key to rebuild the editor when the schema changes. Test custom nodes across Markdown tokenizer/parse/render, HTML parse/render, JSON schema, Markdown round trips, and View mode. The host must resolve the same Tiptap 3.27.x instance as the installed Markweave packages; cross-major compatibility is not promised. Extensions are trusted build-time code and must never be loaded from untrusted input.
+The array is not hot-swapped. Change the component key to rebuild the editor when the schema changes. Test custom nodes across Markdown tokenizer/parse/render, HTML parse/render, JSON schema, Markdown round trips, and View mode. Nodes that may appear inside native HTML fallback for colored text, block alignment, indentation, subscript/superscript, or merged/styled tables must emit a stable discriminator and complete business attributes from `renderHTML`, then reconstruct the same node through `parseHTML`. Markweave serializes that fallback with the complete host-extended Schema instead of dropping unknown nodes. The host must resolve the same Tiptap instance as the installed Markweave packages; cross-major compatibility is not promised. Extensions are trusted build-time code and must never be loaded from untrusted input.
