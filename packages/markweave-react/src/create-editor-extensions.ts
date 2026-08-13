@@ -16,6 +16,7 @@ import { MarkweaveReactLinkCard } from "./link-card-node";
 
 export interface CreateMarkweaveReactEditorExtensionsOptions {
   readonly lang?: MarkweaveLang;
+  readonly revealLinkMarkdown?: boolean;
   readonly onImageUpload?: MarkweaveSlashCommandUploadHandler;
   readonly onVideoUpload?: MarkweaveSlashCommandUploadHandler;
   readonly onAttachmentUpload?: MarkweaveSlashCommandUploadHandler;
@@ -31,6 +32,7 @@ export interface CreateMarkweaveReactEditorExtensionsOptions {
 export function createMarkweaveReactEditorExtensions(options: CreateMarkweaveReactEditorExtensionsOptions = {}) {
   return createMarkweaveCoreEditorExtensions({
     lang: options.lang,
+    revealLinkMarkdown: options.revealLinkMarkdown,
     onImageUpload: options.onImageUpload,
     tableCapabilities: options.tableCapabilities,
     referenceSuggestion: options.referenceSuggestion,

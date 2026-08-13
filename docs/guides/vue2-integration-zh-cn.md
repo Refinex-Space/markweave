@@ -198,6 +198,7 @@ export default {
 | `theme` | `"light"` | `"light"` 或 `"dark"`。主题仅作用于当前编辑器根节点，可在运行时切换，不会重建文档内容。 |
 | `canvasColor` | 主题默认值 | 仅覆盖编辑器画布的可选 CSS 颜色/变量。亮色默认透明，暗色默认 `#181A1F`；例如可传 `"#000"` 或 `"var(--app-canvas)"`，运行时切换不会重建编辑器。 |
 | `editable` | `true` | 兼容锁。最终可编辑状态是 `mode === "live" && editable !== false`。 |
+| `reveal-link-markdown` | `true` | 在可编辑 Live 模式中，点击行内链接或将光标移入链接会显示规范化的 `[文字](地址 "标题")`。Enter 或失焦提交安全地址，Escape 放弃，Ctrl/Cmd 点击打开链接。该内容是规范化投影，不保证逐字节还原原始 Markdown。 |
 | `lang` | `"zh"` | UI 语言。支持 `"zh"` 和 `"en"`。运行时切换语言建议重新挂载编辑器。 |
 | `inner-toc` | `true` | 显示内置右侧目录。传 `:inner-toc="false"` 后可通过 `on-toc-change` 或 `runtimeSnapshot.toc` 自行渲染目录。 |
 | `inner-toc-placement` | `"container"` | 默认使目录始终相对视觉窗口垂直居中，并通过对称目录留白保持正文居中；实际编辑器容器较窄时会自动隐藏内置目录，优先保证正文可读性。仅在确实需要固定于视口右侧时传 `inner-toc-placement="viewport"`。 |
@@ -256,7 +257,7 @@ export default {
 </script>
 ```
 
-图片在 Live 模式下支持预览、对齐、Caption、缩放、替换、下载和删除；View 模式下 Hover 图片右上角会出现预览入口，可打开支持缩放与拖拽平移的大图预览。视频支持本地上传、直接视频 URL、YouTube embed URL、Bilibili player URL、普通 YouTube/Bilibili 分享链接。附件经 `markweaveAttachment` 往返。Slash 附件插入空行内占位，点击选择本地文件上传（可选 `onProgress` 显示百分比）；完成后 hover 显示下载与删除，激活时调用 `onAttachmentDownload`；未提供宿主回调时，仅安全的 `http(s)` 源会新开标签页。
+图片在 Live 模式下支持预览、对齐、Caption、缩放、替换、下载和删除；View 模式下 Hover 图片右上角会出现预览入口，可打开支持缩放与拖拽平移的大图预览。视频支持本地上传、直接视频 URL、YouTube embed URL、Bilibili player URL、普通 YouTube/Bilibili 分享链接，文件视频与平台嵌入默认不自动播放。附件经 `markweaveAttachment` 往返。Slash 附件插入空行内占位，点击选择本地文件上传（可选 `onProgress` 显示百分比）；完成后 hover 显示下载与删除，激活时调用 `onAttachmentDownload`；未提供宿主回调时，仅安全的 `http(s)` 源会新开标签页。
 
 ## Ask AI
 

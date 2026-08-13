@@ -25,6 +25,8 @@ describe("Vue2 adapter parity source contract", () => {
       "onImageUpload: options.onImageUpload",
       "linkCardResolver",
       "MarkweaveVueLinkCard",
+      "revealLinkMarkdown",
+      "revealLinkMarkdown: options.revealLinkMarkdown",
     ]);
   });
 
@@ -37,7 +39,6 @@ describe("Vue2 adapter parity source contract", () => {
       "createMarkweaveVue2EditorExtensions",
       "createMarkweaveEditorUpdatePayload",
       "createMarkweaveEditorRuntimeSnapshot",
-      "openMarkweaveReadonlyLinkFromEvent",
       "getFloatingToolbarTurnIntoOptions",
       "getFloatingToolbarTextColorOptions",
       "runFloatingToolbarMoreAction",
@@ -116,6 +117,7 @@ describe("Vue2 adapter parity source contract", () => {
       "data-testid\": \"markweave-editor-frame\"",
     ]);
     expect(source).not.toContain("markweave-ask-ai-progress-dots");
+    expect(source).not.toContain("openMarkweaveReadonlyLinkFromEvent");
     expect(source).not.toContain("@tiptap/vue-3");
     expect(source).not.toContain("lucide-vue-next");
     expect(source).not.toContain("useEditor");

@@ -106,7 +106,7 @@ You can import the adapter `styles.css` once in the app entry instead of inside 
 
 `defaultContent` and controlled `content` are Markdown by default. Use `defaultContentFormat="html"` or `contentFormat="html"` when migrating an existing HTML integration. `onUpdate.markdown` is the recommended storage output; `html`, `json`, and `text` remain available.
 
-`mode` defaults to `"live"`. Use `mode="view"` for a read-only rendered view. `editable={false}` remains a compatibility lock, including when `mode="live"`.
+`mode` defaults to `"live"`. Use `mode="view"` for a read-only rendered view. `editable={false}` remains a compatibility lock, including when `mode="live"`. In Live mode, clicking or moving the caret into an inline link reveals normalized `[label](target "title")` Markdown and lets the target be edited in place; Enter or blur commits, Escape discards, and Ctrl/Cmd-click opens the link safely. This is a canonical projection rather than the original Markdown byte sequence. Set `revealLinkMarkdown={false}` to disable it.
 
 Math formulas are editable in Live mode: click inline `$...$` or display `$$...$$` formulas to open the in-place LaTeX editor. View mode keeps formulas read-only while preserving the rendered layout.
 
@@ -142,6 +142,7 @@ Every selectable language identifier is registered with either a dedicated Highl
 | --- | --- | --- | --- |
 | Markdown input/output | Yes | Yes | Yes |
 | Live/View mode | Yes | Yes | Yes |
+| Inline link Markdown reveal | Yes | Yes | Yes |
 | Floating toolbar | Yes | Yes | Yes |
 | Slash command menu | Yes | Yes | Yes |
 | Tables and image clipboard paste | Yes | Yes | Yes |

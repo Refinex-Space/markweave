@@ -86,6 +86,10 @@ export interface MarkweaveMessages {
     readonly resolverUnavailable: string;
     readonly toolsAriaLabel: string;
   };
+  readonly inlineLinkSource: {
+    readonly addressLabel: string;
+    readonly invalidAddress: string;
+  };
   readonly slash: {
     readonly ariaLabel: string;
     readonly emptyLinePlaceholder: string;
@@ -747,6 +751,10 @@ const messagesByLang: Record<MarkweaveLang, MarkweaveMessages> = {
       resolverUnavailable: "链接元数据暂不可用，已保留基础卡片。",
       toolsAriaLabel: "链接卡片工具",
     },
+    inlineLinkSource: {
+      addressLabel: "链接地址",
+      invalidAddress: "请输入非空且安全的链接地址",
+    },
     slash: {
       ariaLabel: "Slash 命令",
       emptyLinePlaceholder: "输入 / 唤起快捷操作",
@@ -1042,6 +1050,10 @@ const messagesByLang: Record<MarkweaveLang, MarkweaveMessages> = {
       open: "Open link",
       resolverUnavailable: "Link metadata is unavailable; the basic card was kept.",
       toolsAriaLabel: "Link card tools",
+    },
+    inlineLinkSource: {
+      addressLabel: "Link address",
+      invalidAddress: "Enter a safe, non-empty link address.",
     },
     slash: {
       ariaLabel: "Slash commands",

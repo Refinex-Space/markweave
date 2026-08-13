@@ -12,7 +12,6 @@ import {
   normalizeMarkweaveContentFormat,
   type MarkweaveControlledContentEcho,
 } from "markweave/internal/editor-core/editor-content";
-import { openMarkweaveReadonlyLinkFromEvent } from "markweave/internal/editor-core/readonly-link";
 import { createMarkweaveEditorRuntimeSnapshot } from "markweave/internal/editor-core/runtime-snapshot";
 import {
   areEditorSelectionSnapshotsEquivalent,
@@ -164,6 +163,8 @@ export interface MarkweaveEditorControllerOptions {
   readonly autofocus?: boolean;
   readonly lang?: MarkweaveLang;
   readonly ariaLabel?: string;
+  /** Reveals normalized `[label](target)` source for the active inline link in Live mode. */
+  readonly revealLinkMarkdown?: boolean;
   readonly autoFocusFirstTableBodyCell?: boolean;
   readonly onUpdate?: (payload: MarkweaveEditorUpdatePayload) => void;
   /** @deprecated Compatibility callback for table AI actions; Ask AI v1 does not replace it. */
@@ -290,6 +291,7 @@ export function useMarkweaveEditorController({
   innerToc = true,
   innerTocPlacement,
   lang,
+  revealLinkMarkdown = true,
   mode = "live",
   theme,
   canvasColor,
@@ -352,6 +354,7 @@ export function useMarkweaveEditorController({
     builtinCommands,
   }), [builtinCommands, commandGroups, commands, resolvedLang]);
   const editorExtensionsRef = useRef(editorExtensions);
+  const revealLinkMarkdownRef = useRef(revealLinkMarkdown);
   const tableCapabilitiesRef = useRef(tableCapabilities);
   tableCapabilitiesRef.current = tableCapabilities;
   const uploadHandlerRef = useRef(onSlashCommandUpload);
@@ -381,6 +384,7 @@ export function useMarkweaveEditorController({
     () =>
       createMarkweaveReactEditorExtensions({
         lang: resolvedLang,
+        revealLinkMarkdown: revealLinkMarkdownRef.current,
         onImageUpload: (request) => {
           if (uploadHandlerRef.current) {
             return uploadHandlerRef.current(request);
@@ -568,13 +572,6 @@ export function useMarkweaveEditorController({
         spellcheck: "false",
         translate: "no",
       },
-      handleClick: (_view, _pos, event) => {
-        if (runtimeModeRef.current.effectiveEditable) {
-          return false;
-        }
-
-        return openMarkweaveReadonlyLinkFromEvent(event);
-      },
       handleDOMEvents: {
         compositionstart: () => {
           if (!runtimeModeRef.current.effectiveEditable) {
@@ -611,7 +608,7 @@ export function useMarkweaveEditorController({
             return false;
           }
 
-          return openMarkweaveReadonlyLinkFromEvent(event);
+          return false;
         },
       },
     },

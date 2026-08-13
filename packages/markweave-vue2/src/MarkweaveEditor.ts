@@ -112,7 +112,6 @@ import {
   type FloatingToolbarMoreActionId,
   type FloatingToolbarTurnIntoId,
 } from "markweave/internal/editor-core/floating-toolbar-model";
-import { openMarkweaveReadonlyLinkFromEvent } from "markweave/internal/editor-core/readonly-link";
 import { createMarkweaveEditorRuntimeSnapshot } from "markweave/internal/editor-core/runtime-snapshot";
 import {
   areEditorSelectionSnapshotsEquivalent,
@@ -364,6 +363,8 @@ export interface MarkweaveVue2EditorControllerOptions {
   readonly autofocus?: boolean;
   readonly lang?: MarkweaveLang;
   readonly ariaLabel?: string;
+  /** Reveals normalized `[label](target)` source for the active inline link in Live mode. */
+  readonly revealLinkMarkdown?: boolean;
   readonly autoFocusFirstTableBodyCell?: boolean;
   readonly onUpdate?: (payload: MarkweaveEditorUpdatePayload) => void;
   /** @deprecated Compatibility callback for table AI actions; Ask AI v1 does not replace it. */
@@ -3366,6 +3367,7 @@ export function useMarkweaveEditorController(options: MarkweaveVue2EditorControl
   editorRef.value = new VueEditor({
     extensions: createMarkweaveVue2EditorExtensions({
       lang: resolvedLang,
+      revealLinkMarkdown: options.revealLinkMarkdown !== false,
       linkCardResolver: options.linkCardResolver,
       onImageUpload: (request) => uploadHandler?.(request) ?? getDirectUploadResult(request) ?? Promise.reject(new Error("File upload requires an upload handler.")),
       onVideoUpload: (request) => uploadHandler?.(request) ?? getDirectUploadResult(request) ?? Promise.reject(new Error("File upload requires an upload handler.")),
@@ -3391,7 +3393,7 @@ export function useMarkweaveEditorController(options: MarkweaveVue2EditorControl
       },
       handleClick: (view, _pos, event) => {
         if (!effectiveEditable.value) {
-          return openMarkweaveReadonlyLinkFromEvent(event);
+          return false;
         }
         const nextMathTarget = getMarkweaveMathTargetFromDomEvent(view, event);
         if (!nextMathTarget) {
@@ -3424,7 +3426,7 @@ export function useMarkweaveEditorController(options: MarkweaveVue2EditorControl
         },
         click: (view, event) => {
           if (!effectiveEditable.value) {
-            return openMarkweaveReadonlyLinkFromEvent(event);
+            return false;
           }
           const nextMathTarget = getMarkweaveMathTargetFromDomEvent(view, event);
           if (!nextMathTarget) {
@@ -3895,6 +3897,7 @@ export const MarkweaveEditor = defineComponent({
     autofocus: { type: Boolean, default: false },
     lang: { type: String as PropType<MarkweaveLang>, default: undefined },
     ariaLabel: { type: String, default: undefined },
+    revealLinkMarkdown: { type: Boolean, default: true },
     autoFocusFirstTableBodyCell: { type: Boolean, default: false },
     linkCardResolver: { type: Function as PropType<MarkweaveLinkCardResolver>, default: undefined },
     resolveMediaSource: { type: Function as PropType<MarkweaveMediaSourceResolver>, default: undefined },

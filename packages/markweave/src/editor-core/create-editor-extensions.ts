@@ -67,6 +67,8 @@ import { MarkweaveCommands } from "../commands/command-runtime";
 
 export interface CreateMarkweaveEditorExtensionsOptions {
   readonly lang?: MarkweaveLang;
+  /** Reveals normalized inline link Markdown while the link is active in Live mode. */
+  readonly revealLinkMarkdown?: boolean;
   readonly mediaExtensions?: Extensions;
   readonly linkCardExtension?: AnyExtension;
   readonly onImageUpload?: MarkweaveSlashCommandUploadHandler;
@@ -495,7 +497,11 @@ export function createMarkweaveEditorExtensions(options: CreateMarkweaveEditorEx
         class: "markweave-link",
       },
     }),
-    MarkweaveLinkClick,
+    MarkweaveLinkClick.configure({
+      revealMarkdown: options.revealLinkMarkdown !== false,
+      addressLabel: messages.inlineLinkSource.addressLabel,
+      invalidAddress: messages.inlineLinkSource.invalidAddress,
+    }),
     MarkweaveMarkdownInput,
     Emoji.configure({
       emojis,
