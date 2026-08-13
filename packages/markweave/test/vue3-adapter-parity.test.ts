@@ -105,7 +105,6 @@ describe("Vue3 adapter parity source contract", () => {
       "left: `${props.position.left}px`",
       "top: `${props.position.top}px`",
       "maxHeight: `${props.position.maxHeight}px`",
-      "markweave-slash-trigger",
       "markweave-slash-menu",
       "markweave-slash-command-list",
       "markweave-slash-group",

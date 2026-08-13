@@ -1558,7 +1558,164 @@
   color: var(--markweave-text);
 }
 
+.markweave-editor-frame p[data-internal-link-card="true"] {
+  /* Source paragraph is projected as a following block widget; collapse it so
+     only the full-width card is visible. */
+  height: 0 !important;
+  min-height: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  overflow: hidden !important;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.markweave-editor-frame p[data-internal-link-card="true"] > a.markweave-link {
+  display: none;
+}
+
+/* Keep a non-collapsing gap when two document cards are adjacent
+   (DOM: card + collapsed source paragraph + card). Match the collapsed
+   1.05em rhythm used between a document card and an external link card. */
+.markweave-editor-frame
+  .markweave-internal-link-card:has(
+    + p[data-internal-link-card="true"] + .markweave-internal-link-card
+  ) {
+  margin-bottom: 0;
+}
+
+.markweave-editor-frame .markweave-internal-link-card + p[data-internal-link-card="true"] {
+  padding-bottom: 1.05em !important;
+}
+
+.markweave-editor-frame
+  .markweave-internal-link-card
+  + p[data-internal-link-card="true"]
+  + .markweave-internal-link-card {
+  margin-top: 0;
+}
+
+.markweave-internal-link-card {
+  --markweave-internal-link-card-height: 96px;
+  position: relative;
+  display: flow-root;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  height: var(--markweave-internal-link-card-height);
+  margin: 1.05em 0;
+  border: 1px solid var(--markweave-border);
+  border-radius: 10px;
+  background: var(--markweave-surface);
+  color: var(--markweave-text);
+  text-decoration: none;
+  overflow: hidden;
+  box-sizing: border-box;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.markweave-internal-link-card:hover {
+  border-color: var(--markweave-border-strong);
+  background: var(--markweave-surface-raised);
+}
+
+.markweave-internal-link-card-main {
+  display: block;
+  width: 100%;
+  height: 100%;
+  color: inherit;
+  text-decoration: none;
+  overflow: hidden;
+  border-radius: inherit;
+}
+
+.markweave-internal-link-card-copy {
+  display: grid;
+  align-content: center;
+  gap: 6px;
+  width: 100%;
+  min-width: 0;
+  height: 100%;
+  padding: 14px 18px;
+  box-sizing: border-box;
+}
+
+.markweave-internal-link-card-title,
+.markweave-internal-link-card-path {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.markweave-internal-link-card-title {
+  color: var(--markweave-text);
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.markweave-internal-link-card-description {
+  position: relative;
+  display: block;
+  overflow: hidden;
+  max-height: 2.9em;
+  color: var(--markweave-text-muted);
+  font: 14px/1.45 ui-sans-serif, system-ui, sans-serif;
+  white-space: normal;
+  word-break: break-word;
+}
+
+/* Overlay fade is more reliable than mask-image inside Tauri/WebKit. */
+.markweave-internal-link-card-description::after {
+  content: "";
+  position: absolute;
+  inset-inline: 0;
+  bottom: 0;
+  height: 1.45em;
+  pointer-events: none;
+  background: linear-gradient(
+    to bottom,
+    color-mix(in oklab, var(--markweave-surface) 0%, transparent),
+    var(--markweave-surface)
+  );
+}
+
+.markweave-internal-link-card:hover .markweave-internal-link-card-description::after {
+  background: linear-gradient(
+    to bottom,
+    color-mix(in oklab, var(--markweave-surface-raised) 0%, transparent),
+    var(--markweave-surface-raised)
+  );
+}
+
+.markweave-internal-link-card-path {
+  color: var(--markweave-focus);
+  font: 13px/1.3 ui-sans-serif, system-ui, sans-serif;
+}
+
+.markweave-internal-link-card-path:empty {
+  display: none;
+}
+
+.markweave-internal-link-card[data-exists="false"] {
+  border-style: dashed;
+}
+
+.markweave-internal-link-card[data-exists="false"] .markweave-internal-link-card-title {
+  color: var(--markweave-text-subtle);
+}
+
+.markweave-internal-link-card[data-exists="false"] .markweave-internal-link-card-path,
+.markweave-internal-link-card[data-exists="false"] .markweave-internal-link-card-description {
+  color: var(--markweave-text-muted);
+}
+
 @media (max-width: 560px) {
+  .markweave-internal-link-card {
+    --markweave-internal-link-card-height: 88px;
+  }
+
   .markweave-link-card {
     --markweave-link-card-height: 102px;
   }
@@ -3713,35 +3870,21 @@
   transform-origin: top left;
 }
 
-.markweave-slash-trigger {
-  position: fixed;
-  z-index: 59;
-  display: inline-flex;
-  align-items: center;
-  height: 26px;
-  max-width: 112px;
-  border-radius: 8px;
-  background: #f3f4f6;
-  padding: 0 8px;
-  color: #a2a7af;
-  font-size: 14px;
-  line-height: 1;
-  pointer-events: none;
-  transform: translateX(-8px);
-}
-
-.markweave-slash-trigger span {
+.markweave-editor-surface[contenteditable="true"]:focus .markweave-slash-trigger-active {
+  border-radius: 4px;
+  background: rgba(47, 69, 255, 0.08);
   color: #2f45ff;
-  margin-right: 1px;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
 }
 
-.markweave-slash-trigger em {
-  min-width: 0;
-  overflow: hidden;
+.markweave-editor-surface[contenteditable="true"]:focus .markweave-slash-trigger-active[data-markweave-slash-filter]::after {
+  content: attr(data-markweave-slash-filter);
+  margin-left: 3px;
   color: #a2a7af;
   font-style: normal;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  pointer-events: none;
+  user-select: none;
 }
 
 .markweave-slash-command-list,
@@ -5367,6 +5510,15 @@ body:has(.markweave-mermaid-fullscreen-layer, .markweave-image-preview-layer) .m
 }
 
 .markweave-editor-frame[data-markweave-theme="dark"] :is(.markweave-floating-toolbar-menu-icon, .markweave-slash-group > button svg, .markweave-slash-group > button small, .markweave-slash-menu__empty) {
+  color: var(--markweave-text-muted);
+}
+
+.markweave-editor-frame[data-markweave-theme="dark"] .markweave-editor-surface[contenteditable="true"]:focus .markweave-slash-trigger-active {
+  background: rgba(122, 162, 255, 0.16);
+  color: #9db4ff;
+}
+
+.markweave-editor-frame[data-markweave-theme="dark"] .markweave-editor-surface[contenteditable="true"]:focus .markweave-slash-trigger-active[data-markweave-slash-filter]::after {
   color: var(--markweave-text-muted);
 }
 

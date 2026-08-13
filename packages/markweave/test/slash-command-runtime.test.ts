@@ -506,11 +506,10 @@ describe("slash command runtime", () => {
       { frameRect, viewportWidth: 800, viewportHeight: 600, menuWidth: 360, menuMaxHeight: 320 },
     );
 
-    expect(topPosition).toMatchObject({ left: 118, triggerLeft: 118, triggerTop: 93, placement: "bottom" });
+    expect(topPosition).toMatchObject({ left: 118, placement: "bottom" });
     expect(topPosition.top).toBe(135);
     expect(bottomPosition.placement).toBe("top");
     expect(bottomPosition.left).toBe(340);
-    expect(bottomPosition.triggerLeft).toBe(576);
     expect(bottomPosition.top).toBe(440);
     expect(bottomPosition.top).toBeGreaterThanOrEqual(frameRect.top);
   });
@@ -542,14 +541,12 @@ describe("slash command runtime", () => {
     const position = {
       left: 120,
       top: 240,
-      triggerLeft: 118,
-      triggerTop: 200,
       maxHeight: 320,
       placement: "bottom" as const,
     };
 
-    expect(areSlashCommandMenuPositionsEquivalent(position, { ...position, top: 240.4, triggerTop: 200.4 })).toBe(true);
-    expect(areSlashCommandMenuPositionsEquivalent(position, { ...position, top: 241, triggerTop: 201 })).toBe(false);
+    expect(areSlashCommandMenuPositionsEquivalent(position, { ...position, top: 240.4 })).toBe(true);
+    expect(areSlashCommandMenuPositionsEquivalent(position, { ...position, top: 241 })).toBe(false);
     expect(areSlashCommandMenuPositionsEquivalent(position, { ...position, placement: "top" })).toBe(false);
   });
 
@@ -706,7 +703,7 @@ describe("slash command runtime", () => {
     expect(editor.commands.setTextSelection(textPosition(editor, "/zzzz"))).toBe(true);
     const state = getNextSlashCommandState(initialSlashCommandState, getSlashCommandContext(editor.state));
     const commands = filterSlashCommands("zzzz");
-    const position = { left: 24, top: 40, triggerLeft: 24, triggerTop: 8, maxHeight: 320, placement: "bottom" as const };
+    const position = { left: 24, top: 40, maxHeight: 320, placement: "bottom" as const };
 
     expect(commands).toEqual([]);
     expect(getSlashCommandKeyboardAction(state, commands, "Enter")).toEqual({ type: "ignore" });
@@ -740,7 +737,7 @@ describe("slash command runtime", () => {
 
     expect(commands.length).toBeGreaterThan(0);
     expect(
-      getSlashCommandMenuPresentation(state, commands, { left: 0, top: 0, triggerLeft: 0, triggerTop: 0, maxHeight: 320, placement: "bottom" }),
+      getSlashCommandMenuPresentation(state, commands, { left: 0, top: 0, maxHeight: 320, placement: "bottom" }),
     ).toMatchObject({
       visible: true,
       empty: false,

@@ -76,7 +76,7 @@ describe("slash command menu DOM", () => {
     const host = await renderReact(createElement(SlashCommandMenu, {
       commands: [hostCommand],
       state: { name: "filtering", query: "", activeIndex: 0, triggerFrom: 0, triggerTo: 1 },
-      position: { left: 20, top: 40, triggerLeft: 20, triggerTop: 10, maxHeight: 320, placement: "bottom" },
+      position: { left: 20, top: 40, maxHeight: 320, placement: "bottom" },
       error: "Safe host error",
       onSelect: vi.fn(),
     }));
@@ -116,8 +116,6 @@ describe("slash command menu DOM", () => {
         position: {
           left: 20,
           top: 40,
-          triggerLeft: 20,
-          triggerTop: 10,
           maxHeight: 320,
           placement: "bottom",
         },
@@ -162,8 +160,6 @@ describe("slash command menu DOM", () => {
         position: {
           left: 20,
           top: 40,
-          triggerLeft: 20,
-          triggerTop: 10,
           maxHeight: 320,
           placement: "bottom",
         },
@@ -236,8 +232,6 @@ describe("slash command menu DOM", () => {
         position: {
           left: 20,
           top: 40,
-          triggerLeft: 20,
-          triggerTop: 10,
           maxHeight: 160,
           placement: "bottom",
         },
@@ -267,8 +261,6 @@ describe("slash command menu DOM", () => {
           position: {
             left: 20,
             top: 40,
-            triggerLeft: 20,
-            triggerTop: 10,
             maxHeight: 160,
             placement: "bottom",
           },

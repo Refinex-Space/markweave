@@ -1,6 +1,6 @@
 ---
 owner: refinex
-updated: 2026-08-11
+updated: 2026-08-13
 status: active
 referenced_by: docs/README.md#knowledge-map
 ---
@@ -65,7 +65,7 @@ function saveDraft(markdown: string) {
 </template>
 ```
 
-`default-content` is Markdown by default. Store `payload.markdown` as the canonical product value. Markweave keeps standard Markdown where possible and emits native HTML fallback only for rich state that Markdown cannot express, including colored text/highlights, block alignment, and merged table cells. `payload.html`, `payload.json`, and `payload.text` remain integration outputs. Payload fields serialize lazily and cache their result, so reading Markdown does not also create HTML, JSON, and plain text; a controlled Markdown echo also avoids a duplicate content comparison.
+`default-content` is Markdown by default. Store `payload.markdown` as the canonical product value. Markweave keeps standard Markdown where possible and emits native HTML fallback only for rich state that Markdown cannot express, including colored text/highlights, block alignment, paragraph or heading indentation, subscript/superscript, and merged or styled table cells. The fallback uses the complete Schema including `editor-extensions`, so host nodes with a lossless `renderHTML/parseHTML` contract are not silently discarded. `payload.html`, `payload.json`, and `payload.text` remain integration outputs. Payload fields serialize lazily and cache their result, so reading Markdown does not also create HTML, JSON, and plain text; a controlled Markdown echo also avoids a duplicate content comparison.
 
 ## Content API
 

@@ -29,20 +29,30 @@ import { MarkweaveAskAi } from "../plugins/ask-ai/ask-ai-session";
 import { MarkweaveAiEdit } from "../plugins/ai-edit/ai-edit-controller";
 import { MarkweaveCodeBlockClickFocus, MarkweaveCodeBlockCollapse, markweaveCodeBlockBehavior } from "../plugins/codeblock/codeblock-behavior";
 import { createMarkweaveLowlight } from "../plugins/codeblock/codeblock-lowlight";
-import { MarkweaveIndent } from "../plugins/indent/indent-extension";
+import { MarkweaveIndent, normalizeMarkweaveIndentLevel } from "../plugins/indent/indent-extension";
+import {
+  MarkweaveInternalLinkCard,
+  type MarkweaveInternalLinkCardConfig,
+} from "../plugins/internal-link-card/internal-link-card";
 import { MarkweaveLinkCard } from "../plugins/link-card/link-card-node";
 import { MarkweaveMarkdownInput } from "../plugins/markdown/markdown-input";
 import {
+  createMarkweaveHtmlFallbackRenderer,
+  needsMarkweaveInlineNodeHtmlFallback,
   needsMarkweaveTableHtmlFallback,
   normalizeMarkweaveHtmlColor,
-  renderMarkweaveHtmlFallback,
 } from "../plugins/markdown/lossless-html";
 import { MarkweaveCoreImage, MarkweaveCoreVideo } from "../plugins/media/core-media-nodes";
 import { MarkweaveImageClipboard } from "../plugins/media/image-clipboard";
 import { MarkweaveAttachment } from "../plugins/media/media-nodes";
 import { MarkweaveMermaidInlinePreview } from "../plugins/mermaid/mermaid-inline-preview";
+import {
+  MarkweaveReferenceSuggestion,
+  type MarkweaveReferenceSuggestionConfig,
+} from "../plugins/reference/reference-suggestion";
 import { MarkweaveSearch } from "../plugins/search/search-controller";
 import { MarkweaveSlashEmptyLinePlaceholder } from "../plugins/slash-command/empty-line-placeholder";
+import { MarkweaveSlashTriggerDecoration } from "../plugins/slash-command/slash-trigger-decoration";
 import { MarkweaveTableClipboard } from "../plugins/table/table-clipboard";
 import { MarkweaveTableArrowNavigation } from "../plugins/table/table-arrow-navigation";
 import { MarkweaveTableCapabilities, type MarkweaveTableCapabilityResolver } from "../plugins/table/table-capabilities";
@@ -61,6 +71,8 @@ export interface CreateMarkweaveEditorExtensionsOptions {
   readonly linkCardExtension?: AnyExtension;
   readonly onImageUpload?: MarkweaveSlashCommandUploadHandler;
   readonly tableCapabilities?: MarkweaveTableCapabilityResolver;
+  readonly referenceSuggestion?: MarkweaveReferenceSuggestionConfig | null;
+  readonly internalLinkCard?: MarkweaveInternalLinkCardConfig | null;
   readonly editorExtensions?: readonly AnyExtension[];
 }
 
@@ -68,51 +80,6 @@ const markweaveLowlight = createMarkweaveLowlight();
 const renderStandardTableMarkdown = (Table.config as {
   renderMarkdown?: (node: JSONContent, helpers: MarkdownRendererHelpers, context: RenderContext) => string;
 }).renderMarkdown;
-
-const MarkweaveTextStyle = TextStyle.extend({
-  renderMarkdown(node, helpers) {
-    const color = normalizeMarkweaveHtmlColor(node.attrs?.color);
-    const content = helpers.renderChildren(node.content ?? []);
-    return color ? `<span style="color: ${color}">${content}</span>` : content;
-  },
-});
-
-const MarkweaveHighlight = Highlight.extend({
-  renderMarkdown(node, helpers) {
-    const color = normalizeMarkweaveHtmlColor(node.attrs?.color);
-    const content = helpers.renderChildren(node.content ?? []);
-    return color ? `<mark data-color="${color}">${content}</mark>` : `==${content}==`;
-  },
-});
-
-const MarkweaveParagraph = Paragraph.extend({
-  renderMarkdown(node, helpers) {
-    return node.attrs?.textAlign && node.attrs.textAlign !== "left"
-      ? renderMarkweaveHtmlFallback(node)
-      : helpers.renderChildren(node.content ?? []);
-  },
-});
-
-const MarkweaveHeading = Heading.extend({
-  renderMarkdown(node, helpers) {
-    if (node.attrs?.textAlign && node.attrs.textAlign !== "left") {
-      return renderMarkweaveHtmlFallback(node);
-    }
-
-    const level = Math.min(6, Math.max(1, Number(node.attrs?.level) || 1));
-    return `#`.repeat(level) + ` ${helpers.renderChildren(node.content ?? [])}`;
-  },
-});
-
-const MarkweaveTable = Table.extend({
-  renderMarkdown(node, helpers, context) {
-    if (needsMarkweaveTableHtmlFallback(node)) {
-      return renderMarkweaveHtmlFallback(node);
-    }
-
-    return renderStandardTableMarkdown?.(node, helpers, context) ?? "";
-  },
-});
 
 const tableHorizontalAlignmentValues = new Set(["left", "center", "right"]);
 const tableVerticalAlignmentValues = new Set(["top", "middle", "bottom"]);
@@ -391,8 +358,72 @@ function stripMarkdownIndent(line: string, count: number) {
 
 export function createMarkweaveEditorExtensions(options: CreateMarkweaveEditorExtensionsOptions = {}) {
   const messages = getMarkweaveMessages(options.lang);
+  let extensions: Extensions = [];
+  const htmlFallback = createMarkweaveHtmlFallbackRenderer(() => extensions);
+  const markweaveTextStyle = TextStyle.extend({
+    renderMarkdown(node, helpers) {
+      const color = normalizeMarkweaveHtmlColor(node.attrs?.color);
+      const content = color
+        ? htmlFallback.renderInline(node.content ?? [])
+        : helpers.renderChildren(node.content ?? []);
+      return color ? `<span style="color: ${color}">${content}</span>` : content;
+    },
+  });
+  const markweaveHighlight = Highlight.extend({
+    renderMarkdown(node, helpers) {
+      const color = normalizeMarkweaveHtmlColor(node.attrs?.color);
+      const content = color
+        ? htmlFallback.renderInline(node.content ?? [])
+        : helpers.renderChildren(node.content ?? []);
+      return color ? `<mark data-color="${color}">${content}</mark>` : `==${content}==`;
+    },
+  });
+  const markweaveSubscript = Subscript.extend({
+    renderMarkdown(node) {
+      return `<sub>${htmlFallback.renderInline(node.content ?? [])}</sub>`;
+    },
+  });
+  const markweaveSuperscript = Superscript.extend({
+    renderMarkdown(node) {
+      return `<sup>${htmlFallback.renderInline(node.content ?? [])}</sup>`;
+    },
+  });
+  const markweaveParagraph = Paragraph.extend({
+    renderMarkdown(node, helpers) {
+      const requiresHtmlFallback =
+        (node.attrs?.textAlign && node.attrs.textAlign !== "left") ||
+        normalizeMarkweaveIndentLevel(node.attrs?.markweaveIndentLevel) > 0 ||
+        needsMarkweaveInlineNodeHtmlFallback(node);
+      return requiresHtmlFallback
+        ? htmlFallback.renderBlock(node)
+        : helpers.renderChildren(node.content ?? []);
+    },
+  });
+  const markweaveHeading = Heading.extend({
+    renderMarkdown(node, helpers) {
+      const requiresHtmlFallback =
+        (node.attrs?.textAlign && node.attrs.textAlign !== "left") ||
+        normalizeMarkweaveIndentLevel(node.attrs?.markweaveIndentLevel) > 0 ||
+        needsMarkweaveInlineNodeHtmlFallback(node);
+      if (requiresHtmlFallback) {
+        return htmlFallback.renderBlock(node);
+      }
 
-  const extensions: Extensions = [
+      const level = Math.min(6, Math.max(1, Number(node.attrs?.level) || 1));
+      return `#`.repeat(level) + ` ${helpers.renderChildren(node.content ?? [])}`;
+    },
+  });
+  const markweaveTable = Table.extend({
+    renderMarkdown(node, helpers, context) {
+      if (needsMarkweaveTableHtmlFallback(node)) {
+        return htmlFallback.renderBlock(node);
+      }
+
+      return renderStandardTableMarkdown?.(node, helpers, context) ?? "";
+    },
+  });
+
+  extensions = [
     MarkweaveCompositionGuard,
     MarkweaveCommands.configure({ lang: options.lang === "en" ? "en" : "zh" }),
     MarkweaveAskAi,
@@ -402,6 +433,9 @@ export function createMarkweaveEditorExtensions(options: CreateMarkweaveEditorEx
     }),
     MarkweaveSlashEmptyLinePlaceholder.configure({
       placeholder: messages.slash.emptyLinePlaceholder,
+    }),
+    MarkweaveSlashTriggerDecoration.configure({
+      filterPlaceholder: messages.slash.filterPlaceholder,
     }),
     MarkweaveTocProjection,
     Markdown.configure({
@@ -419,18 +453,18 @@ export function createMarkweaveEditorExtensions(options: CreateMarkweaveEditorEx
       orderedList: false,
       underline: false,
     }),
-    MarkweaveParagraph,
-    MarkweaveHeading.configure({
+    markweaveParagraph,
+    markweaveHeading.configure({
       levels: [1, 2, 3, 4, 5, 6],
     }),
     MarkweaveCallout,
     MarkweaveIndent,
-    MarkweaveTextStyle,
+    markweaveTextStyle,
     Color.configure({
       types: [TextStyle.name],
     }),
-    Subscript,
-    Superscript,
+    markweaveSubscript,
+    markweaveSuperscript,
     TextAlign.configure({
       types: ["heading", "paragraph"],
     }),
@@ -474,7 +508,7 @@ export function createMarkweaveEditorExtensions(options: CreateMarkweaveEditorEx
     MarkweaveCodeBlockClickFocus,
     MarkweaveMermaidInlinePreview,
     Underline,
-    MarkweaveHighlight.configure({
+    markweaveHighlight.configure({
       multicolor: true,
       HTMLAttributes: {
         class: "markweave-highlight",
@@ -504,7 +538,7 @@ export function createMarkweaveEditorExtensions(options: CreateMarkweaveEditorEx
         class: "markweave-task-item",
       },
     }),
-    MarkweaveTable.configure({
+    markweaveTable.configure({
       resizable: false,
       allowTableNodeSelection: true,
       HTMLAttributes: {
@@ -520,6 +554,12 @@ export function createMarkweaveEditorExtensions(options: CreateMarkweaveEditorEx
     MarkweaveTableArrowNavigation,
     MarkweaveTableInteractionLayer,
     MarkweaveTableKeyboard,
+    MarkweaveReferenceSuggestion.configure({
+      config: options.referenceSuggestion ?? null,
+    }),
+    MarkweaveInternalLinkCard.configure({
+      config: options.internalLinkCard ?? null,
+    }),
     ...(options.editorExtensions ?? []),
   ];
 

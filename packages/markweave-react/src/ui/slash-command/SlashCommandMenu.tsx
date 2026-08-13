@@ -379,19 +379,11 @@ export function SlashCommandMenu({
     maxHeight: position.maxHeight,
     "--markweave-slash-menu-max-height": `${position.maxHeight}px`,
   } as CSSProperties;
-  const triggerStyle = {
-    left: position.triggerLeft,
-    top: position.triggerTop,
-  } as CSSProperties;
   const openInputCommand = (command: SlashCommandSpec) => onInputCommandChange?.(command);
   const closeInputCommand = () => onInputCommandChange?.(null);
 
   return (
     <>
-      <div className="markweave-slash-trigger" style={triggerStyle} aria-hidden="true" data-testid="markweave-slash-trigger">
-        <span>/</span>
-        <em>{state.query ? state.query : messages.slash.filterPlaceholder}</em>
-      </div>
       <div
         id="markweave-slash-command-listbox"
         className="markweave-slash-menu"

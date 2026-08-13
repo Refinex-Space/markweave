@@ -135,6 +135,33 @@ export {
   createMarkweaveSearchController,
   MarkweaveSearch,
 } from "./plugins/search/search-controller";
+export type {
+  MarkweaveReferenceItem,
+  MarkweaveReferenceKeyDownState,
+  MarkweaveReferenceRenderer,
+  MarkweaveReferenceRenderState,
+  MarkweaveReferenceSuggestionConfig,
+  MarkweaveReferenceSuggestionExtensionOptions,
+} from "./plugins/reference/reference-suggestion";
+export {
+  DEFAULT_MARKWEAVE_REFERENCE_TRIGGER,
+  insertMarkweaveReferenceLink,
+  MarkweaveReferenceSuggestion,
+  markweaveReferenceSuggestionPluginKey,
+} from "./plugins/reference/reference-suggestion";
+export type {
+  MarkweaveInternalLinkCardConfig,
+  MarkweaveInternalLinkCardExtensionOptions,
+  MarkweaveInternalLinkCardMeta,
+  MarkweaveInternalLinkCardResolver,
+  MarkweaveInternalLinkCardResolveRequest,
+} from "./plugins/internal-link-card/internal-link-card";
+export {
+  INTERNAL_LINK_CARD_ATTRIBUTE,
+  INTERNAL_LINK_CARD_SELECTOR,
+  MarkweaveInternalLinkCard,
+  markweaveInternalLinkCardPluginKey,
+} from "./plugins/internal-link-card/internal-link-card";
 export type { MarkweaveLinkCardAttrs, MarkweaveLinkCardMetadata, MarkweaveLinkCardResolveRequest, MarkweaveLinkCardResolver } from "./plugins/link-card/link-card";
 export {
   getMarkweaveLinkCardMarkdown,

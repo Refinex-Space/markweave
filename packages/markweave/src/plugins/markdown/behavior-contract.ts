@@ -13,6 +13,10 @@ export const markdownTransformTargets = [
   "link",
   "highlight",
   "underline",
+  "subscript",
+  "superscript",
+  "block-indent",
+  "trusted-host-inline-node",
   "strikethrough",
   "inline-code",
 ] as const;
