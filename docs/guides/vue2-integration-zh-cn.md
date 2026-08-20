@@ -1,6 +1,6 @@
 ---
 owner: refinex
-updated: 2026-08-13
+updated: 2026-08-20
 status: active
 referenced_by: docs/README.md#knowledge-map
 ---
@@ -37,41 +37,27 @@ import "@markweave/vue2/styles.css";
 
 ## Vue CLI 4 / Webpack 4 注意事项
 
-旧 Vue 2 项目经常需要转译依赖，因为 Markweave 和 Tiptap 发布的是现代 ESM。如果项目使用 Vue CLI 4 / Webpack 4，可以从下面的 `vue.config.js` 结构开始：
+Vue CLI 4 / Webpack 4 项目应使用专用 ES2019 入口。该入口会预打包 Markweave、Tiptap 扩展、Emoji、KaTeX、Lowlight 和 Mermaid，同时让 Vue、`@tiptap/vue-2`、`@tiptap/core`、`@tiptap/pm`、ProseMirror 继续由宿主提供唯一运行时。Mermaid 仍保持异步分块，不会因为 legacy 入口而进入同步首屏路径。
+
+CommonJS helper 可以直接用于 `vue.config.js`，并把普通的 `@markweave/vue2` 导入别名到物理 `legacy.js` 文件。保留物理文件是有意设计，因为 Webpack 4 不能依赖 package `exports` 才能解析子路径：
 
 ```js
+const applyMarkweaveVue2Webpack4Legacy = require("@markweave/vue2/webpack4");
+
 module.exports = {
-  transpileDependencies: [
-    "markweave",
-    "@markweave/vue2",
-    "@tiptap",
-    "prosemirror",
-    "lowlight",
-    "mermaid",
-    "marked",
-    "es-toolkit",
-    "@iconify",
-    "@mermaid-js",
-    "uuid",
-  ],
-  configureWebpack: {
-    resolve: {
-      extensions: [".mjs", ".js", ".jsx", ".ts", ".tsx", ".vue", ".json"],
-    },
-    module: {
-      rules: [
-        {
-          test: /\.mjs$/,
-          include: /node_modules/,
-          type: "javascript/auto",
-        },
-      ],
-    },
+  chainWebpack(config) {
+    applyMarkweaveVue2Webpack4Legacy(config, {
+      projectRoot: __dirname,
+    });
   },
 };
 ```
 
-`apps/playground-vue2` 里还有一些 workspace alias，这是因为 playground 直接消费本仓库源码。发布包用户应从 `@markweave/vue2` 导入，通常不需要复制那些本地源码 alias。
+helper 只补 Webpack 4 仍然需要的 Tiptap 单例别名和窄范围 Babel 规则。Babel 缓存默认写入 `node_modules` 外的 `.cache/markweave-babel-loader`，因此不会被 `npm ci` 删除。应保持 `.cache/` 不提交，或者用 `MARKWEAVE_BABEL_CACHE_DIR` 指向 CI 持久缓存目录。
+
+如果宿主自行维护别名，可以显式导入 `@markweave/vue2/legacy`，并给 helper 传 `aliasPackageImport: false`。不要把 legacy 入口与旧的 Mermaid、Cytoscape、D3、Lowlight、Markweave 大范围 `transpileDependencies` 同时使用；否则预构建依赖仍会再次进入 Babel，构建优化会失效。
+
+私有 `apps/playground-vue2` fixture 使用 Vue CLI 4、Webpack 4.47、Vue 2.6.12 按真实发布包形态消费该入口，并由 `pnpm build:vue2-legacy` 作为发布门禁。
 
 ## 最小编辑器
 
@@ -392,7 +378,7 @@ Vue 2 适配器提供完整 Markweave UI：浮动工具栏、链接弹层、slas
 - `@markweave/vue2/styles.css` 只导入一次。
 - 即使宿主系统的中文回退字体没有原生斜体字形，行内斜体也会保持可见。
 - 保持 `vue` 和 `vue-template-compiler` 版本完全一致。
-- 使用 Vue CLI 4 / Webpack 4 时，为现代 ESM 依赖保留 `transpileDependencies`。
+- 使用 Vue CLI 4 / Webpack 4 时接入 `@markweave/vue2/webpack4`，不要再把 legacy 已预构建的重型依赖加入大范围 `transpileDependencies`。
 - 宿主驱动 AI 多处审阅的全局决策条直接挂载到 `body`，不依赖 CSS query container；逐块操作和 Tooltip 只使用 Electron 21 / Chromium 106 已支持的 DOM、选择器与布局能力。
 - Markweave 0.3.5 不再让 CSS 查询容器影响固定目录定位，并会在挂载后主动探测 pending 状态的首屏图片，覆盖 Electron 21 / Chromium 106 延迟首次 `IntersectionObserver` 回调的情况。
 - 上传接口必须做认证、文件大小、MIME 类型和返回 URL 校验。

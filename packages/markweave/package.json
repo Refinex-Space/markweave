@@ -1,6 +1,6 @@
 {
   "name": "markweave",
-  "version": "0.8.0",
+  "version": "0.9.0",
   "type": "module",
   "description": "Markdown-first WYSIWYG editor built on Tiptap and CodeMirror, providing Typora-like editing experience with block-level structure, slash commands, and rich text tooling.",
   "license": "MIT",
@@ -77,6 +77,11 @@
       "types": "./dist/types/*.d.ts",
       "import": "./dist/*.js"
     },
+    "./legacy": {
+      "types": "./legacy.d.ts",
+      "import": "./legacy.js",
+      "default": "./legacy.js"
+    },
     "./styles.css": "./dist/styles.css"
   },
   "files": [
@@ -87,12 +92,14 @@
     "vue2.d.ts",
     "vue3.js",
     "vue3.d.ts",
+    "legacy.js",
+    "legacy.d.ts",
     "styles.css",
     "README.md",
     "LICENSE"
   ],
   "scripts": {
-    "build": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\" && tsc -p tsconfig.build.json && node -e \"require('node:fs').copyFileSync('src/editor-core/markweave-editor.css','dist/styles.css')\"",
+    "build": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\" && tsc -p tsconfig.build.json && node -e \"require('node:fs').copyFileSync('src/editor-core/markweave-editor.css','dist/styles.css')\" && vite build --config vite.legacy.config.ts --logLevel warn",
     "prepack": "pnpm run build",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },

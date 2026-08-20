@@ -33,6 +33,8 @@ pnpm add @markweave/vue2
 
 Vue 2 CLI / Webpack 4 projects should keep `vue-template-compiler` on the same Vue 2.6.x version as `vue`. Existing Vue 2 CLI projects usually already have both.
 
+Vue CLI 4 / Webpack 4 production consumers should use the ES2019 adapter entry through `require("@markweave/vue2/webpack4")`. Framework-neutral Webpack 4 consumers can import `markweave/legacy`; the Vue 2 helper and full integration guide remain the supported path for the complete editor UI.
+
 ## Usage
 
 ### React
@@ -158,6 +160,7 @@ Every selectable language identifier is registered with either a dedicated Highl
 ## Exports
 
 - `markweave`: framework-neutral types and helpers, including content format, mode, lang, TOC, upload, table payloads, AI edit, Command Registry/Controller, and host Extension options.
+- `markweave/legacy`: ES2019 framework-neutral bundle with heavy non-singleton features prebuilt for legacy bundlers.
 - `@markweave/react`: React editor component, controller hook, React extension factory, and `@markweave/react/styles.css`.
 - `@markweave/vue2`: Vue 2 editor component, controller helper, Vue 2 extension factory, and `@markweave/vue2/styles.css`.
 - `@markweave/vue3`: Vue 3 editor component, composable, Vue 3 extension factory, and `@markweave/vue3/styles.css`.

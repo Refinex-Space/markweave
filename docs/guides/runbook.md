@@ -1,6 +1,6 @@
 ---
 owner: refinex
-updated: 2026-07-30
+updated: 2026-08-20
 status: active
 referenced_by: AGENTS.md#knowledge-map
 ---
@@ -101,6 +101,8 @@ pnpm harness:check
 
 `pnpm build` builds `markweave` first, then `@markweave/react`, `@markweave/vue2`, `@markweave/vue3`, and finally `@markweave/playground-react`, `@markweave/playground-vue2`, and `@markweave/playground-vue3`. The core package build removes `packages/markweave/dist`, emits framework-neutral TypeScript JavaScript plus declarations with preserved module paths for `markweave/internal/*`, and copies the editor stylesheet to `dist/styles.css`. Each adapter package then runs its own Vite library build and declaration build.
 
+Run `pnpm build:vue2-legacy` after package-boundary, Vite, dependency, or Vue 2 compatibility changes. It rebuilds `markweave/legacy` and `@markweave/vue2/legacy`, then consumes the generated physical package entries through Vue CLI 4 / Webpack 4. The legacy bundle must keep Vue, Tiptap core/PM, and ProseMirror external, must not contain a free browser `require()`, and must stay under the release artifact count/size limits enforced by `scripts/verify-publish-artifacts.mjs`.
+
 The playground production build can emit Vite large-chunk warnings because Mermaid and diagram assets are bundled into the demo app. Treat those warnings as a package-size signal, not as a Harness failure.
 
 ## Release Prep
@@ -119,6 +121,8 @@ Before publishing, verify:
 - scoped adapter packages keep `publishConfig.access` set to `public`
 - `packages/markweave/dist/index.js`, `dist/types/index.d.ts`, `dist/editor-core/*`, `dist/plugins/*`, and `dist/styles.css` are produced by `pnpm build`
 - `packages/markweave-react/dist/index.js`, `packages/markweave-vue2/dist/index.js`, and `packages/markweave-vue3/dist/index.js` are produced by `pnpm build`
+- `packages/markweave/dist/legacy/index.js` and `packages/markweave-vue2/dist/legacy/index.js` exist, target ES2019, and keep only approved shared runtimes external
+- `@markweave/vue2/webpack4` is present in the packed Vue 2 package and `pnpm build:vue2-legacy` passes
 - `pnpm --filter markweave pack --dry-run` includes only core package files such as `dist`, legacy adapter shims, `styles.css`, `README.md`, `LICENSE`, and package metadata
 - `pnpm --filter @markweave/react pack --dry-run`, `pnpm --filter @markweave/vue2 pack --dry-run`, and `pnpm --filter @markweave/vue3 pack --dry-run` include only adapter package files
 - packed adapter package metadata rewrites the local `markweave: workspace:^` dependency to the current publishable core version range
@@ -133,6 +137,7 @@ Run the release checks from the workspace root:
 pnpm test
 pnpm typecheck
 pnpm build
+pnpm build:vue2-legacy
 pnpm release:pack
 pnpm release:dry-run
 pnpm harness:check

@@ -5,6 +5,10 @@ allowBuilds:
   core-js: true
   ejs: true
   fsevents: true
+overrides:
+  prosemirror-model: 1.25.11
+  prosemirror-state: 1.4.4
+  prosemirror-view: 1.42.2
 packageExtensions:
   vue-template-compiler@2.6.12:
     dependencies:

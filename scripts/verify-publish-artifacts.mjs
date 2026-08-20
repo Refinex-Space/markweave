@@ -7,6 +7,7 @@ import {
 import { dirname, extname, relative, resolve } from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
+import ts from "typescript";
 
 const workspaceRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const publishablePackages = [
@@ -46,6 +47,68 @@ function requireFile(path, label) {
   return true;
 }
 
+function collectEsmImports(source, path) {
+  const sourceFile = ts.createSourceFile(path, source, ts.ScriptTarget.Latest, false, ts.ScriptKind.JS);
+  const requests = [];
+
+  function visit(node) {
+    if ((ts.isImportDeclaration(node) || ts.isExportDeclaration(node))
+      && node.moduleSpecifier
+      && ts.isStringLiteral(node.moduleSpecifier)) {
+      requests.push(node.moduleSpecifier.text);
+    } else if (ts.isCallExpression(node)
+      && node.expression.kind === ts.SyntaxKind.ImportKeyword
+      && node.arguments.length === 1
+      && ts.isStringLiteral(node.arguments[0])) {
+      requests.push(node.arguments[0].text);
+    }
+    ts.forEachChild(node, visit);
+  }
+
+  visit(sourceFile);
+  return requests;
+}
+
+function verifyLegacyBundle(packageRoot, packageLabel, allowedExternal) {
+  const legacyRoot = resolve(packageRoot, "dist/legacy");
+  const legacyEntry = resolve(legacyRoot, "index.js");
+  if (!requireFile(legacyEntry, `${packageLabel} legacy`)) {
+    return;
+  }
+
+  const javascriptFiles = listFiles(legacyRoot).filter((path) => path.endsWith(".js"));
+  const totalBytes = javascriptFiles.reduce((sum, path) => sum + statSync(path).size, 0);
+  if (javascriptFiles.length > 150) {
+    errors.push(`${packageLabel}: legacy build emitted ${javascriptFiles.length} JavaScript files; expected at most 150`);
+  }
+  if (totalBytes > 8 * 1024 * 1024) {
+    errors.push(`${packageLabel}: legacy JavaScript exceeds the 8 MiB release budget`);
+  }
+
+  const mermaidArtifacts = javascriptFiles.filter((path) =>
+    readFileSync(path, "utf8").includes("globalThis.__esbuild_esm_mermaid_nm"),
+  );
+  if (mermaidArtifacts.length !== 1) {
+    errors.push(`${packageLabel}: expected one self-contained legacy Mermaid artifact, received ${mermaidArtifacts.length}`);
+  } else if (!readFileSync(mermaidArtifacts[0], "utf8").includes("export default globalThis.mermaid")) {
+    errors.push(`${packageLabel}: legacy Mermaid artifact does not expose the browser bundle default`);
+  }
+
+  for (const path of javascriptFiles) {
+    const source = readFileSync(path, "utf8");
+    if (/(?<![.$\w])require\s*\(/.test(source)) {
+      errors.push(`${packageLabel}: browser legacy output contains a free require() in ${relative(packageRoot, path)}`);
+    }
+
+    for (const request of collectEsmImports(source, path)) {
+      if (request.startsWith(".") || allowedExternal(request)) {
+        continue;
+      }
+      errors.push(`${packageLabel}: unexpected legacy external ${request} in ${relative(packageRoot, path)}`);
+    }
+  }
+}
+
 const manifests = publishablePackages.map((packagePath) => {
   const packageRoot = resolve(workspaceRoot, packagePath);
   const manifest = JSON.parse(readFileSync(resolve(packageRoot, "package.json"), "utf8"));
@@ -83,6 +146,22 @@ for (const { manifest, packagePath, packageRoot } of manifests) {
     }
   }
 }
+
+const isCoreLegacyExternal = (request) =>
+  request === "@tiptap/core"
+  || request.startsWith("@tiptap/core/")
+  || request === "@tiptap/pm"
+  || request.startsWith("@tiptap/pm/")
+  || request.startsWith("prosemirror-");
+verifyLegacyBundle(resolve(workspaceRoot, "packages/markweave"), "packages/markweave", isCoreLegacyExternal);
+verifyLegacyBundle(
+  resolve(workspaceRoot, "packages/markweave-vue2"),
+  "packages/markweave-vue2",
+  (request) => request === "vue"
+    || request === "@tiptap/vue-2"
+    || request.startsWith("@tiptap/vue-2/")
+    || isCoreLegacyExternal(request),
+);
 
 const coreRoot = resolve(workspaceRoot, "packages/markweave");
 const coreSourceRoot = resolve(coreRoot, "src");

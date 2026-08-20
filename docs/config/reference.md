@@ -1,6 +1,6 @@
 ---
 owner: refinex
-updated: 2026-08-11
+updated: 2026-08-20
 status: active
 referenced_by: AGENTS.md#knowledge-map
 ---
@@ -28,6 +28,7 @@ Do not introduce additional lockfiles or package-manager workflows without a sep
 | `dev:vue3` | `pnpm --filter @markweave/playground-vue3 dev` | Starts the private Vue 3 playground. |
 | `build` | `pnpm --filter markweave build && pnpm --filter @markweave/react build && pnpm --filter @markweave/vue2 build && pnpm --filter @markweave/vue3 build && pnpm --filter @markweave/playground-react build && pnpm --filter @markweave/playground-vue2 build && pnpm --filter @markweave/playground-vue3 build` | Builds the core package, adapter packages, then all playground apps. |
 | `build:vue2` | `pnpm --filter @markweave/playground-vue2 build` | Builds the private Vue 2 playground. |
+| `build:vue2-legacy` | core build, Vue 2 adapter build, then `scripts/build-vue2-legacy-playground.mjs` | Builds the physical ES2019 package entries and verifies them through Vue CLI 4 / Webpack 4. |
 | `release:pack` | sequential package `pack --dry-run`, then `pnpm release:verify-artifacts` | Rebuilds every publishable package through `prepack`, checks npm tarball contents, then verifies generated exports, source-module coverage, styles, and release-critical media artifacts. |
 | `release:dry-run` | sequential package `publish --dry-run`, then `pnpm release:verify-artifacts` | Exercises the publish lifecycle, including mandatory package rebuilds, without publishing, then verifies the generated artifacts. |
 | `release:verify-artifacts` | `node scripts/verify-publish-artifacts.mjs` | Rejects missing or stale build output, mismatched package versions, incomplete core module emission, and missing Madora image-reference support. |
@@ -53,15 +54,21 @@ The adapter packages build with Vite library mode:
 - `packages/markweave-vue2` outputs `@markweave/vue2` from `src/index.ts`.
 - `packages/markweave-vue3` outputs `@markweave/vue3` from `src/index.ts`.
 
+`markweave/legacy` and `@markweave/vue2/legacy` are additive ES2019 library builds. They prebundle Markweave-owned code and heavy non-singleton dependencies, including Tiptap extensions, Emoji, KaTeX, Lowlight, and Mermaid. Vue, `@tiptap/vue-2`, `@tiptap/core`, `@tiptap/pm`, and direct ProseMirror runtimes stay external so trusted host `editorExtensions` share the same constructors and plugin state as the editor. Mermaid remains split behind its dynamic import; the legacy build resolves that import to Mermaid's official single-file browser artifact so Webpack 4 never reinterprets Mermaid's internal ESM chunk graph. Physical root `legacy.js` files are included for Webpack 4 resolvers that do not understand package `exports`.
+
 Adapter packages externalize `markweave`, `markweave/internal/*`, their Tiptap framework adapter, and the host framework runtime.
 
 ### Tiptap Runtime Alignment
 
 All published `@tiptap/*` runtime dependencies are pinned to the same exact version (`3.29.2` for Markweave `0.7.2`). Markweave's direct `prosemirror-model`, `prosemirror-state`, and `prosemirror-view` dependencies are also pinned to the versions resolved by that Tiptap suite. This prevents npm consumers from installing multiple Tiptap or ProseMirror runtimes when an adapter package and `markweave` are installed together.
 
+The workspace root enforces those ProseMirror versions through `pnpm-workspace.yaml` `overrides`. This is a test/build invariant, not permission to bundle ProseMirror into a legacy artifact; published manifests still declare the exact runtime versions so npm consumers can deduplicate the same graph.
+
 Framework adapter builds bundle their Tiptap `*/menus` subpath while keeping the main framework adapter external. This preserves one host-owned Tiptap runtime and avoids exposing package `exports` subpaths to legacy bundlers such as Webpack 4.
 
 Hosts that define custom editor extensions must import `@tiptap/core` and `@tiptap/pm` from the same resolved runtime version. The package-boundary test rejects release metadata that introduces a different Tiptap version or a semver range in any publishable package.
+
+The Vue 2 package declares the pinned direct ProseMirror runtimes used by its legacy output. npm/pnpm should deduplicate these against `markweave` and `@tiptap/pm`; bundling a second ProseMirror runtime into the legacy artifact is forbidden.
 
 Every publishable package defines `prepack: pnpm run build`. `pnpm pack` and `pnpm publish` therefore remove and regenerate that package's ignored `dist` directory before npm reads `files`; publishing a previously generated `dist` without rebuilding is not a supported path.
 
@@ -74,6 +81,7 @@ The public package exports are:
 | Export | Target |
 | --- | --- |
 | `markweave` | `./dist/index.js` with `./dist/types/index.d.ts` |
+| `markweave/legacy` | physical `./legacy.js`, forwarding to the ES2019 `./dist/legacy/index.js` bundle |
 | `markweave/internal/*` | `./dist/*.js` with `./dist/types/*.d.ts` for adapter package internals |
 | `markweave/react` | legacy shim `./react.js` / `./react.d.ts`, forwarding to `@markweave/react` |
 | `markweave/vue2` | legacy shim `./vue2.js` / `./vue2.d.ts`, forwarding to `@markweave/vue2` |
@@ -87,6 +95,8 @@ The preferred public adapter package exports are:
 | `@markweave/react` | `packages/markweave-react/dist/index.js` with `dist/types/index.d.ts` |
 | `@markweave/react/styles.css` | `packages/markweave-react/styles.css`, importing `markweave/styles.css` |
 | `@markweave/vue2` | `packages/markweave-vue2/dist/index.js` with `dist/types/index.d.ts` |
+| `@markweave/vue2/legacy` | physical `legacy.js`, forwarding to the full ES2019 Vue 2 bundle |
+| `@markweave/vue2/webpack4` | CommonJS webpack-chain helper that aliases the legacy entry and narrowly transpiles shared runtimes |
 | `@markweave/vue2/styles.css` | `packages/markweave-vue2/styles.css`, importing `markweave/styles.css` |
 | `@markweave/vue3` | `packages/markweave-vue3/dist/index.js` with `dist/types/index.d.ts` |
 | `@markweave/vue3/styles.css` | `packages/markweave-vue3/styles.css`, importing `markweave/styles.css` |
@@ -138,6 +148,8 @@ Local usage details live in `apps/playground-vue3/README.md`.
 - `markweave/styles.css` -> `packages/markweave/src/editor-core/markweave-editor.css`
 - `@markweave/playground-fixtures` -> `apps/playground-fixtures/src/index.ts`
 
+With `MARKWEAVE_VUE2_LEGACY=1`, the playground removes the source-package aliases, applies `@markweave/vue2/webpack4`, consumes the generated physical package artifacts, and writes the reusable Babel cache under its project-local `.cache`. `pnpm build:vue2-legacy` is the release gate for this mode.
+
 The Vue 2 dev server is bound to `127.0.0.1:5175`.
 
 Local usage details live in `apps/playground-vue2/README.md`.
@@ -153,3 +165,5 @@ The root `tsconfig.base.json` uses:
 - `strict: true`
 - `isolatedModules: true`
 - `skipLibCheck: true`
+
+The default package output remains ES2022. Only the explicit `markweave/legacy` and `@markweave/vue2/legacy` artifacts target ES2019.

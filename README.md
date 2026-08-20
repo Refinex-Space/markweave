@@ -46,6 +46,8 @@ pnpm add @markweave/vue2
 
 Vue 2 CLI / Webpack 4 projects should keep `vue-template-compiler` on the same Vue 2.6.x version as `vue`. Existing Vue 2 CLI projects usually already have both.
 
+For production builds on Vue CLI 4 / Webpack 4, use the ES2019 legacy entry through `require("@markweave/vue2/webpack4")`. The helper keeps normal `@markweave/vue2` component imports, prebundles heavy Markweave features, preserves one host-owned Tiptap/ProseMirror runtime, and avoids broad Babel processing of Mermaid, Cytoscape, D3, and Lowlight. See the Vue 2 integration guide for the complete `vue.config.js` example.
+
 Each adapter package re-exports the shared editor stylesheet from its own `styles.css` subpath. If you explicitly install the core `markweave` package or use the legacy subpath imports, `markweave/styles.css` remains available.
 
 ## Usage

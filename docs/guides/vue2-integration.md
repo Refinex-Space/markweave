@@ -1,6 +1,6 @@
 ---
 owner: refinex
-updated: 2026-08-13
+updated: 2026-08-20
 status: active
 referenced_by: docs/README.md#knowledge-map
 ---
@@ -37,41 +37,27 @@ You do not need to install `@vue/composition-api` just for Markweave. The Vue 2 
 
 ## Vue CLI 4 / Webpack 4 Notes
 
-Older Vue 2 apps often need dependencies transpiled because Markweave and Tiptap ship modern ESM. Start with this `vue.config.js` shape if your project uses Vue CLI 4 / Webpack 4:
+Use the dedicated ES2019 entry in Vue CLI 4 / Webpack 4 projects. It prebundles Markweave, Tiptap extensions, Emoji, KaTeX, Lowlight, and Mermaid while keeping Vue, `@tiptap/vue-2`, `@tiptap/core`, `@tiptap/pm`, and ProseMirror as host-owned singleton runtimes. Mermaid remains an asynchronous chunk, so the legacy entry does not make diagram rendering part of the synchronous startup path.
+
+The CommonJS helper works directly in `vue.config.js` and aliases normal `@markweave/vue2` imports to the physical `legacy.js` file. Physical files are intentional because Webpack 4 must not depend on package-`exports` resolution:
 
 ```js
+const applyMarkweaveVue2Webpack4Legacy = require("@markweave/vue2/webpack4");
+
 module.exports = {
-  transpileDependencies: [
-    "markweave",
-    "@markweave/vue2",
-    "@tiptap",
-    "prosemirror",
-    "lowlight",
-    "mermaid",
-    "marked",
-    "es-toolkit",
-    "@iconify",
-    "@mermaid-js",
-    "uuid",
-  ],
-  configureWebpack: {
-    resolve: {
-      extensions: [".mjs", ".js", ".jsx", ".ts", ".tsx", ".vue", ".json"],
-    },
-    module: {
-      rules: [
-        {
-          test: /\.mjs$/,
-          include: /node_modules/,
-          type: "javascript/auto",
-        },
-      ],
-    },
+  chainWebpack(config) {
+    applyMarkweaveVue2Webpack4Legacy(config, {
+      projectRoot: __dirname,
+    });
   },
 };
 ```
 
-The playground has additional aliases because it consumes local source files. Published consumers should import from `@markweave/vue2` and normally do not need those workspace aliases.
+The helper adds only the Tiptap singleton aliases and Babel rules still required by Webpack 4. Its Babel cache defaults to `.cache/markweave-babel-loader`, outside `node_modules`, so `npm ci` does not discard it. Keep `.cache/` ignored, or set `MARKWEAVE_BABEL_CACHE_DIR` to a persistent CI cache location.
+
+If the host manages aliases itself, import `@markweave/vue2/legacy` explicitly and call the helper with `aliasPackageImport: false`. Do not combine the legacy entry with the old broad `transpileDependencies` list for Mermaid, Cytoscape, D3, Lowlight, or Markweave; that would send the prebuilt dependency graph through Babel again and defeat the build-time optimization.
+
+The private `apps/playground-vue2` fixture consumes this exact published-package shape through Vue CLI 4, Webpack 4.47, Vue 2.6.12, and the `pnpm build:vue2-legacy` release gate.
 
 ## Minimal Editor
 
@@ -386,7 +372,7 @@ Vue 2 receives the complete Markweave UI: floating toolbar, link popover, slash 
 - Import `@markweave/vue2/styles.css` once.
 - Inline emphasis remains visible for CJK fallback fonts even when the host system has no native italic face.
 - Keep `vue` and `vue-template-compiler` versions identical.
-- Keep `transpileDependencies` for modern ESM dependencies when using Vue CLI 4 / Webpack 4.
+- Use `@markweave/vue2/webpack4` for Vue CLI 4 / Webpack 4; do not re-add the legacy bundle's prebuilt heavy dependencies to broad `transpileDependencies` rules.
 - The host-driven multi-hunk AI review dock mounts directly under `body` instead of relying on a CSS query container; per-hunk actions and tooltips use DOM, selector, and layout primitives supported by Electron 21 / Chromium 106.
 - Markweave 0.3.5 avoids CSS query-container fixed-position drift and actively probes pending first-screen images after mount, including when Electron 21 / Chromium 106 delays the initial `IntersectionObserver` callback.
 - Keep uploads authenticated and validate file size, MIME type, and returned URLs on your server.
