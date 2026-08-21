@@ -947,6 +947,7 @@ const MarkweaveVueVideoNodeView = defineComponent({
                     src: src.value,
                     title: title.value ?? undefined,
                     preload: "metadata",
+                    autoplay: false,
                     controls: true,
                     "data-markweave-video": "true",
                     "data-markweave-mime-type": mimeType.value ?? undefined,

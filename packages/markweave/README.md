@@ -33,6 +33,8 @@ pnpm add @markweave/vue2
 
 Vue 2 CLI / Webpack 4 projects should keep `vue-template-compiler` on the same Vue 2.6.x version as `vue`. Existing Vue 2 CLI projects usually already have both.
 
+Vue CLI 4 / Webpack 4 production consumers should use the ES2019 adapter entry through `require("@markweave/vue2/webpack4")`. Framework-neutral Webpack 4 consumers can import `markweave/legacy`; the Vue 2 helper and full integration guide remain the supported path for the complete editor UI.
+
 ## Usage
 
 ### React
@@ -106,7 +108,7 @@ You can import the adapter `styles.css` once in the app entry instead of inside 
 
 `defaultContent` and controlled `content` are Markdown by default. Use `defaultContentFormat="html"` or `contentFormat="html"` when migrating an existing HTML integration. `onUpdate.markdown` is the recommended storage output; `html`, `json`, and `text` remain available.
 
-`mode` defaults to `"live"`. Use `mode="view"` for a read-only rendered view. `editable={false}` remains a compatibility lock, including when `mode="live"`.
+`mode` defaults to `"live"`. Use `mode="view"` for a read-only rendered view. `editable={false}` remains a compatibility lock, including when `mode="live"`. In Live mode, clicking or moving the caret into an inline link reveals normalized `[label](target "title")` Markdown and lets the target be edited in place; Enter or blur commits, Escape discards, and Ctrl/Cmd-click opens the link safely. This is a canonical projection rather than the original Markdown byte sequence. Set `revealLinkMarkdown={false}` to disable it.
 
 Math formulas are editable in Live mode: click inline `$...$` or display `$$...$$` formulas to open the in-place LaTeX editor. View mode keeps formulas read-only while preserving the rendered layout.
 
@@ -142,6 +144,7 @@ Every selectable language identifier is registered with either a dedicated Highl
 | --- | --- | --- | --- |
 | Markdown input/output | Yes | Yes | Yes |
 | Live/View mode | Yes | Yes | Yes |
+| Inline link Markdown reveal | Yes | Yes | Yes |
 | Floating toolbar | Yes | Yes | Yes |
 | Slash command menu | Yes | Yes | Yes |
 | Tables and image clipboard paste | Yes | Yes | Yes |
@@ -157,6 +160,7 @@ Every selectable language identifier is registered with either a dedicated Highl
 ## Exports
 
 - `markweave`: framework-neutral types and helpers, including content format, mode, lang, TOC, upload, table payloads, AI edit, Command Registry/Controller, and host Extension options.
+- `markweave/legacy`: ES2019 framework-neutral bundle with heavy non-singleton features prebuilt for legacy bundlers.
 - `@markweave/react`: React editor component, controller hook, React extension factory, and `@markweave/react/styles.css`.
 - `@markweave/vue2`: Vue 2 editor component, controller helper, Vue 2 extension factory, and `@markweave/vue2/styles.css`.
 - `@markweave/vue3`: Vue 3 editor component, composable, Vue 3 extension factory, and `@markweave/vue3/styles.css`.

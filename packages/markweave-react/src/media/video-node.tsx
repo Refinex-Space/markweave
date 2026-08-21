@@ -197,7 +197,7 @@ function MarkweaveVideoNodeView(props: NodeViewProps) {
         <div className="markweave-video-readonly-empty" data-testid="markweave-video-readonly-empty" aria-hidden="true" />
       ) : (
         <div className="markweave-video-box">
-          <video className="markweave-video" src={src} title={title ?? undefined} data-markweave-video="true" data-markweave-mime-type={mimeType ?? undefined} preload="metadata" controls />
+          <video className="markweave-video" src={src} title={title ?? undefined} data-markweave-video="true" data-markweave-mime-type={mimeType ?? undefined} preload="metadata" controls autoPlay={false} />
           {canEditVideo ? <button type="button" className="markweave-video-selection-layer" data-testid="markweave-video-selection-layer" tabIndex={-1} aria-label={videoMessages.selectAriaLabel} /> : null}
         </div>
       )}

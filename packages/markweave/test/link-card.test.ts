@@ -155,6 +155,7 @@ describe("link card model", () => {
     const editor = createEditor('<p><a href="https://example.com">Example</a></p>');
     setMarkweaveEditorModeState(editor, { mode: "view", editable: false });
     const anchor = editor.view.dom.querySelector<HTMLAnchorElement>("a[href]");
+    const openWindow = vi.spyOn(window, "open").mockImplementation(() => null);
     const event = new MouseEvent("click", { bubbles: true, cancelable: true });
     Object.defineProperty(event, "target", { value: anchor });
     let handled = false;
@@ -162,7 +163,9 @@ describe("link card model", () => {
       handled = handler(editor.view, firstTextPos(editor), event) === true;
       return handled;
     });
-    expect(handled).toBe(false);
+    expect(handled).toBe(true);
+    expect(event.defaultPrevented).toBe(true);
+    expect(openWindow).toHaveBeenCalledWith("https://example.com", "_blank", "noopener,noreferrer");
     expect(document.querySelector(".markweave-link-card-composer")).toBeNull();
   });
 });

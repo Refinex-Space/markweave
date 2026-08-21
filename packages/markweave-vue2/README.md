@@ -27,6 +27,22 @@ export default {
 
 Vue remains a peer dependency and should come from the host app. Vue CLI 4 / Webpack 4 projects should keep `vue-template-compiler` on the same Vue 2.6.x version as `vue`.
 
+## Vue CLI 4 / Webpack 4 Legacy Entry
+
+The dedicated ES2019 entry prebundles heavy editor features while preserving Vue, the Tiptap Vue 2 adapter, Tiptap core/PM, and ProseMirror as host-owned singleton runtimes. Keep normal component imports and apply the published helper in `vue.config.js`:
+
+```js
+const applyMarkweaveVue2Webpack4Legacy = require("@markweave/vue2/webpack4");
+
+module.exports = {
+  chainWebpack(config) {
+    applyMarkweaveVue2Webpack4Legacy(config, { projectRoot: __dirname });
+  },
+};
+```
+
+Hosts that own their aliases can import `@markweave/vue2/legacy` explicitly and pass `aliasPackageImport: false`. Do not add Markweave, Mermaid, Cytoscape, D3, or Lowlight to a broad Babel rule when using this entry. The helper keeps its cache outside `node_modules` so repeated `npm ci` builds can reuse it.
+
 The built-in outline uses `inner-toc-placement="container"` by default, keeping it vertically centered in the visual viewport while symmetric TOC gutters keep the writing column centered. It hides automatically in a narrow editor container to preserve readable content width.
 
 Version 0.3.5 keeps this fixed positioning and resolver-backed first-screen image loading compatible with Vue CLI 4 applications hosted in Electron 21 / Chromium 106.

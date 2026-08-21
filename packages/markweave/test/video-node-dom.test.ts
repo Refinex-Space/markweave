@@ -213,6 +213,7 @@ describe("video node view", () => {
     );
     expect(document.querySelector("video.markweave-video")?.getAttribute("src")).toBe("blob:markweave-video");
     expect(document.querySelector("video.markweave-video")?.getAttribute("preload")).toBe("metadata");
+    expect(document.querySelector("video.markweave-video")?.hasAttribute("autoplay")).toBe(false);
   });
 
   it("renders YouTube and Bilibili URLs as embedded players", async () => {
@@ -223,7 +224,7 @@ describe("video node view", () => {
     await click(getByTestId("markweave-video-upload-submit"));
 
     const youtubeFrame = document.querySelector<HTMLIFrameElement>("iframe.markweave-video-iframe");
-    expect(youtubeFrame?.getAttribute("src")).toBe("https://www.youtube.com/embed/dQw4w9WgXcQ");
+    expect(youtubeFrame?.getAttribute("src")).toBe("https://www.youtube.com/embed/dQw4w9WgXcQ?autoplay=0");
     expect(youtubeFrame?.getAttribute("allow")).not.toContain("autoplay");
     expect(youtubeFrame?.getAttribute("loading")).toBe("lazy");
     expect(youtubeFrame?.dataset.markweaveVideoProvider).toBe("youtube");
@@ -252,7 +253,7 @@ describe("video node view", () => {
     await click(getByTestId("markweave-video-upload-submit"));
 
     const youtubeFrame = document.querySelector<HTMLIFrameElement>("iframe.markweave-video-iframe");
-    expect(youtubeFrame?.getAttribute("src")).toBe("https://www.youtube.com/embed/fPiUC5NxFic?si=GifL60l94AOaMV93");
+    expect(youtubeFrame?.getAttribute("src")).toBe("https://www.youtube.com/embed/fPiUC5NxFic?si=GifL60l94AOaMV93&autoplay=0");
     expect(youtubeFrame?.dataset.markweaveVideoProvider).toBe("youtube");
 
     await act(async () => {
@@ -334,7 +335,7 @@ describe("video node view", () => {
     );
 
     expect(controller.editor?.isEditable).toBe(false);
-    expect(document.querySelector("iframe.markweave-video-iframe")?.getAttribute("src")).toBe("https://www.youtube.com/embed/fPiUC5NxFic?si=GifL60l94AOaMV93");
+    expect(document.querySelector("iframe.markweave-video-iframe")?.getAttribute("src")).toBe("https://www.youtube.com/embed/fPiUC5NxFic?si=GifL60l94AOaMV93&autoplay=0");
     expect(document.querySelector('[data-testid="markweave-video-selection-layer"]')).toBeNull();
     expect(getByTestId("markweave-video-node").dataset.selected).toBe("false");
 

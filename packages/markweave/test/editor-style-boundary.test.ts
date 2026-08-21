@@ -60,6 +60,8 @@ const editorRuntimeSelectors = [
   ".markweave-math-block-source",
   ".markweave-math-block-preview",
   ".markweave-link",
+  ".markweave-inline-link-source",
+  ".markweave-inline-link-source-target",
   ".markweave-link-card",
   ".markweave-link-card-composer",
   ".markweave-highlight",
@@ -81,6 +83,22 @@ describe("editor style boundary", () => {
     expect(packageJson.style).toBe("./dist/styles.css");
     expect(packageJson.exports?.["./styles.css"]).toBe("./dist/styles.css");
     expect(packageJson.sideEffects).toContain("**/*.css");
+  });
+
+  it("renders inline link source as text without input chrome", () => {
+    const sourceRule = editorCss.match(/\.markweave-inline-link-source\s*\{([\s\S]*?)\n\}/)?.[1];
+    const targetRule = editorCss.match(/\.markweave-inline-link-source-target\s*\{([\s\S]*?)\n\}/)?.[1];
+    const focusRule = editorCss.match(/\.markweave-inline-link-source-target:focus\s*\{([\s\S]*?)\n\}/)?.[1];
+
+    expect(sourceRule).toContain("display: inline;");
+    expect(targetRule).toContain("display: inline;");
+    expect(targetRule).toContain("border: 0;");
+    expect(targetRule).toContain("background: transparent;");
+    expect(targetRule).toContain("padding: 0;");
+    expect(targetRule).toContain("box-shadow: none;");
+    expect(targetRule).toContain("white-space: pre;");
+    expect(focusRule).toContain("background: transparent;");
+    expect(focusRule).toContain("box-shadow: none;");
   });
 
   it("uses one border layer for table cell selections without synthetic grid lines", () => {

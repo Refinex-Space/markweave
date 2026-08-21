@@ -44,6 +44,8 @@ pnpm add @markweave/vue2
 
 Vue 2 CLI / Webpack 4 项目需要保证 `vue-template-compiler` 与 `vue` 的 `2.6.x` 版本完全一致。已有 Vue 2 CLI 项目通常已经同时安装两者。
 
+Vue CLI 4 / Webpack 4 的生产构建应通过 `require("@markweave/vue2/webpack4")` 使用 ES2019 legacy 入口。helper 会保留普通 `@markweave/vue2` 组件导入，预打包 Markweave 重型能力，继续复用宿主唯一的 Tiptap/ProseMirror 运行时，并避免 Mermaid、Cytoscape、D3、Lowlight 进入大范围 Babel。完整 `vue.config.js` 示例见 Vue 2 接入手册。
+
 每个适配包都通过自己的 `styles.css` 子路径重新导出共享样式。直接使用核心包或旧兼容子路径时，也可以使用 `markweave/styles.css`。
 
 ## 快速使用

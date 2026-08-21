@@ -94,7 +94,7 @@ describe("editor entrypoint boundary", () => {
         version?: string;
       };
 
-      expect(packageJson.version).toBe("0.7.9");
+      expect(packageJson.version).toBe("0.9.0");
       expect(packageJson.homepage).toBe(homepageUrl);
       expect(packageJson.bugs).toEqual({ url: bugsUrl });
       expect(packageJson.repository).toEqual({
@@ -225,7 +225,7 @@ describe("editor entrypoint boundary", () => {
     const packageJson = JSON.parse(readPackageFile("package.json")) as { files?: string[] };
 
     expect(existsSync(resolve(packageRoot, "src/playground"))).toBe(false);
-    expect(packageJson.files).toEqual(["dist", "react.js", "react.d.ts", "vue2.js", "vue2.d.ts", "vue3.js", "vue3.d.ts", "styles.css", "README.md", "LICENSE"]);
+    expect(packageJson.files).toEqual(["dist", "react.js", "react.d.ts", "vue2.js", "vue2.d.ts", "vue3.js", "vue3.d.ts", "legacy.js", "legacy.d.ts", "styles.css", "README.md", "LICENSE"]);
     expect(existsSync(resolve(packageRoot, "src/editor-core/initial-document.ts"))).toBe(false);
   });
 

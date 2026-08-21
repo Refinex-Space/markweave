@@ -175,9 +175,7 @@ export function normalizeMarkweaveVideoEmbedUrl(input: string, provider?: Markwe
   const nextUrl = new URL(url.href);
   nextUrl.protocol = "https:";
 
-  if (normalizedProvider === "bilibili") {
-    nextUrl.searchParams.set("autoplay", "0");
-  } else if (normalizedProvider === "youtube" && nextUrl.searchParams.has("autoplay")) {
+  if (normalizedProvider === "bilibili" || normalizedProvider === "youtube") {
     nextUrl.searchParams.set("autoplay", "0");
   }
 
@@ -207,7 +205,9 @@ export function parseMarkweaveVideoEmbed(input: string): MarkweaveCoreVideoEmbed
 
   if (host === "youtu.be") {
     const id = url.pathname.split("/").filter(Boolean)[0];
-    return id ? { provider: "youtube", embedUrl: `https://www.youtube.com/embed/${encodeURIComponent(id)}` } : null;
+    return id
+      ? { provider: "youtube", embedUrl: normalizeMarkweaveVideoEmbedUrl(`https://www.youtube.com/embed/${encodeURIComponent(id)}`, "youtube") }
+      : null;
   }
 
   if (host === "youtube.com" || host === "youtube-nocookie.com") {
@@ -218,7 +218,9 @@ export function parseMarkweaveVideoEmbed(input: string): MarkweaveCoreVideoEmbed
     }
 
     const id = pathParts[0] === "shorts" ? pathParts[1] : url.searchParams.get("v");
-    return id ? { provider: "youtube", embedUrl: `https://www.youtube.com/embed/${encodeURIComponent(id)}` } : null;
+    return id
+      ? { provider: "youtube", embedUrl: normalizeMarkweaveVideoEmbedUrl(`https://www.youtube.com/embed/${encodeURIComponent(id)}`, "youtube") }
+      : null;
   }
 
   if (host === "player.bilibili.com" && url.pathname === "/player.html") {
@@ -600,6 +602,7 @@ export const MarkweaveCoreVideo = Node.create<MarkweaveCoreVideoOptions>({
           src,
           title: stringAttribute(node.attrs.title),
           controls: "",
+          preload: "metadata",
           "data-markweave-video": "true",
           "data-markweave-mime-type": stringAttribute(node.attrs.mimeType),
         }),
@@ -635,6 +638,7 @@ export const MarkweaveCoreVideo = Node.create<MarkweaveCoreVideoOptions>({
       src,
       title: stringAttribute(node.attrs?.title),
       controls: "",
+      preload: "metadata",
       "data-markweave-video": "true",
       "data-markweave-mime-type": stringAttribute(node.attrs?.mimeType),
     })}></video>`;

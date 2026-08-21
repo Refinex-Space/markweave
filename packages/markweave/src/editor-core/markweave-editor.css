@@ -2107,6 +2107,50 @@
   text-underline-offset: 2px;
 }
 
+.markweave-inline-link-source,
+.markweave-inline-link-source-markup {
+  color: #7b8495;
+  font-family: inherit;
+  font-size: inherit;
+  font-weight: 400;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.markweave-inline-link-source {
+  display: inline;
+  vertical-align: baseline;
+}
+
+.markweave-inline-link-source-target {
+  display: inline;
+  margin: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  padding: 0;
+  color: inherit;
+  font: inherit;
+  line-height: inherit;
+  box-shadow: none;
+  caret-color: currentColor;
+  vertical-align: baseline;
+  white-space: pre;
+}
+
+.markweave-inline-link-source-target:focus {
+  background: transparent;
+  box-shadow: none;
+}
+
+.markweave-inline-link-source[data-invalid="true"] .markweave-inline-link-source-target {
+  background: transparent;
+  color: #b42318;
+  text-decoration: underline wavy #b42318;
+  text-underline-offset: 2px;
+  box-shadow: none;
+}
+
 .markweave-highlight {
   background: #fff2aa;
 }

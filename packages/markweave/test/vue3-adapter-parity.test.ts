@@ -12,6 +12,16 @@ function expectSourceContract(source: string, selectors: readonly string[]) {
 }
 
 describe("Vue3 adapter parity source contract", () => {
+  it("keeps mode-aware link opening out of framework adapters", () => {
+    [
+      "packages/markweave-react/src/MarkweaveEditor.tsx",
+      "packages/markweave-vue2/src/MarkweaveEditor.ts",
+      "packages/markweave-vue3/src/MarkweaveEditor.ts",
+    ].forEach((path) => {
+      expect(readWorkspaceFile(path)).not.toContain("openMarkweaveReadonlyLinkFromEvent");
+    });
+  });
+
   it("exposes table axis selection overlays consistently across adapters", () => {
     [
       "packages/markweave-react/src/ui/table/TableSelectionOverlay.tsx",

@@ -1,6 +1,6 @@
 {
   "name": "@markweave/vue2",
-  "version": "0.7.10",
+  "version": "0.9.0",
   "type": "module",
   "description": "Vue 2 adapter for the Markweave Markdown-first WYSIWYG editor.",
   "license": "MIT",
@@ -38,16 +38,29 @@
       "types": "./dist/types/index.d.ts",
       "import": "./dist/index.js"
     },
+    "./legacy": {
+      "types": "./legacy.d.ts",
+      "import": "./legacy.js",
+      "default": "./legacy.js"
+    },
+    "./webpack4": {
+      "types": "./webpack4/index.d.cts",
+      "require": "./webpack4/index.cjs",
+      "default": "./webpack4/index.cjs"
+    },
     "./styles.css": "./styles.css"
   },
   "files": [
     "dist",
+    "legacy.js",
+    "legacy.d.ts",
+    "webpack4",
     "styles.css",
     "README.md",
     "LICENSE"
   ],
   "scripts": {
-    "build": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\" && vite build && tsc -p tsconfig.build.json",
+    "build": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\" && vite build && vite build --config vite.legacy.config.ts --logLevel warn && tsc -p tsconfig.build.json",
     "prepack": "pnpm run build",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
@@ -58,7 +71,10 @@
     "@tiptap/extension-image": "3.29.2",
     "@tiptap/pm": "3.29.2",
     "@tiptap/vue-2": "3.29.2",
-    "markweave": "workspace:^"
+    "markweave": "workspace:^",
+    "prosemirror-model": "1.25.11",
+    "prosemirror-state": "1.4.4",
+    "prosemirror-view": "1.42.2"
   },
   "peerDependencies": {
     "vue": "^2.6.12"

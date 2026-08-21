@@ -1,6 +1,6 @@
 ---
 owner: refinex
-updated: 2026-08-13
+updated: 2026-08-20
 status: active
 referenced_by: docs/README.md#knowledge-map
 ---
@@ -37,41 +37,27 @@ You do not need to install `@vue/composition-api` just for Markweave. The Vue 2 
 
 ## Vue CLI 4 / Webpack 4 Notes
 
-Older Vue 2 apps often need dependencies transpiled because Markweave and Tiptap ship modern ESM. Start with this `vue.config.js` shape if your project uses Vue CLI 4 / Webpack 4:
+Use the dedicated ES2019 entry in Vue CLI 4 / Webpack 4 projects. It prebundles Markweave, Tiptap extensions, Emoji, KaTeX, Lowlight, and Mermaid while keeping Vue, `@tiptap/vue-2`, `@tiptap/core`, `@tiptap/pm`, and ProseMirror as host-owned singleton runtimes. Mermaid remains an asynchronous chunk, so the legacy entry does not make diagram rendering part of the synchronous startup path.
+
+The CommonJS helper works directly in `vue.config.js` and aliases normal `@markweave/vue2` imports to the physical `legacy.js` file. Physical files are intentional because Webpack 4 must not depend on package-`exports` resolution:
 
 ```js
+const applyMarkweaveVue2Webpack4Legacy = require("@markweave/vue2/webpack4");
+
 module.exports = {
-  transpileDependencies: [
-    "markweave",
-    "@markweave/vue2",
-    "@tiptap",
-    "prosemirror",
-    "lowlight",
-    "mermaid",
-    "marked",
-    "es-toolkit",
-    "@iconify",
-    "@mermaid-js",
-    "uuid",
-  ],
-  configureWebpack: {
-    resolve: {
-      extensions: [".mjs", ".js", ".jsx", ".ts", ".tsx", ".vue", ".json"],
-    },
-    module: {
-      rules: [
-        {
-          test: /\.mjs$/,
-          include: /node_modules/,
-          type: "javascript/auto",
-        },
-      ],
-    },
+  chainWebpack(config) {
+    applyMarkweaveVue2Webpack4Legacy(config, {
+      projectRoot: __dirname,
+    });
   },
 };
 ```
 
-The playground has additional aliases because it consumes local source files. Published consumers should import from `@markweave/vue2` and normally do not need those workspace aliases.
+The helper adds only the Tiptap singleton aliases and Babel rules still required by Webpack 4. Its Babel cache defaults to `.cache/markweave-babel-loader`, outside `node_modules`, so `npm ci` does not discard it. Keep `.cache/` ignored, or set `MARKWEAVE_BABEL_CACHE_DIR` to a persistent CI cache location.
+
+If the host manages aliases itself, import `@markweave/vue2/legacy` explicitly and call the helper with `aliasPackageImport: false`. Do not combine the legacy entry with the old broad `transpileDependencies` list for Mermaid, Cytoscape, D3, Lowlight, or Markweave; that would send the prebuilt dependency graph through Babel again and defeat the build-time optimization.
+
+The private `apps/playground-vue2` fixture consumes this exact published-package shape through Vue CLI 4, Webpack 4.47, Vue 2.6.12, and the `pnpm build:vue2-legacy` release gate.
 
 ## Minimal Editor
 
@@ -198,6 +184,7 @@ export default {
 | `theme` | `"light"` | `"light"` or `"dark"`. The theme is scoped to this editor frame and can change at runtime without recreating document content. |
 | `canvasColor` | theme default | Optional CSS color/value for the editor canvas only. The defaults are `transparent` in light mode and `#181A1F` in dark mode. For example, pass `"#000"` or `"var(--app-canvas)"`. Runtime changes do not recreate the editor. |
 | `editable` | `true` | Compatibility lock. Effective editable state is `mode === "live" && editable !== false`. |
+| `reveal-link-markdown` | `true` | In editable Live mode, clicking or moving the caret into an inline link reveals normalized `[label](target "title")` source. Enter or blur commits a safe target edit, Escape discards it, and Ctrl/Cmd-click opens the link. The projection is canonical, not byte-exact original Markdown. |
 | `lang` | `"zh"` | UI language. Supported values are `"zh"` and `"en"`. Re-mount the editor when switching language dynamically. |
 | `inner-toc` | `true` | Renders the built-in right-side outline. Set `:inner-toc="false"` to render your own TOC from `on-toc-change` or `runtimeSnapshot.toc`. |
 | `inner-toc-placement` | `"container"` | The default keeps the outline vertically centered in the visual viewport and centers the writing column with symmetric TOC gutters. It hides the built-in outline when the actual editor container is narrow, preserving readable content width. Set `inner-toc-placement="viewport"` only when a fixed viewport-side outline is required. |
@@ -256,7 +243,7 @@ export default {
 </script>
 ```
 
-Images render with preview, align, caption, resize, replace, download, and delete controls in Live mode. In View mode, hovering an image reveals a top-right preview action that opens the same fullscreen zoom and pan reader. Videos accept local upload, direct video URLs, YouTube embed URLs, Bilibili player URLs, and normal YouTube/Bilibili share links. Attachments round-trip through `markweaveAttachment`. Slash Attachment inserts an empty inline placeholder; click to pick a local file (optional `onProgress` for percentage). Filled chips show download and delete on hover and call `onAttachmentDownload` when activated. Without that host handler, only safe `http(s)` sources open in a new tab.
+Images render with preview, align, caption, resize, replace, download, and delete controls in Live mode. In View mode, hovering an image reveals a top-right preview action that opens the same fullscreen zoom and pan reader. Videos accept local upload, direct video URLs, YouTube embed URLs, Bilibili player URLs, and normal YouTube/Bilibili share links. File videos and platform embeds do not autoplay. Attachments round-trip through `markweaveAttachment`. Slash Attachment inserts an empty inline placeholder; click to pick a local file (optional `onProgress` for percentage). Filled chips show download and delete on hover and call `onAttachmentDownload` when activated. Without that host handler, only safe `http(s)` sources open in a new tab.
 
 ## Ask AI
 
@@ -385,7 +372,7 @@ Vue 2 receives the complete Markweave UI: floating toolbar, link popover, slash 
 - Import `@markweave/vue2/styles.css` once.
 - Inline emphasis remains visible for CJK fallback fonts even when the host system has no native italic face.
 - Keep `vue` and `vue-template-compiler` versions identical.
-- Keep `transpileDependencies` for modern ESM dependencies when using Vue CLI 4 / Webpack 4.
+- Use `@markweave/vue2/webpack4` for Vue CLI 4 / Webpack 4; do not re-add the legacy bundle's prebuilt heavy dependencies to broad `transpileDependencies` rules.
 - The host-driven multi-hunk AI review dock mounts directly under `body` instead of relying on a CSS query container; per-hunk actions and tooltips use DOM, selector, and layout primitives supported by Electron 21 / Chromium 106.
 - Markweave 0.3.5 avoids CSS query-container fixed-position drift and actively probes pending first-screen images after mount, including when Electron 21 / Chromium 106 delays the initial `IntersectionObserver` callback.
 - Keep uploads authenticated and validate file size, MIME type, and returned URLs on your server.

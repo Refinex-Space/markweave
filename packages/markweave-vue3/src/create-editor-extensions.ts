@@ -13,6 +13,7 @@ import { MarkweaveVueAttachment, MarkweaveVueImage, MarkweaveVueLinkCard, Markwe
 
 export interface CreateMarkweaveVue3EditorExtensionsOptions {
   readonly lang?: MarkweaveLang;
+  readonly revealLinkMarkdown?: boolean;
   readonly onImageUpload?: MarkweaveSlashCommandUploadHandler;
   readonly onVideoUpload?: MarkweaveSlashCommandUploadHandler;
   readonly onAttachmentUpload?: MarkweaveSlashCommandUploadHandler;
@@ -28,6 +29,7 @@ export interface CreateMarkweaveVue3EditorExtensionsOptions {
 export function createMarkweaveVue3EditorExtensions(options: CreateMarkweaveVue3EditorExtensionsOptions = {}) {
   return createMarkweaveCoreEditorExtensions({
     lang: options.lang,
+    revealLinkMarkdown: options.revealLinkMarkdown,
     onImageUpload: options.onImageUpload,
     tableCapabilities: options.tableCapabilities,
     referenceSuggestion: options.referenceSuggestion,

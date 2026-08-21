@@ -150,6 +150,7 @@ function handleRuntimeStateChange(snapshot) {
 | `theme` | `"light"` | `"light"` or `"dark"`. The theme is scoped to this editor frame and can change at runtime without recreating document content. |
 | `canvasColor` | theme default | Optional CSS color/value for the editor canvas only. The defaults are `transparent` in light mode and `#181A1F` in dark mode. For example, pass `"#000"` or `"var(--app-canvas)"`. Runtime changes do not recreate the editor. |
 | `editable` | `true` | Compatibility lock. Effective editable state is `mode === "live" && editable !== false`. |
+| `reveal-link-markdown` | `true` | In editable Live mode, clicking or moving the caret into an inline link reveals normalized `[label](target "title")` source. Enter or blur commits a safe target edit, Escape discards it, and Ctrl/Cmd-click opens the link. The projection is canonical, not byte-exact original Markdown. |
 | `lang` | `"zh"` | UI language. Supported values are `"zh"` and `"en"`. Re-mount the editor when switching language dynamically. |
 | `inner-toc` | `true` | Renders the built-in right-side outline. Set `:inner-toc="false"` to render your own TOC from `on-toc-change` or `runtimeSnapshot.toc`. |
 | `inner-toc-placement` | `"container"` | The default keeps the outline vertically centered in the visual viewport and centers the writing column with symmetric TOC gutters. It hides the built-in outline when the actual editor container is narrow, preserving readable content width. Set `inner-toc-placement="viewport"` only when a fixed viewport-side outline is required. |
@@ -210,7 +211,7 @@ const handleUpload: MarkweaveSlashCommandUploadHandler = async (
 </template>
 ```
 
-Images render with preview, align, caption, resize, replace, download, and delete controls in Live mode. In View mode, hovering an image reveals a top-right preview action that opens the same fullscreen zoom and pan reader. Videos accept local upload, direct video URLs, YouTube embed URLs, Bilibili player URLs, and normal YouTube/Bilibili share links. Attachments round-trip through `markweaveAttachment`. Slash Attachment inserts an empty inline placeholder; click to pick a local file (optional `onProgress` for percentage). Filled chips show download and delete on hover and call `onAttachmentDownload` when activated. Without that host handler, only safe `http(s)` sources open in a new tab.
+Images render with preview, align, caption, resize, replace, download, and delete controls in Live mode. In View mode, hovering an image reveals a top-right preview action that opens the same fullscreen zoom and pan reader. Videos accept local upload, direct video URLs, YouTube embed URLs, Bilibili player URLs, and normal YouTube/Bilibili share links. File videos and platform embeds do not autoplay. Attachments round-trip through `markweaveAttachment`. Slash Attachment inserts an empty inline placeholder; click to pick a local file (optional `onProgress` for percentage). Filled chips show download and delete on hover and call `onAttachmentDownload` when activated. Without that host handler, only safe `http(s)` sources open in a new tab.
 
 ## Ask AI
 
