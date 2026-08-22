@@ -44,7 +44,7 @@ pnpm add @markweave/vue3
 pnpm add @markweave/vue2
 ```
 
-Vue 2 CLI / Webpack 4 projects should keep `vue-template-compiler` on the same Vue 2.6.x version as `vue`. Existing Vue 2 CLI projects usually already have both.
+Vue 2 CLI / Webpack 4 projects should keep `vue-template-compiler` on exactly the same version as `vue`. Markweave verifies Vue 2.6.12 as the minimum legacy baseline and recommends the final Vue 2.7.16 for maintained legacy deployments.
 
 For production builds on Vue CLI 4 / Webpack 4, use the ES2019 legacy entry through `require("@markweave/vue2/webpack4")`. The helper keeps normal `@markweave/vue2` component imports, prebundles heavy Markweave features, preserves one host-owned Tiptap/ProseMirror runtime, and avoids broad Babel processing of Mermaid, Cytoscape, D3, and Lowlight. See the Vue 2 integration guide for the complete `vue.config.js` example.
 
@@ -94,7 +94,7 @@ function handleUpdate({ markdown }: { markdown: string }) {
 
 ### Vue 2
 
-Vue CLI 4 / Webpack 4 projects must install `vue-template-compiler` with the same `2.6.x` version as Vue.
+Vue CLI 4 / Webpack 4 projects must install `vue-template-compiler` with exactly the same version as Vue.
 
 ```vue
 <template>

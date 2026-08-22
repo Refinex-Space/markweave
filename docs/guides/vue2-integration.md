@@ -1,6 +1,6 @@
 ---
 owner: refinex
-updated: 2026-08-20
+updated: 2026-08-22
 status: active
 referenced_by: docs/README.md#knowledge-map
 ---
@@ -9,23 +9,25 @@ referenced_by: docs/README.md#knowledge-map
 
 Language: [中文](./vue2-integration-zh-cn.md) | English
 
-This guide is the complete Vue 2 integration path for Markweave. It covers installation, Vue 2.6 compiler requirements, Vue CLI 4 / Webpack 4 compatibility, content storage, Live/View mode, uploads, callbacks, TOC, and production boundaries. The private reference implementation is `apps/playground-vue2`.
+This guide is the complete Vue 2 integration path for Markweave. It covers installation, Vue 2.6/2.7 compiler requirements, Vue CLI 4 / Webpack 4 compatibility, content storage, Live/View mode, uploads, callbacks, TOC, and production boundaries. The private reference implementation is `apps/playground-vue2`.
 
 For large documents, use `defaultContent` instead of a per-keystroke controlled `content` loop, retain the lazy update payload, and read `payload.markdown` only at the host save/flush boundary. The optional `resolveMediaSource` prop accepts the same cancellable priority request as React and Vue 3; returning a display URL plus optional intrinsic dimensions activates the shared lightweight image NodeView without changing serialized Markdown.
 
 ## Install
 
-Install the Vue 2 adapter in an existing Vue 2.6 app:
+Install the Vue 2 adapter in an existing Vue 2.6 or 2.7 app:
 
 ```sh
 pnpm add @markweave/vue2
 ```
 
-Vue is a peer dependency owned by the host app. Vue 2 projects must keep `vue-template-compiler` on exactly the same `2.6.x` version as `vue`:
+Vue is a peer dependency owned by the host app. [Vue 2 reached end of life](https://v2.vuejs.org/eol/) on 2023-12-31; Markweave keeps a legacy compatibility path, but security/compliance ownership remains with the host. New or maintained legacy deployments should prefer the final Vue `2.7.16`. Always keep `vue-template-compiler` on exactly the same version as `vue`:
 
 ```sh
-pnpm add vue@2.6.12 vue-template-compiler@2.6.12
+pnpm add vue@2.7.16 vue-template-compiler@2.7.16
 ```
+
+The minimum verified legacy combination remains Vue `2.6.12` with its matching compiler.
 
 Import the stylesheet once in your app entry or editor component:
 
@@ -53,11 +55,11 @@ module.exports = {
 };
 ```
 
-The helper adds only the Tiptap singleton aliases and Babel rules still required by Webpack 4. Its Babel cache defaults to `.cache/markweave-babel-loader`, outside `node_modules`, so `npm ci` does not discard it. Keep `.cache/` ignored, or set `MARKWEAVE_BABEL_CACHE_DIR` to a persistent CI cache location.
+The helper resolves the real installed graph used by strict package-manager layouts, adds physical aliases for Vue, Markweave styles, Tiptap, and ProseMirror, and adds only the Babel rules still required by Webpack 4. Required targets fail closed instead of silently creating duplicate runtimes. Its Babel cache defaults to `.cache/markweave-babel-loader`, outside `node_modules`, so clean installs do not discard it. Keep `.cache/` ignored, or set `MARKWEAVE_BABEL_CACHE_DIR` to a persistent CI cache location.
 
 If the host manages aliases itself, import `@markweave/vue2/legacy` explicitly and call the helper with `aliasPackageImport: false`. Do not combine the legacy entry with the old broad `transpileDependencies` list for Mermaid, Cytoscape, D3, Lowlight, or Markweave; that would send the prebuilt dependency graph through Babel again and defeat the build-time optimization.
 
-The private `apps/playground-vue2` fixture consumes this exact published-package shape through Vue CLI 4, Webpack 4.47, Vue 2.6.12, and the `pnpm build:vue2-legacy` release gate.
+The private `apps/playground-vue2` fixture verifies the workspace package boundary with Vue CLI 4.4.6, Webpack 4.47, and Vue 2.6.12 through `pnpm build:vue2-legacy`. The stronger `pnpm verify:vue2-packed` gate installs real tarballs in temporary strict-pnpm consumers and browser-tests both that minimum matrix and the final Vue 2.7.16 / Vue CLI 4.5.19 matrix. Webpack stats reject duplicate Vue/Tiptap/ProseMirror roots and package-size regressions.
 
 ## Minimal Editor
 
@@ -373,6 +375,7 @@ Vue 2 receives the complete Markweave UI: floating toolbar, link popover, slash 
 - Inline emphasis remains visible for CJK fallback fonts even when the host system has no native italic face.
 - Keep `vue` and `vue-template-compiler` versions identical.
 - Use `@markweave/vue2/webpack4` for Vue CLI 4 / Webpack 4; do not re-add the legacy bundle's prebuilt heavy dependencies to broad `transpileDependencies` rules.
+- Treat ES2019 as the legacy syntax target, not an automatic polyfill promise for every browser API. The supported embedded-browser floor is Chromium 106; progressive `color-mix()` styling has literal color/gradient fallbacks for that floor.
 - The host-driven multi-hunk AI review dock mounts directly under `body` instead of relying on a CSS query container; per-hunk actions and tooltips use DOM, selector, and layout primitives supported by Electron 21 / Chromium 106.
 - Markweave 0.3.5 avoids CSS query-container fixed-position drift and actively probes pending first-screen images after mount, including when Electron 21 / Chromium 106 delays the initial `IntersectionObserver` callback.
 - Keep uploads authenticated and validate file size, MIME type, and returned URLs on your server.

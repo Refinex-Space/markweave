@@ -1,6 +1,6 @@
 ---
 owner: refinex
-updated: 2026-08-20
+updated: 2026-08-22
 status: active
 referenced_by: AGENTS.md#knowledge-map
 ---
@@ -35,7 +35,7 @@ Framework adapters are exposed through adapter packages:
 
 The core package exports `markweave`, `markweave/styles.css`, and the internal `markweave/internal/*` subpath consumed by adapter packages. `markweave/react`, `markweave/vue2`, and `markweave/vue3` remain legacy compatibility shims for one release cycle and forward to the adapter packages. Package-boundary changes should keep `packages/markweave/test/editor-entrypoint-boundary.test.ts` current.
 
-Webpack 4 consumers use additive physical entries rather than replacing the modern surface. `markweave/legacy` provides the framework-neutral ES2019 bundle; `@markweave/vue2/legacy` provides the complete Vue 2 shell; and `@markweave/vue2/webpack4` applies the package alias, Vue 2/Tiptap subpath aliases, narrow shared-runtime Babel rules, and a cache outside `node_modules`. Legacy bundles may prebuild heavy feature dependencies, but Vue, the Tiptap Vue 2 adapter, Tiptap core/PM, and ProseMirror remain external singletons so host extensions cannot cross runtime identities.
+Webpack 4 consumers use additive physical entries rather than replacing the modern surface. `markweave/legacy` provides the framework-neutral ES2019 bundle; `@markweave/vue2/legacy` provides the complete Vue 2 shell; and `@markweave/vue2/webpack4` resolves the real installed package graph, applies physical package/style aliases, keeps Vue/Tiptap/ProseMirror on one runtime root, adds narrow shared-runtime Babel rules, and writes its cache outside `node_modules`. Required aliases fail closed when a package layout drifts. Legacy bundles may prebuild heavy feature dependencies, but Vue, the Tiptap Vue 2 adapter, Tiptap core/PM, and ProseMirror remain external singletons so host extensions cannot cross runtime identities. The workspace fixture validates the source/package boundary, while a separate temporary consumer installs real tarballs under both the Vue 2.6.12 / Vue CLI 4.4.6 minimum matrix and the Vue 2.7.16 / Vue CLI 4.5.19 final matrix; Webpack stats and browser smoke checks reject duplicate runtimes or non-runnable output.
 
 `MarkweaveEditor` is Markdown-first at the content API boundary. `defaultContent` and controlled `content` default to Markdown parsing, and legacy HTML/JSON inputs must declare `defaultContentFormat` or `contentFormat` explicitly. Small controlled integrations may read `onUpdate.markdown` immediately; large-document hosts should use uncontrolled `defaultContent`, retain the lazy update payload, and read `payload.markdown` only at their debounce/flush boundary. Standard Markdown remains the preferred output; native HTML fallback preserves colored marks, block alignment, paragraph/heading indentation, subscript, superscript, merged or styled tables, and other state that standard Markdown cannot express. HTML fallback is serialized with the complete editor Schema, so trusted host nodes retain their `renderHTML` identity and attributes inside rich blocks and are reconstructed through `parseHTML`. `mode="live"` and `mode="view"` are UI-only rendering modes and do not change the serialized document output.
 

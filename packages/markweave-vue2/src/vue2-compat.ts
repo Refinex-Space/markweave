@@ -1,11 +1,22 @@
 import * as VueModule from "vue";
+import type Vue from "vue";
+import type {
+  PropType as VuePropType,
+  VueConstructor,
+} from "vue";
 
 type CreateElement = (...args: unknown[]) => unknown;
 
-export type Component<T = unknown> = any;
-export type PropType<T> = any;
+export type Component<T = unknown> = VueConstructor<Vue> | Vue;
+export type PropType<T> = VuePropType<T>;
 export interface Ref<T> {
   value: T;
+}
+
+interface WatchOptions {
+  readonly immediate?: boolean;
+  readonly deep?: boolean;
+  readonly flush?: "post";
 }
 
 interface LifecycleBucket {
@@ -13,11 +24,7 @@ interface LifecycleBucket {
   readonly beforeUnmount: Array<() => void>;
 }
 
-const VueRuntime = ((VueModule as { default?: unknown }).default ?? VueModule) as {
-  extend: (options: Record<string, unknown>) => unknown;
-  observable: <T extends object>(value: T) => T;
-  nextTick: (callback?: () => void) => Promise<void> | void;
-};
+const VueRuntime = ((VueModule as { default?: unknown }).default ?? VueModule) as VueConstructor<Vue>;
 
 let currentSetupInstance: { $watch?: (source: unknown, callback: unknown, options?: unknown) => () => void } | null = null;
 let currentLifecycleBucket: LifecycleBucket | null = null;
@@ -202,14 +209,54 @@ export function computed<T>(getter: () => T): Ref<T> {
   };
 }
 
-export function watch<T>(source: (() => T) | Ref<T>, callback: (value: T, oldValue: T) => void, options?: { immediate?: boolean; deep?: boolean; flush?: string }) {
+export function watch<T>(source: (() => T) | Ref<T>, callback: (value: T, oldValue: T) => void, options?: WatchOptions) {
   const getter = typeof source === "function" ? source : () => source.value;
+  const instance = currentSetupInstance;
 
-  if (!currentSetupInstance?.$watch) {
+  if (!instance?.$watch) {
     return () => undefined;
   }
 
-  return currentSetupInstance.$watch(getter, callback, options);
+  const vueOptions = options
+    ? { deep: options.deep, immediate: options.immediate }
+    : undefined;
+  if (options?.flush !== "post") {
+    return instance.$watch(getter, callback, vueOptions);
+  }
+
+  let stopped = false;
+  let queued = false;
+  let latestValue!: T;
+  let firstOldValue!: T;
+  const stop = instance.$watch(
+    getter,
+    (value: T, oldValue: T) => {
+      latestValue = value;
+      if (queued) {
+        return;
+      }
+      queued = true;
+      firstOldValue = oldValue;
+      void Promise.resolve(VueRuntime.nextTick()).then(() => {
+        if (stopped) {
+          return;
+        }
+        queued = false;
+        callback(latestValue, firstOldValue);
+      });
+    },
+    vueOptions,
+  );
+
+  const teardown = () => {
+    if (stopped) {
+      return;
+    }
+    stopped = true;
+    stop();
+  };
+  currentLifecycleBucket?.beforeUnmount.push(teardown);
+  return teardown;
 }
 
 export function onMounted(callback: () => void) {
@@ -221,7 +268,7 @@ export function onBeforeUnmount(callback: () => void) {
 }
 
 export function nextTick(callback?: () => void) {
-  return VueRuntime.nextTick(callback);
+  return callback ? VueRuntime.nextTick(callback) : VueRuntime.nextTick();
 }
 
 export function defineComponent(options: {
@@ -229,7 +276,7 @@ export function defineComponent(options: {
   readonly props?: Record<string, unknown>;
   readonly setup?: (props: any) => (() => unknown) | Record<string, unknown> | null | undefined;
   readonly render?: (createElement: CreateElement) => unknown;
-}) {
+}): VueConstructor<Vue> {
   return VueRuntime.extend({
     name: options.name,
     props: options.props,
@@ -266,5 +313,5 @@ export function defineComponent(options: {
         currentCreateElement = null;
       }
     },
-  });
+  } as any) as VueConstructor<Vue>;
 }

@@ -25,11 +25,11 @@ export default {
 </script>
 ```
 
-Vue remains a peer dependency and should come from the host app. Vue CLI 4 / Webpack 4 projects should keep `vue-template-compiler` on the same Vue 2.6.x version as `vue`.
+Vue remains a peer dependency and should come from the host app. Keep `vue-template-compiler` on exactly the same version as `vue`. Markweave verifies Vue 2.6.12 / Vue CLI 4.4.6 as the minimum Webpack 4 baseline and Vue 2.7.16 / Vue CLI 4.5.19 as the recommended final Vue 2 matrix; Vue 2 itself is end-of-life, so security and compliance ownership stays with the host.
 
 ## Vue CLI 4 / Webpack 4 Legacy Entry
 
-The dedicated ES2019 entry prebundles heavy editor features while preserving Vue, the Tiptap Vue 2 adapter, Tiptap core/PM, and ProseMirror as host-owned singleton runtimes. Keep normal component imports and apply the published helper in `vue.config.js`:
+The dedicated ES2019 entry prebundles heavy editor features while preserving Vue, the Tiptap Vue 2 adapter, Tiptap core/PM, and ProseMirror as host-owned singleton runtimes. The helper resolves strict package-manager layouts, aliases the shared stylesheet to its physical file, and fails closed when a required runtime target is missing. Keep normal component imports and apply it in `vue.config.js`:
 
 ```js
 const applyMarkweaveVue2Webpack4Legacy = require("@markweave/vue2/webpack4");
@@ -42,6 +42,8 @@ module.exports = {
 ```
 
 Hosts that own their aliases can import `@markweave/vue2/legacy` explicitly and pass `aliasPackageImport: false`. Do not add Markweave, Mermaid, Cytoscape, D3, or Lowlight to a broad Babel rule when using this entry. The helper keeps its cache outside `node_modules` so repeated `npm ci` builds can reuse it.
+
+The repository release gate installs the packed package into isolated strict-pnpm consumers for both supported matrices, rejects duplicate Vue/Tiptap/ProseMirror roots from Webpack stats, and browser-checks mount, Mermaid rendering, input, update payloads, and Live/View transitions.
 
 The built-in outline uses `inner-toc-placement="container"` by default, keeping it vertically centered in the visual viewport while symmetric TOC gutters keep the writing column centered. It hides automatically in a narrow editor container to preserve readable content width.
 

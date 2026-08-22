@@ -200,6 +200,24 @@ describe("editor style boundary", () => {
     expect(editorCss).toContain('.markweave-editor-frame[data-markweave-theme="dark"] .markweave-ask-ai-preview table');
   });
 
+  it("keeps Chromium 106 fallbacks before progressive color mixing", () => {
+    const cardFadeRule = editorCss.match(/\.markweave-internal-link-card-description::after\s*\{([\s\S]*?)\n\}/)?.[1] ?? "";
+    const darkAskAiHoverRule = editorCss.match(/\.markweave-editor-frame\[data-markweave-theme="dark"\] \.markweave-ask-ai-popover button:hover:not\(:disabled\)\s*\{([\s\S]*?)\n\}/)?.[1] ?? "";
+    const searchRule = editorCss.match(/\.markweave-search-match\s*\{([\s\S]*?)\n\}/)?.[1] ?? "";
+    const activeSearchRule = editorCss.match(/\.markweave-search-match--active\s*\{([\s\S]*?)\n\}/)?.[1] ?? "";
+    const darkSearchRule = editorCss.match(/\[data-markweave-theme="dark"\] \.markweave-search-match\s*\{([\s\S]*?)\n\}/)?.[1] ?? "";
+    const darkActiveSearchRule = editorCss.match(/\[data-markweave-theme="dark"\] \.markweave-search-match--active\s*\{([\s\S]*?)\n\}/)?.[1] ?? "";
+
+    expect(cardFadeRule.indexOf("background: linear-gradient(to bottom, transparent")).toBeLessThan(cardFadeRule.indexOf("color-mix("));
+    expect(darkAskAiHoverRule.indexOf("background: rgba(255, 255, 255, 0.08);")).toBeLessThan(darkAskAiHoverRule.indexOf("color-mix("));
+    expect(searchRule.indexOf("background: rgba(250, 204, 21, 0.42);")).toBeLessThan(searchRule.indexOf("color-mix("));
+    expect(searchRule).toContain("box-shadow: inset 0 -1px 0 rgba(202, 138, 4, 0.55);");
+    expect(activeSearchRule).toContain("inset 0 0 0 1px rgba(234, 88, 12, 0.72)");
+    expect(darkSearchRule).toContain("background: rgba(234, 179, 8, 0.34);");
+    expect(darkActiveSearchRule).toContain("inset 0 0 0 1px rgba(253, 186, 116, 0.72)");
+    expect(editorCss.match(/color-mix\(/g)).toHaveLength(13);
+  });
+
   it("keeps AI edit review controls compact, visible, and Chromium 106 compatible", () => {
     const hunkReviewCss = editorCss.slice(
       editorCss.indexOf(".markweave-ai-edit-hunk-shell"),

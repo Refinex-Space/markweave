@@ -92,7 +92,7 @@ function handleUpdate({ markdown }: { markdown: string }) {
 
 ### Vue 2
 
-Vue CLI 4 / Webpack 4 项目必须保证 `vue-template-compiler` 与 Vue 2.6.x 版本一致。
+Vue CLI 4 / Webpack 4 项目必须保证 `vue-template-compiler` 与 Vue 版本完全一致。Markweave 以 Vue 2.6.12 作为最低 legacy 基线，持续维护的旧项目建议使用最终版 Vue 2.7.16。
 
 ```vue
 <template>
