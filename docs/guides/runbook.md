@@ -1,6 +1,6 @@
 ---
 owner: refinex
-updated: 2026-08-20
+updated: 2026-08-22
 status: active
 referenced_by: AGENTS.md#knowledge-map
 ---
@@ -66,6 +66,7 @@ For adapter or playground parity work, useful focused checks are:
 ```sh
 pnpm exec vitest run packages/markweave/test/floating-toolbar-model.test.ts packages/markweave/test/playground-contract.test.ts
 pnpm exec vitest run packages/markweave/test/vue2-adapter-parity.test.ts packages/markweave/test/vue3-adapter-parity.test.ts
+pnpm exec vitest run packages/markweave/test/webpack4-legacy-package.test.ts packages/markweave/test/vue2-compat.test.ts
 pnpm exec vitest run apps/playground-react/test/playground-mode-toggle.test.ts apps/playground-vue3/test/playground-vue3-mode-toggle.test.ts
 pnpm exec vitest run apps/playground-react/test/playground-openrouter.test.ts
 ```
@@ -101,7 +102,9 @@ pnpm harness:check
 
 `pnpm build` builds `markweave` first, then `@markweave/react`, `@markweave/vue2`, `@markweave/vue3`, and finally `@markweave/playground-react`, `@markweave/playground-vue2`, and `@markweave/playground-vue3`. The core package build removes `packages/markweave/dist`, emits framework-neutral TypeScript JavaScript plus declarations with preserved module paths for `markweave/internal/*`, and copies the editor stylesheet to `dist/styles.css`. Each adapter package then runs its own Vite library build and declaration build.
 
-Run `pnpm build:vue2-legacy` after package-boundary, Vite, dependency, or Vue 2 compatibility changes. It rebuilds `markweave/legacy` and `@markweave/vue2/legacy`, then consumes the generated physical package entries through Vue CLI 4 / Webpack 4. The legacy bundle must keep Vue, Tiptap core/PM, and ProseMirror external, must not contain a free browser `require()`, and must stay under the release artifact count/size limits enforced by `scripts/verify-publish-artifacts.mjs`.
+Run `pnpm build:vue2-legacy` after package-boundary, Vite, dependency, or Vue 2 compatibility changes. It rebuilds `markweave/legacy` and `@markweave/vue2/legacy`, consumes the generated physical entries through the workspace Vue CLI 4 / Webpack 4 fixture, emits `report.json`, verifies one runtime root per Vue/Tiptap/ProseMirror package plus size budgets, and removes the report after success. The legacy bundle must also avoid a free browser `require()` and stay under the artifact limits enforced by `scripts/verify-publish-artifacts.mjs`.
+
+Run `pnpm verify:vue2-packed` before release. It creates temporary tarballs and strict-pnpm consumers outside the workspace, verifies Vue 2.6.12 / Vue CLI 4.4.6 and Vue 2.7.16 / Vue CLI 4.5.19 against Webpack 4.47.0, and drives a deterministic browser smoke covering mount, Mermaid async rendering, input/update, and Live-to-View state. Successful temporary directories are removed; failed fixtures are preserved and printed for diagnosis.
 
 The playground production build can emit Vite large-chunk warnings because Mermaid and diagram assets are bundled into the demo app. Treat those warnings as a package-size signal, not as a Harness failure.
 
@@ -122,14 +125,14 @@ Before publishing, verify:
 - `packages/markweave/dist/index.js`, `dist/types/index.d.ts`, `dist/editor-core/*`, `dist/plugins/*`, and `dist/styles.css` are produced by `pnpm build`
 - `packages/markweave-react/dist/index.js`, `packages/markweave-vue2/dist/index.js`, and `packages/markweave-vue3/dist/index.js` are produced by `pnpm build`
 - `packages/markweave/dist/legacy/index.js` and `packages/markweave-vue2/dist/legacy/index.js` exist, target ES2019, and keep only approved shared runtimes external
-- `@markweave/vue2/webpack4` is present in the packed Vue 2 package and `pnpm build:vue2-legacy` passes
+- `@markweave/vue2/webpack4` is present in the packed Vue 2 package and both `pnpm build:vue2-legacy` and `pnpm verify:vue2-packed` pass
 - `pnpm --filter markweave pack --dry-run` includes only core package files such as `dist`, legacy adapter shims, `styles.css`, `README.md`, `LICENSE`, and package metadata
 - `pnpm --filter @markweave/react pack --dry-run`, `pnpm --filter @markweave/vue2 pack --dry-run`, and `pnpm --filter @markweave/vue3 pack --dry-run` include only adapter package files
 - packed adapter package metadata rewrites the local `markweave: workspace:^` dependency to the current publishable core version range
 - playground-only files are not included in package `files`
 - README usage examples match the exported API
 
-Each publishable package runs `pnpm run build` from its `prepack` lifecycle. Do not bypass lifecycle scripts with `--ignore-scripts`: the generated `dist` directories are Git-ignored and are not release sources of truth. `pnpm release:pack` and `pnpm release:dry-run` finish by running `scripts/verify-publish-artifacts.mjs`, which rejects stale or incomplete output before authentication or registry writes are attempted.
+Each publishable package runs `pnpm run build` from its `prepack` lifecycle. Do not bypass lifecycle scripts with `--ignore-scripts`: the generated `dist` directories are Git-ignored and are not release sources of truth. `pnpm release:pack` and `pnpm release:dry-run` finish through `pnpm release:verify`, which runs the legacy workspace build, packed-consumer matrix, browser smoke, stats budgets, and `scripts/verify-publish-artifacts.mjs` before authentication or registry writes are attempted.
 
 Run the release checks from the workspace root:
 
@@ -138,6 +141,7 @@ pnpm test
 pnpm typecheck
 pnpm build
 pnpm build:vue2-legacy
+pnpm verify:vue2-packed
 pnpm release:pack
 pnpm release:dry-run
 pnpm harness:check

@@ -1,6 +1,8 @@
 import type { EditorView } from "@tiptap/pm/view";
 import type { Transaction } from "@tiptap/pm/state";
 import type { AnyExtension, Editor as CoreEditor } from "@tiptap/core";
+import type Vue from "vue";
+import type { VueConstructor } from "vue";
 import { BubbleMenu } from "@tiptap/vue-2/menus";
 import { Editor as VueEditor, EditorContent } from "@tiptap/vue-2";
 import {
@@ -401,6 +403,8 @@ export interface MarkweaveVue2EditorController {
 export interface MarkweaveVue2EditorProps extends MarkweaveVue2EditorControllerOptions {
   readonly className?: string;
 }
+
+export type MarkweaveVue2EditorComponent = VueConstructor<Vue & Readonly<MarkweaveVue2EditorProps>>;
 
 interface VueControllerRenderState {
   readonly messages: MarkweaveMessages;
@@ -4003,4 +4007,4 @@ export const MarkweaveEditor = defineComponent({
       );
     };
   },
-});
+}) as MarkweaveVue2EditorComponent;

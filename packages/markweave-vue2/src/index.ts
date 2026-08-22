@@ -6,6 +6,7 @@ export type {
   MarkweaveVue2EditorController,
   MarkweaveVue2EditorControllerActions,
   MarkweaveVue2EditorControllerOptions,
+  MarkweaveVue2EditorComponent,
   MarkweaveVue2EditorProps,
 } from "./MarkweaveEditor";
 export type {

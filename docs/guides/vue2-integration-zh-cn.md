@@ -1,6 +1,6 @@
 ---
 owner: refinex
-updated: 2026-08-20
+updated: 2026-08-22
 status: active
 referenced_by: docs/README.md#knowledge-map
 ---
@@ -9,23 +9,25 @@ referenced_by: docs/README.md#knowledge-map
 
 语言：中文 | [English](./vue2-integration.md)
 
-这是 Markweave 的 Vue 2 完整接入手册，覆盖安装、Vue 2.6 编译器要求、Vue CLI 4 / Webpack 4 兼容配置、内容存储、Live/View 模式、上传、回调、TOC 和生产边界。仓库里的私有参考实现是 `apps/playground-vue2`。
+这是 Markweave 的 Vue 2 完整接入手册，覆盖安装、Vue 2.6/2.7 编译器要求、Vue CLI 4 / Webpack 4 兼容配置、内容存储、Live/View 模式、上传、回调、TOC 和生产边界。仓库里的私有参考实现是 `apps/playground-vue2`。
 
 大文档应使用 `defaultContent`，避免每次按键都通过受控 `content` 往返；保留惰性 update payload，只在宿主保存/flush 边界读取 `payload.markdown`。可选 `resolveMediaSource` prop 与 React、Vue 3 共用带优先级和取消信号的请求；返回展示 URL 与可选固有尺寸后会启用共享轻量图片 NodeView，但不会改变序列化 Markdown。
 
 ## 安装
 
-在已有 Vue 2.6 应用中安装 Vue 2 适配包：
+在已有 Vue 2.6 或 2.7 应用中安装 Vue 2 适配包：
 
 ```sh
 pnpm add @markweave/vue2
 ```
 
-`vue` 是宿主应用负责提供的 peer dependency。Vue 2 项目必须保证 `vue-template-compiler` 与 `vue` 使用完全一致的 `2.6.x` 版本：
+`vue` 是宿主应用负责提供的 peer dependency。[Vue 2 已于 2023-12-31 结束生命周期](https://v2.vuejs.org/eol/)；Markweave 继续提供 legacy 兼容路径，但安全与合规责任仍由宿主承担。新增或持续维护的旧项目应优先使用最终版 Vue `2.7.16`，并始终保证 `vue-template-compiler` 与 `vue` 版本完全一致：
 
 ```sh
-pnpm add vue@2.6.12 vue-template-compiler@2.6.12
+pnpm add vue@2.7.16 vue-template-compiler@2.7.16
 ```
+
+最低已验证组合仍为 Vue `2.6.12` 及其同版本 compiler。
 
 在应用入口或编辑器组件中导入一次样式：
 
@@ -53,11 +55,11 @@ module.exports = {
 };
 ```
 
-helper 只补 Webpack 4 仍然需要的 Tiptap 单例别名和窄范围 Babel 规则。Babel 缓存默认写入 `node_modules` 外的 `.cache/markweave-babel-loader`，因此不会被 `npm ci` 删除。应保持 `.cache/` 不提交，或者用 `MARKWEAVE_BABEL_CACHE_DIR` 指向 CI 持久缓存目录。
+helper 会从严格包管理布局的真实安装位置解析依赖，为 Vue、Markweave 样式、Tiptap、ProseMirror 设置物理单例别名，并只补 Webpack 4 仍需要的窄范围 Babel 规则。必需目标缺失时会直接失败，避免静默产生重复运行时。Babel 缓存默认写入 `node_modules` 外的 `.cache/markweave-babel-loader`，因此不会被干净安装删除。应保持 `.cache/` 不提交，或者用 `MARKWEAVE_BABEL_CACHE_DIR` 指向 CI 持久缓存目录。
 
 如果宿主自行维护别名，可以显式导入 `@markweave/vue2/legacy`，并给 helper 传 `aliasPackageImport: false`。不要把 legacy 入口与旧的 Mermaid、Cytoscape、D3、Lowlight、Markweave 大范围 `transpileDependencies` 同时使用；否则预构建依赖仍会再次进入 Babel，构建优化会失效。
 
-私有 `apps/playground-vue2` fixture 使用 Vue CLI 4、Webpack 4.47、Vue 2.6.12 按真实发布包形态消费该入口，并由 `pnpm build:vue2-legacy` 作为发布门禁。
+私有 `apps/playground-vue2` fixture 通过 `pnpm build:vue2-legacy` 使用 Vue CLI 4.4.6、Webpack 4.47、Vue 2.6.12 验证 workspace 包边界。更严格的 `pnpm verify:vue2-packed` 会在临时严格 pnpm 项目中安装真实 tarball，并浏览器验证该最低矩阵以及 Vue 2.7.16 / Vue CLI 4.5.19 最终矩阵；Webpack stats 会拒绝重复的 Vue/Tiptap/ProseMirror 运行时和包体预算回归。
 
 ## 最小编辑器
 
@@ -379,6 +381,7 @@ Vue 2 适配器提供完整 Markweave UI：浮动工具栏、链接弹层、slas
 - 即使宿主系统的中文回退字体没有原生斜体字形，行内斜体也会保持可见。
 - 保持 `vue` 和 `vue-template-compiler` 版本完全一致。
 - 使用 Vue CLI 4 / Webpack 4 时接入 `@markweave/vue2/webpack4`，不要再把 legacy 已预构建的重型依赖加入大范围 `transpileDependencies`。
+- ES2019 是 legacy 语法目标，不代表自动补齐所有浏览器 API。嵌入式浏览器最低基线为 Chromium 106；渐进增强的 `color-mix()` 样式已为该基线提供固定颜色或渐变回退。
 - 宿主驱动 AI 多处审阅的全局决策条直接挂载到 `body`，不依赖 CSS query container；逐块操作和 Tooltip 只使用 Electron 21 / Chromium 106 已支持的 DOM、选择器与布局能力。
 - Markweave 0.3.5 不再让 CSS 查询容器影响固定目录定位，并会在挂载后主动探测 pending 状态的首屏图片，覆盖 Electron 21 / Chromium 106 延迟首次 `IntersectionObserver` 回调的情况。
 - 上传接口必须做认证、文件大小、MIME 类型和返回 URL 校验。

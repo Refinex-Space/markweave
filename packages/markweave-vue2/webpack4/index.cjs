@@ -26,16 +26,20 @@ const PROSEMIRROR_RUNTIME_PACKAGES = [
 
 function findPackageRoot(packageName, searchPaths) {
   for (const searchPath of searchPaths) {
-    const candidate = path.join(searchPath, "node_modules", packageName);
-    const manifest = path.join(candidate, "package.json");
-    if (fs.existsSync(manifest)) {
-      try {
-        if (JSON.parse(fs.readFileSync(manifest, "utf8")).name === packageName) {
-          return fs.realpathSync(candidate);
+    let current = fs.existsSync(searchPath) ? fs.realpathSync(searchPath) : path.resolve(searchPath);
+    while (current !== path.dirname(current)) {
+      const candidate = path.join(current, "node_modules", packageName);
+      const manifest = path.join(candidate, "package.json");
+      if (fs.existsSync(manifest)) {
+        try {
+          if (JSON.parse(fs.readFileSync(manifest, "utf8")).name === packageName) {
+            return fs.realpathSync(candidate);
+          }
+        } catch {
+          return null;
         }
-      } catch {
-        return null;
       }
+      current = path.dirname(current);
     }
   }
 
@@ -63,10 +67,16 @@ function findPackageRoot(packageName, searchPaths) {
   return null;
 }
 
-function setExistingAlias(config, request, target) {
-  if (target && fs.existsSync(target)) {
-    config.resolve.alias.set(request, target);
+function setRequiredAlias(config, request, target) {
+  if (!target || !fs.existsSync(target)) {
+    throw new Error(`@markweave/vue2 Webpack 4 alias target is missing: ${request} -> ${target || "unresolved"}`);
   }
+
+  config.resolve.alias.set(request, target);
+}
+
+function readPackageManifest(packageRoot) {
+  return JSON.parse(fs.readFileSync(path.join(packageRoot, "package.json"), "utf8"));
 }
 
 function addBabelRule(config, ruleName, test, dependencyRoots, cacheDirectory, asJavascriptAuto) {
@@ -96,7 +106,9 @@ function applyMarkweaveVue2Webpack4Legacy(config, options = {}) {
   const packageRoot = fs.existsSync(installedPackageRoot)
     ? installedPackageRoot
     : path.resolve(__dirname, "..");
-  const searchPaths = [projectRoot, packageRoot];
+  const searchPaths = [projectRoot, packageRoot, fs.realpathSync(packageRoot)];
+  const vueRoot = findPackageRoot("vue", searchPaths);
+  const markweaveRoot = findPackageRoot("markweave", searchPaths);
   const tiptapCoreRoot = findPackageRoot("@tiptap/core", searchPaths);
   const tiptapPmRoot = findPackageRoot("@tiptap/pm", searchPaths);
   const tiptapVue2Root = findPackageRoot("@tiptap/vue-2", searchPaths);
@@ -107,6 +119,8 @@ function applyMarkweaveVue2Webpack4Legacy(config, options = {}) {
     ]),
   );
   const missingPackages = [
+    ["vue", vueRoot],
+    ["markweave", markweaveRoot],
     ["@tiptap/core", tiptapCoreRoot],
     ["@tiptap/pm", tiptapPmRoot],
     ["@tiptap/vue-2", tiptapVue2Root],
@@ -123,26 +137,49 @@ function applyMarkweaveVue2Webpack4Legacy(config, options = {}) {
     );
   }
 
-  if (options.aliasPackageImport !== false) {
-    setExistingAlias(config, "@markweave/vue2$", legacyEntry);
+  const packageManifest = readPackageManifest(packageRoot);
+  const exactRuntimeRoots = new Map([
+    ["@tiptap/core", tiptapCoreRoot],
+    ["@tiptap/pm", tiptapPmRoot],
+    ["@tiptap/vue-2", tiptapVue2Root],
+    ...prosemirrorRoots.entries(),
+  ]);
+  const mismatchedPackages = [];
+  exactRuntimeRoots.forEach((runtimeRoot, packageName) => {
+    const expectedVersion = packageManifest.dependencies?.[packageName];
+    const actualVersion = runtimeRoot ? readPackageManifest(runtimeRoot).version : null;
+    if (expectedVersion && actualVersion !== expectedVersion) {
+      mismatchedPackages.push(`${packageName} expected ${expectedVersion}, received ${actualVersion || "missing"}`);
+    }
+  });
+  if (mismatchedPackages.length) {
+    throw new Error(`@markweave/vue2 Webpack 4 runtime versions are misaligned: ${mismatchedPackages.join(", ")}`);
   }
-  setExistingAlias(config, "@markweave/vue2/legacy$", legacyEntry);
-  setExistingAlias(config, "@markweave/vue2/styles.css$", path.join(packageRoot, "styles.css"));
+
+  if (options.aliasPackageImport !== false) {
+    setRequiredAlias(config, "@markweave/vue2$", legacyEntry);
+  }
+  setRequiredAlias(config, "@markweave/vue2/legacy$", legacyEntry);
+  setRequiredAlias(config, "@markweave/vue2/styles.css$", path.join(packageRoot, "styles.css"));
+  setRequiredAlias(config, "markweave/styles.css$", markweaveRoot && path.join(markweaveRoot, "dist/styles.css"));
+  setRequiredAlias(config, "./markweave/styles.css$", markweaveRoot && path.join(markweaveRoot, "dist/styles.css"));
+  setRequiredAlias(config, "vue$", vueRoot && path.join(vueRoot, "dist/vue.runtime.common.js"));
 
   if (tiptapCoreRoot) {
-    setExistingAlias(
+    setRequiredAlias(config, "@tiptap/core$", path.join(tiptapCoreRoot, "dist/index.js"));
+    setRequiredAlias(
       config,
       "@tiptap/core/jsx-runtime$",
-      path.join(tiptapCoreRoot, "dist/jsx-runtime/index.js"),
+      path.join(tiptapCoreRoot, "jsx-runtime/index.js"),
     );
   }
   if (tiptapVue2Root) {
-    setExistingAlias(config, "@tiptap/vue-2$", path.join(tiptapVue2Root, "dist/index.js"));
-    setExistingAlias(config, "@tiptap/vue-2/menus$", path.join(tiptapVue2Root, "dist/menus/index.js"));
+    setRequiredAlias(config, "@tiptap/vue-2$", path.join(tiptapVue2Root, "dist/index.js"));
+    setRequiredAlias(config, "@tiptap/vue-2/menus$", path.join(tiptapVue2Root, "dist/menus/index.js"));
   }
   if (tiptapPmRoot) {
     TIPTAP_PM_SUBPATHS.forEach((subpath) => {
-      setExistingAlias(
+      setRequiredAlias(
         config,
         `@tiptap/pm/${subpath}$`,
         path.join(tiptapPmRoot, `dist/${subpath}/index.js`),
@@ -150,7 +187,7 @@ function applyMarkweaveVue2Webpack4Legacy(config, options = {}) {
     });
   }
   prosemirrorRoots.forEach((dependencyRoot, packageName) => {
-    setExistingAlias(
+    setRequiredAlias(
       config,
       `${packageName}$`,
       dependencyRoot && path.join(dependencyRoot, "dist/index.js"),
