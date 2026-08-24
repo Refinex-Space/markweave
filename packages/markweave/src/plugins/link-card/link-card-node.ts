@@ -47,6 +47,7 @@ export const MarkweaveLinkCard = Node.create<MarkweaveLinkCardExtensionOptions>(
         props: {
           handleClick(view, pos, event) {
             if (!isMarkweaveEditorLiveEditable(getMarkweaveEditorModeState(editor))) return false;
+            if (event.metaKey || event.ctrlKey) return false;
             const target = event.target;
             if (!(target instanceof HTMLElement) || !target.closest("a[href]")) return false;
             const linkTarget = getMarkweaveLinkCardTargetAtPos(editor, pos);

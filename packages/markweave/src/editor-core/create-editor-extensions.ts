@@ -495,6 +495,7 @@ export function createMarkweaveEditorExtensions(options: CreateMarkweaveEditorEx
       protocols: ["markweave"],
       HTMLAttributes: {
         class: "markweave-link",
+        target: null,
       },
     }),
     MarkweaveLinkClick.configure({

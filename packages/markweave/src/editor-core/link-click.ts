@@ -32,6 +32,24 @@ export const markweaveInlineLinkSourcePluginKey = new PluginKey<ActiveInlineLink
   "markweaveInlineLinkSource",
 );
 
+type LinkOpenEventSource = "dom" | "semantic";
+
+interface RecentLinkOpenGesture {
+  readonly source: LinkOpenEventSource;
+  readonly href: string;
+  readonly timeStamp: number;
+  readonly clientX: number;
+  readonly clientY: number;
+  readonly ctrlKey: boolean;
+  readonly metaKey: boolean;
+}
+
+// ProseMirror can report one physical activation first through handleClick's
+// mouseup path and then through the browser click event. Pair those layers so
+// the safe opener runs once without suppressing a later independent click.
+const recentLinkOpenGestures = new WeakMap<Editor, RecentLinkOpenGesture>();
+const linkOpenGesturePairWindowMs = 50;
+
 const percentEncodedUtf8CharacterPattern = /(?:%f[0-4](?:%[89ab][0-9a-f]){3}|%e[0-9a-f](?:%[89ab][0-9a-f]){2}|%(?:c[2-9a-f]|d[0-9a-f])%[89ab][0-9a-f])/gi;
 
 /**
@@ -279,18 +297,62 @@ function createSourceDecorations(
  * Keeps authoring clicks inside the editor while retaining the familiar
  * Ctrl/Cmd-click shortcut for opening an ordinary safe link.
  */
+function handleMarkweaveEditorLinkClickFromSource(
+  editor: Editor | null | undefined,
+  event: MouseEvent,
+  source: LinkOpenEventSource,
+) {
+  const link = getOrdinaryLinkTarget(event);
+  if (!link) return false;
+
+  const href = link.getAttribute("href") ?? "";
+  const previousGesture = editor ? recentLinkOpenGestures.get(editor) : undefined;
+  const pairedGesture =
+    previousGesture &&
+    previousGesture.source !== source &&
+    previousGesture.href === href &&
+    Math.abs(event.timeStamp - previousGesture.timeStamp) <= linkOpenGesturePairWindowMs &&
+    previousGesture.clientX === event.clientX &&
+    previousGesture.clientY === event.clientY &&
+    previousGesture.ctrlKey === event.ctrlKey &&
+    previousGesture.metaKey === event.metaKey;
+
+  if (pairedGesture) {
+    event.preventDefault();
+    if (editor) recentLinkOpenGestures.delete(editor);
+    return true;
+  }
+
+  let handled = false;
+  if (!isMarkweaveEditorLiveEditable(getMarkweaveEditorModeState(editor))) {
+    handled = openMarkweaveReadonlyLinkFromEvent(event);
+  } else {
+    event.preventDefault();
+    handled = event.metaKey || event.ctrlKey
+      ? openMarkweaveReadonlyLinkFromEvent(event)
+      : false;
+  }
+
+  if (handled && editor) {
+    recentLinkOpenGestures.set(editor, {
+      source,
+      href,
+      timeStamp: event.timeStamp,
+      clientX: event.clientX,
+      clientY: event.clientY,
+      ctrlKey: event.ctrlKey,
+      metaKey: event.metaKey,
+    });
+  }
+
+  return handled;
+}
+
 export function handleMarkweaveEditorLinkClick(
   editor: Editor | null | undefined,
   event: MouseEvent,
 ) {
-  if (!getOrdinaryLinkTarget(event)) return false;
-
-  if (!isMarkweaveEditorLiveEditable(getMarkweaveEditorModeState(editor))) {
-    return openMarkweaveReadonlyLinkFromEvent(event);
-  }
-
-  event.preventDefault();
-  return event.metaKey || event.ctrlKey ? openMarkweaveReadonlyLinkFromEvent(event) : false;
+  return handleMarkweaveEditorLinkClickFromSource(editor, event, "semantic");
 }
 
 export const MarkweaveLinkClick = Extension.create<MarkweaveLinkClickOptions>({
@@ -347,7 +409,7 @@ export const MarkweaveLinkClick = Extension.create<MarkweaveLinkClickOptions>({
           },
           handleDOMEvents: {
             click: (view, event) => {
-              const handled = handleMarkweaveEditorLinkClick(editor, event);
+              const handled = handleMarkweaveEditorLinkClickFromSource(editor, event, "dom");
               if (handled) {
                 dispatchMeta(view, { type: "close" });
               }

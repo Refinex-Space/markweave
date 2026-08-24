@@ -41,6 +41,7 @@ afterEach(() => {
   activeEditor?.destroy();
   activeEditor = null;
   document.body.replaceChildren();
+  vi.restoreAllMocks();
 });
 
 describe("link card model", () => {
@@ -109,6 +110,14 @@ describe("link card model", () => {
     const editor = createEditor('<p><a href="https://example.com">Example</a></p>');
     const anchor = editor.view.dom.querySelector<HTMLAnchorElement>("a[href]");
     expect(anchor).not.toBeNull();
+    const openWindow = vi.spyOn(window, "open").mockImplementation(() => null);
+    const nativeEvent = new MouseEvent("click", { bubbles: true, cancelable: true });
+
+    expect(anchor?.dispatchEvent(nativeEvent)).toBe(false);
+    expect(anchor?.getAttribute("target")).toBeNull();
+    expect(nativeEvent.defaultPrevented).toBe(true);
+    expect(openWindow).not.toHaveBeenCalled();
+
     const event = new MouseEvent("click", { bubbles: true, cancelable: true });
     Object.defineProperty(event, "target", { value: anchor });
     let handled = false;
@@ -149,6 +158,34 @@ describe("link card model", () => {
     editor.view.someProp("handleClick", (handler) => handler(editor.view, firstTextPos(editor), modifierClick) === true);
     expect(modifierClick.defaultPrevented).toBe(true);
     expect(openWindow).toHaveBeenCalledWith("https://example.com", "_blank", "noopener,noreferrer");
+  });
+
+  it.each([
+    ["Ctrl", { ctrlKey: true }],
+    ["Cmd", { metaKey: true }],
+  ])("keeps the whole-line composer closed for a %s click", (_label, modifiers) => {
+    const editor = createEditor('<p><a href="https://example.com">Example</a></p>');
+    const anchor = editor.view.dom.querySelector<HTMLAnchorElement>("a[href]");
+    const openWindow = vi.spyOn(window, "open").mockImplementation(() => null);
+    const event = new MouseEvent("click", {
+      bubbles: true,
+      cancelable: true,
+      ...modifiers,
+    });
+    Object.defineProperty(event, "target", { value: anchor });
+
+    editor.view.someProp("handleClick", (handler) => {
+      handler(editor.view, firstTextPos(editor), event);
+      return false;
+    });
+
+    expect(openWindow).toHaveBeenCalledWith(
+      "https://example.com",
+      "_blank",
+      "noopener,noreferrer",
+    );
+    expect(openWindow).toHaveBeenCalledTimes(1);
+    expect(document.querySelector(".markweave-link-card-composer")).toBeNull();
   });
 
   it("does not replace the normal View-mode link behavior with the composer", () => {

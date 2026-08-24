@@ -173,6 +173,7 @@ describe("Webpack 4 legacy package contract", () => {
   it("keeps the real Vue CLI 4 fixture available as a release gate", () => {
     const rootPackage = JSON.parse(readWorkspaceFile("package.json"));
     const playgroundConfig = readWorkspaceFile("apps/playground-vue2/vue.config.js");
+    const packedConsumerScript = readWorkspaceFile("scripts/verify-vue2-packed-consumer.mjs");
 
     expect(rootPackage.scripts["build:vue2-legacy"]).toContain("build-vue2-legacy-playground.mjs");
     expect(rootPackage.scripts["verify:vue2-packed"]).toContain("verify-vue2-packed-consumer.mjs");
@@ -181,8 +182,12 @@ describe("Webpack 4 legacy package contract", () => {
     expect(rootPackage.scripts["release:pack"]).toContain("pnpm release:verify");
     expect(rootPackage.scripts["release:dry-run"]).toContain("pnpm release:verify");
     expect(readWorkspaceFile("scripts/build-vue2-legacy-playground.mjs")).toContain("verifyVue2Webpack4StatsFile");
-    expect(readWorkspaceFile("scripts/verify-vue2-packed-consumer.mjs")).toContain('name: "minimum"');
-    expect(readWorkspaceFile("scripts/verify-vue2-packed-consumer.mjs")).toContain('name: "final"');
+    expect(packedConsumerScript).toContain('name: "minimum"');
+    expect(packedConsumerScript).toContain('name: "final"');
+    expect(packedConsumerScript).toContain('resolve(consumerRoot, "pnpm-workspace.yaml")');
+    expect(packedConsumerScript).toContain(
+      'overrides:\\n  markweave: ${JSON.stringify(`file:${coreTarball}`)}',
+    );
     expect(playgroundConfig).toContain('MARKWEAVE_VUE2_LEGACY === "1"');
     expect(playgroundConfig).toContain("applyMarkweaveVue2Webpack4Legacy");
     expect(playgroundConfig).toContain("config.resolve.symlinks(false)");
