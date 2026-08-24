@@ -82,6 +82,10 @@ function writeConsumerFiles(consumerRoot, matrix, coreTarball, vue2Tarball) {
       webpack: "4.47.0",
     },
   }, null, 2)}\n`);
+  writeFileSync(
+    resolve(consumerRoot, "pnpm-workspace.yaml"),
+    `packages:\n  - "."\noverrides:\n  markweave: ${JSON.stringify(`file:${coreTarball}`)}\n`,
+  );
   writeFileSync(resolve(consumerRoot, "babel.config.js"), `module.exports = {\n  presets: ["@vue/cli-plugin-babel/preset"],\n};\n`);
   writeFileSync(resolve(consumerRoot, "vue.config.js"), `const applyMarkweaveVue2Webpack4Legacy = require("@markweave/vue2/webpack4");\n\nmodule.exports = {\n  productionSourceMap: false,\n  chainWebpack(config) {\n    config.resolve.symlinks(false);\n    applyMarkweaveVue2Webpack4Legacy(config, { projectRoot: __dirname });\n  },\n};\n`);
   writeFileSync(resolve(consumerRoot, "public/index.html"), `<!doctype html>\n<html><head><meta charset="utf-8"><title>Markweave packed Vue 2 smoke</title></head><body><div id="app"></div></body></html>\n`);

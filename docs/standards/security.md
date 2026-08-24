@@ -1,6 +1,6 @@
 ---
 owner: refinex
-updated: 2026-08-13
+updated: 2026-08-23
 status: active
 referenced_by: AGENTS.md#knowledge-map
 ---
@@ -38,6 +38,7 @@ Markweave is a browser-side editor package. Treat editor content, Markdown sourc
 ## Links And Rendering
 
 - Link behavior currently uses `https` as the default protocol and allows the custom `markweave` protocol.
+- Ordinary inline links must not render a native `target="_blank"`; View mode and Ctrl/Cmd-click use the shared safe-link opener so embedded WebViews cannot open a second navigation path before Markweave authorizes it.
 - Floating-toolbar link editing rejects empty URLs and unsafe `javascript:`, `data:`, or `vbscript:` URLs before applying or opening links.
 - Mermaid preview/rendering changes need tests for invalid source and non-mutating preview behavior.
 - Base64 images are currently allowed by the image extension; changing that is a public behavior change and needs tests plus docs updates.

@@ -101,9 +101,22 @@ describe("inline link Markdown source", () => {
 
     editor.view.someProp("handleClick", (handler) => handler(editor.view, 7, event));
 
+    expect(anchor.getAttribute("target")).toBeNull();
     expect(event.defaultPrevented).toBe(true);
     expect(openSpy).not.toHaveBeenCalled();
     expect(sourceTarget(editor)?.textContent).toBe("notes/a.md");
+  });
+
+  it("prevents a native ordinary click without exposing a blank target", () => {
+    const editor = createEditor();
+    const anchor = editor.view.dom.querySelector<HTMLAnchorElement>("a.markweave-link")!;
+    const openSpy = vi.spyOn(window, "open").mockImplementation(() => null);
+    const event = new MouseEvent("click", { bubbles: true, cancelable: true });
+
+    expect(anchor.dispatchEvent(event)).toBe(false);
+    expect(anchor.getAttribute("target")).toBeNull();
+    expect(event.defaultPrevented).toBe(true);
+    expect(openSpy).not.toHaveBeenCalled();
   });
 
   it("commits a safe edited address on Enter and preserves other link attributes", () => {
@@ -159,11 +172,18 @@ describe("inline link Markdown source", () => {
     });
     Object.defineProperty(event, "target", { value: anchor });
 
+    editor.view.someProp("handleDOMEvents", (handlers) => {
+      handlers.click?.(editor.view, event as PointerEvent);
+      return false;
+    });
+    expect(openSpy).toHaveBeenCalledTimes(1);
+
     const handled = editor.view.someProp("handleClick", (handler) =>
       handler(editor.view, 7, event),
     );
 
     expect(handled).toBe(true);
+    expect(openSpy).toHaveBeenCalledTimes(1);
     expect(openSpy).toHaveBeenCalledWith("notes/a.md", "_blank", "noopener,noreferrer");
     expect(sourceTarget(editor)).toBeNull();
   });
