@@ -166,12 +166,14 @@ describe("slash command runtime", () => {
 <p>/plain</p>
 <blockquote><p>/quote</p></blockquote>
 <div data-markweave-callout-type="info"><p>/image</p></div>
+<div data-markweave-details="true" data-open="true"><div data-markweave-details-summary="true">Title</div><p>/fold</p></div>
 `);
 
     const cases = [
       { slashText: "/plain", query: "plain", scope: "paragraph" },
       { slashText: "/quote", query: "quote", scope: "blockquote" },
       { slashText: "/image", query: "image", scope: "callout" },
+      { slashText: "/fold", query: "fold", scope: "details" },
     ] as const;
 
     for (const testCase of cases) {
@@ -374,6 +376,7 @@ describe("slash command runtime", () => {
       "task-list",
       "blockquote",
       "code-block",
+      "details",
       "callout-info",
       "callout-tip",
       "callout-warning",
@@ -388,6 +391,7 @@ describe("slash command runtime", () => {
       "attachment",
     ]);
     expect(defaultSlashCommandSpecs.map((command) => command.group)).toEqual([
+      "样式",
       "样式",
       "样式",
       "样式",
@@ -415,6 +419,12 @@ describe("slash command runtime", () => {
     expect(filterSlashCommands("image").map((command) => command.id)).toContain("image");
     expect(filterSlashCommands("图片").map((command) => command.id)).toContain("image");
     expect(filterSlashCommands("divider").map((command) => command.id)).toContain("separator");
+    expect(filterSlashCommands("折叠").map((command) => command.id)).toContain("details");
+    expect(filterSlashCommands("toggle").map((command) => command.id)).toContain("details");
+    expect(getLocalizedSlashCommandSpecs("zh").find((command) => command.id === "details")).toMatchObject({
+      label: "折叠块",
+      group: "样式",
+    });
     expect(filterSlashCommands("upload").map((command) => command.id)).toEqual(["image", "video", "attachment"]);
     expect(defaultSlashCommandSpecs.find((command) => command.id === "attachment")).toMatchObject({
       uploadKind: "attachment",
@@ -429,7 +439,7 @@ describe("slash command runtime", () => {
   });
 
   it("executes heading 3, task list, separator, callout, emoji, math, and enabled upload commands", () => {
-    const editor = createEditor("<p>/h3</p><p>/task</p><p>/sep</p><p>/callout</p><p>/emoji</p><p>/math</p><p>/image</p><p>/video</p><p>/attachment</p>");
+    const editor = createEditor("<p>/h3</p><p>/task</p><p>/sep</p><p>/details</p><p>/callout</p><p>/emoji</p><p>/math</p><p>/image</p><p>/video</p><p>/attachment</p>");
     const runCommandAtText = (text: string, commandId: string, options = {}) => {
       expect(editor.commands.setTextSelection(textPosition(editor, text))).toBe(true);
       const state = getNextSlashCommandState(initialSlashCommandState, getSlashCommandContext(editor.state));
@@ -445,6 +455,7 @@ describe("slash command runtime", () => {
     runCommandAtText("/h3", "heading-3");
     runCommandAtText("/task", "task-list");
     runCommandAtText("/sep", "separator");
+    runCommandAtText("/details", "details");
     runCommandAtText("/callout", "callout-tip");
     runCommandAtText("/emoji", "emoji", { emoji: "✅" });
     runCommandAtText("/math", "block-math");
@@ -457,6 +468,7 @@ describe("slash command runtime", () => {
     expect(editor.getHTML()).toContain("<h3></h3>");
     expect(editor.getHTML()).toContain('data-type="taskList"');
     expect(editor.getHTML()).toContain("<hr");
+    expect(editor.getHTML()).toContain("data-markweave-details");
     expect(editor.getHTML()).toContain('data-markweave-callout-type="tip"');
     expect(editor.getText()).toContain("✅");
     expect(editor.getHTML()).toContain('data-type="block-math"');

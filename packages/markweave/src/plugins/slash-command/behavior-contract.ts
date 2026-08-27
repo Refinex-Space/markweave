@@ -23,6 +23,7 @@ export const slashCommandLifecycle = [
   "async-command-busy-cancel-conflict-and-safe-error",
   "delete-query-only-after-successful-atomic-apply",
   "combobox-listbox-option-live-region-aria",
+  "insert-details-block",
 ] as const;
 
 export type SlashCommandLifecycleStep = (typeof slashCommandLifecycle)[number];

@@ -1,6 +1,6 @@
 ---
 owner: refinex
-updated: 2026-08-13
+updated: 2026-08-27
 status: active
 referenced_by: docs/README.md#knowledge-map
 ---
@@ -398,7 +398,7 @@ The resolver is never called during load, scrolling, or an ordinary link click. 
 
 ## Feature Coverage
 
-React receives the complete Markweave UI: floating toolbar, link popover, slash command menu, table handles and selection overlay, code block language/copy controls, Mermaid Code/Preview/fullscreen/download, image/video NodeViews, math editing, Live/View mode, built-in TOC, and Chinese/English UI.
+React receives the complete Markweave UI: floating toolbar, link popover, slash command menu, collapsible details blocks, table handles and selection overlay, code block language/copy controls, Mermaid Code/Preview/fullscreen/download, image/video NodeViews, math editing, Live/View mode, built-in TOC, and Chinese/English UI.
 
 ## Production Notes
 

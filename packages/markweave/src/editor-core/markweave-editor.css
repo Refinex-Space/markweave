@@ -2199,6 +2199,81 @@
   background: #f7f0ff;
 }
 
+.markweave-details {
+  position: relative;
+  margin: 1em 0;
+  padding: 6px 12px 6px 32px;
+  border: 1px solid var(--markweave-border);
+  border-radius: 8px;
+  background: transparent;
+}
+
+.markweave-details-toggle {
+  position: absolute;
+  top: 8px;
+  left: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--markweave-text-muted);
+  cursor: pointer;
+  user-select: none;
+}
+
+.markweave-details-toggle svg {
+  width: 14px;
+  height: 14px;
+  transform: rotate(0deg);
+  transition: transform 120ms ease;
+}
+
+.markweave-details[data-open="true"] .markweave-details-toggle svg {
+  transform: rotate(90deg);
+}
+
+.markweave-details-toggle:hover,
+.markweave-details-toggle:focus-visible {
+  background: var(--markweave-surface-muted);
+  color: var(--markweave-text);
+}
+
+.markweave-details-body {
+  min-width: 0;
+}
+
+.markweave-details-summary {
+  min-height: 1.6em;
+  font-weight: 600;
+  line-height: 1.55;
+  color: var(--markweave-text);
+}
+
+.markweave-details:not([data-open="true"]) .markweave-details-body > :not([data-markweave-details-summary]) {
+  display: none;
+}
+
+.markweave-details-body > :first-child {
+  margin-top: 0;
+}
+
+.markweave-details-body > :last-child {
+  margin-bottom: 0;
+}
+
+.markweave-details-body > p {
+  margin: 0.38em 0;
+}
+
+.markweave-editor-frame[data-markweave-mode="view"] .markweave-details-summary {
+  cursor: default;
+}
+
 .markweave-editor-surface [data-markweave-indent-level="1"] {
   margin-left: 1.5em;
 }
@@ -5532,6 +5607,11 @@ body:has(.markweave-mermaid-fullscreen-layer, .markweave-image-preview-layer) .m
 .markweave-editor-frame[data-markweave-theme="dark"] .markweave-callout[data-markweave-callout-type="success"] {
   border-left-color: #72d6a3;
   background: rgba(62, 157, 108, 0.18);
+}
+
+.markweave-editor-frame[data-markweave-theme="dark"] .markweave-details {
+  border-color: var(--markweave-border);
+  background: transparent;
 }
 
 .markweave-editor-frame[data-markweave-theme="dark"] .markweave-video-selection-layer,

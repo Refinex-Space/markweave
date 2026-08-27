@@ -1,6 +1,6 @@
 ---
 owner: refinex
-updated: 2026-08-11
+updated: 2026-08-27
 status: active
 referenced_by: AGENTS.md#knowledge-map
 ---
@@ -20,6 +20,7 @@ referenced_by: AGENTS.md#knowledge-map
 | Runtime snapshot | The state payload from `MarkweaveEditorRuntimeSnapshot`, including selection, slash command, table, code block, Mermaid, and debug state. |
 | Behavior contract | Source-level list of expected behaviors used to guide tests and prevent regressions. |
 | Slash command | The `/` command menu flow handled by slash-command plugins and UI. |
+| Details block | A collapsible `markweaveDetails` node with an editable summary and hidden/shown body, inserted from Slash as `/details` / `/折叠`. |
 | Command Registry | Immutable merged snapshot of builtin and host command groups/specs, validated and resolved against the current readonly editor context. |
 | Command Controller | Stable per-editor API for discovering, executing, subscribing to, and cancelling commands across Slash and host UI surfaces. |
 | Command target | Captured selection, cursor, or Slash trigger range that is mapped through outside transactions and fails closed when directly modified. |

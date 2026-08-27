@@ -580,6 +580,7 @@ const slashIconMap: Record<SlashCommandIconName, Component> = {
   "task-list": ListChecks,
   blockquote: Quote,
   "code-block": Braces,
+  details: ChevronRight,
   info: Info,
   tip: Lightbulb,
   warning: AlertTriangle,

@@ -106,6 +106,10 @@ export interface MarkweaveMessages {
     readonly emojiItems: readonly MarkweaveEmojiMessage[];
     readonly commands: Record<string, LocalizedSlashCommandText>;
   };
+  readonly details: {
+    readonly expand: string;
+    readonly collapse: string;
+  };
   readonly image: {
     readonly uploadFailedError: string;
     readonly uploadRequiredError: string;
@@ -258,6 +262,12 @@ const baseSlashCommandSpecs = [
     icon: "code-block",
   },
   {
+    id: "details",
+    category: "structure",
+    executionKind: "editor",
+    icon: "details",
+  },
+  {
     id: "callout-info",
     category: "callout",
     executionKind: "editor",
@@ -350,6 +360,7 @@ const slashCommandGroupsById: Record<string, keyof MarkweaveMessages["slash"]["g
   "task-list": "Style",
   blockquote: "Style",
   "code-block": "Style",
+  details: "Style",
   "callout-info": "Callout",
   "callout-tip": "Callout",
   "callout-warning": "Callout",
@@ -445,6 +456,11 @@ const slashCommandsZh: Record<string, LocalizedSlashCommandText> = {
     label: "代码块",
     description: "插入围栏代码块。",
     searchTerms: ["code", "fence", "pre", "代码", "代码块"],
+  },
+  details: {
+    label: "折叠块",
+    description: "插入可展开收起的内容块。",
+    searchTerms: ["details", "toggle", "collapse", "fold", "spoiler", "折叠", "折叠块", "收起"],
   },
   "callout-info": {
     label: "信息",
@@ -553,6 +569,11 @@ const slashCommandsEn: Record<string, LocalizedSlashCommandText> = {
     label: "Code Block",
     description: "Insert a fenced code block.",
     searchTerms: ["code", "fence", "pre", "代码", "代码块"],
+  },
+  details: {
+    label: "Toggle",
+    description: "Insert a collapsible details block.",
+    searchTerms: ["details", "toggle", "collapse", "fold", "spoiler", "折叠", "折叠块", "收起"],
   },
   "callout-info": {
     label: "Info",
@@ -780,6 +801,10 @@ const messagesByLang: Record<MarkweaveLang, MarkweaveMessages> = {
       },
       emojiItems: chineseEmojiItems,
       commands: slashCommandsZh,
+    },
+    details: {
+      expand: "展开折叠块",
+      collapse: "收起折叠块",
     },
     image: {
       uploadFailedError: "图片上传失败。",
@@ -1080,6 +1105,10 @@ const messagesByLang: Record<MarkweaveLang, MarkweaveMessages> = {
       },
       emojiItems: englishEmojiItems,
       commands: slashCommandsEn,
+    },
+    details: {
+      expand: "Expand details",
+      collapse: "Collapse details",
     },
     image: {
       uploadFailedError: "Image upload failed.",

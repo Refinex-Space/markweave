@@ -1,6 +1,6 @@
 ---
 owner: refinex
-updated: 2026-08-13
+updated: 2026-08-27
 status: active
 referenced_by: docs/README.md#knowledge-map
 ---
@@ -348,7 +348,7 @@ resolver 接收 `{ href, title, signal }`，不会在文档加载、滚动或普
 
 ## 能力覆盖
 
-Vue 3 适配器提供完整 Markweave UI：浮动工具栏、链接弹层、slash 菜单、表格句柄和选区 overlay、代码块语言/复制控制、Mermaid Code/Preview/放大/下载、图片/视频 NodeView、数学公式编辑、Live/View 模式、内置 TOC、中英文 UI。
+Vue 3 适配器提供完整 Markweave UI：浮动工具栏、链接弹层、slash 菜单、折叠块、表格句柄和选区 overlay、代码块语言/复制控制、Mermaid Code/Preview/放大/下载、图片/视频 NodeView、数学公式编辑、Live/View 模式、内置 TOC、中英文 UI。
 
 ## 生产接入建议
 

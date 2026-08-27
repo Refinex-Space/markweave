@@ -40,5 +40,7 @@ describe("markweave i18n model", () => {
     expect(filterSlashCommands("image", zhCommands).map((command) => command.id)).toContain("image");
     expect(filterSlashCommands("图片", enCommands).map((command) => command.id)).toContain("image");
     expect(filterSlashCommands("image", enCommands).map((command) => command.id)).toContain("image");
+    expect(filterSlashCommands("折叠", zhCommands).map((command) => command.id)).toContain("details");
+    expect(filterSlashCommands("toggle", enCommands).map((command) => command.id)).toContain("details");
   });
 });

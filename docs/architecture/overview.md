@@ -1,6 +1,6 @@
 ---
 owner: refinex
-updated: 2026-08-23
+updated: 2026-08-27
 status: active
 referenced_by: AGENTS.md#knowledge-map
 ---
@@ -47,11 +47,11 @@ The built-in document outline is enabled by default with `innerToc={true}`. A Pr
 
 The table capability policy is a synchronous, fail-closed host resolver that receives only readonly table and ancestor descriptors. The shared core applies it to Markweave-owned menu, keyboard, edge-add, drag, paste, formatting, copy, and table-AI paths; raw trusted-host Tiptap calls remain outside this UI contract.
 
-- host command protocol: `packages/markweave/src/commands` owns immutable Registry snapshots, the 21-command builtin inventory, predicates/search/sorting, one-per-editor Controller, async execution cancellation/conflict mapping, safe result validation, the fixed 1 MiB result cap, and atomic result application; adapters only bridge props, DOM, icons, accessibility, and lifecycle callbacks
+- host command protocol: `packages/markweave/src/commands` owns immutable Registry snapshots, the 22-command builtin inventory, predicates/search/sorting, one-per-editor Controller, async execution cancellation/conflict mapping, safe result validation, the fixed 1 MiB result cap, and atomic result application; adapters only bridge props, DOM, icons, accessibility, and lifecycle callbacks
 - advanced extension boundary: `editorExtensions` appends trusted host extensions after all builtins and framework media/LinkCard extensions; the core factory flattens StarterKit children and rejects duplicate names before Editor creation, while runtime array changes require a keyed remount
 
 - core editing: StarterKit, composition guard, mark boundary, indent, text style, color, underline, highlight, links, math, emoji
-- blocks and media: code blocks through lowlight, callouts, images, videos, attachments, horizontal rules, task lists
+- blocks and media: code blocks through lowlight, callouts, collapsible details blocks, images, videos, attachments, horizontal rules, task lists
 - Markdown behavior: official Markdown parse/serialize support, Markdown input transforms, and markdown-table input
 - interaction layers: slash command runtime with a localized, non-serialized hint on the active eligible empty paragraph and an in-document `/query` trigger that the menu anchors to directly (styled in place with a non-serialized decoration and an empty-query filter hint, with no floating overlay duplicating the slash), Ask AI target mapping and review state, host-driven AI edit contexts, table clipboard, table arrow navigation, table keyboard, table interaction state; Ask AI stays inert unless the host explicitly supplies an enabled handler, while `MarkweaveAiEditController` lets a host lazily inspect the current selection or explicitly capture an exact selection, the covering top-level blocks, or the full document without Markweave making a network request; exact selections keep cumulative-stream local preview, while block/document proposals are complete target Markdown snapshots that Markweave parses into bounded structural multi-hunk diffs only after completion; review navigation activates one hunk without moving the ProseMirror selection, per-hunk accept/discard decisions remain staged until every hunk is resolved, unrelated edits remap targets, target edits fail closed, and the accepted subset applies in one transaction and one undo step; table Ask AI additionally validates fragment versus exact-shape GFM table output and replaces cell contents without changing table structure or attributes; row and column handle selections keep the handle target cells authoritative, while a translucent visual-axis overlay covers only the requested row or column slice through spanning cells, keeps cell content readable, and suppresses broader native ProseMirror `selectedCell` paint
 - previews and controls: Mermaid inline preview, floating toolbar, slash menu, table controls, table selection overlay, code block controls; Ask AI renders text, table-cell, code, and math results as target-local ephemeral proposals without changing the document before acceptance, uses Chromium 106-safe contrast tokens for proposal text and primary actions, and keeps Mermaid output as source instead of executing generated diagrams; host-driven AI edit renders one body-level bottom-center decision dock inside the editor's visible boundary with hunk count, cyclic previous/next navigation, and global actions, while the active or hovered hunk exposes local accept/discard controls; the body-level dock avoids Chromium 106 query-container fixed-position drift, and its hunk actions and tooltips stay on Chromium 106-compatible DOM/CSS primitives; long proposals retain visible controls through scroll, clipping containers, and window reactivation; table command menus reuse the same framework-neutral visible-boundary model that intersects the editor frame, browser viewport, and clipping ancestors, chooses a best-fit side for main/submenus, and scrolls oversized menu content internally; the code-block language menu stays anchored to its trigger while scrolling, supports Arrow Up/Down navigation with automatic option scrolling, and selects the highlighted language with Enter; Mermaid SVG downloads use the system save picker when supported and otherwise fall back to the browser download flow
@@ -91,6 +91,7 @@ Behavior contract files list expected editor capabilities and should guide tests
 
 - `packages/markweave/src/plugins/markdown/behavior-contract.ts`
 - `packages/markweave/src/plugins/slash-command/behavior-contract.ts`
+- `packages/markweave/src/plugins/details/behavior-contract.ts`
 - `packages/markweave/src/plugins/table/behavior-contract.ts`
 - `packages/markweave/src/plugins/ask-ai/behavior-contract.ts`
 - `packages/markweave/src/plugins/ai-edit/behavior-contract.ts`

@@ -60,6 +60,8 @@ export type SlashCommandScope =
   | "heading"
   | "blockquote"
   | "callout"
+  | "details"
+  | "details-summary"
   | "list-item"
   | "table-cell"
   | "table-header"
@@ -110,6 +112,14 @@ function getSlashCommandScope(state: EditorState): SlashCommandScope | null {
 
   if (ancestorNodes.includes("markweaveCallout")) {
     return "callout";
+  }
+
+  if (parentName === "markweaveDetailsSummary") {
+    return "details-summary";
+  }
+
+  if (ancestorNodes.includes("markweaveDetails") && parentName === "paragraph") {
+    return "details";
   }
 
   if (parentName === "paragraph") {
@@ -170,7 +180,7 @@ export function getSlashCommandOpenDecision(state: EditorState): SlashCommandOpe
     };
   }
 
-  if (parent.type.name !== "paragraph" || (scope !== "paragraph" && scope !== "blockquote" && scope !== "callout")) {
+  if (parent.type.name !== "paragraph" || (scope !== "paragraph" && scope !== "blockquote" && scope !== "callout" && scope !== "details")) {
     return {
       canOpen: false,
       reason: "unsupported-scope",
