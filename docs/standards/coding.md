@@ -1,6 +1,6 @@
 ---
 owner: refinex
-updated: 2026-07-09
+updated: 2026-08-27
 status: active
 referenced_by: AGENTS.md#knowledge-map
 ---
@@ -33,6 +33,7 @@ Before changing an editor behavior, identify the owning area:
 | --- | --- |
 | Markdown transforms | `packages/markweave/src/plugins/markdown/` |
 | Slash commands | `packages/markweave/src/plugins/slash-command/` plus adapter menu rendering in the adapter packages |
+| Details / toggle blocks | `packages/markweave/src/plugins/details/` plus shared Slash/command runtime |
 | Tables | `packages/markweave/src/plugins/table/` plus adapter table controls in the adapter packages |
 | Code blocks | `packages/markweave/src/plugins/codeblock/` plus adapter codeblock controls in the adapter packages |
 | Mermaid preview | `packages/markweave/src/plugins/mermaid/` plus adapter preview controls in the adapter packages |

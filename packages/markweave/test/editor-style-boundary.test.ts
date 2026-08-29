@@ -66,6 +66,8 @@ const editorRuntimeSelectors = [
   ".markweave-link-card-composer",
   ".markweave-highlight",
   ".markweave-callout",
+  ".markweave-details",
+  ".markweave-details-summary",
   ".markweave-video",
   ".markweave-attachment",
   ".markweave-separator",
@@ -287,6 +289,11 @@ describe("editor style boundary", () => {
     expect(editorCss).toContain('.tiptap-mathematics-render[data-type="block-math"]');
     expect(editorCss).toContain('.hljs-attr');
     expect(editorCss).toContain('.markweave-callout[data-markweave-callout-type="tip"]');
+    expect(editorCss).toContain(".markweave-details");
+    expect(editorCss).toContain(".markweave-details-toggle");
+    expect(editorCss).toContain('.markweave-details:not([data-open="true"]) .markweave-details-body');
+    expect(editorCss).toMatch(/\.markweave-details\s*\{[^}]*background:\s*transparent;/s);
+    expect(editorCss).not.toContain(".markweave-details-summary.is-empty::after");
     expect(editorCss).toContain('border-left-color: #bd95ff');
     expect(editorCss).toContain('border-left-color: #e7b657');
     expect(editorCss).toContain('border-left-color: #ff9299');

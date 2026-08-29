@@ -26,10 +26,10 @@ function hostCommand(overrides: Partial<MarkweaveCommandSpec> = {}): MarkweaveCo
 }
 
 describe("Markweave command registry", () => {
-  it("exposes the stable 21-command builtin inventory", () => {
+  it("exposes the stable 22-command builtin inventory", () => {
     const registry = createMarkweaveCommandRegistry({ lang: "zh" });
     expect(registry.commands.map((command) => command.id)).toEqual(markweaveBuiltinCommandIds);
-    expect(registry.commands).toHaveLength(21);
+    expect(registry.commands).toHaveLength(22);
     expect(Object.isFrozen(registry.commands)).toBe(true);
   });
 
@@ -80,7 +80,7 @@ describe("Markweave command registry", () => {
         hostCommand({ id: "trm.decision.bad-icon", icon: { kind: "text", text: "12345" } }),
       ],
     });
-    expect(registry.commands).toHaveLength(21);
+    expect(registry.commands).toHaveLength(22);
     expect(registry.issues.map((issue) => issue.code)).toEqual(expect.arrayContaining([
       "INVALID_GROUP",
       "DUPLICATE_COMMAND",

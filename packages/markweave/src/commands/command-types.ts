@@ -16,6 +16,7 @@ export type MarkweaveBuiltinCommandIconName =
   | "task-list"
   | "blockquote"
   | "code-block"
+  | "details"
   | "info"
   | "tip"
   | "warning"

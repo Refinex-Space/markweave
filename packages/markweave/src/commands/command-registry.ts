@@ -21,6 +21,7 @@ export const markweaveBuiltinCommandIds = [
   "task-list",
   "blockquote",
   "code-block",
+  "details",
   "callout-info",
   "callout-tip",
   "callout-warning",

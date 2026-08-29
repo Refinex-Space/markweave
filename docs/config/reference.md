@@ -1,6 +1,6 @@
 ---
 owner: refinex
-updated: 2026-08-23
+updated: 2026-08-29
 status: active
 referenced_by: AGENTS.md#knowledge-map
 ---
@@ -62,7 +62,7 @@ Adapter packages externalize `markweave`, `markweave/internal/*`, their Tiptap f
 
 ### Tiptap Runtime Alignment
 
-All published `@tiptap/*` runtime dependencies are pinned to the same exact version (`3.29.2` for Markweave `0.9.1`). Markweave's direct `prosemirror-model`, `prosemirror-state`, and `prosemirror-view` dependencies are also pinned to the versions resolved by that Tiptap suite. This prevents consumers from installing multiple Tiptap or ProseMirror versions when an adapter package and `markweave` are installed together; the Webpack stats gate separately proves that one version is bundled from only one runtime root.
+All published `@tiptap/*` runtime dependencies are pinned to the same exact version (`3.29.2` for Markweave `0.9.2`). Markweave's direct `prosemirror-model`, `prosemirror-state`, and `prosemirror-view` dependencies are also pinned to the versions resolved by that Tiptap suite. This prevents consumers from installing multiple Tiptap or ProseMirror versions when an adapter package and `markweave` are installed together; the Webpack stats gate separately proves that one version is bundled from only one runtime root.
 
 The workspace root enforces those ProseMirror versions through `pnpm-workspace.yaml` `overrides`. This is a test/build invariant, not permission to bundle ProseMirror into a legacy artifact; published manifests still declare the exact runtime versions so npm consumers can deduplicate the same graph.
 

@@ -25,6 +25,7 @@ import { MarkweaveCompositionGuard } from "./composition-guard";
 import { MarkweaveLinkClick } from "./link-click";
 import { MarkweaveMarkBoundary } from "./mark-boundary";
 import { MarkweaveCallout } from "../plugins/callout/callout-node";
+import { MarkweaveDetails, MarkweaveDetailsSummary } from "../plugins/details/details-node";
 import { MarkweaveAskAi } from "../plugins/ask-ai/ask-ai-session";
 import { MarkweaveAiEdit } from "../plugins/ai-edit/ai-edit-controller";
 import { MarkweaveCodeBlockClickFocus, MarkweaveCodeBlockCollapse, markweaveCodeBlockBehavior } from "../plugins/codeblock/codeblock-behavior";
@@ -460,6 +461,11 @@ export function createMarkweaveEditorExtensions(options: CreateMarkweaveEditorEx
       levels: [1, 2, 3, 4, 5, 6],
     }),
     MarkweaveCallout,
+    MarkweaveDetails.configure({
+      expandLabel: messages.details.expand,
+      collapseLabel: messages.details.collapse,
+    }),
+    MarkweaveDetailsSummary,
     MarkweaveIndent,
     markweaveTextStyle,
     Color.configure({

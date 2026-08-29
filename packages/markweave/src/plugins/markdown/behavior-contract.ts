@@ -5,6 +5,7 @@ export const markdownTransformTargets = [
   "ordered-list",
   "task-list",
   "blockquote-callout",
+  "details-block",
   "code-fence",
   "mermaid-fence",
   "table",

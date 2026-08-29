@@ -59,6 +59,7 @@ describe("playground fixtures", () => {
     expect(initialPlaygroundDocument).toContain("```bash\nnpm login --registry=https://registry.npmjs.org/\n```");
     expect(initialPlaygroundDocument).toContain("- [x] Ship a stable Live mode editing surface.");
     expect(initialPlaygroundDocument).toContain(":::info");
+    expect(initialPlaygroundDocument).toContain(":::details{open}");
     expect(initialPlaygroundDocument).toContain('data-markweave-image="true"');
     expect(initialPlaygroundDocument).toContain('data-markweave-video-embed="true"');
     expect(initialPlaygroundDocument).toContain('data-markweave-attachment="true"');
@@ -73,6 +74,7 @@ describe("playground fixtures", () => {
     expect(container.querySelectorAll("table").length).toBeGreaterThanOrEqual(2);
     expect(container.querySelector("pre.markweave-code-block")).toBeTruthy();
     expect(container.querySelector('[data-markweave-callout-type="info"]')).toBeTruthy();
+    expect(container.querySelector("[data-markweave-details]")).toBeTruthy();
     expect(container.querySelector('[data-testid="markweave-image-node"]')).toBeTruthy();
     expect(container.querySelector('[data-markweave-video-embed="true"]')).toBeTruthy();
     expect(container.querySelector('[data-type="taskList"]')).toBeTruthy();

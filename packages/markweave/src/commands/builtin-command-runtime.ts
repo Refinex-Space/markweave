@@ -1,6 +1,7 @@
 import type { Editor } from "@tiptap/core";
 import { NodeSelection, TextSelection, type Transaction } from "@tiptap/pm/state";
 import { attrsFromMarkweaveAttachmentUploadResult } from "../plugins/media/attachment-download";
+import { createMarkweaveDetailsContent, MARKWEAVE_DETAILS_NAME } from "../plugins/details/details-node";
 import type { MarkweaveUploadResult } from "../plugins/slash-command/upload";
 
 export interface MarkweaveBuiltinCommandPayload {
@@ -65,6 +66,24 @@ export function executeMarkweaveBuiltinCommand(
       return chain.toggleBlockquote().run();
     case "code-block":
       return chain.setCodeBlock({ language: "text" }).run();
+    case "details":
+      return chain
+        .insertContent(createMarkweaveDetailsContent({ open: true }))
+        .command(({ tr }) => {
+          let detailsPosition: number | null = null;
+          const cursor = tr.selection.from;
+          tr.doc.descendants((node, pos) => {
+            if (node.type.name !== MARKWEAVE_DETAILS_NAME) return true;
+            detailsPosition = pos;
+            if (pos <= cursor && cursor <= pos + node.nodeSize) {
+              return false;
+            }
+            return true;
+          });
+          if (detailsPosition !== null) tr.setSelection(TextSelection.create(tr.doc, detailsPosition + 2));
+          return true;
+        })
+        .run();
     case "separator":
       return chain.setHorizontalRule().run();
     case "block-math":
