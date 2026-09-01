@@ -39,6 +39,7 @@ import {
 } from "../plugins/internal-link-card/internal-link-card";
 import { MarkweaveLinkCard } from "../plugins/link-card/link-card-node";
 import { MarkweaveMarkdownInput } from "../plugins/markdown/markdown-input";
+import { installMarkweaveMarkdownSyntaxEscape } from "../plugins/markdown/markdown-syntax-escape";
 import {
   createMarkweaveHtmlFallbackRenderer,
   needsMarkweaveInlineNodeHtmlFallback,
@@ -388,6 +389,7 @@ function stripMarkdownIndent(line: string, count: number) {
 }
 
 export function createMarkweaveEditorExtensions(options: CreateMarkweaveEditorExtensionsOptions = {}) {
+  installMarkweaveMarkdownSyntaxEscape();
   const messages = getMarkweaveMessages(options.lang);
   let extensions: Extensions = [];
   const htmlFallback = createMarkweaveHtmlFallbackRenderer(() => extensions);
