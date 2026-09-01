@@ -125,7 +125,7 @@ export function MathEditorPopover({ editor, messages, onClose, target }: MathEdi
     if (event.key === "Escape") {
       event.preventDefault();
       onClose();
-      editor.commands.focus();
+      editor.commands.focus(undefined, { scrollIntoView: false });
       return;
     }
 

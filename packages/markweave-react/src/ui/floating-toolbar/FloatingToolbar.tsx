@@ -379,7 +379,7 @@ function runAssistantAction(
   callback: ((request: FloatingToolbarAssistantRequest) => void) | undefined,
 ) {
   callback?.(createFloatingToolbarAssistantRequest(editor, source));
-  editor.commands.focus();
+  editor.commands.focus(undefined, { scrollIntoView: false });
 }
 
 type AskAiUiPhase = "input" | "generating" | "result" | "error" | "conflict";
@@ -701,7 +701,7 @@ export function FloatingToolbar({ editor, lang = "zh", messages = defaultMarkwea
           }
         } else {
           setOpenMenu(null);
-          editor.commands.focus();
+          editor.commands.focus(undefined, { scrollIntoView: false });
         }
       }
     };
@@ -833,7 +833,7 @@ export function FloatingToolbar({ editor, lang = "zh", messages = defaultMarkwea
     }
 
     button.run();
-    editor.commands.focus();
+    editor.commands.focus(undefined, { scrollIntoView: false });
   };
 
   const submitAskAi = useCallback(async (promptOverride?: string) => {
@@ -923,12 +923,12 @@ export function FloatingToolbar({ editor, lang = "zh", messages = defaultMarkwea
     setOpenMenu(null);
     askAiRequestIdRef.current = null;
     window.setTimeout(() => clearMarkweaveAskAiTarget(editor), 560);
-    editor.commands.focus();
+    editor.commands.focus(undefined, { scrollIntoView: false });
   }, [askAiMarkdown, editor, messages.askAi.errorFallback]);
 
   const closeLinkPopover = () => {
     setOpenMenu(null);
-    editor.commands.focus();
+    editor.commands.focus(undefined, { scrollIntoView: false });
   };
 
   const restoreLinkSelection = () => {

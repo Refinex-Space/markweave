@@ -50,6 +50,6 @@ export function focusFirstTableBodyCell(editor: Editor, options: TableBodyCellFo
     return false;
   }
 
-  editor.commands.focus();
+  editor.commands.focus(undefined, { scrollIntoView: false });
   return editor.commands.setTextSelection(cursorPosition);
 }

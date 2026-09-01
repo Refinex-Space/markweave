@@ -2,6 +2,14 @@ import "./editor-core/tiptap-type-augmentations";
 
 export { createMarkweaveEditorExtensions } from "./editor-core/create-editor-extensions";
 export type { CreateMarkweaveEditorExtensionsOptions } from "./editor-core/create-editor-extensions";
+export type {
+  MarkweaveDocumentLoadPhase,
+  MarkweaveDocumentLoadState,
+  MarkweaveDocumentProfile,
+  MarkweaveEditorExtensionsLoadPolicy,
+  MarkweavePerformancePolicy,
+  MarkweavePerformanceTier,
+} from "./editor-core/document-load";
 export type { MarkweaveLang } from "./i18n";
 export type {
   MarkweaveBuiltinCommandIconName,
@@ -48,6 +56,24 @@ export {
 } from "./core/editor-mode-state";
 export type { MarkweaveTheme } from "./core/theme";
 export { normalizeMarkweaveTheme } from "./core/theme";
+export type {
+  MarkweaveDocumentViewportSnapshot,
+  MarkweaveDocumentViewportState,
+  MarkweaveRevealPositionOptions,
+  MarkweaveRevealPositionResult,
+  MarkweaveRevealReason,
+} from "./core/document-viewport";
+export {
+  createMarkweaveDocumentViewportCoordinator,
+  getMarkweaveDocumentViewportCoordinator,
+  getMarkweaveDocumentViewportCoordinatorForElement,
+} from "./core/document-viewport";
+export type {
+  MarkweaveOutputKind,
+  MarkweaveOutputPreparationReport,
+  MarkweavePrepareOutputOptions,
+} from "./editor-core/document-output";
+export { prepareMarkweaveEditorForOutput } from "./editor-core/document-output";
 export type { MarkweaveInnerTocPlacement, MarkweaveTocItem, MarkweaveTocState } from "./core/toc-state";
 export {
   createMarkweaveTocState,
@@ -92,6 +118,7 @@ export type {
   MarkweaveEditorRuntimeSnapshot,
   MarkweaveEditorSetContentOptions,
   MarkweaveEditorUpdatePayload,
+  MarkweavePerformanceRuntimeSnapshot,
   TableCommandResult,
   TableCommandSnapshot,
   TableEditWithAiRequest,
@@ -114,6 +141,7 @@ export {
 export type {
   MarkweaveMediaKind,
   MarkweaveMediaPriority,
+  MarkweaveMediaResolveReason,
   MarkweaveMediaSourceRequest,
   MarkweaveMediaSourceResolver,
   MarkweaveMediaSourceResult,

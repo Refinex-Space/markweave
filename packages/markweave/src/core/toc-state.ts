@@ -7,6 +7,11 @@ import {
   type Transaction,
 } from "@tiptap/pm/state";
 import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
+import { getMarkweaveDocumentLoadMeta } from "../editor-core/document-load";
+import {
+  getMarkweaveDocumentViewportCoordinator,
+  subscribeToMarkweaveDocumentViewportCoordinatorForElement,
+} from "./document-viewport";
 
 export type MarkweaveTocHeadingLevel = 1 | 2 | 3 | 4 | 5 | 6;
 export type MarkweaveInnerTocPlacement = "container" | "viewport";
@@ -106,14 +111,30 @@ export function observeMarkweaveInnerTocContainerPosition(tocElement: HTMLElemen
     );
   };
 
-  syncPosition();
-  const resizeObserver = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(syncPosition);
-  resizeObserver?.observe(frameElement);
-  window.addEventListener("resize", syncPosition);
+  let stopPositionDriver: () => void = () => undefined;
+  const stopCoordinatorSubscription = subscribeToMarkweaveDocumentViewportCoordinatorForElement(
+    tocElement,
+    (viewportCoordinator) => {
+      stopPositionDriver();
+      if (viewportCoordinator) {
+        stopPositionDriver = viewportCoordinator.subscribeLayout(syncPosition);
+        return;
+      }
+
+      syncPosition();
+      const resizeObserver = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(syncPosition);
+      resizeObserver?.observe(frameElement);
+      window.addEventListener("resize", syncPosition);
+      stopPositionDriver = () => {
+        resizeObserver?.disconnect();
+        window.removeEventListener("resize", syncPosition);
+      };
+    },
+  );
 
   return () => {
-    resizeObserver?.disconnect();
-    window.removeEventListener("resize", syncPosition);
+    stopCoordinatorSubscription();
+    stopPositionDriver();
     frameElement.removeAttribute("data-markweave-inner-toc-compact");
   };
 }
@@ -194,6 +215,13 @@ function updateMarkweaveTocItems(
   transaction: Transaction,
   previousItems: readonly MarkweaveTocItem[],
 ) {
+  const loadMeta = getMarkweaveDocumentLoadMeta(transaction);
+  if (loadMeta?.phase === "mounting") {
+    return previousItems;
+  }
+  if (loadMeta?.phase === "complete") {
+    return getMarkweaveTocItems(transaction.doc);
+  }
   if (!transaction.docChanged) {
     return previousItems;
   }
@@ -390,6 +418,26 @@ export function getActiveMarkweaveTocId(editor: Editor, items: readonly Markweav
     return null;
   }
 
+  const viewportPosition = getMarkweaveDocumentViewportCoordinator(editor)?.positionAtViewportOffset(offset);
+  if (viewportPosition !== null && viewportPosition !== undefined) {
+    let low = 0;
+    let high = items.length - 1;
+    let activeIndex = 0;
+
+    while (low <= high) {
+      const middle = Math.floor((low + high) / 2);
+      const item = items[middle];
+      if (item && item.pos <= viewportPosition) {
+        activeIndex = middle;
+        low = middle + 1;
+      } else {
+        high = middle - 1;
+      }
+    }
+
+    return items[activeIndex]?.id ?? items[0]?.id ?? null;
+  }
+
   let low = 0;
   let high = items.length - 1;
   let activeIndex = -1;
@@ -433,6 +481,20 @@ export function scrollToMarkweaveTocItem(
   item: MarkweaveTocItem,
   options: { readonly focus?: boolean; readonly behavior?: ScrollBehavior } = {},
 ) {
+  const viewportCoordinator = getMarkweaveDocumentViewportCoordinator(editor);
+  if (viewportCoordinator) {
+    void viewportCoordinator.revealPosition(
+      Math.min(item.pos + 1, editor.state.doc.content.size),
+      {
+        align: "start",
+        behavior: options.behavior ?? "smooth",
+        focus: options.focus,
+        reason: "toc",
+      },
+    );
+    return true;
+  }
+
   const element = getMarkweaveTocItemElement(editor, item);
   if (!element) {
     return false;

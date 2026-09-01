@@ -128,9 +128,36 @@
   contain-intrinsic-size: auto 32px;
 }
 
-.markweave-editor-surface[data-markweave-large-document="true"] > .markweave-image-node,
-.markweave-editor-surface[data-markweave-large-document="true"] > .markweave-image-figure {
+.markweave-editor-surface[data-markweave-large-document="true"] > :is(h1, h2, h3, h4, h5, h6) {
+  contain-intrinsic-size: auto 44px;
+}
+
+.markweave-editor-surface[data-markweave-large-document="true"] > :is(ul, ol, blockquote) {
+  contain-intrinsic-size: auto 96px;
+}
+
+.markweave-editor-surface[data-markweave-large-document="true"] > .markweave-details {
+  contain-intrinsic-size: auto 120px;
+}
+
+.markweave-editor-surface[data-markweave-large-document="true"] > pre {
+  contain-intrinsic-size: auto 160px;
+}
+
+.markweave-editor-surface[data-markweave-large-document="true"] > :is(.tableWrapper, table.markweave-table) {
   contain-intrinsic-size: auto 240px;
+}
+
+.markweave-editor-surface[data-markweave-large-document="true"] > .markweave-image-node,
+.markweave-editor-surface[data-markweave-large-document="true"] > .markweave-image-figure,
+.markweave-editor-surface[data-markweave-large-document="true"] > .markweave-video-node,
+.markweave-editor-surface[data-markweave-large-document="true"] > .markweave-video-figure {
+  contain-intrinsic-size: auto 240px;
+}
+
+.markweave-editor-surface[data-markweave-large-document="true"] > [data-markweave-viewport-pinned="true"],
+.markweave-editor-surface[data-markweave-output="true"] > * {
+  content-visibility: visible;
 }
 
 /* CJK fallback fonts commonly lack a real italic face. */
@@ -2256,6 +2283,11 @@
 
 .markweave-details:not([data-open="true"]) .markweave-details-body > :not([data-markweave-details-summary]) {
   display: none;
+}
+
+.markweave-details[data-markweave-reveal-open="true"] .markweave-details-body > :not([data-markweave-details-summary]),
+.markweave-editor-surface[data-markweave-output="true"] .markweave-details .markweave-details-body > :not([data-markweave-details-summary]) {
+  display: block;
 }
 
 .markweave-details-body > :first-child {
@@ -4924,6 +4956,7 @@
   display: none;
 }
 
+.markweave-mermaid-preview--pending,
 .markweave-mermaid-preview--empty,
 .markweave-mermaid-preview--error {
   color: #6a737d;
@@ -5784,4 +5817,38 @@ body:has(.markweave-mermaid-fullscreen-layer, .markweave-image-preview-layer) .m
   box-shadow:
     inset 0 0 0 1px color-mix(in srgb, #fdba74 72%, transparent),
     0 0 0 1px color-mix(in srgb, #111827 52%, transparent);
+}
+
+@media print {
+  .markweave-editor-surface,
+  .markweave-editor-surface > * {
+    content-visibility: visible !important;
+    contain-intrinsic-size: none !important;
+  }
+
+  .markweave-details .markweave-details-body > :not([data-markweave-details-summary]) {
+    display: block !important;
+  }
+
+  :is(
+    .markweave-inner-toc,
+    .markweave-floating-toolbar,
+    .markweave-floating-toolbar-popover,
+    .markweave-slash-menu,
+    .markweave-table-controls,
+    .markweave-table-menu,
+    .markweave-table-submenu,
+    .markweave-codeblock-controls,
+    .markweave-codeblock-language-menu,
+    .markweave-math-block-toolbar,
+    .markweave-math-editor-popover,
+    .markweave-image-toolbar,
+    .markweave-image-preview-trigger,
+    .markweave-video-selection-layer,
+    .markweave-details-toggle,
+    .markweave-ai-edit-controls,
+    .markweave-ai-edit-decision-dock
+  ) {
+    display: none !important;
+  }
 }

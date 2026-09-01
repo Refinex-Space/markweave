@@ -6,6 +6,11 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { useMarkweaveEditorController, type MarkweaveEditorController, type MarkweaveEditorMode, type MarkweaveLang, type MarkweaveMediaSourceResolver } from "@markweave/react";
 import { setMarkweaveEditorModeState } from "../src/core/editor-mode-state";
+import { getMarkweaveDocumentViewportCoordinatorForElement } from "../src/core/document-viewport";
+import {
+  markweaveResolveVisualResourceEvent,
+  type MarkweaveResolveVisualResourceEventDetail,
+} from "../src/editor-core/document-output";
 import type { MarkweaveSlashCommandUploadHandler } from "../src/plugins/slash-command/upload";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -83,7 +88,11 @@ function Harness({
 
 async function flushReact() {
   await act(async () => {
-    await new Promise((resolve) => window.setTimeout(resolve, 0));
+    if (vi.isFakeTimers()) {
+      await vi.advanceTimersByTimeAsync(0);
+    } else {
+      await new Promise((resolve) => window.setTimeout(resolve, 0));
+    }
   });
 }
 
@@ -202,6 +211,7 @@ afterEach(() => {
   activeController?.editor?.destroy();
   activeController = null;
   lightweightImageRect = null;
+  vi.useRealTimers();
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
   document.body.replaceChildren();
@@ -457,6 +467,688 @@ describe("image node view", () => {
       idleGlobals.requestIdleCallback = previousRequestIdleCallback;
       idleGlobals.cancelIdleCallback = previousCancelIdleCallback;
     }
+  });
+
+  it("re-resolves the same persisted source after an image load error and commits only after load", async () => {
+    installStalledIntersectionObserver();
+    let recover = false;
+    const resolveMediaSource = vi.fn<MarkweaveMediaSourceResolver>(() => ({
+      src: recover
+        ? "asset://resolved/recovered.png"
+        : "asset://resolved/first.png",
+    }));
+    await renderEditor(
+      '<img src="markweave-asset://image-error" alt="Recoverable">',
+      undefined,
+      undefined,
+      "view",
+      resolveMediaSource,
+    );
+    await flushReact();
+
+    const imageNode = getByTestId("markweave-image-node");
+    const firstImage = document.querySelector<HTMLImageElement>("img.markweave-image");
+    expect(firstImage?.src).toContain("asset://resolved/first.png");
+    expect(imageNode.dataset.mediaState).toBe("pending");
+    const initialAttempt = resolveMediaSource.mock.calls.at(-1)?.[0].attempt ?? 0;
+    resolveMediaSource.mockClear();
+
+    await act(async () => {
+      firstImage?.dispatchEvent(new Event("error"));
+    });
+    await flushReact();
+    expect(imageNode.dataset.mediaState).toBe("pending");
+    expect(document.querySelector("img.markweave-image")).not.toBe(firstImage);
+
+    recover = true;
+    await act(async () => {
+      imageNode.dispatchEvent(new Event(markweaveResolveVisualResourceEvent));
+    });
+    await flushReact();
+
+    expect(resolveMediaSource).toHaveBeenCalledTimes(1);
+    expect(resolveMediaSource).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        attempt: initialAttempt + 1,
+        priority: "visible",
+        reason: "output",
+        src: "markweave-asset://image-error",
+      }),
+    );
+    const recoveredImage = document.querySelector<HTMLImageElement>("img.markweave-image");
+    expect(recoveredImage?.src).toContain("asset://resolved/recovered.png");
+    expect(imageNode.dataset.mediaState).toBe("pending");
+
+    await completeLightweightImageLoad();
+    expect(imageNode.dataset.mediaState).toBe("resolved");
+    expect(recoveredImage?.hidden).toBe(false);
+  });
+
+  it("lets selecting a missing image bypass retry backoff immediately", async () => {
+    installStalledIntersectionObserver();
+    let recover = false;
+    const resolveMediaSource = vi.fn<MarkweaveMediaSourceResolver>(() =>
+      recover ? { src: "asset://resolved/after-missing.png" } : null,
+    );
+    const controller = await renderEditor(
+      '<p>Before</p><img src="markweave-asset://missing-once" alt="Missing once">',
+      undefined,
+      undefined,
+      undefined,
+      resolveMediaSource,
+    );
+    await flushReact();
+    expect(getByTestId("markweave-image-node").dataset.mediaState).toBe("pending");
+    resolveMediaSource.mockClear();
+    recover = true;
+
+    let imagePos = 0;
+    controller.editor?.state.doc.descendants((node, pos) => {
+      if (node.type.name === "image") {
+        imagePos = pos;
+        return false;
+      }
+      return undefined;
+    });
+    await act(async () => {
+      controller.editor?.commands.setNodeSelection(imagePos);
+    });
+    await flushReact();
+
+    expect(resolveMediaSource).toHaveBeenCalledTimes(1);
+    expect(resolveMediaSource).toHaveBeenLastCalledWith(
+      expect.objectContaining({ priority: "visible", reason: "viewport" }),
+    );
+    await completeLightweightImageLoad();
+    expect(getByTestId("markweave-image-node").dataset.mediaState).toBe("resolved");
+  });
+
+  it("recovers from a rejected resolver without leaving a terminal unreadable cache", async () => {
+    installStalledIntersectionObserver();
+    let recover = false;
+    const resolveMediaSource = vi.fn<MarkweaveMediaSourceResolver>(() =>
+      recover
+        ? { src: "asset://resolved/after-reject.png" }
+        : Promise.reject(new Error("temporary resolver failure")),
+    );
+    await renderEditor(
+      '<img src="markweave-asset://reject-once" alt="Reject once">',
+      undefined,
+      undefined,
+      "view",
+      resolveMediaSource,
+    );
+    await flushReact();
+
+    const imageNode = getByTestId("markweave-image-node");
+    resolveMediaSource.mockClear();
+    recover = true;
+    await act(async () => {
+      imageNode.dispatchEvent(new Event(markweaveResolveVisualResourceEvent));
+    });
+    await flushReact();
+
+    expect(resolveMediaSource).toHaveBeenCalledTimes(1);
+    expect(resolveMediaSource).toHaveBeenLastCalledWith(
+      expect.objectContaining({ reason: "output" }),
+    );
+    await completeLightweightImageLoad();
+    expect(imageNode.dataset.mediaState).toBe("resolved");
+  });
+
+  it("times out a stuck resolver, aborts it, and permits immediate output recovery", async () => {
+    vi.useFakeTimers();
+    installStalledIntersectionObserver();
+    const initialSignals: AbortSignal[] = [];
+    let recover = false;
+    const resolveMediaSource = vi.fn<MarkweaveMediaSourceResolver>((request) => {
+      if (recover) return { src: "asset://resolved/after-resolver-timeout.png" };
+      initialSignals.push(request.signal);
+      return new Promise(() => undefined);
+    });
+    await renderEditor(
+      '<img src="markweave-asset://resolver-timeout" alt="Resolver timeout">',
+      undefined,
+      undefined,
+      "view",
+      resolveMediaSource,
+    );
+    await flushReact();
+    resolveMediaSource.mockClear();
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(8_001);
+    });
+    expect(initialSignals.at(-1)?.aborted).toBe(true);
+    expect(getByTestId("markweave-image-node").dataset.mediaState).toBe("pending");
+
+    recover = true;
+    await act(async () => {
+      getByTestId("markweave-image-node").dispatchEvent(
+        new Event(markweaveResolveVisualResourceEvent),
+      );
+    });
+    await flushReact();
+    expect(resolveMediaSource).toHaveBeenCalledTimes(1);
+    await completeLightweightImageLoad();
+    expect(getByTestId("markweave-image-node").dataset.mediaState).toBe("resolved");
+  });
+
+  it("times out an image request, discards its element, and retries the source", async () => {
+    vi.useFakeTimers();
+    installStalledIntersectionObserver();
+    const initialSignals: AbortSignal[] = [];
+    let recover = false;
+    const resolveMediaSource = vi.fn<MarkweaveMediaSourceResolver>((request) => {
+      if (recover) return { src: "asset://resolved/after-image-timeout.png" };
+      initialSignals.push(request.signal);
+      return { src: "asset://resolved/stuck-image.png" };
+    });
+    await renderEditor(
+      '<img src="markweave-asset://image-timeout" alt="Image timeout">',
+      undefined,
+      undefined,
+      "view",
+      resolveMediaSource,
+    );
+    await flushReact();
+    const stuckImage = document.querySelector<HTMLImageElement>("img.markweave-image");
+    resolveMediaSource.mockClear();
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(12_001);
+    });
+    expect(initialSignals.at(-1)?.aborted).toBe(true);
+    expect(document.querySelector("img.markweave-image")).not.toBe(stuckImage);
+
+    recover = true;
+    await act(async () => {
+      getByTestId("markweave-image-node").dispatchEvent(
+        new Event(markweaveResolveVisualResourceEvent),
+      );
+    });
+    await flushReact();
+    expect(resolveMediaSource).toHaveBeenCalledTimes(1);
+    await completeLightweightImageLoad();
+    expect(getByTestId("markweave-image-node").dataset.mediaState).toBe("resolved");
+  });
+
+  it("aborts source A and ignores its stale result after the node switches to source B", async () => {
+    installStalledIntersectionObserver();
+    let finishSourceA!: (result: { src: string }) => void;
+    const observed: { sourceASignal: AbortSignal | null } = {
+      sourceASignal: null,
+    };
+    const sourceA = new Promise<{ src: string }>((resolve) => {
+      finishSourceA = resolve;
+    });
+    const resolveMediaSource = vi.fn<MarkweaveMediaSourceResolver>((request) => {
+      if (request.src === "markweave-asset://source-a") {
+        observed.sourceASignal = request.signal;
+        return sourceA;
+      }
+      return { src: "asset://resolved/source-b.png" };
+    });
+    const controller = await renderEditor(
+      '<img src="markweave-asset://source-a" alt="Switch source">',
+      undefined,
+      undefined,
+      "view",
+      resolveMediaSource,
+    );
+    await flushReact();
+
+    let imagePos = 0;
+    controller.editor?.state.doc.descendants((node, pos) => {
+      if (node.type.name === "image") {
+        imagePos = pos;
+        return false;
+      }
+      return undefined;
+    });
+    const imageNode = controller.editor?.state.doc.nodeAt(imagePos);
+    await act(async () => {
+      if (controller.editor && imageNode) {
+        controller.editor.view.dispatch(
+          controller.editor.state.tr.setNodeMarkup(imagePos, undefined, {
+            ...imageNode.attrs,
+            src: "markweave-asset://source-b",
+          }),
+        );
+      }
+    });
+    await flushReact();
+
+    expect(observed.sourceASignal?.aborted).toBe(true);
+    expect(resolveMediaSource).toHaveBeenCalledWith(
+      expect.objectContaining({
+        attempt: 1,
+        src: "markweave-asset://source-b",
+      }),
+    );
+    finishSourceA({ src: "asset://resolved/stale-source-a.png" });
+    await flushReact();
+
+    const currentImage = document.querySelector<HTMLImageElement>("img.markweave-image");
+    expect(currentImage?.src).toContain("asset://resolved/source-b.png");
+    expect(currentImage?.src).not.toContain("stale-source-a");
+    await completeLightweightImageLoad();
+    expect(getByTestId("markweave-image-node").dataset.mediaState).toBe("resolved");
+  });
+
+  it("aborts an active resolver when the NodeView is destroyed", async () => {
+    installStalledIntersectionObserver();
+    const observed: { activeSignal: AbortSignal | null } = {
+      activeSignal: null,
+    };
+    const resolveMediaSource = vi.fn<MarkweaveMediaSourceResolver>((request) => {
+      observed.activeSignal = request.signal;
+      return new Promise(() => undefined);
+    });
+    const controller = await renderEditor(
+      '<img src="markweave-asset://destroy" alt="Destroy">',
+      undefined,
+      undefined,
+      "view",
+      resolveMediaSource,
+    );
+    await flushReact();
+    expect(observed.activeSignal?.aborted).toBe(false);
+
+    await act(async () => {
+      controller.editor?.destroy();
+    });
+    expect(observed.activeSignal?.aborted).toBe(true);
+  });
+
+  it("registers output waitUntil synchronously and waits through the real image load", async () => {
+    installStalledIntersectionObserver();
+    let finishResolve!: (result: { src: string }) => void;
+    const deferred = new Promise<{ src: string }>((resolve) => {
+      finishResolve = resolve;
+    });
+    const resolveMediaSource = vi.fn<MarkweaveMediaSourceResolver>(() => deferred);
+    await renderEditor(
+      '<img src="markweave-asset://output-wait" alt="Output wait">',
+      undefined,
+      undefined,
+      "view",
+      resolveMediaSource,
+    );
+    await flushReact();
+
+    const outputController = new AbortController();
+    const observed: { outputWaiter: Promise<unknown> | null } = {
+      outputWaiter: null,
+    };
+    const detail: MarkweaveResolveVisualResourceEventDetail = {
+      kind: "dom-snapshot",
+      signal: outputController.signal,
+      waitUntil: (promise) => {
+        observed.outputWaiter = Promise.resolve(promise);
+      },
+    };
+    getByTestId("markweave-image-node").dispatchEvent(
+      new CustomEvent<MarkweaveResolveVisualResourceEventDetail>(
+        markweaveResolveVisualResourceEvent,
+        { detail },
+      ),
+    );
+    expect(observed.outputWaiter).not.toBeNull();
+    let settled = false;
+    void observed.outputWaiter?.then(() => {
+      settled = true;
+    });
+
+    finishResolve({ src: "asset://resolved/output-wait.png" });
+    await flushReact();
+    expect(settled).toBe(false);
+    expect(getByTestId("markweave-image-node").dataset.mediaState).toBe("pending");
+
+    await completeLightweightImageLoad();
+    await observed.outputWaiter;
+    expect(settled).toBe(true);
+    expect(getByTestId("markweave-image-node").dataset.mediaState).toBe("resolved");
+  });
+
+  it("keeps a failed output image retry inside the same waitUntil chain", async () => {
+    vi.useFakeTimers();
+    installStalledIntersectionObserver();
+    vi.stubGlobal("requestIdleCallback", vi.fn(() => 1));
+    vi.stubGlobal("cancelIdleCallback", vi.fn());
+    lightweightImageRect = createRect(0, window.innerHeight * 8, 400, 240);
+    const resolveMediaSource = vi.fn<MarkweaveMediaSourceResolver>()
+      .mockImplementationOnce(() => ({ src: "asset://resolved/output-first.png" }))
+      .mockImplementationOnce(() => ({ src: "asset://resolved/output-second.png" }));
+    await renderEditor(
+      '<p>Before</p><img src="markweave-asset://output-retry" alt="Output retry">',
+      undefined,
+      undefined,
+      "view",
+      resolveMediaSource,
+    );
+    await flushReact();
+    expect(resolveMediaSource).not.toHaveBeenCalled();
+
+    const imageNode = getByTestId("markweave-image-node");
+    const coordinator = getMarkweaveDocumentViewportCoordinatorForElement(imageNode);
+    const releaseOutput = coordinator?.beginOutput() ?? (() => undefined);
+    const outputController = new AbortController();
+    const observed: { waiter: Promise<unknown> | null } = { waiter: null };
+    const detail: MarkweaveResolveVisualResourceEventDetail = {
+      kind: "dom-snapshot",
+      signal: outputController.signal,
+      waitUntil: (promise) => {
+        observed.waiter = Promise.resolve(promise);
+      },
+    };
+    imageNode.dispatchEvent(
+      new CustomEvent<MarkweaveResolveVisualResourceEventDetail>(
+        markweaveResolveVisualResourceEvent,
+        { detail },
+      ),
+    );
+    await flushReact();
+    expect(resolveMediaSource).toHaveBeenCalledTimes(1);
+    const firstImage = document.querySelector<HTMLImageElement>("img.markweave-image");
+    expect(firstImage?.src).toContain("output-first.png");
+
+    let waiterSettled = false;
+    void observed.waiter?.then(() => {
+      waiterSettled = true;
+    });
+    await act(async () => {
+      firstImage?.dispatchEvent(new Event("error"));
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    expect(waiterSettled).toBe(false);
+    expect(imageNode.dataset.mediaState).toBe("pending");
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(250);
+    });
+    await flushReact();
+    expect(resolveMediaSource).toHaveBeenCalledTimes(2);
+    expect(resolveMediaSource).toHaveBeenLastCalledWith(
+      expect.objectContaining({ attempt: 2, priority: "visible", reason: "output" }),
+    );
+    expect(waiterSettled).toBe(false);
+    const recoveredImage = document.querySelector<HTMLImageElement>("img.markweave-image");
+    expect(recoveredImage?.src).toContain("output-second.png");
+
+    await completeLightweightImageLoad();
+    await observed.waiter;
+    expect(waiterSettled).toBe(true);
+    expect(imageNode.dataset.mediaState).toBe("resolved");
+    await act(async () => {
+      releaseOutput();
+      await vi.advanceTimersByTimeAsync(0);
+    });
+  });
+
+  it("cancels an output retry gap without a late request or permanent pending state", async () => {
+    vi.useFakeTimers();
+    installStalledIntersectionObserver();
+    vi.stubGlobal("requestIdleCallback", vi.fn(() => 1));
+    vi.stubGlobal("cancelIdleCallback", vi.fn());
+    lightweightImageRect = createRect(0, window.innerHeight * 8, 400, 240);
+    const resolveMediaSource = vi.fn<MarkweaveMediaSourceResolver>(() => null);
+    await renderEditor(
+      '<p>Before</p><img src="markweave-asset://output-gap" alt="Output gap">',
+      undefined,
+      undefined,
+      "view",
+      resolveMediaSource,
+    );
+    await flushReact();
+
+    const imageNode = getByTestId("markweave-image-node");
+    const coordinator = getMarkweaveDocumentViewportCoordinatorForElement(imageNode);
+    const releaseOutput = coordinator?.beginOutput() ?? (() => undefined);
+    const outputController = new AbortController();
+    const observed: { waiter: Promise<unknown> | null } = { waiter: null };
+    const detail: MarkweaveResolveVisualResourceEventDetail = {
+      kind: "print",
+      signal: outputController.signal,
+      waitUntil: (promise) => {
+        observed.waiter = Promise.resolve(promise);
+      },
+    };
+    imageNode.dispatchEvent(
+      new CustomEvent<MarkweaveResolveVisualResourceEventDetail>(
+        markweaveResolveVisualResourceEvent,
+        { detail },
+      ),
+    );
+    await flushReact();
+    expect(resolveMediaSource).toHaveBeenCalledTimes(1);
+    expect(imageNode.dataset.mediaState).toBe("pending");
+
+    await act(async () => {
+      outputController.abort();
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    await observed.waiter;
+    expect(imageNode.dataset.mediaState).toBe("missing");
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1_000);
+    });
+    expect(resolveMediaSource).toHaveBeenCalledTimes(1);
+    expect(imageNode.dataset.mediaState).not.toBe("pending");
+    await act(async () => {
+      releaseOutput();
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    expect(resolveMediaSource).toHaveBeenCalledTimes(1);
+  });
+
+  it("recovers after the visual scheduler aborts a running nearby resolver", async () => {
+    installStalledIntersectionObserver();
+    vi.stubGlobal("requestIdleCallback", vi.fn(() => 1));
+    vi.stubGlobal("cancelIdleCallback", vi.fn());
+    vi.spyOn(window, "requestAnimationFrame").mockImplementation((callback) =>
+      window.setTimeout(() => callback(window.performance.now()), 0),
+    );
+    vi.spyOn(window, "cancelAnimationFrame").mockImplementation((handle) => {
+      window.clearTimeout(handle);
+    });
+    let scrollY = 0;
+    Object.defineProperty(window, "scrollY", {
+      configurable: true,
+      get: () => scrollY,
+    });
+    lightweightImageRect = createRect(0, window.innerHeight * 8, 400, 240);
+    const scheduledSignals: AbortSignal[] = [];
+    let recover = false;
+    const resolveMediaSource = vi.fn<MarkweaveMediaSourceResolver>((request) => {
+      if (recover) return { src: "asset://resolved/after-scheduler-abort.png" };
+      scheduledSignals.push(request.signal);
+      return new Promise(() => undefined);
+    });
+    await renderEditor(
+      '<p>Before</p><img src="markweave-asset://scheduler-abort" alt="Scheduler abort">',
+      undefined,
+      undefined,
+      "view",
+      resolveMediaSource,
+    );
+    await flushReact();
+    const imageNode = getByTestId("markweave-image-node");
+    const coordinator = getMarkweaveDocumentViewportCoordinatorForElement(imageNode);
+    expect(coordinator).not.toBeNull();
+
+    window.dispatchEvent(new Event("scroll"));
+    scrollY = 100;
+    window.dispatchEvent(new Event("scroll"));
+    await flushReact();
+    expect(coordinator?.snapshot.state).toBe("rapid");
+
+    lightweightImageRect = createRect(0, window.innerHeight * 2, 400, 240);
+    window.dispatchEvent(new Event("focus"));
+    await flushReact();
+    expect(coordinator?.visualWork.pendingCount).toBe(1);
+
+    await act(async () => {
+      await new Promise((resolve) => window.setTimeout(resolve, 130));
+    });
+    await flushReact();
+    expect(resolveMediaSource).toHaveBeenCalled();
+    expect(resolveMediaSource).toHaveBeenLastCalledWith(
+      expect.objectContaining({ priority: "nearby" }),
+    );
+    resolveMediaSource.mockClear();
+    coordinator?.visualWork.destroy();
+    await flushReact();
+    expect(scheduledSignals.some((signal) => signal.aborted)).toBe(true);
+    expect(getByTestId("markweave-image-node").dataset.mediaState).toBe("pending");
+
+    recover = true;
+    await act(async () => {
+      getByTestId("markweave-image-node").dispatchEvent(
+        new Event(markweaveResolveVisualResourceEvent),
+      );
+    });
+    await flushReact();
+    expect(resolveMediaSource).toHaveBeenCalledTimes(1);
+    await completeLightweightImageLoad();
+    expect(getByTestId("markweave-image-node").dataset.mediaState).toBe("resolved");
+  });
+
+  it("throttles terminal automatic recovery before layout reads while selection bypasses the cooldown", async () => {
+    vi.useFakeTimers();
+    installStalledIntersectionObserver();
+    let recover = false;
+    const resolveMediaSource = vi.fn<MarkweaveMediaSourceResolver>(() =>
+      recover ? { src: "asset://resolved/cooldown-recovery.png" } : null,
+    );
+    const controller = await renderEditor(
+      '<p>Before</p><img src="markweave-asset://cooldown" alt="Cooldown">',
+      undefined,
+      undefined,
+      undefined,
+      resolveMediaSource,
+    );
+    await flushReact();
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(250);
+      await vi.advanceTimersByTimeAsync(1_000);
+    });
+    await flushReact();
+
+    const imageNode = getByTestId("markweave-image-node");
+    expect(imageNode.dataset.mediaState).toBe("missing");
+    resolveMediaSource.mockClear();
+
+    await act(async () => {
+      window.dispatchEvent(new Event("resize"));
+      await vi.advanceTimersByTimeAsync(0);
+      window.dispatchEvent(new Event("resize"));
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    expect(resolveMediaSource).not.toHaveBeenCalled();
+
+    recover = true;
+    let imagePos = 0;
+    controller.editor?.state.doc.descendants((node, pos) => {
+      if (node.type.name === "image") {
+        imagePos = pos;
+        return false;
+      }
+      return undefined;
+    });
+    await act(async () => {
+      controller.editor?.commands.setNodeSelection(imagePos);
+    });
+    await flushReact();
+    expect(resolveMediaSource).toHaveBeenCalledTimes(1);
+    expect(resolveMediaSource).toHaveBeenLastCalledWith(
+      expect.objectContaining({ priority: "visible", reason: "viewport" }),
+    );
+    await completeLightweightImageLoad();
+    expect(imageNode.dataset.mediaState).toBe("resolved");
+  });
+
+  it("does not start viewport recovery during output stabilization frames", async () => {
+    vi.useFakeTimers();
+    installStalledIntersectionObserver();
+    const resolveMediaSource = vi.fn<MarkweaveMediaSourceResolver>(() => null);
+    await renderEditor(
+      '<p>Before</p><img src="markweave-asset://output-layout" alt="Output layout">',
+      undefined,
+      undefined,
+      "view",
+      resolveMediaSource,
+    );
+    await flushReact();
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(250);
+      await vi.advanceTimersByTimeAsync(1_000);
+    });
+    await flushReact();
+
+    const imageNode = getByTestId("markweave-image-node");
+    expect(imageNode.dataset.mediaState).toBe("missing");
+    const coordinator = getMarkweaveDocumentViewportCoordinatorForElement(imageNode);
+    expect(coordinator).not.toBeNull();
+    const releaseOutput = coordinator?.beginOutput() ?? (() => undefined);
+    resolveMediaSource.mockClear();
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(2_001);
+      window.dispatchEvent(new Event("resize"));
+      await vi.advanceTimersByTimeAsync(0);
+      window.dispatchEvent(new Event("resize"));
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    expect(coordinator?.snapshot.state).toBe("output");
+    expect(resolveMediaSource).not.toHaveBeenCalled();
+    await act(async () => {
+      releaseOutput();
+      await vi.advanceTimersByTimeAsync(0);
+    });
+  });
+
+  it("rebuilds the rich empty placeholder when a populated lightweight image clears src", async () => {
+    installStalledIntersectionObserver();
+    const observed: { signal: AbortSignal | null } = { signal: null };
+    const resolveMediaSource = vi.fn<MarkweaveMediaSourceResolver>((request) => {
+      observed.signal = request.signal;
+      return new Promise(() => undefined);
+    });
+    const controller = await renderEditor(
+      '<p>Before</p><img src="markweave-asset://clear-src" alt="Clear source">',
+      undefined,
+      undefined,
+      undefined,
+      resolveMediaSource,
+    );
+    await flushReact();
+
+    let imagePos = 0;
+    controller.editor?.state.doc.descendants((node, pos) => {
+      if (node.type.name === "image") {
+        imagePos = pos;
+        return false;
+      }
+      return undefined;
+    });
+    const imageNode = controller.editor?.state.doc.nodeAt(imagePos);
+    await act(async () => {
+      if (controller.editor && imageNode) {
+        controller.editor.view.dispatch(
+          controller.editor.state.tr.setNodeMarkup(imagePos, undefined, {
+            ...imageNode.attrs,
+            src: null,
+          }),
+        );
+      }
+    });
+    await flushReact();
+
+    expect(observed.signal?.aborted).toBe(true);
+    expect(document.querySelector('[data-markweave-lightweight-image="true"]')).toBeNull();
+    expect(getByTestId("markweave-image-upload-placeholder")).not.toBeNull();
   });
 
   it("opens resolved lightweight images from the View mode preview action", async () => {

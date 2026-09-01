@@ -1,6 +1,6 @@
 ---
 owner: refinex
-updated: 2026-08-27
+updated: 2026-09-01
 status: active
 referenced_by: docs/README.md#knowledge-map
 ---
@@ -11,7 +11,7 @@ Language: [中文](./react-integration-zh-cn.md) | English
 
 This guide is the complete React integration path for Markweave. It covers installation, content storage, Live/View mode, uploads, callbacks, table and AI hooks, TOC, and production boundaries. The private reference implementation is `apps/playground-react`.
 
-For documents above roughly 200 KB, prefer uncontrolled `defaultContent`. Keep the latest `onUpdate` payload without reading `payload.markdown` on every transaction, then serialize once at the host's idle/manual-save/navigation flush boundary. Pass `resolveMediaSource` when stored media URLs require a display-only URL; the resolver receives `visible | nearby | background` priority plus an `AbortSignal`, and may return intrinsic `width`/`height`. The stored node source is never replaced by the resolved display URL.
+For documents above roughly 200 KB, prefer uncontrolled `defaultContent`. Keep the latest `onUpdate` payload without reading `payload.markdown` on every transaction, then serialize once at the host's idle/manual-save/navigation flush boundary. Pass `resolveMediaSource` when stored media URLs require a display-only URL; the resolver receives `visible | nearby | background` priority, an `AbortSignal`, and optional `attempt`/`reason` retry context, and may return intrinsic `width`/`height`. A returned URL is not cached as successful until the image actually loads; transient resolver or image failures use bounded recovery, while selection and output preparation force an immediate attempt. Hosts should keep successful mappings and make negative results or failed candidate URLs invalidatable. The stored node source is never replaced by the resolved display URL.
 
 ## Install
 
@@ -73,6 +73,9 @@ function saveDraft(markdown: string) {
 | `content` | `undefined` | Controlled content. Parsed as Markdown unless `contentFormat` is set. |
 | `contentFormat` | `"markdown"` | Controlled content format. |
 | `onUpdate(payload)` | `undefined` | Save `payload.markdown`; inspect `html`, `json`, or `text` when needed. |
+| `performancePolicy` | `"auto"` | Auto-selects `standard | large | extreme`; explicit tiers are diagnostic/rollback overrides, not threshold configuration. |
+| `editorExtensionsLoadPolicy` | `"atomic"` | Keep unknown host extensions atomic. Use `"transactional-safe"` only after proving their plugin state and side effects are equivalent under batched initial mounting. |
+| `onDocumentLoadStateChange(state)` | `undefined` | Observe `parsing | mounting | finalizing | ready | error | cancelled`, progress, tier, and the read-only document profile. |
 
 Controlled Markdown example:
 
@@ -108,7 +111,9 @@ Legacy HTML must be explicit:
 
 For advanced custom shells, `useMarkweaveEditorController` exposes `actions.setContent(content, { format, emitUpdate, focusFirstTableBodyCell })`. The stock `MarkweaveEditor` component is recommended for normal product integration because it renders the full toolbar, slash menu, table controls, code controls, math editor, media NodeViews, and TOC.
 
-To build a host document find/replace UI, store the shared search controller from `onSearchControllerChange`. Use `subscribe` for result counts, `setQuery`/`setOptions` for matching, `findNext`/`findPrevious` for navigation, and `replaceCurrent`/`replaceAll` in editable mode. Call `clear` when the search surface closes to remove all search decorations.
+To build a host document find/replace UI, store the shared search controller from `onSearchControllerChange`. Use `subscribe` for result counts and `state.execution`: large queries may briefly report `searching` before an exact `ready` result. `findNext`/`findPrevious` queue safely during indexing; `replaceCurrent`/`replaceAll` run only against a ready result from the current document revision. Call `clear` when the search surface closes.
+
+For browser print or a DOM/PDF snapshot, call `prepareMarkweaveEditorForOutput(editor, { kind: "print" | "dom-snapshot" })` first. It materializes off-screen content and waits for registered media, Mermaid, fonts, and stable layout; Markdown/HTML/JSON serialization does not need this visual barrier.
 
 ## Modes, Language, And TOC
 

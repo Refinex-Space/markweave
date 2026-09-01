@@ -1,11 +1,21 @@
 export type MarkweaveMediaKind = "image" | "video" | "attachment";
 export type MarkweaveMediaPriority = "visible" | "nearby" | "background";
+export type MarkweaveMediaResolveReason =
+  | "initial"
+  | "viewport"
+  | "retry"
+  | "image-error"
+  | "output";
 
 export interface MarkweaveMediaSourceRequest {
   readonly kind: MarkweaveMediaKind;
   readonly src: string;
   readonly priority: MarkweaveMediaPriority;
   readonly signal: AbortSignal;
+  /** One-based attempt count for the current persisted source. */
+  readonly attempt?: number;
+  /** Why this resolution attempt was started. Existing hosts may ignore it. */
+  readonly reason?: MarkweaveMediaResolveReason;
 }
 
 export interface MarkweaveMediaSourceResult {

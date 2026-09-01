@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { splitMarkweaveLargeMarkdown } from "../src/core/large-document";
 
 describe("large document chunking", () => {
-  it("splits at heading boundaries without cutting fenced or callout blocks", () => {
+  it("keeps one canonical Markdown source instead of parsing independent chunks", () => {
     const markdown = [
       "# Title",
       "",
@@ -19,9 +19,6 @@ describe("large document chunking", () => {
     ].join("\n");
     const chunks = splitMarkweaveLargeMarkdown(markdown, 8);
 
-    expect(chunks).toHaveLength(2);
-    expect(chunks[0]).toContain("## Still inside callout");
-    expect(chunks[1]).toBe("## Real boundary\nBody");
-    expect(chunks.join("")).toBe(markdown);
+    expect(chunks).toEqual([markdown]);
   });
 });

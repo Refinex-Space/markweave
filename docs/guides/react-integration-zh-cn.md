@@ -1,6 +1,6 @@
 ---
 owner: refinex
-updated: 2026-08-27
+updated: 2026-09-01
 status: active
 referenced_by: docs/README.md#knowledge-map
 ---
@@ -11,7 +11,7 @@ referenced_by: docs/README.md#knowledge-map
 
 这是 Markweave 的 React 完整接入手册，覆盖安装、内容存储、Live/View 模式、上传、回调、表格、AI、TOC 和生产边界。仓库里的私有参考实现是 `apps/playground-react`。
 
-对于约 200 KB 以上的文档，优先使用非受控 `defaultContent`。`onUpdate` 只保留最新惰性 payload，不要在每个事务读取 `payload.markdown`；宿主应在 idle、手动保存或导航 flush 边界只序列化一次。持久化媒体 URL 需要映射为展示 URL 时传入 `resolveMediaSource`：请求包含 `visible | nearby | background` 优先级与 `AbortSignal`，结果可返回固有 `width`/`height`。解析出的展示 URL 不会写回节点或 Markdown。
+对于约 200 KB 以上的文档，优先使用非受控 `defaultContent`。`onUpdate` 只保留最新惰性 payload，不要在每个事务读取 `payload.markdown`；宿主应在 idle、手动保存或导航 flush 边界只序列化一次。持久化媒体 URL 需要映射为展示 URL 时传入 `resolveMediaSource`：请求包含 `visible | nearby | background` 优先级、`AbortSignal` 以及可选的 `attempt`/`reason` 重试上下文，结果可返回固有 `width`/`height`。返回 URL 只有在图片真实触发 `load` 后才视为成功；短暂的 resolver 或图片失败会有限恢复，选中图片和输出准备会强制立即尝试。宿主应长期缓存成功映射，但必须允许负结果或失败候选 URL 失效。解析出的展示 URL 不会写回节点或 Markdown。
 
 ## 安装
 
@@ -73,6 +73,9 @@ function saveDraft(markdown: string) {
 | `content` | `undefined` | 受控内容。除非声明 `contentFormat`，否则按 Markdown 解析。 |
 | `contentFormat` | `"markdown"` | 受控内容格式。 |
 | `onUpdate(payload)` | `undefined` | 保存 `payload.markdown`；按需读取 `html`、`json` 或 `text`。 |
+| `performancePolicy` | `"auto"` | 自动选择 `standard | large | extreme`；显式 tier 仅用于诊断或回退，不开放内部阈值。 |
+| `editorExtensionsLoadPolicy` | `"atomic"` | 未知宿主扩展默认原子加载；仅在验证插件状态和副作用与分批初载等价后使用 `"transactional-safe"`。 |
+| `onDocumentLoadStateChange(state)` | `undefined` | 观察 `parsing | mounting | finalizing | ready | error | cancelled`、进度、tier 与只读文档画像。 |
 
 受控 Markdown 示例：
 
@@ -108,7 +111,9 @@ export function ControlledEditor({ value }: { value: string }) {
 
 高级自定义壳层可以使用 `useMarkweaveEditorController`，其中 `actions.setContent(content, { format, emitUpdate, focusFirstTableBodyCell })` 可用于命令式设置内容。普通产品接入推荐直接使用 `MarkweaveEditor`，因为它已经渲染完整的 toolbar、slash 菜单、表格控制、代码块控制、数学公式编辑、媒体 NodeView 和 TOC。
 
-宿主如需实现文档内查找/替换 UI，可通过 `onSearchControllerChange` 保存共享搜索 controller。调用 `subscribe` 同步结果计数，通过 `setQuery`/`setOptions` 更新查询，使用 `findNext`/`findPrevious` 导航，并在可编辑模式调用 `replaceCurrent`/`replaceAll`。关闭搜索栏时调用 `clear` 移除全部搜索 Decoration。
+宿主如需实现文档内查找/替换 UI，可通过 `onSearchControllerChange` 保存共享搜索 controller。通过 `subscribe` 读取结果与 `state.execution`；大文档查询会短暂进入 `searching`，最终以当前文档 revision 的精确 `ready` 结果收口。索引期间的前后导航会安全排队，替换操作只对 ready 结果执行。关闭搜索栏时调用 `clear`。
+
+浏览器打印或 DOM/PDF 快照前，先调用 `prepareMarkweaveEditorForOutput(editor, { kind: "print" | "dom-snapshot" })`，等待离屏内容、媒体、Mermaid、字体和布局稳定。Markdown/HTML/JSON 序列化直接读取完整 PM 文档，不需要等待视觉屏障。
 
 ## 模式、语言与目录
 

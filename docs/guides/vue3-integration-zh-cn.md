@@ -1,6 +1,6 @@
 ---
 owner: refinex
-updated: 2026-08-27
+updated: 2026-09-01
 status: active
 referenced_by: docs/README.md#knowledge-map
 ---
@@ -11,7 +11,7 @@ referenced_by: docs/README.md#knowledge-map
 
 这是 Markweave 的 Vue 3 完整接入手册，覆盖安装、内容存储、Live/View 模式、上传、框架属性、回调、TOC 和生产边界。仓库里的私有参考实现是 `apps/playground-vue3`。
 
-大文档应使用 `defaultContent`，避免每次按键都通过受控 `content` 往返；保留惰性 update payload，只在宿主保存/flush 边界读取 `payload.markdown`。可选 `resolveMediaSource` prop 与 React、Vue 2 共用带优先级和取消信号的请求；返回展示 URL 与可选固有尺寸后会启用共享轻量图片 NodeView，但不会改变序列化 Markdown。
+大文档应使用 `defaultContent`，避免每次按键都通过受控 `content` 往返；保留惰性 update payload，只在宿主保存/flush 边界读取 `payload.markdown`。可选 `resolveMediaSource` prop 与 React、Vue 2 共用带优先级和取消信号的请求，并提供可选 `attempt`/`reason` 重试上下文；返回展示 URL 与可选固有尺寸后会启用共享轻量图片 NodeView，但不会改变序列化 Markdown。只有图片真实加载后才提交成功状态；失败保持可恢复，宿主负缓存或失败候选 URL 必须允许失效。
 
 ## 安装
 
@@ -76,6 +76,11 @@ function saveDraft(markdown: string) {
 | `content` | `content` | `undefined` | 受控内容。除非声明 `content-format`，否则按 Markdown 解析。 |
 | `content-format` | `contentFormat` | `"markdown"` | 受控内容格式。 |
 | `on-update` | `onUpdate` | `undefined` | 保存 `payload.markdown`；按需读取 `html`、`json` 或 `text`。 |
+| `performance-policy` | `performancePolicy` | `"auto"` | 自动选择 `standard | large | extreme`；显式 tier 仅用于诊断或回退。 |
+| `editor-extensions-load-policy` | `editorExtensionsLoadPolicy` | `"atomic"` | 仅对已证明可安全分批初载的宿主扩展使用 `"transactional-safe"`。 |
+| `on-document-load-state-change` | `onDocumentLoadStateChange` | `undefined` | 返回加载阶段、进度、tier、画像、取消与错误。 |
+
+Vue 3 现已与 React/Vue 2 一样提供 `on-search-controller-change` 生命周期。大文档查询可能短暂处于 `execution.status="searching"`，精确计数和替换在 `ready` 后生效。浏览器打印或 DOM/PDF 快照前使用导出的 `prepareMarkweaveEditorForOutput`。
 
 受控 Markdown 示例：
 

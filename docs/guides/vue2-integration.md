@@ -1,6 +1,6 @@
 ---
 owner: refinex
-updated: 2026-08-27
+updated: 2026-09-01
 status: active
 referenced_by: docs/README.md#knowledge-map
 ---
@@ -11,7 +11,7 @@ Language: [中文](./vue2-integration-zh-cn.md) | English
 
 This guide is the complete Vue 2 integration path for Markweave. It covers installation, Vue 2.6/2.7 compiler requirements, Vue CLI 4 / Webpack 4 compatibility, content storage, Live/View mode, uploads, callbacks, TOC, and production boundaries. The private reference implementation is `apps/playground-vue2`.
 
-For large documents, use `defaultContent` instead of a per-keystroke controlled `content` loop, retain the lazy update payload, and read `payload.markdown` only at the host save/flush boundary. The optional `resolveMediaSource` prop accepts the same cancellable priority request as React and Vue 3; returning a display URL plus optional intrinsic dimensions activates the shared lightweight image NodeView without changing serialized Markdown.
+For large documents, use `defaultContent` instead of a per-keystroke controlled `content` loop, retain the lazy update payload, and read `payload.markdown` only at the host save/flush boundary. The optional `resolveMediaSource` prop accepts the same cancellable priority request as React and Vue 3, including optional `attempt`/`reason` retry context. Returning a display URL plus optional intrinsic dimensions activates the shared lightweight image NodeView without changing serialized Markdown. Success is committed only after the real image load; failures remain recoverable, and hosts must allow negative or failed candidate cache entries to expire.
 
 ## Install
 
@@ -107,6 +107,11 @@ export default {
 | `content` | `content` | `undefined` | Controlled content. Parsed as Markdown unless `content-format` is set. |
 | `content-format` | `contentFormat` | `"markdown"` | Controlled content format. |
 | `on-update` | `onUpdate` | `undefined` | Save `payload.markdown`; inspect `html`, `json`, or `text` when needed. |
+| `performance-policy` | `performancePolicy` | `"auto"` | Auto-selects `standard | large | extreme`; explicit tiers are diagnostic/rollback overrides. |
+| `editor-extensions-load-policy` | `editorExtensionsLoadPolicy` | `"atomic"` | Use `"transactional-safe"` only for host extensions proven safe under batched initial mounting. |
+| `on-document-load-state-change` | `onDocumentLoadStateChange` | `undefined` | Reports load phase, progress, tier, profile, cancellation, and errors. |
+
+Vue 2 now exposes the same `on-search-controller-change` lifecycle as React/Vue 3. Large queries may report `execution.status="searching"`; counts and replacement become authoritative at `ready`. Use the exported `prepareMarkweaveEditorForOutput` before browser print or DOM/PDF capture.
 
 Controlled Markdown example:
 
