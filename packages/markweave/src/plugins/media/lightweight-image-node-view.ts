@@ -20,9 +20,16 @@ import {
 import { openMarkweaveImagePreview } from "./image-preview";
 import { enrollMarkweaveMediaBackstop } from "./media-idle-backstop";
 import {
+  markweaveResolveVisualResourceEvent,
+  type MarkweaveResolveVisualResourceEventDetail,
+} from "../../editor-core/document-output";
+import { getMarkweaveDocumentViewportCoordinatorForElement } from "../../core/document-viewport";
+import {
   resolveMarkweaveMediaSource,
   type MarkweaveMediaPriority,
+  type MarkweaveMediaResolveReason,
   type MarkweaveMediaSourceResolver,
+  type MarkweaveMediaSourceResult,
 } from "./media-source";
 import {
   resolveMarkweaveUploadResult,
@@ -111,6 +118,35 @@ const viewportWakeCoordinators = new WeakMap<
   MarkweaveViewportWakeCoordinator
 >();
 
+const mediaSourceResolveTimeoutMs = 8_000;
+const imageLoadTimeoutMs = 12_000;
+const automaticRetryDelaysMs = [250, 1_000] as const;
+const terminalRecoveryCooldownsMs = [2_000, 5_000, 30_000] as const;
+let nextLightweightImageNodeViewId = 1;
+
+type MarkweaveImageAttemptCancellation =
+  | "destroy"
+  | "output"
+  | "scheduler"
+  | "source-change"
+  | "superseded"
+  | "timeout";
+
+interface MarkweaveImageResolutionAttempt {
+  readonly id: number;
+  readonly generation: number;
+  readonly persistedSource: string;
+  readonly priority: MarkweaveMediaPriority;
+  readonly reason: MarkweaveMediaResolveReason;
+  readonly attempt: number;
+  readonly controller: AbortController;
+  readonly resolverStage: Promise<void>;
+  readonly finishResolverStage: () => void;
+  cancellation: MarkweaveImageAttemptCancellation | null;
+  candidateImage: HTMLImageElement | null;
+  candidateSource: string | null;
+}
+
 function subscribeToMarkweaveViewportWake(
   ownerDocument: Document,
   callback: () => void,
@@ -170,21 +206,31 @@ class MarkweaveLightweightImageNodeView implements NodeView {
   private readonly props: NodeViewRendererProps;
   private readonly options: MarkweaveLightweightImageNodeViewOptions;
   private readonly box: HTMLDivElement;
-  private readonly image: HTMLImageElement;
+  private image: HTMLImageElement;
   private readonly placeholder: HTMLDivElement;
   private readonly caption: HTMLElement;
   private readonly unsubscribeMode: () => void;
+  private readonly nodeViewId = nextLightweightImageNodeViewId++;
   private observer: IntersectionObserver | null = null;
-  private resolveController: AbortController | null = null;
-  private resolvingSource: string | null = null;
-  private resolvingPriority: MarkweaveMediaPriority | null = null;
+  private activeAttempt: MarkweaveImageResolutionAttempt | null = null;
+  private sourceGeneration = 0;
+  private attemptCount = 0;
+  private automaticRetriesUsed = 0;
+  private retryTimer: number | null = null;
+  private retryPriority: MarkweaveMediaPriority = "background";
+  private retryReason: MarkweaveMediaResolveReason = "retry";
+  private retryTerminalState: "missing" | "unreadable" = "unreadable";
+  private terminalRecoveryCount = 0;
+  private recoveryNotBefore = 0;
   private resolvedSource: string | null = null;
-  private resolvedPriority: MarkweaveMediaPriority | null = null;
   private resolvedSrc: string | null = null;
   private mountCheckScheduled = false;
   private mountCheckTimer: number | null = null;
   private unsubscribeViewportWake: (() => void) | null = null;
   private unenrollBackstop: (() => void) | null = null;
+  private cancelVisualWork: (() => void) | null = null;
+  private unsubscribeRecoveryLayout: (() => void) | null = null;
+  private readonly resolutionWaiters = new Set<() => void>();
   private previewTrigger: HTMLButtonElement | null = null;
   private toolbar: HTMLElement | null = null;
   private captionInput: HTMLInputElement | null = null;
@@ -204,22 +250,19 @@ class MarkweaveLightweightImageNodeView implements NodeView {
     this.props = props;
     this.node = props.node;
     this.options = options;
-    this.dom = document.createElement("figure");
+    const ownerDocument = props.view.dom.ownerDocument;
+    this.dom = ownerDocument.createElement("figure");
     this.dom.className = "markweave-image-node";
     this.dom.dataset.testid = "markweave-image-node";
     this.dom.dataset.markweaveLightweightImage = "true";
 
-    this.box = document.createElement("div");
+    this.box = ownerDocument.createElement("div");
     this.box.className = "markweave-image-box";
-    this.image = document.createElement("img");
-    this.image.className = "markweave-image";
-    this.image.setAttribute("loading", "eager");
-    this.image.setAttribute("decoding", "async");
-    this.image.draggable = false;
-    this.placeholder = document.createElement("div");
+    this.image = this.createImageElement();
+    this.placeholder = ownerDocument.createElement("div");
     this.placeholder.className = "markweave-image-readonly-empty";
     this.placeholder.setAttribute("aria-hidden", "true");
-    this.caption = document.createElement("figcaption");
+    this.caption = ownerDocument.createElement("figcaption");
     this.caption.className = "markweave-image-caption";
     this.caption.dataset.testid = "markweave-image-caption";
     this.box.append(this.image, this.placeholder);
@@ -227,8 +270,7 @@ class MarkweaveLightweightImageNodeView implements NodeView {
 
     this.dom.addEventListener("mousedown", this.handleMouseDown);
     this.dom.addEventListener("dblclick", this.handleDoubleClick);
-    this.image.addEventListener("load", this.handleImageLoad);
-    this.image.addEventListener("error", this.handleImageError);
+    this.dom.addEventListener(markweaveResolveVisualResourceEvent, this.handleOutputResolution);
     this.unsubscribeMode = subscribeToMarkweaveEditorMode(
       this.props.editor,
       () => this.syncPreviewTrigger(),
@@ -248,19 +290,15 @@ class MarkweaveLightweightImageNodeView implements NodeView {
     }
 
     const previousSrc = stringAttribute(this.node.attrs.src);
-    this.node = node;
     const nextSrc = stringAttribute(node.attrs.src);
+    if (previousSrc && !nextSrc) {
+      return false;
+    }
+    this.node = node;
     this.renderNodeAttributes();
 
     if (previousSrc !== nextSrc) {
-      this.resolveController?.abort();
-      this.resolvingSource = null;
-      this.resolvingPriority = null;
-      this.resolvedSource = null;
-      this.resolvedPriority = null;
-      this.resolvedSrc = null;
-      this.image.removeAttribute("src");
-      this.setMediaState("pending");
+      this.resetForSourceChange();
       this.startViewportWakeListeners();
       this.scheduleMountedProximityCheck();
       this.enrollResolutionBackstop();
@@ -272,7 +310,7 @@ class MarkweaveLightweightImageNodeView implements NodeView {
   selectNode() {
     this.dom.dataset.selected = "true";
     this.mountEditingControls();
-    this.resolveSource("visible");
+    void this.resolveSource("visible", undefined, "viewport", true);
   }
 
   deselectNode() {
@@ -293,10 +331,14 @@ class MarkweaveLightweightImageNodeView implements NodeView {
 
   destroy() {
     this.destroyed = true;
-    this.resolveController?.abort();
+    this.clearRetryTimer();
+    this.cancelActiveAttempt("destroy", true);
+    this.cancelVisualWork?.();
+    this.cancelVisualWork = null;
     this.observer?.disconnect();
     this.clearMountedProximityCheck();
     this.stopViewportWakeListeners();
+    this.stopRecoveryLayoutSubscription();
     this.dropResolutionBackstop();
     this.unsubscribeMode();
     this.unmountEditingControls();
@@ -304,8 +346,8 @@ class MarkweaveLightweightImageNodeView implements NodeView {
     this.previewTrigger = null;
     this.dom.removeEventListener("mousedown", this.handleMouseDown);
     this.dom.removeEventListener("dblclick", this.handleDoubleClick);
-    this.image.removeEventListener("load", this.handleImageLoad);
-    this.image.removeEventListener("error", this.handleImageError);
+    this.dom.removeEventListener(markweaveResolveVisualResourceEvent, this.handleOutputResolution);
+    this.notifyResolutionStateChanged();
   }
 
   private renderNodeAttributes() {
@@ -335,23 +377,32 @@ class MarkweaveLightweightImageNodeView implements NodeView {
   }
 
   private observeProximity() {
-    if (typeof IntersectionObserver === "undefined") {
-      this.resolveSource("visible");
+    const ownerWindow = this.dom.ownerDocument.defaultView;
+    const IntersectionObserverCtor = ownerWindow?.IntersectionObserver ?? globalThis.IntersectionObserver;
+    if (!IntersectionObserverCtor) {
+      void this.resolveSource("visible", undefined, "initial");
       return;
     }
 
-    this.observer = new IntersectionObserver(
+    this.observer = new IntersectionObserverCtor(
       (entries) => {
+        if (!this.canRunAutomaticRecovery()) {
+          return;
+        }
         const entry = entries[0];
         if (!entry?.isIntersecting) {
           return;
         }
 
-        const viewportHeight = entry.rootBounds?.height ?? window.innerHeight;
+        const viewportHeight = entry.rootBounds?.height ?? ownerWindow?.innerHeight ?? 0;
         const visible =
           entry.boundingClientRect.bottom >= 0 &&
           entry.boundingClientRect.top <= viewportHeight;
-        this.resolveSource(visible ? "visible" : "nearby");
+        void this.resolveSource(
+          visible ? "visible" : "nearby",
+          undefined,
+          "viewport",
+        );
       },
       { rootMargin: "300% 0px" },
     );
@@ -396,28 +447,41 @@ class MarkweaveLightweightImageNodeView implements NodeView {
     if (this.destroyed || !this.dom.isConnected) {
       return false;
     }
+    // Check recovery state before any geometry read. A document with many
+    // terminal media failures must not force O(N) layout work every frame.
+    if (!this.canRunAutomaticRecovery()) {
+      return false;
+    }
 
     const ownerWindow = this.dom.ownerDocument.defaultView;
     if (!ownerWindow) {
-      this.resolveSource("visible");
+      void this.resolveSource("visible", undefined, "initial");
       return true;
     }
 
-    const viewportHeight = Math.max(
+    const viewportCoordinator = getMarkweaveDocumentViewportCoordinatorForElement(this.dom);
+    const coordinatedBounds = viewportCoordinator?.getVisibleBounds();
+    const viewportTop = coordinatedBounds?.top ?? 0;
+    const viewportBottom = coordinatedBounds?.bottom ?? Math.max(
       this.dom.ownerDocument.documentElement.clientHeight,
       ownerWindow.innerHeight,
     );
+    const viewportHeight = Math.max(1, viewportBottom - viewportTop);
     const bounds = this.dom.getBoundingClientRect();
     const nearMargin = viewportHeight * 3;
     if (
-      bounds.bottom < -nearMargin ||
-      bounds.top > viewportHeight + nearMargin
+      bounds.bottom < viewportTop - nearMargin ||
+      bounds.top > viewportBottom + nearMargin
     ) {
       return false;
     }
 
-    const visible = bounds.bottom >= 0 && bounds.top <= viewportHeight;
-    this.resolveSource(visible ? "visible" : "nearby");
+    const visible = bounds.bottom >= viewportTop && bounds.top <= viewportBottom;
+    void this.resolveSource(
+      visible ? "visible" : "nearby",
+      undefined,
+      this.attemptCount === 0 ? "initial" : "viewport",
+    );
     return true;
   }
 
@@ -450,7 +514,11 @@ class MarkweaveLightweightImageNodeView implements NodeView {
         // stored unenroll handle so resolveSource does not mutate the drain's
         // pending set while it is iterating.
         this.unenrollBackstop = null;
-        this.resolveSource("background");
+        void this.resolveSource(
+          "background",
+          undefined,
+          this.attemptCount === 0 ? "initial" : "retry",
+        );
       },
     );
   }
@@ -460,78 +528,561 @@ class MarkweaveLightweightImageNodeView implements NodeView {
     this.unenrollBackstop = null;
   }
 
-  private resolveSource(priority: MarkweaveMediaPriority) {
+  /**
+   * Resolves only through candidate source assignment. The visual scheduler must
+   * not wait for an arbitrary network image to finish before starting the next
+   * item. Output callers use resolveForOutput(), which waits for the full state
+   * machine including image load, bounded retries, and terminal failure.
+   */
+  private resolveSource(
+    priority: MarkweaveMediaPriority,
+    schedulerSignal?: AbortSignal,
+    reason: MarkweaveMediaResolveReason = "viewport",
+    bypassRecoveryCooldown = false,
+  ): Promise<void> {
     const src = stringAttribute(this.node.attrs.src);
-    if (!src) {
-      return;
-    }
-    // Any resolution attempt for the current source supersedes the idle
-    // backstop: either we start resolving now, or it is already resolving or
-    // resolved. In every case the guaranteed fallback is no longer needed.
-    this.dropResolutionBackstop();
-    if (
-      this.resolvingSource === src &&
-      this.resolveController &&
-      !this.resolveController.signal.aborted &&
-      (this.resolvingPriority === "visible" || priority !== "visible")
-    ) {
-      return;
+    if (!src || this.destroyed || schedulerSignal?.aborted) {
+      return Promise.resolve();
     }
     if (
-      this.resolvedSource === src &&
-      (this.resolvedPriority === "visible" || priority !== "visible")
+      !bypassRecoveryCooldown &&
+      reason !== "output" &&
+      !this.canRunAutomaticRecovery()
     ) {
-      return;
+      return Promise.resolve();
     }
-
-    this.resolveController?.abort();
-    const controller = new AbortController();
-    this.resolveController = controller;
-    this.resolvingSource = src;
-    this.resolvingPriority = priority;
-    void resolveMarkweaveMediaSource(this.options.resolveMediaSource, {
-      kind: "image",
-      src,
-      priority,
-      signal: controller.signal,
-    })
-      .then((result) => {
-        if (this.destroyed || controller.signal.aborted) {
-          return;
+    const viewportCoordinator = getMarkweaveDocumentViewportCoordinatorForElement(this.dom);
+    if (
+      priority !== "visible" &&
+      viewportCoordinator?.snapshot.state === "rapid"
+    ) {
+      this.cancelVisualWork?.();
+      let rawPos: number | undefined;
+      try {
+        const candidatePos = this.props.getPos?.();
+        rawPos = typeof candidatePos === "number" ? candidatePos : undefined;
+      } catch {
+        rawPos = undefined;
+      }
+      const handle = viewportCoordinator.visualWork.schedule({
+        key: `image:${this.nodeViewId}:${rawPos ?? "detached"}`,
+        lane: priority === "nearby" ? "nearby" : "idle",
+        pos: rawPos,
+        revision: this.props.editor.state.doc.content.size,
+        sourceHash: src,
+        run: (signal) => this.resolveSource(
+          priority,
+          signal,
+          reason,
+          bypassRecoveryCooldown,
+        ),
+      });
+      const cancelVisualWork = handle.cancel;
+      this.cancelVisualWork = cancelVisualWork;
+      void handle.promise.then((result) => {
+        if (this.cancelVisualWork === cancelVisualWork) {
+          this.cancelVisualWork = null;
+          this.notifyResolutionStateChanged();
         }
-        if (!result) {
-          this.setMediaState("missing");
-          return;
-        }
-
-        this.resolvedSource = src;
-        this.resolvedPriority = priority;
-        this.resolvedSrc = result.src;
-        if (result.width && result.height) {
-          this.image.width = result.width;
-          this.image.height = result.height;
-          if (!this.box.style.aspectRatio) {
-            this.box.style.aspectRatio = `${result.width} / ${result.height}`;
-          }
-        }
-        this.setMediaState("pending");
-        this.image.src = result.src;
-        if (this.image.complete && this.image.naturalWidth > 0) {
-          this.handleImageLoad();
-        }
-      })
-      .catch(() => {
-        if (!controller.signal.aborted) {
-          this.setMediaState("unreadable");
-        }
-      })
-      .finally(() => {
-        if (this.resolveController === controller) {
-          this.resolveController = null;
-          this.resolvingSource = null;
-          this.resolvingPriority = null;
+        if (
+          result !== "completed" &&
+          !this.destroyed &&
+          this.activeAttempt === null &&
+          this.retryTimer === null &&
+          this.resolvedSource !== src &&
+          stringAttribute(this.node.attrs.src) === src
+        ) {
+          this.enrollResolutionBackstop();
+          this.scheduleMountedProximityCheck();
         }
       });
+      this.notifyResolutionStateChanged();
+      return handle.promise.then(() => undefined);
+    }
+    if (!schedulerSignal) {
+      this.cancelVisualWork?.();
+      this.cancelVisualWork = null;
+    }
+    if (priority === "visible" || reason === "output") {
+      this.clearRetryTimer();
+    } else if (this.retryTimer !== null) {
+      return Promise.resolve();
+    }
+
+    if (this.resolvedSource === src && this.dom.dataset.mediaState === "resolved") {
+      return Promise.resolve();
+    }
+
+    const current = this.activeAttempt;
+    if (
+      current &&
+      current.persistedSource === src &&
+      current.generation === this.sourceGeneration &&
+      !current.controller.signal.aborted
+    ) {
+      const candidateAlreadyLoading = Boolean(current.candidateImage);
+      if (
+        candidateAlreadyLoading ||
+        current.priority === "visible" ||
+        priority !== "visible"
+      ) {
+        return current.resolverStage;
+      }
+      this.cancelActiveAttempt("superseded", true);
+    } else if (current) {
+      this.cancelActiveAttempt("superseded", true);
+    }
+
+    this.dropResolutionBackstop();
+    this.stopRecoveryLayoutSubscription();
+    this.setMediaState("pending");
+    this.startViewportWakeListeners();
+    const controller = new AbortController();
+    const attemptNumber = this.attemptCount + 1;
+    this.attemptCount = attemptNumber;
+    let finishResolverStage: () => void = () => undefined;
+    const resolverStage = new Promise<void>((resolve) => {
+      finishResolverStage = resolve;
+    });
+    const active: MarkweaveImageResolutionAttempt = {
+      attempt: attemptNumber,
+      cancellation: null,
+      candidateImage: null,
+      candidateSource: null,
+      controller,
+      finishResolverStage,
+      generation: this.sourceGeneration,
+      id: attemptNumber,
+      persistedSource: src,
+      priority,
+      reason,
+      resolverStage,
+    };
+    this.activeAttempt = active;
+    this.notifyResolutionStateChanged();
+
+    const abortFromScheduler = () => {
+      if (this.isCurrentAttempt(active)) {
+        active.cancellation = "scheduler";
+      }
+      controller.abort();
+    };
+    schedulerSignal?.addEventListener("abort", abortFromScheduler, { once: true });
+    void resolverStage.finally(() => {
+      schedulerSignal?.removeEventListener("abort", abortFromScheduler);
+    });
+    void this.runResolutionAttempt(active);
+    return resolverStage;
+  }
+
+  private async runResolutionAttempt(active: MarkweaveImageResolutionAttempt) {
+    const sourceOutcome = await this.resolveCandidateSource(active);
+    active.finishResolverStage();
+
+    if (!this.isCurrentAttempt(active)) {
+      return;
+    }
+    if (sourceOutcome.type !== "resolved") {
+      if (sourceOutcome.type === "aborted") {
+        if (active.cancellation === "scheduler" || active.cancellation === "output") {
+          this.failAttempt(
+            active,
+            "unreadable",
+            active.reason === "output" ? "output" : "retry",
+          );
+        }
+      } else if (sourceOutcome.type === "missing") {
+        this.failAttempt(
+          active,
+          "missing",
+          active.reason === "output" ? "output" : "retry",
+        );
+      } else {
+        this.failAttempt(
+          active,
+          "unreadable",
+          active.reason === "output" ? "output" : "retry",
+        );
+      }
+      return;
+    }
+
+    const imageOutcome = await this.loadCandidateImage(active, sourceOutcome.result);
+    if (!this.isCurrentAttempt(active)) {
+      return;
+    }
+    if (imageOutcome === "loaded") {
+      this.commitResolvedImage(active, sourceOutcome.result);
+      return;
+    }
+    if (imageOutcome === "aborted") {
+      if (active.cancellation === "scheduler" || active.cancellation === "output") {
+        this.failAttempt(
+          active,
+          "unreadable",
+          active.reason === "output" ? "output" : "retry",
+        );
+      }
+      return;
+    }
+    this.failAttempt(
+      active,
+      "unreadable",
+      active.reason === "output" ? "output" : "image-error",
+    );
+  }
+
+  private resolveCandidateSource(active: MarkweaveImageResolutionAttempt) {
+    type SourceOutcome =
+      | { readonly type: "resolved"; readonly result: MarkweaveMediaSourceResult }
+      | { readonly type: "missing" }
+      | { readonly type: "error" }
+      | { readonly type: "timeout" }
+      | { readonly type: "aborted" };
+
+    return new Promise<SourceOutcome>((resolve) => {
+      const ownerWindow = this.dom.ownerDocument.defaultView;
+      let settled = false;
+      let timeout: number | null = null;
+      const finish = (outcome: SourceOutcome) => {
+        if (settled) return;
+        settled = true;
+        if (timeout !== null) ownerWindow?.clearTimeout(timeout);
+        active.controller.signal.removeEventListener("abort", aborted);
+        resolve(outcome);
+      };
+      const aborted = () => finish({ type: "aborted" });
+      active.controller.signal.addEventListener("abort", aborted, { once: true });
+      if (ownerWindow) {
+        timeout = ownerWindow.setTimeout(() => {
+          active.cancellation = "timeout";
+          finish({ type: "timeout" });
+          active.controller.abort();
+        }, mediaSourceResolveTimeoutMs);
+      }
+
+      void resolveMarkweaveMediaSource(this.options.resolveMediaSource, {
+        attempt: active.attempt,
+        kind: "image",
+        priority: active.priority,
+        reason: active.reason,
+        signal: active.controller.signal,
+        src: active.persistedSource,
+      }).then(
+        (result) => finish(result ? { result, type: "resolved" } : { type: "missing" }),
+        () => finish({ type: "error" }),
+      );
+
+      if (active.controller.signal.aborted) aborted();
+    });
+  }
+
+  private loadCandidateImage(
+    active: MarkweaveImageResolutionAttempt,
+    result: MarkweaveMediaSourceResult,
+  ) {
+    type ImageOutcome = "loaded" | "error" | "timeout" | "aborted";
+    const image = this.image.hasAttribute("src")
+      ? this.replaceImageElement()
+      : this.image;
+    active.candidateImage = image;
+    active.candidateSource = result.src;
+    if (result.width && result.height) {
+      image.width = result.width;
+      image.height = result.height;
+      if (!this.box.style.aspectRatio) {
+        this.box.style.aspectRatio = `${result.width} / ${result.height}`;
+      }
+    }
+    this.setMediaState("pending");
+
+    return new Promise<ImageOutcome>((resolve) => {
+      const ownerWindow = this.dom.ownerDocument.defaultView;
+      let settled = false;
+      let timeout: number | null = null;
+      const finish = (outcome: ImageOutcome) => {
+        if (settled) return;
+        settled = true;
+        if (timeout !== null) ownerWindow?.clearTimeout(timeout);
+        image.removeEventListener("load", loaded);
+        image.removeEventListener("error", failed);
+        active.controller.signal.removeEventListener("abort", aborted);
+        resolve(outcome);
+      };
+      const loaded = () => finish("loaded");
+      const failed = () => finish("error");
+      const aborted = () => finish("aborted");
+      image.addEventListener("load", loaded, { once: true });
+      image.addEventListener("error", failed, { once: true });
+      active.controller.signal.addEventListener("abort", aborted, { once: true });
+      if (ownerWindow) {
+        timeout = ownerWindow.setTimeout(() => {
+          active.cancellation = "timeout";
+          finish("timeout");
+          active.controller.abort();
+        }, imageLoadTimeoutMs);
+      }
+      image.src = result.src;
+      if (image.complete) {
+        queueMicrotask(() => {
+          if (image.naturalWidth > 0) loaded();
+        });
+      }
+      if (active.controller.signal.aborted) aborted();
+    });
+  }
+
+  private commitResolvedImage(
+    active: MarkweaveImageResolutionAttempt,
+    result: MarkweaveMediaSourceResult,
+  ) {
+    if (!this.isCurrentAttempt(active) || active.candidateImage !== this.image) {
+      return;
+    }
+    this.activeAttempt = null;
+    this.resolvedSource = active.persistedSource;
+    this.resolvedSrc = result.src;
+    this.automaticRetriesUsed = 0;
+    this.terminalRecoveryCount = 0;
+    this.recoveryNotBefore = 0;
+    this.retryTerminalState = "unreadable";
+    this.clearRetryTimer();
+    this.dropResolutionBackstop();
+    this.stopRecoveryLayoutSubscription();
+    this.setMediaState("resolved");
+  }
+
+  private failAttempt(
+    active: MarkweaveImageResolutionAttempt,
+    terminalState: "missing" | "unreadable",
+    retryReason: MarkweaveMediaResolveReason,
+  ) {
+    if (!this.isCurrentAttempt(active)) return;
+    this.activeAttempt = null;
+    this.clearResolvedState();
+    if (active.candidateImage) {
+      this.replaceImageElement();
+    }
+    this.startViewportWakeListeners();
+
+    const currentSource = stringAttribute(this.node.attrs.src);
+    if (
+      currentSource === active.persistedSource &&
+      this.automaticRetriesUsed < automaticRetryDelaysMs.length &&
+      active.cancellation !== "output" &&
+      !this.destroyed
+    ) {
+      const retryIndex = this.automaticRetriesUsed;
+      this.automaticRetriesUsed += 1;
+      this.retryPriority = active.priority;
+      this.retryReason = retryReason;
+      this.retryTerminalState = terminalState;
+      this.setMediaState("pending");
+      const ownerWindow = this.dom.ownerDocument.defaultView;
+      if (ownerWindow) {
+        this.retryTimer = ownerWindow.setTimeout(() => {
+          this.retryTimer = null;
+          this.notifyResolutionStateChanged();
+          void this.resolveSource(
+            this.retryPriority,
+            undefined,
+            this.retryReason,
+            this.retryReason === "output",
+          );
+        }, automaticRetryDelaysMs[retryIndex]);
+        this.notifyResolutionStateChanged();
+        return;
+      }
+    }
+    this.enterTerminalState(terminalState);
+  }
+
+  private async resolveForOutput(signal?: AbortSignal) {
+    if (this.destroyed || signal?.aborted) return;
+    const persistedSource = stringAttribute(this.node.attrs.src);
+    if (!persistedSource) return;
+
+    const abort = () => {
+      this.clearRetryTimer();
+      const active = this.activeAttempt;
+      if (
+        active &&
+        active.persistedSource === persistedSource &&
+        this.isCurrentAttempt(active)
+      ) {
+        active.cancellation = "output";
+        active.controller.abort();
+      } else if (
+        stringAttribute(this.node.attrs.src) === persistedSource &&
+        this.dom.dataset.mediaState === "pending"
+      ) {
+        this.clearResolvedState();
+        this.enterTerminalState(this.retryTerminalState);
+      }
+      this.notifyResolutionStateChanged();
+    };
+    signal?.addEventListener("abort", abort, { once: true });
+    try {
+      void this.resolveSource("visible", undefined, "output", true);
+      await this.waitForResolutionSettlement(signal);
+    } finally {
+      signal?.removeEventListener("abort", abort);
+    }
+  }
+
+  private waitForResolutionSettlement(signal?: AbortSignal) {
+    const settled = () =>
+      this.destroyed ||
+      signal?.aborted ||
+      (
+        this.activeAttempt === null &&
+        this.retryTimer === null &&
+        this.cancelVisualWork === null &&
+        this.dom.dataset.mediaState !== "pending"
+      );
+    if (settled()) return Promise.resolve();
+
+    return new Promise<void>((resolve) => {
+      const inspect = () => {
+        if (!settled()) return;
+        this.resolutionWaiters.delete(inspect);
+        signal?.removeEventListener("abort", inspect);
+        resolve();
+      };
+      this.resolutionWaiters.add(inspect);
+      signal?.addEventListener("abort", inspect, { once: true });
+      inspect();
+    });
+  }
+
+  private isCurrentAttempt(active: MarkweaveImageResolutionAttempt) {
+    return !this.destroyed &&
+      this.activeAttempt === active &&
+      active.generation === this.sourceGeneration &&
+      stringAttribute(this.node.attrs.src) === active.persistedSource;
+  }
+
+  private cancelActiveAttempt(
+    cancellation: MarkweaveImageAttemptCancellation,
+    resetCandidate: boolean,
+  ) {
+    const active = this.activeAttempt;
+    if (!active) return;
+    active.cancellation = cancellation;
+    active.controller.abort();
+    if (this.activeAttempt === active) this.activeAttempt = null;
+    if (resetCandidate && active.candidateImage) this.replaceImageElement();
+    active.finishResolverStage();
+    this.notifyResolutionStateChanged();
+  }
+
+  private resetForSourceChange() {
+    this.sourceGeneration += 1;
+    this.clearRetryTimer();
+    this.cancelActiveAttempt("source-change", true);
+    this.cancelVisualWork?.();
+    this.cancelVisualWork = null;
+    this.dropResolutionBackstop();
+    this.stopRecoveryLayoutSubscription();
+    this.clearResolvedState();
+    this.attemptCount = 0;
+    this.automaticRetriesUsed = 0;
+    this.terminalRecoveryCount = 0;
+    this.recoveryNotBefore = 0;
+    this.retryTerminalState = "unreadable";
+    if (this.image.hasAttribute("src")) this.replaceImageElement();
+    this.setMediaState("pending");
+  }
+
+  private clearResolvedState() {
+    this.resolvedSource = null;
+    this.resolvedSrc = null;
+  }
+
+  private enterTerminalState(state: "missing" | "unreadable") {
+    const recoveryIndex = Math.min(
+      this.terminalRecoveryCount,
+      terminalRecoveryCooldownsMs.length - 1,
+    );
+    this.terminalRecoveryCount += 1;
+    this.recoveryNotBefore = this.now() + terminalRecoveryCooldownsMs[recoveryIndex];
+    this.setMediaState(state);
+    this.startRecoveryLayoutSubscription();
+  }
+
+  private startRecoveryLayoutSubscription() {
+    if (this.unsubscribeRecoveryLayout || this.destroyed) return;
+    const coordinator = getMarkweaveDocumentViewportCoordinatorForElement(this.dom);
+    if (!coordinator) return;
+    let initialNotification = true;
+    this.unsubscribeRecoveryLayout = coordinator.subscribeLayout(() => {
+      if (initialNotification) {
+        initialNotification = false;
+        return;
+      }
+      if (this.destroyed || this.dom.dataset.mediaState === "resolved") {
+        this.stopRecoveryLayoutSubscription();
+        return;
+      }
+      if (
+        coordinator.snapshot.state === "output" ||
+        !this.canRunAutomaticRecovery()
+      ) {
+        return;
+      }
+      this.resolveSourceIfNearViewport();
+    });
+  }
+
+  private stopRecoveryLayoutSubscription() {
+    this.unsubscribeRecoveryLayout?.();
+    this.unsubscribeRecoveryLayout = null;
+  }
+
+  private canRunAutomaticRecovery() {
+    if (this.destroyed) return false;
+    const coordinator = getMarkweaveDocumentViewportCoordinatorForElement(this.dom);
+    if (coordinator?.snapshot.state === "output") return false;
+    const state = this.dom.dataset.mediaState;
+    if (state !== "missing" && state !== "unreadable") return true;
+    return this.now() >= this.recoveryNotBefore;
+  }
+
+  private now() {
+    const ownerWindow = this.dom.ownerDocument.defaultView;
+    return ownerWindow?.performance?.now() ?? Date.now();
+  }
+
+  private clearRetryTimer() {
+    if (this.retryTimer === null) return;
+    this.dom.ownerDocument.defaultView?.clearTimeout(this.retryTimer);
+    this.retryTimer = null;
+    this.notifyResolutionStateChanged();
+  }
+
+  private createImageElement() {
+    const image = this.props.view.dom.ownerDocument.createElement("img");
+    image.className = "markweave-image";
+    image.setAttribute("loading", "eager");
+    image.setAttribute("decoding", "async");
+    image.draggable = false;
+    return image;
+  }
+
+  private replaceImageElement() {
+    const previous = this.image;
+    const next = this.createImageElement();
+    previous.removeAttribute("src");
+    previous.replaceWith(next);
+    this.image = next;
+    this.renderNodeAttributes();
+    const resolved = this.dom.dataset.mediaState === "resolved";
+    this.image.hidden = !resolved;
+    return next;
+  }
+
+  private notifyResolutionStateChanged() {
+    this.resolutionWaiters.forEach((inspect) => inspect());
   }
 
   private setMediaState(state: "pending" | "resolved" | "missing" | "unreadable") {
@@ -544,10 +1095,14 @@ class MarkweaveLightweightImageNodeView implements NodeView {
     const resolved = state === "resolved";
     this.image.hidden = !resolved;
     this.placeholder.hidden = resolved;
-    if (state !== "pending") {
+    if (state === "resolved") {
       this.stopViewportWakeListeners();
+      this.stopRecoveryLayoutSubscription();
+    } else {
+      this.startViewportWakeListeners();
     }
     this.syncPreviewTrigger();
+    this.notifyResolutionStateChanged();
   }
 
   private readonly handleViewportWake = () => {
@@ -557,13 +1112,10 @@ class MarkweaveLightweightImageNodeView implements NodeView {
     this.resolveSourceIfNearViewport();
   };
 
-  private readonly handleImageLoad = () => {
-    if (
-      this.resolvedSrc &&
-      this.image.getAttribute("src") === this.resolvedSrc
-    ) {
-      this.setMediaState("resolved");
-    }
+  private readonly handleOutputResolution = (event: Event) => {
+    const detail = (event as CustomEvent<MarkweaveResolveVisualResourceEventDetail>).detail;
+    const promise = this.resolveForOutput(detail?.signal);
+    detail?.waitUntil?.(promise);
   };
 
   private syncPreviewTrigger() {
@@ -633,10 +1185,6 @@ class MarkweaveLightweightImageNodeView implements NodeView {
         close: imageMessages.previewClose,
       },
     });
-  };
-
-  private readonly handleImageError = () => {
-    this.setMediaState("unreadable");
   };
 
   private mountEditingControls() {

@@ -1,6 +1,6 @@
 ---
 owner: refinex
-updated: 2026-08-29
+updated: 2026-08-31
 status: active
 referenced_by: AGENTS.md#knowledge-map
 ---
@@ -37,6 +37,7 @@ Do not introduce additional lockfiles or package-manager workflows without a sep
 | `typecheck` | `pnpm -r typecheck` | Runs TypeScript checks across workspace projects. |
 | `test` | `vitest run` | Runs all Vitest tests. |
 | `test:watch` | `vitest` | Starts Vitest watch mode. |
+| `benchmark:large-document` | `node scripts/benchmark-large-document.mjs` | Builds and serves the production React playground, runs each fixture three times, then reports median load, input, search, navigation, scroll, DOM, heap, and long-task measurements plus raw samples. Set `MARKWEAVE_BENCHMARK_RUNS` to override repetition count or `MARKWEAVE_BENCHMARK_DEV=1` for source profiling. |
 | `harness:check` | `python ops/harness/check-harness.py` | Runs the local Harness knowledge gate. |
 
 No root lint script is configured as of the 2026-07-05 scan.

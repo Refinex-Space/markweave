@@ -613,7 +613,7 @@ export function restoreMarkweaveAskAiTargetSelection(editor: Editor) {
     return true;
   }
   editor.commands.setTextSelection({ from: state.from, to: state.to });
-  editor.commands.focus();
+  editor.commands.focus(undefined, { scrollIntoView: false });
   return true;
 }
 

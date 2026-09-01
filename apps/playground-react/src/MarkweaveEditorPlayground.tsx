@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Eye, ListChecks, Moon, PencilLine, Sparkles, Sun } from "lucide-react";
 import {
   createMarkweaveEditorExtensions,
@@ -6,10 +6,12 @@ import {
   type MarkweaveAiEditController,
   type MarkweaveAttachmentDownloadHandler,
   type MarkweaveContentFormat,
+  type MarkweaveDocumentLoadState,
   type FloatingToolbarAssistantRequest,
   type MarkweaveEditorMode,
   type MarkweaveTheme,
   type MarkweaveEditorRuntimeSnapshot,
+  type MarkweaveSearchController,
   type MarkweaveMenuCopyPayload,
   type MarkweaveCommandController,
   type MarkweaveUploadRequest,
@@ -22,6 +24,7 @@ import {
   createPlaygroundHostCommands,
   createPlaygroundHostExtension,
   downloadPlaygroundAttachment,
+  flakyMediaRecoveryFixture,
   initialPlaygroundDocument,
   largeDocumentPerformanceFixture,
   largeMissingMediaPerformanceFixture,
@@ -61,7 +64,20 @@ export function MarkweaveEditorPlayground() {
   const [aiEditController, setAiEditController] = useState<MarkweaveAiEditController | null>(null);
   const [lastAiEditStatus, setLastAiEditStatus] = useState<string | null>(null);
   const [commandController, setCommandController] = useState<MarkweaveCommandController | null>(null);
+  const [searchController, setSearchController] = useState<MarkweaveSearchController | null>(null);
   const [lastCommandStatus, setLastCommandStatus] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!benchmarkMode) return;
+    (globalThis as typeof globalThis & {
+      __markweaveSearchController?: MarkweaveSearchController | null;
+    }).__markweaveSearchController = searchController;
+    return () => {
+      delete (globalThis as typeof globalThis & {
+        __markweaveSearchController?: MarkweaveSearchController | null;
+      }).__markweaveSearchController;
+    };
+  }, [benchmarkMode, searchController]);
 
   const resetDebugState = () => {
     setRuntimeSnapshot(null);
@@ -70,6 +86,16 @@ export function MarkweaveEditorPlayground() {
     setLastTableEditWithAiRequest(null);
     setLastFloatingToolbarAssistantRequest(null);
     setLastSlashUploadRequest(null);
+  };
+
+  const recordBenchmarkLoadState = (state: MarkweaveDocumentLoadState) => {
+    if (!benchmarkMode) return;
+    const benchmark = (globalThis as typeof globalThis & {
+      __markweaveBenchmark?: {
+        loadStates: Array<{ at: number; phase: MarkweaveDocumentLoadState["phase"] }>;
+      };
+    }).__markweaveBenchmark;
+    benchmark?.loadStates.push({ at: performance.now(), phase: state.phase });
   };
 
   const loadFixture = (content: string, format: MarkweaveContentFormat = "markdown") => {
@@ -232,9 +258,12 @@ export function MarkweaveEditorPlayground() {
         onTableCommandResult={setLastTableCommandResult}
         onTableCopyPayload={setLastTableCopyPayload}
         onAiEditControllerChange={setAiEditController}
+        onDocumentLoadStateChange={recordBenchmarkLoadState}
+        onSearchControllerChange={setSearchController}
         commandGroups={playgroundCommandGroups}
         commands={playgroundHostCommands}
-        editorExtensions={[playgroundHostExtension]}
+        editorExtensions={benchmarkMode ? undefined : [playgroundHostExtension]}
+        editorExtensionsLoadPolicy="transactional-safe"
         onCommandControllerChange={setCommandController}
         onCommandError={(error) => setLastCommandStatus(`${error.code}: ${error.message}`)}
       />
@@ -246,6 +275,9 @@ export function MarkweaveEditorPlayground() {
           </button>
           <button type="button" onClick={() => loadFixture(mergedTablePlaygroundDocument, "html")}>
             Merged Table Fixture
+          </button>
+          <button type="button" onClick={() => loadFixture(flakyMediaRecoveryFixture)}>
+            Flaky Media Recovery Fixture
           </button>
           <button type="button" onClick={() => loadFixture(largeDocumentPerformanceFixture)}>
             100k Performance Fixture

@@ -542,4 +542,16 @@ describe("editor style boundary", () => {
     expect(editorCss).toContain("font-style: italic");
     expect(editorCss).toContain("font-synthesis: style");
   });
+
+  it("uses structural large-document estimates and materializes complete print output", () => {
+    expect(editorCss).toContain('> :is(h1, h2, h3, h4, h5, h6)');
+    expect(editorCss).toContain("contain-intrinsic-size: auto 44px");
+    expect(editorCss).toContain("contain-intrinsic-size: auto 96px");
+    expect(editorCss).toContain("contain-intrinsic-size: auto 120px");
+    expect(editorCss).toContain("contain-intrinsic-size: auto 160px");
+    expect(editorCss).toContain("contain-intrinsic-size: auto 240px");
+    expect(editorCss).toContain('[data-markweave-viewport-pinned="true"]');
+    expect(editorCss).toContain('[data-markweave-output="true"] > *');
+    expect(editorCss).toMatch(/@media print\s*\{[\s\S]*content-visibility: visible !important;[\s\S]*\.markweave-inner-toc/);
+  });
 });

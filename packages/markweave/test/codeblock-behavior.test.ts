@@ -4,8 +4,10 @@ import { Editor } from "@tiptap/core";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createMarkweaveEditorExtensions } from "../src/editor-core/create-editor-extensions";
 import { createSelectionSnapshot } from "../src/editor-core/selection-state";
+import { markweaveDocumentLoadMetaKey } from "../src/editor-core/document-load";
 import {
   copyActiveCodeBlock,
+  codeBlockCollapsePluginKey,
   formatCodeBlockCopyFeedback,
   getActiveCodeBlockState,
   getCodeBlockCopyFeedbackSnapshot,
@@ -454,6 +456,42 @@ gamma</code></pre>`);
     expect(setActiveCodeBlockCollapsed(editor, false)).toBe(true);
     expect(isActiveCodeBlockCollapsed(editor)).toBe(false);
     expect(editor.getHTML()).toBe(initialHtml);
+  });
+
+  it("maps collapsed code blocks through edits before them without rescanning the document", () => {
+    const editor = createEditor(`<p>before</p><pre><code>alpha
+beta
+gamma</code></pre>`);
+    expect(editor.commands.setTextSelection(textPosition(editor, "beta"))).toBe(true);
+    expect(setActiveCodeBlockCollapsed(editor, true)).toBe(true);
+    const previousState = codeBlockCollapsePluginKey.getState(editor.state);
+    const previousPos = [...(previousState?.blocksByPos.keys() ?? [])][0];
+
+    expect(previousState?.size).toBe(1);
+    expect(editor.commands.setTextSelection(textPosition(editor, "before"))).toBe(true);
+    expect(editor.commands.insertContent(" updated")).toBe(true);
+
+    const nextState = codeBlockCollapsePluginKey.getState(editor.state);
+    const nextPos = [...(nextState?.blocksByPos.keys() ?? [])][0];
+    expect(nextState?.size).toBe(1);
+    expect(nextPos).toBeGreaterThan(previousPos ?? -1);
+    expect(editor.view.dom.querySelector("pre")?.getAttribute("data-markweave-collapsed")).toBe("true");
+    expect(editor.view.dom.querySelector("pre")?.getAttribute("data-markweave-collapsed-lines")).toBe("3 lines");
+  });
+
+  it("clears ephemeral collapse state at a document-load boundary", () => {
+    const editor = createEditor("<pre><code>temporary collapse</code></pre>");
+    expect(editor.commands.setTextSelection(textPosition(editor, "temporary"))).toBe(true);
+    expect(setActiveCodeBlockCollapsed(editor, true)).toBe(true);
+    expect(isActiveCodeBlockCollapsed(editor)).toBe(true);
+
+    editor.view.dispatch(
+      editor.state.tr.setMeta(markweaveDocumentLoadMetaKey, { phase: "complete" }),
+    );
+
+    expect(codeBlockCollapsePluginKey.getState(editor.state)?.size).toBe(0);
+    expect(isActiveCodeBlockCollapsed(editor)).toBe(false);
+    expect(editor.view.dom.querySelector("pre")?.hasAttribute("data-markweave-collapsed")).toBe(false);
   });
 
   it("returns a stable failed result when the code block clipboard write is rejected", async () => {

@@ -1,12 +1,11 @@
 import { flattenExtensions, mergeAttributes, Node, type AnyExtension, type Extensions, type JSONContent, type MarkdownRendererHelpers, type MarkdownTokenizer, type RenderContext } from "@tiptap/core";
-import CodeBlockLowlight from "@tiptap/extension-code-block-lowlight";
 import Emoji, { emojis } from "@tiptap/extension-emoji";
 import Highlight from "@tiptap/extension-highlight";
 import { Heading } from "@tiptap/extension-heading";
 import HorizontalRule from "@tiptap/extension-horizontal-rule";
 import Link from "@tiptap/extension-link";
 import { Markdown } from "@tiptap/markdown";
-import Mathematics from "@tiptap/extension-mathematics";
+import Mathematics, { BlockMath, InlineMath } from "@tiptap/extension-mathematics";
 import OrderedList from "@tiptap/extension-ordered-list";
 import { Paragraph } from "@tiptap/extension-paragraph";
 import Subscript from "@tiptap/extension-subscript";
@@ -29,7 +28,10 @@ import { MarkweaveDetails, MarkweaveDetailsSummary } from "../plugins/details/de
 import { MarkweaveAskAi } from "../plugins/ask-ai/ask-ai-session";
 import { MarkweaveAiEdit } from "../plugins/ai-edit/ai-edit-controller";
 import { MarkweaveCodeBlockClickFocus, MarkweaveCodeBlockCollapse, markweaveCodeBlockBehavior } from "../plugins/codeblock/codeblock-behavior";
-import { createMarkweaveLowlight } from "../plugins/codeblock/codeblock-lowlight";
+import {
+  createMarkweaveLowlight,
+  MarkweaveCodeBlockLowlight,
+} from "../plugins/codeblock/codeblock-lowlight";
 import { MarkweaveIndent, normalizeMarkweaveIndentLevel } from "../plugins/indent/indent-extension";
 import {
   MarkweaveInternalLinkCard,
@@ -305,6 +307,32 @@ const MarkweaveTaskList = Node.create<{
 const orderedListMarkdownTokenizer = (
   OrderedList.config as { readonly markdownTokenizer: MarkdownTokenizer }
 ).markdownTokenizer;
+const tableMarkdownTokenizer = (
+  Table.config as { readonly markdownTokenizer: MarkdownTokenizer }
+).markdownTokenizer;
+const blockMathMarkdownTokenizer = (
+  BlockMath.config as { readonly markdownTokenizer: MarkdownTokenizer }
+).markdownTokenizer;
+export const MarkweaveBlockMath = BlockMath.extend({
+  markdownTokenizer: {
+    ...blockMathMarkdownTokenizer,
+    start: (src) => src.slice(0, 8_192).indexOf("$$"),
+  },
+});
+const MarkweaveMathematics = Mathematics.extend({
+  addExtensions() {
+    return [
+      MarkweaveBlockMath.configure({
+        ...this.options.blockOptions,
+        katexOptions: this.options.katexOptions,
+      }),
+      InlineMath.configure({
+        ...this.options.inlineOptions,
+        katexOptions: this.options.katexOptions,
+      }),
+    ];
+  },
+});
 const orderedListStartRegex =
   /^(\s*)(?:\d+|[ivxlcdmIVXLCDM]+|[a-zA-Z]{1,2})[.)]\s+/;
 
@@ -417,6 +445,17 @@ export function createMarkweaveEditorExtensions(options: CreateMarkweaveEditorEx
     },
   });
   const markweaveTable = Table.extend({
+    markdownTokenizer: {
+      ...tableMarkdownTokenizer,
+      start(src) {
+        const first = readMarkdownLine(src, 0);
+        if (first.end >= src.length || !first.text.includes("|")) return -1;
+        const second = readMarkdownLine(src, first.end).text;
+        return /^[ \t|:]*-[ \t|:-]*$/.test(second) && second.includes("|")
+          ? 0
+          : -1;
+      },
+    },
     renderMarkdown(node, helpers, context) {
       if (needsMarkweaveTableHtmlFallback(node)) {
         return htmlFallback.renderBlock(node);
@@ -476,12 +515,12 @@ export function createMarkweaveEditorExtensions(options: CreateMarkweaveEditorEx
     TextAlign.configure({
       types: ["heading", "paragraph"],
     }),
-    Mathematics.configure({
+    MarkweaveMathematics.configure({
       katexOptions: {
         throwOnError: false,
       },
     }),
-    CodeBlockLowlight.configure({
+    MarkweaveCodeBlockLowlight.configure({
       lowlight: markweaveLowlight,
       defaultLanguage: markweaveCodeBlockBehavior.defaultLanguage,
       enableTabIndentation: true,

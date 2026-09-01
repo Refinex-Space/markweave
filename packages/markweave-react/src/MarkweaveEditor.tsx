@@ -5,6 +5,10 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ComponentProps,
 import { isEditorComposing } from "markweave/internal/editor-core/composition-guard";
 import { createMarkweaveFrameScheduler } from "markweave/internal/editor-core/frame-scheduler";
 import {
+  createMarkweaveDocumentViewportCoordinator,
+  type MarkweaveDocumentViewportSnapshot,
+} from "markweave/internal/core/document-viewport";
+import {
   createMarkweaveEditorUpdatePayload,
   getMarkweaveContentType,
   isMarkweaveControlledContentEchoCurrent,
@@ -13,6 +17,18 @@ import {
   type MarkweaveControlledContentEcho,
 } from "markweave/internal/editor-core/editor-content";
 import { createMarkweaveEditorRuntimeSnapshot } from "markweave/internal/editor-core/runtime-snapshot";
+import {
+  createMarkweaveDocumentLoadState,
+  getMarkweaveContentLength,
+  getMarkweaveDocumentLoadMeta,
+  loadMarkweaveDocument,
+  profileMarkweaveDocument,
+  resolveMarkweavePerformanceTier,
+  shouldCoordinateMarkweaveDocumentLoad,
+  type MarkweaveDocumentLoadState,
+  type MarkweaveEditorExtensionsLoadPolicy,
+  type MarkweavePerformancePolicy,
+} from "markweave/internal/editor-core/document-load";
 import {
   areEditorSelectionSnapshotsEquivalent,
   createSelectionSnapshot,
@@ -107,7 +123,6 @@ import type { MarkweaveInternalLinkCardConfig } from "markweave/internal/plugins
 import type { MarkweaveLinkCardResolver } from "markweave/internal/plugins/link-card/link-card";
 import type { MarkweaveReferenceSuggestionConfig } from "markweave/internal/plugins/reference/reference-suggestion";
 import type { MarkweaveMediaSourceResolver } from "markweave/internal/plugins/media/media-source";
-import { splitMarkweaveLargeMarkdown } from "markweave/internal/core/large-document";
 import {
   createMarkweaveSearchController,
   type MarkweaveSearchController,
@@ -161,6 +176,9 @@ export interface MarkweaveEditorControllerOptions {
   readonly innerToc?: boolean;
   readonly innerTocPlacement?: MarkweaveInnerTocPlacement;
   readonly autofocus?: boolean;
+  readonly performancePolicy?: MarkweavePerformancePolicy;
+  readonly onDocumentLoadStateChange?: (state: MarkweaveDocumentLoadState) => void;
+  readonly editorExtensionsLoadPolicy?: MarkweaveEditorExtensionsLoadPolicy;
   readonly lang?: MarkweaveLang;
   readonly ariaLabel?: string;
   /** Reveals normalized `[label](target)` source for the active inline link in Live mode. */
@@ -283,6 +301,8 @@ export function useMarkweaveEditorController({
   ariaLabel,
   autoFocusFirstTableBodyCell = false,
   autofocus = false,
+  performancePolicy = "auto",
+  editorExtensionsLoadPolicy = "atomic",
   content,
   contentFormat,
   defaultContent = "",
@@ -300,6 +320,7 @@ export function useMarkweaveEditorController({
   onRewriteSelection,
   onAiEditControllerChange,
   onRuntimeStateChange,
+  onDocumentLoadStateChange,
   onSearchControllerChange,
   commandGroups,
   commands,
@@ -326,19 +347,27 @@ export function useMarkweaveEditorController({
   const effectiveEditable = editorMode === "live" && editable !== false;
   const activeContentFormat = normalizeMarkweaveContentFormat(content === undefined ? defaultContentFormat : contentFormat);
   const initialContent = content ?? defaultContent;
-  const largeDocument =
-    typeof initialContent === "string" && initialContent.length >= 200_000;
-  const progressivelyLoadLargeDocument =
-    content === undefined &&
-    activeContentFormat === "markdown" &&
-    largeDocument &&
-    typeof initialContent === "string";
-  const progressiveMarkdownRef = useRef(
-    progressivelyLoadLargeDocument ? initialContent : null,
+  const coordinateInitialDocumentLoad = shouldCoordinateMarkweaveDocumentLoad(
+    initialContent,
+    performancePolicy,
   );
-  const [largeDocumentLoading, setLargeDocumentLoading] = useState(
-    progressivelyLoadLargeDocument,
+  const [documentLoadState, setDocumentLoadState] = useState<MarkweaveDocumentLoadState>(() =>
+    createMarkweaveDocumentLoadState({
+      phase: coordinateInitialDocumentLoad ? "parsing" : "ready",
+      tier: performancePolicy === "auto"
+        ? getMarkweaveContentLength(initialContent) >= 200_000
+          ? "large"
+          : "standard"
+        : performancePolicy,
+      progress: coordinateInitialDocumentLoad ? null : 1,
+    }),
   );
+  const initialDocumentLoadCompletedRef = useRef(!coordinateInitialDocumentLoad);
+  const documentLoadStateRef = useRef(documentLoadState);
+  documentLoadStateRef.current = documentLoadState;
+  const documentProfileTimerRef = useRef<number | null>(null);
+  const largeDocumentLoading = !["ready", "error", "cancelled"].includes(documentLoadState.phase);
+  const largeDocument = documentLoadState.tier !== "standard" || coordinateInitialDocumentLoad;
   const runtimeModeRef = useRef({ editorMode, effectiveEditable });
   runtimeModeRef.current = { editorMode, effectiveEditable };
   const langRef = useRef<MarkweaveLang | null>(null);
@@ -469,6 +498,10 @@ export function useMarkweaveEditorController({
   const [tableInteractionState, setTableInteractionState] = useState<TableInteractionState>(initialTableInteractionState);
   const [tocActiveId, setTocActiveId] = useState<string | null>(null);
   const [revision, setRevision] = useState(0);
+  const [viewportSnapshot, setViewportSnapshot] = useState<MarkweaveDocumentViewportSnapshot>({
+    state: "idle",
+    pendingVisualWork: 0,
+  });
   const applyingControlledContentRef = useRef(false);
   const controlledContentRef = useRef({ content, format: activeContentFormat });
   const controlledContentEchoRef = useRef<MarkweaveControlledContentEcho | null>(null);
@@ -478,6 +511,15 @@ export function useMarkweaveEditorController({
 
   callbacksRef.current = { onUpdate };
   controlledContentRef.current = { content, format: activeContentFormat };
+
+  const refreshDocumentProfile = useCallback((activeEditor: Editor, sourceLength?: number) => {
+    const profile = profileMarkweaveDocument(
+      activeEditor.state.doc,
+      sourceLength ?? activeEditor.state.doc.content.size,
+    );
+    const tier = resolveMarkweavePerformanceTier(profile, performancePolicy);
+    setDocumentLoadState((current) => ({ ...current, tier, profile }));
+  }, [performancePolicy]);
 
   const flushRuntimeProjection = useCallback(() => {
     if (projectionTimerRef.current !== null) {
@@ -500,6 +542,12 @@ export function useMarkweaveEditorController({
   useEffect(() => () => {
     if (projectionTimerRef.current !== null) {
       window.clearTimeout(projectionTimerRef.current);
+    }
+  }, []);
+
+  useEffect(() => () => {
+    if (documentProfileTimerRef.current !== null) {
+      window.clearTimeout(documentProfileTimerRef.current);
     }
   }, []);
 
@@ -558,10 +606,10 @@ export function useMarkweaveEditorController({
   const editor = useEditor({
     shouldRerenderOnTransaction: false,
     extensions,
-    content: progressivelyLoadLargeDocument ? "" : initialContent,
+    content: coordinateInitialDocumentLoad ? "" : initialContent,
     contentType: getMarkweaveContentType(activeContentFormat),
-    editable: effectiveEditable,
-    autofocus,
+    editable: effectiveEditable && !coordinateInitialDocumentLoad,
+    autofocus: coordinateInitialDocumentLoad ? false : autofocus,
     editorProps: {
       attributes: {
         class: "markweave-editor-surface",
@@ -616,7 +664,10 @@ export function useMarkweaveEditorController({
       syncSelectionState(activeEditor);
     },
     onCreate: ({ editor: activeEditor }) => {
-      if (autoFocusFirstTableBodyCell && runtimeModeRef.current.effectiveEditable) {
+      if (!coordinateInitialDocumentLoad) {
+        refreshDocumentProfile(activeEditor, getMarkweaveContentLength(initialContent));
+      }
+      if (!coordinateInitialDocumentLoad && autoFocusFirstTableBodyCell && runtimeModeRef.current.effectiveEditable) {
         focusFirstTableBodyCell(activeEditor);
       }
 
@@ -625,11 +676,23 @@ export function useMarkweaveEditorController({
       flushRuntimeProjection();
     },
     onTransaction: ({ editor: activeEditor, transaction }) => {
+      if (getMarkweaveDocumentLoadMeta(transaction)) {
+        return;
+      }
       syncTableInteractionState(activeEditor);
       if (transaction.docChanged || isMermaidInlinePreviewTransaction(transaction)) {
         scheduleRuntimeProjection();
       }
       if (transaction.docChanged) {
+        if (documentLoadStateRef.current.phase === "ready") {
+          if (documentProfileTimerRef.current !== null) {
+            window.clearTimeout(documentProfileTimerRef.current);
+          }
+          documentProfileTimerRef.current = window.setTimeout(() => {
+            documentProfileTimerRef.current = null;
+            refreshDocumentProfile(activeEditor);
+          }, 250);
+        }
         setMathTarget((current) => {
           if (!current) {
             return null;
@@ -660,64 +723,61 @@ export function useMarkweaveEditorController({
   });
 
   useEffect(() => {
-    const markdown = progressiveMarkdownRef.current;
-    if (!editor || !markdown) {
+    if (!editor || !coordinateInitialDocumentLoad || initialDocumentLoadCompletedRef.current) {
       return;
     }
 
-    let cancelled = false;
-    void (async () => {
-      applyingControlledContentRef.current = true;
-      try {
-        let firstChunk = true;
-        for (const chunk of splitMarkweaveLargeMarkdown(markdown)) {
-          await new Promise<void>((resolve) => window.setTimeout(resolve, 0));
-          if (cancelled) {
-            return;
-          }
-          const parsed = editor.markdown?.parse(chunk);
-          if (!parsed) {
-            throw new Error("Markdown parser is unavailable.");
-          }
-          const fragment = editor.schema.nodeFromJSON(parsed).content;
-          const transaction = firstChunk
-            ? editor.state.tr.replaceWith(
-                0,
-                editor.state.doc.content.size,
-                fragment,
-              )
-            : editor.state.tr.insert(editor.state.doc.content.size, fragment);
-          editor.view.dispatch(transaction.setMeta("addToHistory", false));
-          firstChunk = false;
-        }
-        if (cancelled) {
-          return;
-        }
-
-        syncSelectionState(editor);
-        syncTableInteractionState(editor);
-        flushRuntimeProjection();
-        progressiveMarkdownRef.current = null;
-        setLargeDocumentLoading(false);
-      } finally {
-        applyingControlledContentRef.current = false;
+    const controller = new AbortController();
+    applyingControlledContentRef.current = true;
+    void loadMarkweaveDocument(editor, {
+      content: initialContent,
+      format: activeContentFormat,
+      performancePolicy,
+      allowProgressiveMount: !editorExtensions?.length || editorExtensionsLoadPolicy === "transactional-safe",
+      allowBuiltInMarkdownWorker: !editorExtensions?.length,
+      signal: controller.signal,
+      onStateChange: (state) => {
+        setDocumentLoadState(state);
+      },
+    }).then(() => {
+      if (controller.signal.aborted) return;
+      initialDocumentLoadCompletedRef.current = true;
+      syncSelectionState(editor);
+      syncTableInteractionState(editor);
+      flushRuntimeProjection();
+      if (autoFocusFirstTableBodyCell && effectiveEditable) {
+        focusFirstTableBodyCell(editor);
+      } else if (autofocus && effectiveEditable) {
+        editor.commands.focus("start", { scrollIntoView: false });
       }
-    })().catch(() => {
-      if (cancelled) {
-        return;
-      }
-      editor.commands.setContent(markdown, {
-        contentType: "markdown",
-        emitUpdate: false,
-      });
-      progressiveMarkdownRef.current = null;
-      setLargeDocumentLoading(false);
+    }).catch(() => undefined).finally(() => {
+      if (!controller.signal.aborted) applyingControlledContentRef.current = false;
     });
 
     return () => {
-      cancelled = true;
+      controller.abort();
+      applyingControlledContentRef.current = false;
     };
-  }, [editor, flushRuntimeProjection, syncSelectionState, syncTableInteractionState]);
+  }, [
+    activeContentFormat,
+    autoFocusFirstTableBodyCell,
+    autofocus,
+    coordinateInitialDocumentLoad,
+    editor,
+    editorExtensions,
+    editorExtensionsLoadPolicy,
+    effectiveEditable,
+    flushRuntimeProjection,
+    initialContent,
+    onDocumentLoadStateChange,
+    performancePolicy,
+    syncSelectionState,
+    syncTableInteractionState,
+  ]);
+
+  useEffect(() => {
+    onDocumentLoadStateChange?.(documentLoadState);
+  }, [documentLoadState, onDocumentLoadStateChange]);
 
   useEffect(() => {
     if (!editor) {
@@ -728,6 +788,16 @@ export function useMarkweaveEditorController({
 
     return () => {
       searchControllerChangeRef.current?.(null);
+    };
+  }, [editor]);
+
+  useEffect(() => {
+    if (!editor) return;
+    const coordinator = createMarkweaveDocumentViewportCoordinator(editor);
+    const unsubscribe = coordinator.subscribe(setViewportSnapshot);
+    return () => {
+      unsubscribe();
+      coordinator.destroy();
     };
   }, [editor]);
 
@@ -781,8 +851,8 @@ export function useMarkweaveEditorController({
       return;
     }
 
-    const editableNow = effectiveEditable && !largeDocumentLoading;
-    editor.setEditable(editableNow);
+    const editableNow = effectiveEditable && documentLoadState.phase === "ready";
+    editor.setEditable(editableNow, false);
     setMarkweaveEditorModeState(editor, { mode: editorMode, editable: editableNow });
     setMermaidInlinePreviewEditorMode(editor, editableNow ? "live" : "view");
     flushRuntimeProjection();
@@ -790,7 +860,7 @@ export function useMarkweaveEditorController({
     if (!effectiveEditable) {
       closeSlashMenu();
     }
-  }, [closeSlashMenu, editor, editorMode, effectiveEditable, flushRuntimeProjection, largeDocumentLoading]);
+  }, [closeSlashMenu, documentLoadState.phase, editor, editorMode, effectiveEditable, flushRuntimeProjection]);
 
   useEffect(() => {
     if (editor) {
@@ -799,8 +869,23 @@ export function useMarkweaveEditorController({
   }, [editor, resolvedTheme]);
 
   useEffect(() => {
+    if (!editor) return;
+    editor.view.dom.setAttribute(
+      "data-markweave-large-document",
+      documentLoadState.tier === "standard" ? "false" : "true",
+    );
+    editor.view.dom.setAttribute(
+      "data-markweave-performance-tier",
+      documentLoadState.tier,
+    );
+  }, [documentLoadState.tier, editor]);
+
+  useEffect(() => {
     const normalizedContentFormat = normalizeMarkweaveContentFormat(contentFormat);
     if (!editor || content === undefined) {
+      return;
+    }
+    if (coordinateInitialDocumentLoad && largeDocumentLoading) {
       return;
     }
 
@@ -817,13 +902,17 @@ export function useMarkweaveEditorController({
     applyingControlledContentRef.current = true;
     editor.commands.setContent(content, { contentType: getMarkweaveContentType(normalizedContentFormat), emitUpdate: false });
     applyingControlledContentRef.current = false;
+    if (documentLoadState.phase !== "ready") {
+      setDocumentLoadState((current) => ({ ...current, phase: "ready", progress: 1, error: null }));
+    }
     syncSelectionState(editor);
     if (effectiveEditable) {
       syncSlashCommandState(editor);
     }
     syncTableInteractionState(editor);
+    refreshDocumentProfile(editor, getMarkweaveContentLength(content));
     flushRuntimeProjection();
-  }, [content, contentFormat, effectiveEditable, editor, flushRuntimeProjection, syncSelectionState, syncSlashCommandState, syncTableInteractionState]);
+  }, [content, contentFormat, coordinateInitialDocumentLoad, documentLoadState.phase, effectiveEditable, editor, flushRuntimeProjection, largeDocumentLoading, refreshDocumentProfile, syncSelectionState, syncSlashCommandState, syncTableInteractionState]);
 
   useEffect(() => {
     if (!slashMenuPosition) {
@@ -957,9 +1046,17 @@ export function useMarkweaveEditorController({
       codeBlock: codeBlockState,
       mermaid: mermaidPreviewState,
       tableDebugSnapshot,
+      performance: {
+        tier: documentLoadState.tier,
+        loadPhase: documentLoadState.phase,
+        viewportState: viewportSnapshot.state,
+        pendingVisualWork: viewportSnapshot.pendingVisualWork,
+      },
     }),
     [
       codeBlockState,
+      documentLoadState.phase,
+      documentLoadState.tier,
       editorMode,
       effectiveEditable,
       mermaidPreviewState,
@@ -970,6 +1067,8 @@ export function useMarkweaveEditorController({
       tableFocusState,
       tableInteractionState,
       tocState,
+      viewportSnapshot.pendingVisualWork,
+      viewportSnapshot.state,
     ],
   );
 
@@ -1008,7 +1107,7 @@ export function useMarkweaveEditorController({
         }
         if (!result.ok) setSlashCommandError(result.message);
         syncSlashCommandState(editor);
-        editor.commands.focus();
+        editor.commands.focus(undefined, { scrollIntoView: false });
       });
     },
     [closeSlashMenu, effectiveEditable, editor, syncSlashCommandState],
@@ -1101,27 +1200,32 @@ export function useMarkweaveEditorController({
           syncSlashCommandState(editor);
         }
         syncTableInteractionState(editor);
+        refreshDocumentProfile(editor, getMarkweaveContentLength(nextContent));
         flushRuntimeProjection();
         return true;
       },
     }),
-    [closeSlashMenu, effectiveEditable, editor, flushRuntimeProjection, syncSelectionState, syncSlashCommandState, syncTableInteractionState],
+    [closeSlashMenu, effectiveEditable, editor, flushRuntimeProjection, refreshDocumentProfile, syncSelectionState, syncSlashCommandState, syncTableInteractionState],
   );
 
   const frameProps = useMemo<MarkweaveEditorFrameProps>(
     () => ({
       className: "markweave-editor-frame",
-      role: "combobox",
+      role: slashMenuPosition !== null && slashState.name !== "executing" ? "combobox" : undefined,
       "aria-label": ariaLabel ?? messages.common.editorAriaLabel,
       "aria-expanded": slashMenuPosition !== null && slashState.name !== "executing",
-      "aria-controls": "markweave-slash-command-listbox",
-      "aria-activedescendant": filteredSlashCommands.length && slashState.name !== "executing"
+      "aria-controls": slashMenuPosition !== null && slashState.name !== "executing"
+        ? "markweave-slash-command-listbox"
+        : undefined,
+      "aria-activedescendant": slashMenuPosition !== null && filteredSlashCommands.length && slashState.name !== "executing"
         ? `markweave-slash-command-option-${Math.min(filteredSlashCommands.length - 1, Math.max(0, slashState.activeIndex))}`
         : undefined,
       "data-testid": "markweave-editor-frame",
       "data-markweave-mode": editorMode,
       "aria-busy": largeDocumentLoading || slashState.name === "executing",
       "data-markweave-large-document-loading": largeDocumentLoading ? "true" : "false",
+      "data-markweave-document-loading": largeDocumentLoading ? "true" : "false",
+      "data-markweave-performance-tier": documentLoadState.tier,
       "data-markweave-theme": resolvedTheme,
       style: resolvedCanvasColor ? ({ "--markweave-canvas": resolvedCanvasColor } as CSSProperties) : undefined,
       "data-markweave-inner-toc": innerToc ? "true" : "false",
@@ -1130,7 +1234,7 @@ export function useMarkweaveEditorController({
       "data-table-focus-mode": tableFocusState.mode,
       onKeyDownCapture: handleEditorKeyDown,
     }),
-    [ariaLabel, editorMode, filteredSlashCommands.length, handleEditorKeyDown, innerToc, largeDocumentLoading, mermaidPreviewState.mode, messages.common.editorAriaLabel, resolvedCanvasColor, resolvedInnerTocPlacement, resolvedTheme, slashMenuPosition, slashState.activeIndex, slashState.name, tableFocusState.mode],
+    [ariaLabel, documentLoadState.tier, editorMode, filteredSlashCommands.length, handleEditorKeyDown, innerToc, largeDocumentLoading, mermaidPreviewState.mode, messages.common.editorAriaLabel, resolvedCanvasColor, resolvedInnerTocPlacement, resolvedTheme, slashMenuPosition, slashState.activeIndex, slashState.name, tableFocusState.mode],
   );
 
   const overlayProps = useMemo<MarkweaveEditorOverlayProps>(

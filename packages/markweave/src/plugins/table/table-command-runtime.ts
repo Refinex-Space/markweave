@@ -320,7 +320,7 @@ export function moveTargetedTableAxis(editor: Editor, kind: TableAxisKind, from:
   }
 
   const command = kind === "row" ? moveTableRow({ from, to, select: true }) : moveTableColumn({ from, to, select: true });
-  editor.commands.focus();
+  editor.commands.focus(undefined, { scrollIntoView: false });
   const result = command(editor.state, editor.view.dispatch);
   restoreTableFocusIfNeeded(editor);
   return result;
@@ -349,7 +349,7 @@ function runMarkweaveMergeCellsCommand(editor: Editor) {
     return false;
   }
 
-  editor.commands.focus();
+  editor.commands.focus(undefined, { scrollIntoView: false });
   const result = mergeTableCells(editor.state, editor.view.dispatch);
   refocusTableCommandResult(editor);
   return result;
@@ -360,7 +360,7 @@ function runMarkweaveSplitCellCommand(editor: Editor) {
     return false;
   }
 
-  editor.commands.focus();
+  editor.commands.focus(undefined, { scrollIntoView: false });
   const result = splitTableCell(editor.state, editor.view.dispatch);
   refocusTableCommandResult(editor);
   return result;
@@ -450,7 +450,7 @@ function runTableMoveRowCommand(editor: Editor, direction: -1 | 1) {
     return false;
   }
 
-  editor.commands.focus();
+  editor.commands.focus(undefined, { scrollIntoView: false });
   const result = moveTableRow({ from: target.from, to: target.to, select: true })(editor.state, editor.view.dispatch);
   restoreTableFocusIfNeeded(editor);
   return result;
@@ -463,7 +463,7 @@ function runTableMoveColumnCommand(editor: Editor, direction: -1 | 1) {
     return false;
   }
 
-  editor.commands.focus();
+  editor.commands.focus(undefined, { scrollIntoView: false });
   const result = moveTableColumn({ from: target.from, to: target.to, select: true })(editor.state, editor.view.dispatch);
   restoreTableFocusIfNeeded(editor);
   return result;

@@ -57,6 +57,11 @@ function MarkweaveVideoNodeView(props: NodeViewProps) {
   const [inputValue, setInputValue] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [iframeLoad, setIframeLoad] = useState<{
+    readonly state: "pending" | "resolved" | "unreadable";
+    readonly url: string | null;
+  }>({ state: "pending", url: safeEmbedUrl });
+  const iframeState = iframeLoad.url === safeEmbedUrl ? iframeLoad.state : "pending";
   const showPlaceholder = canEditVideo && !src;
 
   const selectVideoNode = () => {
@@ -181,15 +186,19 @@ function MarkweaveVideoNodeView(props: NodeViewProps) {
       {safeEmbedUrl ? (
         <div className="markweave-video-embed">
           <iframe
+            key={safeEmbedUrl}
             className="markweave-video-iframe"
             src={safeEmbedUrl}
             title={title ?? `${provider ?? "Video"} embed`}
             data-markweave-video-embed="true"
             data-markweave-video-provider={provider ?? undefined}
             data-markweave-video-src={src ?? undefined}
+            data-markweave-iframe-state={iframeState}
             allow={markweaveVideoIframeAllow}
             loading="lazy"
             allowFullScreen
+            onLoad={() => setIframeLoad({ state: "resolved", url: safeEmbedUrl })}
+            onError={() => setIframeLoad({ state: "unreadable", url: safeEmbedUrl })}
           />
           {canEditVideo ? <button type="button" className="markweave-video-selection-layer" data-testid="markweave-video-selection-layer" tabIndex={-1} aria-label={videoMessages.selectAriaLabel} /> : null}
         </div>

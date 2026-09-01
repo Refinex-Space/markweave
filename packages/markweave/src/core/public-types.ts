@@ -11,6 +11,10 @@ import type { TableInteractionState } from "../plugins/table/table-interaction-l
 import type { MarkweaveEditorMode } from "./editor-mode-state";
 import type { MarkweaveTocState } from "./toc-state";
 import type { MarkweaveLang } from "../i18n";
+import type {
+  MarkweaveDocumentLoadPhase,
+  MarkweavePerformanceTier,
+} from "../editor-core/document-load";
 
 export type MarkweaveContentFormat = "markdown" | "html" | "json";
 export type MarkweaveContentValue = string | JSONContent;
@@ -279,6 +283,14 @@ export interface MarkweaveEditorRuntimeSnapshot {
   readonly codeBlock: MarkweaveCodeBlockState;
   readonly mermaid: MermaidPreviewState;
   readonly tableDebugSnapshot: TableDebugSnapshot | null;
+  readonly performance?: MarkweavePerformanceRuntimeSnapshot;
+}
+
+export interface MarkweavePerformanceRuntimeSnapshot {
+  readonly tier: MarkweavePerformanceTier;
+  readonly loadPhase: MarkweaveDocumentLoadPhase;
+  readonly viewportState?: "idle" | "scrolling" | "rapid" | "navigating" | "output";
+  readonly pendingVisualWork?: number;
 }
 
 export interface MarkweaveEditorSetContentOptions {

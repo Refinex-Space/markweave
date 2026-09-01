@@ -796,8 +796,12 @@ const MarkweaveVueVideoNodeView = defineComponent({
     const embedUrl = computed(() => stringAttribute(attrs.value.embedUrl));
     const provider = computed(() => stringAttribute(attrs.value.provider));
     const safeEmbedUrl = computed(() => (embedUrl.value ? normalizeMarkweaveVideoEmbedUrl(embedUrl.value, provider.value) : null));
+    const iframeState = ref<"pending" | "resolved" | "unreadable">("pending");
     const mimeType = computed(() => stringAttribute(attrs.value.mimeType));
     const title = computed(() => stringAttribute(attrs.value.title));
+    watch(safeEmbedUrl, () => {
+      iframeState.value = "pending";
+    });
 
     const closePlaceholder = () => {
       if (!src.value) {
@@ -920,15 +924,23 @@ const MarkweaveVueVideoNodeView = defineComponent({
           safeEmbedUrl.value
             ? h("div", { class: "markweave-video-embed" }, [
                 h("iframe", {
+                  key: safeEmbedUrl.value,
                   class: "markweave-video-iframe",
                   src: safeEmbedUrl.value,
                   title: title.value ?? `${provider.value ?? "Video"} embed`,
                   "data-markweave-video-embed": "true",
                   "data-markweave-video-provider": provider.value ?? undefined,
                   "data-markweave-video-src": src.value ?? undefined,
+                  "data-markweave-iframe-state": iframeState.value,
                   allow: markweaveVideoIframeAllow,
                   loading: "lazy",
                   allowfullscreen: "true",
+                  onLoad: () => {
+                    iframeState.value = "resolved";
+                  },
+                  onError: () => {
+                    iframeState.value = "unreadable";
+                  },
                 }),
                 canEdit.value
                   ? h("button", {

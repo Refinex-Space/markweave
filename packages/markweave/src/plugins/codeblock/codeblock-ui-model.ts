@@ -8,7 +8,10 @@ import {
   type MarkweaveCodeBlockLanguage,
 } from "./codeblock-behavior";
 import { formatCodeBlockLanguageLabel } from "./codeblock-language-catalog";
-import { getEffectiveMermaidPreviewMode } from "../mermaid/mermaid-inline-preview";
+import {
+  getEffectiveMermaidPreviewMode,
+  getMermaidCodeBlockPositions,
+} from "../mermaid/mermaid-inline-preview";
 import { normalizeMermaidPreviewMode, type MermaidPreviewMode } from "../mermaid/mermaid-renderer";
 
 export interface CodeBlockOverlayPosition {
@@ -175,13 +178,36 @@ export function getCodeBlockElementByDocumentOrder(editor: Editor, codeBlockPos:
   return editor.view.dom.querySelectorAll<HTMLElement>(codeBlockElementSelector)[codeBlockIndex] ?? null;
 }
 
+function getElementFromNode(node: Node | null) {
+  return node instanceof HTMLElement ? node : node?.parentElement ?? null;
+}
+
+function getCodeBlockElementAtPosition(editor: Editor, codeBlockPos: number) {
+  const node = editor.view.nodeDOM(codeBlockPos);
+  const element = getElementFromNode(node);
+
+  if (element?.matches(codeBlockElementSelector)) {
+    return element;
+  }
+
+  const closestCodeBlock = element?.closest<HTMLElement>(codeBlockElementSelector);
+  return closestCodeBlock && editor.view.dom.contains(closestCodeBlock) ? closestCodeBlock : null;
+}
+
 export function getActiveCodeBlockElement(editor: Editor, codeBlockPos: number | null, mermaidMode: MermaidPreviewMode) {
   if (codeBlockPos === null) {
     return null;
   }
 
+  const directCodeBlock = getCodeBlockElementAtPosition(editor, codeBlockPos);
+
   if (mermaidMode === "preview") {
-    const preview = editor.view.dom.ownerDocument.querySelector<HTMLElement>(
+    const directPreview = directCodeBlock?.nextElementSibling;
+    if (directPreview instanceof HTMLElement && directPreview.matches('[data-testid="markweave-mermaid-inline-preview"]')) {
+      return directPreview;
+    }
+
+    const preview = editor.view.dom.querySelector<HTMLElement>(
       `[data-testid="markweave-mermaid-inline-preview"][data-code-block-pos="${codeBlockPos}"]`,
     );
 
@@ -190,24 +216,8 @@ export function getActiveCodeBlockElement(editor: Editor, codeBlockPos: number |
     }
   }
 
-  const orderedCodeBlock = getCodeBlockElementByDocumentOrder(editor, codeBlockPos);
-
-  if (orderedCodeBlock) {
-    return orderedCodeBlock;
-  }
-
-  const node = editor.view.nodeDOM(codeBlockPos);
-
-  if (node instanceof HTMLElement) {
-    if (node.matches(codeBlockElementSelector)) {
-      return node;
-    }
-
-    const closestCodeBlock = node.closest<HTMLElement>(codeBlockElementSelector);
-
-    if (closestCodeBlock && editor.view.dom.contains(closestCodeBlock)) {
-      return closestCodeBlock;
-    }
+  if (directCodeBlock) {
+    return directCodeBlock;
   }
 
   return getCodeBlockElementByDocumentOrder(editor, codeBlockPos);
@@ -243,11 +253,11 @@ export function getCodeBlockStateAtPosition(editor: Editor, pos: number | null):
 export function getMermaidCodeBlockTargets(editor: Editor) {
   const targets: CodeBlockTargetState[] = [];
 
-  editor.state.doc.descendants((node, pos) => {
-    if (node.type.name !== "codeBlock") {
-      return true;
+  getMermaidCodeBlockPositions(editor.state).forEach((pos) => {
+    const node = editor.state.doc.nodeAt(pos);
+    if (!node || node.type.name !== "codeBlock") {
+      return;
     }
-
     const language = normalizeCodeBlockLanguage(node.attrs.language);
 
     if (language === "mermaid") {
@@ -264,13 +274,47 @@ export function getMermaidCodeBlockTargets(editor: Editor) {
       }
     }
 
-    return false;
   });
 
   return targets;
 }
 
+function getCodeBlockPositionAtDocumentPosition(editor: Editor, documentPos: number) {
+  const normalizedPos = Math.max(0, Math.min(documentPos, editor.state.doc.content.size));
+  const directNode = editor.state.doc.nodeAt(normalizedPos);
+
+  if (directNode?.type.name === "codeBlock") {
+    return normalizedPos;
+  }
+
+  const $position = editor.state.doc.resolve(normalizedPos);
+  for (let depth = $position.depth; depth > 0; depth -= 1) {
+    if ($position.node(depth).type.name === "codeBlock") {
+      return $position.before(depth);
+    }
+  }
+
+  if ($position.nodeBefore?.type.name === "codeBlock") {
+    return normalizedPos - $position.nodeBefore.nodeSize;
+  }
+  if ($position.nodeAfter?.type.name === "codeBlock") {
+    return normalizedPos;
+  }
+  return null;
+}
+
 export function getCodeBlockPositionForElement(editor: Editor, codeBlockElement: HTMLElement) {
+  try {
+    const documentPos = editor.view.posAtDOM(codeBlockElement, 0);
+    const codeBlockPos = getCodeBlockPositionAtDocumentPosition(editor, documentPos);
+
+    if (codeBlockPos !== null && getCodeBlockElementAtPosition(editor, codeBlockPos) === codeBlockElement) {
+      return codeBlockPos;
+    }
+  } catch {
+    // Detached and foreign DOM nodes are not editor positions.
+  }
+
   let codeBlockPos: number | null = null;
 
   editor.state.doc.descendants((node, pos) => {
@@ -295,6 +339,24 @@ export function getCodeBlockPositionFromEventTarget(editor: Editor, target: Even
   }
 
   const mermaidPreview = target.closest<HTMLElement>('[data-testid="markweave-mermaid-inline-preview"]');
+  if (mermaidPreview && editor.view.dom.contains(mermaidPreview)) {
+    try {
+      const previewDocumentPos = editor.view.posAtDOM(mermaidPreview, 0);
+      const $preview = editor.state.doc.resolve(
+        Math.max(0, Math.min(previewDocumentPos, editor.state.doc.content.size)),
+      );
+      if ($preview.nodeBefore?.type.name === "codeBlock") {
+        return previewDocumentPos - $preview.nodeBefore.nodeSize;
+      }
+      const codeBlockPos = getCodeBlockPositionAtDocumentPosition(editor, previewDocumentPos);
+      if (codeBlockPos !== null) {
+        return codeBlockPos;
+      }
+    } catch {
+      // The position data below remains a compatibility fallback.
+    }
+  }
+
   const previewPos = mermaidPreview ? Number.parseInt(mermaidPreview.dataset.codeBlockPos ?? "", 10) : Number.NaN;
 
   if (Number.isInteger(previewPos) && isCodeBlockNodeAtPosition(editor, previewPos)) {
@@ -445,7 +507,13 @@ export function getMermaidPreviewElement(editor: Editor, codeBlockPos: number | 
     return null;
   }
 
-  return editor.view.dom.ownerDocument.querySelector<HTMLElement>(
+  const codeBlockElement = getCodeBlockElementAtPosition(editor, codeBlockPos);
+  const directPreview = codeBlockElement?.nextElementSibling;
+  if (directPreview instanceof HTMLElement && directPreview.matches('[data-testid="markweave-mermaid-inline-preview"]')) {
+    return directPreview;
+  }
+
+  return editor.view.dom.querySelector<HTMLElement>(
     `[data-testid="markweave-mermaid-inline-preview"][data-code-block-pos="${codeBlockPos}"]`,
   );
 }

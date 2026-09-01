@@ -9,6 +9,7 @@ import {
   type MarkweaveEditorController,
   type MarkweaveTocState,
 } from "@markweave/react";
+import { getMarkweaveDocumentViewportCoordinatorForElement } from "../src/core/document-viewport";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -91,16 +92,19 @@ describe("Markweave inner TOC DOM", () => {
   });
 
   it("scrolls to the heading when a TOC item is clicked", async () => {
-    const scrollIntoView = vi.fn();
     const container = await renderReact(createElement(MarkweaveEditor, { defaultContent: "# One\n\n## Two" }));
     const secondHeading = container.querySelector("h2");
     if (!secondHeading) {
       throw new Error("Expected second heading.");
     }
 
-    Object.defineProperty(secondHeading, "scrollIntoView", {
-      configurable: true,
-      value: scrollIntoView,
+    const coordinator = getMarkweaveDocumentViewportCoordinatorForElement(secondHeading);
+    if (!coordinator) throw new Error("Expected viewport coordinator.");
+    const revealPosition = vi.spyOn(coordinator, "revealPosition").mockResolvedValue({
+      correctionCount: 0,
+      finalErrorPx: 0,
+      pos: 6,
+      status: "revealed",
     });
 
     await act(async () => {
@@ -108,7 +112,12 @@ describe("Markweave inner TOC DOM", () => {
     });
     await flushReact();
 
-    expect(scrollIntoView).toHaveBeenCalledWith({ behavior: "smooth", block: "start" });
+    expect(revealPosition).toHaveBeenCalledWith(6, {
+      align: "start",
+      behavior: "smooth",
+      focus: true,
+      reason: "toc",
+    });
   });
 
   it("uses English TOC labels when lang is en", async () => {
@@ -159,7 +168,9 @@ describe("Markweave inner TOC DOM", () => {
       width: 800,
     } as DOMRect);
     window.dispatchEvent(new Event("resize"));
-    await flushReact();
+    await act(async () => {
+      await new Promise((resolve) => window.setTimeout(resolve, 20));
+    });
 
     expect(toc.style.getPropertyValue("--markweave-inner-toc-right")).toBe("128px");
     expect(frame.dataset.markweaveInnerTocCompact).toBe("true");
@@ -169,7 +180,9 @@ describe("Markweave inner TOC DOM", () => {
       width: 1200,
     } as DOMRect);
     window.dispatchEvent(new Event("resize"));
-    await flushReact();
+    await act(async () => {
+      await new Promise((resolve) => window.setTimeout(resolve, 20));
+    });
 
     expect(frame.dataset.markweaveInnerTocCompact).toBe("false");
   });

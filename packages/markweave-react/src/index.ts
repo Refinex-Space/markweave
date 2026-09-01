@@ -1,5 +1,5 @@
 export { createMarkweaveReactEditorExtensions, createMarkweaveEditorExtensions } from "./create-editor-extensions";
-export { createMarkweaveAiEditController } from "markweave";
+export { createMarkweaveAiEditController, prepareMarkweaveEditorForOutput } from "markweave";
 export type { CreateMarkweaveReactEditorExtensionsOptions } from "./create-editor-extensions";
 export { MarkweaveEditor, useMarkweaveEditorController } from "./MarkweaveEditor";
 export type {
@@ -42,6 +42,21 @@ export type {
   MarkweaveEditorRuntimeSnapshot,
   MarkweaveEditorSetContentOptions,
   MarkweaveEditorUpdatePayload,
+  MarkweaveDocumentLoadPhase,
+  MarkweaveDocumentLoadState,
+  MarkweaveDocumentProfile,
+  MarkweaveEditorExtensionsLoadPolicy,
+  MarkweavePerformancePolicy,
+  MarkweavePerformanceTier,
+  MarkweavePerformanceRuntimeSnapshot,
+  MarkweaveDocumentViewportSnapshot,
+  MarkweaveDocumentViewportState,
+  MarkweaveRevealPositionOptions,
+  MarkweaveRevealPositionResult,
+  MarkweaveRevealReason,
+  MarkweaveOutputKind,
+  MarkweaveOutputPreparationReport,
+  MarkweavePrepareOutputOptions,
   TableCommandResult,
   TableEditWithAiRequest,
   MarkweaveEditorMode,
@@ -71,6 +86,7 @@ export type {
   MarkweaveLinkCardResolver,
   MarkweaveMediaKind,
   MarkweaveMediaPriority,
+  MarkweaveMediaResolveReason,
   MarkweaveMediaSourceRequest,
   MarkweaveMediaSourceResolver,
   MarkweaveMediaSourceResult,

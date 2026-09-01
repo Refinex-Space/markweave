@@ -30,8 +30,13 @@ import scheme from "highlight.js/lib/languages/scheme";
 import shellSession from "highlight.js/lib/languages/shell";
 import stylus from "highlight.js/lib/languages/stylus";
 import twig from "highlight.js/lib/languages/twig";
+import { CodeBlock, type CodeBlockOptions } from "@tiptap/extension-code-block";
 import { common, createLowlight } from "lowlight";
 import { markweaveBashGrammar } from "./codeblock-shell-grammar";
+import {
+  createMarkweaveIncrementalLowlightPlugin,
+  type MarkweaveLowlightLike,
+} from "./incremental-lowlight-plugin";
 
 const markweaveCommonCodeBlockGrammars = {
   ...common,
@@ -93,3 +98,40 @@ export function createMarkweaveLowlight() {
   lowlight.registerAlias(markweaveCodeBlockLanguageAliases);
   return lowlight;
 }
+
+export interface MarkweaveCodeBlockLowlightOptions extends CodeBlockOptions {
+  readonly lowlight: MarkweaveLowlightLike;
+}
+
+/**
+ * CodeBlock behavior compatible with Tiptap's Lowlight extension, backed by a
+ * mapped block index so ordinary document transactions never re-run syntax
+ * highlighting and code edits only rebuild the affected blocks.
+ */
+export const MarkweaveCodeBlockLowlight = CodeBlock.extend<MarkweaveCodeBlockLowlightOptions>({
+  addOptions() {
+    return {
+      ...this.parent?.(),
+      lowlight: {} as MarkweaveLowlightLike,
+      languageClassPrefix: "language-",
+      exitOnTripleEnter: true,
+      exitOnArrowDown: true,
+      exitOnArrowUp: true,
+      defaultLanguage: null,
+      enableTabIndentation: false,
+      tabSize: 4,
+      HTMLAttributes: {},
+    };
+  },
+
+  addProseMirrorPlugins() {
+    return [
+      ...(this.parent?.() ?? []),
+      createMarkweaveIncrementalLowlightPlugin({
+        name: this.name,
+        lowlight: this.options.lowlight,
+        defaultLanguage: this.options.defaultLanguage,
+      }),
+    ];
+  },
+});

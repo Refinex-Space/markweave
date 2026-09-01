@@ -18,8 +18,14 @@ type MarkweaveMediaBackstopJob = () => void;
 
 interface MarkweaveDocumentMediaBackstop {
   readonly pending: Set<MarkweaveMediaBackstopJob>;
-  drainHandle: number | null;
-  usesIdleCallback: boolean;
+  nextDrainToken: number;
+  scheduledDrain: MarkweaveScheduledMediaBackstopDrain | null;
+}
+
+interface MarkweaveScheduledMediaBackstopDrain {
+  readonly token: number;
+  idleHandle: number | null;
+  watchdogHandle: number | null;
 }
 
 interface MarkweaveIdleDeadlineLike {
@@ -29,10 +35,15 @@ interface MarkweaveIdleDeadlineLike {
 
 // Bound how many images we trigger per idle slice so a media-heavy document does
 // not fire every resolver call at once; the rest wait for the next idle slice.
-const MAX_JOBS_PER_IDLE_SLICE = 3;
+const MAX_JOBS_PER_IDLE_SLICE = 12;
+// A compliant requestIdleCallback should invoke the callback by this timeout.
+// The watchdog below remains necessary because some embedded WebViews expose a
+// partial implementation that ignores the timeout or starves the callback.
+const IDLE_CALLBACK_TIMEOUT_MS = 250;
+const IDLE_WATCHDOG_DELAY_MS = 300;
 // Fallback cadence when the environment lacks requestIdleCallback (e.g. jsdom,
 // some embedded browsers). Small enough to keep export/print reliable.
-const FALLBACK_DRAIN_DELAY_MS = 200;
+const FALLBACK_DRAIN_DELAY_MS = 50;
 
 const documentBackstops = new WeakMap<
   Document,
@@ -57,8 +68,8 @@ export function enrollMarkweaveMediaBackstop(
   if (!backstop) {
     backstop = {
       pending: new Set(),
-      drainHandle: null,
-      usesIdleCallback: false,
+      nextDrainToken: 0,
+      scheduledDrain: null,
     };
     documentBackstops.set(ownerDocument, backstop);
   }
@@ -83,54 +94,124 @@ function scheduleDrain(
   ownerDocument: Document,
   backstop: MarkweaveDocumentMediaBackstop,
 ) {
-  if (backstop.drainHandle !== null) {
+  if (backstop.scheduledDrain) {
     return;
   }
   const ownerWindow = ownerDocument.defaultView as
     | (Window & {
         requestIdleCallback?: (
           callback: (deadline: MarkweaveIdleDeadlineLike) => void,
+          options?: { timeout?: number },
         ) => number;
+        cancelIdleCallback?: (handle: number) => void;
       })
     | null;
   if (!ownerWindow) {
     return;
   }
 
+  const scheduledDrain: MarkweaveScheduledMediaBackstopDrain = {
+    idleHandle: null,
+    token: backstop.nextDrainToken + 1,
+    watchdogHandle: null,
+  };
+  backstop.nextDrainToken = scheduledDrain.token;
+  backstop.scheduledDrain = scheduledDrain;
+
   if (typeof ownerWindow.requestIdleCallback === "function") {
-    backstop.usesIdleCallback = true;
-    backstop.drainHandle = ownerWindow.requestIdleCallback((deadline) => {
-      backstop.drainHandle = null;
-      drain(ownerDocument, backstop, deadline);
-    });
+    try {
+      const idleHandle = ownerWindow.requestIdleCallback((deadline) => {
+        runScheduledDrain(
+          ownerDocument,
+          backstop,
+          scheduledDrain.token,
+          deadline,
+          "idle",
+        );
+      }, { timeout: IDLE_CALLBACK_TIMEOUT_MS });
+
+      // requestIdleCallback is asynchronous by contract, but this guard keeps
+      // a non-conforming WebView from arming a stale watchdog after a sync call.
+      if (backstop.scheduledDrain === scheduledDrain) {
+        scheduledDrain.idleHandle = idleHandle;
+        scheduledDrain.watchdogHandle = ownerWindow.setTimeout(() => {
+          runScheduledDrain(
+            ownerDocument,
+            backstop,
+            scheduledDrain.token,
+            null,
+            "watchdog",
+          );
+        }, IDLE_WATCHDOG_DELAY_MS);
+      } else {
+        ownerWindow.cancelIdleCallback?.(idleHandle);
+      }
+      return;
+    } catch {
+      // Fall through to a normal timer when a partial WebView implementation
+      // exposes requestIdleCallback but throws when options are provided.
+    }
+  }
+
+  scheduledDrain.watchdogHandle = ownerWindow.setTimeout(() => {
+    runScheduledDrain(
+      ownerDocument,
+      backstop,
+      scheduledDrain.token,
+      null,
+      "watchdog",
+    );
+  }, FALLBACK_DRAIN_DELAY_MS);
+}
+
+function runScheduledDrain(
+  ownerDocument: Document,
+  backstop: MarkweaveDocumentMediaBackstop,
+  token: number,
+  deadline: MarkweaveIdleDeadlineLike | null,
+  trigger: "idle" | "watchdog",
+) {
+  const scheduledDrain = backstop.scheduledDrain;
+  if (!scheduledDrain || scheduledDrain.token !== token) {
     return;
   }
 
-  backstop.usesIdleCallback = false;
-  backstop.drainHandle = ownerWindow.setTimeout(() => {
-    backstop.drainHandle = null;
-    drain(ownerDocument, backstop, null);
-  }, FALLBACK_DRAIN_DELAY_MS);
+  backstop.scheduledDrain = null;
+  const ownerWindow = ownerDocument.defaultView as
+    | (Window & { cancelIdleCallback?: (handle: number) => void })
+    | null;
+  if (ownerWindow) {
+    if (trigger !== "idle" && scheduledDrain.idleHandle !== null) {
+      ownerWindow.cancelIdleCallback?.(scheduledDrain.idleHandle);
+    }
+    if (trigger !== "watchdog" && scheduledDrain.watchdogHandle !== null) {
+      ownerWindow.clearTimeout(scheduledDrain.watchdogHandle);
+    }
+  }
+
+  drain(ownerDocument, backstop, deadline);
 }
 
 function cancelDrain(
   ownerDocument: Document,
   backstop: MarkweaveDocumentMediaBackstop,
 ) {
-  if (backstop.drainHandle === null) {
+  const scheduledDrain = backstop.scheduledDrain;
+  if (!scheduledDrain) {
     return;
   }
+  backstop.scheduledDrain = null;
   const ownerWindow = ownerDocument.defaultView as
     | (Window & { cancelIdleCallback?: (handle: number) => void })
     | null;
   if (ownerWindow) {
-    if (backstop.usesIdleCallback && typeof ownerWindow.cancelIdleCallback === "function") {
-      ownerWindow.cancelIdleCallback(backstop.drainHandle);
-    } else {
-      ownerWindow.clearTimeout(backstop.drainHandle);
+    if (scheduledDrain.idleHandle !== null) {
+      ownerWindow.cancelIdleCallback?.(scheduledDrain.idleHandle);
+    }
+    if (scheduledDrain.watchdogHandle !== null) {
+      ownerWindow.clearTimeout(scheduledDrain.watchdogHandle);
     }
   }
-  backstop.drainHandle = null;
 }
 
 function drain(
@@ -158,7 +239,7 @@ function drain(
     } catch {
       // Resolution has its own error handling; never let one node break the drain.
     }
-    if (deadline && deadline.timeRemaining() <= 0) {
+    if (deadline && !deadline.didTimeout && deadline.timeRemaining() <= 0) {
       break;
     }
   }

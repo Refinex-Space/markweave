@@ -268,7 +268,10 @@ export function createPlaygroundHostExtension<T extends { extend: (config: Recor
     markdownTokenizer: {
       name: "playgroundHostBlock",
       level: "block",
-      start: (src: string) => src.search(/^:::playground-widget\b/m),
+      // Custom tokenizer look-ahead must stay bounded: marked calls `start`
+      // repeatedly with the whole remaining source, so an unbounded multiline
+      // search turns large-document parsing quadratic even when no host block exists.
+      start: (src: string) => src.slice(0, 8_192).search(/^:::playground-widget\b/m),
       tokenize: (src: string, _tokens: unknown[], lexer: { inlineTokens: (value: string) => unknown[] }) => {
         const match = src.match(/^:::playground-widget\s+([a-z-]+)\s*\n([\s\S]*?)\n:::/);
         return match ? {
@@ -368,10 +371,20 @@ export const largeMissingMediaPerformanceFixture = createLargeDocumentPerformanc
 });
 export const stressDocumentPerformanceFixture = createLargeDocumentPerformanceFixture({ sections: 2_500 });
 
+export const flakyMediaRecoveryFixture = [
+  "# Flaky media recovery",
+  "",
+  "The first display candidate is intentionally unreadable. Markweave must resolve the same stored source again and show the second candidate.",
+  "",
+  "![Flaky recovery image](flaky-asset://recover-on-second-attempt)",
+].join("\n");
+
 const playgroundImageDataUrl =
   "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='64' height='36' viewBox='0 0 64 36'%3E%3Crect width='64' height='36' fill='%23d9e4f5'/%3E%3C/svg%3E";
 
 export function resolvePlaygroundMediaSource(request: {
+  readonly attempt?: number;
+  readonly reason?: string;
   readonly src: string;
   readonly signal: AbortSignal;
 }) {
@@ -385,6 +398,20 @@ export function resolvePlaygroundMediaSource(request: {
       width: 64,
       height: 36,
     };
+  }
+
+  if (request.src.startsWith("flaky-asset://")) {
+    return request.attempt && request.attempt > 1
+      ? {
+          src: playgroundImageDataUrl,
+          width: 64,
+          height: 36,
+        }
+      : {
+          src: "data:image/png;base64,not-a-valid-image",
+          width: 64,
+          height: 36,
+        };
   }
 
   if (/^(?:https?:\/\/|blob:|data:image\/)/i.test(request.src)) {

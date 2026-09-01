@@ -2,6 +2,7 @@ import { Extension, type Editor } from "@tiptap/core";
 import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
 import { Plugin, PluginKey, TextSelection, type EditorState, type Transaction } from "@tiptap/pm/state";
 import { Decoration, DecorationSet, type EditorView } from "@tiptap/pm/view";
+import { getMarkweaveDocumentLoadMeta } from "../../editor-core/document-load";
 import { normalizeMermaidPreviewMode, type MermaidPreviewMode } from "../mermaid/mermaid-renderer";
 import {
   defaultMarkweaveCodeBlockLanguages,
@@ -42,6 +43,7 @@ export interface MarkweaveCodeBlockCopyFeedbackSnapshot {
 interface CodeBlockCollapsePluginMeta {
   readonly type: "toggle" | "set";
   readonly key: string;
+  readonly pos: number;
   readonly collapsed?: boolean;
 }
 
@@ -58,7 +60,17 @@ export const markweaveCodeBlockBehavior = {
   suppressFloatingToolbar: true,
 } as const;
 
-export const codeBlockCollapsePluginKey = new PluginKey<ReadonlySet<string>>("markweaveCodeBlockCollapse");
+interface CollapsedCodeBlockSnapshot {
+  readonly node: ProseMirrorNode;
+}
+
+export interface MarkweaveCodeBlockCollapsePluginState extends ReadonlySet<string> {
+  readonly blocksByPos: ReadonlyMap<number, CollapsedCodeBlockSnapshot>;
+  readonly decorations: DecorationSet;
+}
+
+export const codeBlockCollapsePluginKey =
+  new PluginKey<MarkweaveCodeBlockCollapsePluginState>("markweaveCodeBlockCollapse");
 
 function compactCodeBlockPrefix(content: string) {
   return content.substring(0, 50).replace(/\s/g, "").substring(0, 20);
@@ -142,6 +154,47 @@ function getCodeBlockContextAtPos(state: EditorState, pos: number): CodeBlockCon
   };
 }
 
+function getCodeBlockContextAtDocumentPosition(state: EditorState, pos: number): CodeBlockContext | null {
+  const normalizedPos = Math.max(0, Math.min(pos, state.doc.content.size));
+  const directContext = getCodeBlockContextAtPos(state, normalizedPos);
+
+  if (directContext) {
+    return directContext;
+  }
+
+  const $position = state.doc.resolve(normalizedPos);
+
+  for (let depth = $position.depth; depth > 0; depth -= 1) {
+    const node = $position.node(depth);
+
+    if (isCodeBlockNode(node)) {
+      return {
+        node,
+        pos: $position.before(depth),
+      };
+    }
+  }
+
+  const nodeBefore = $position.nodeBefore;
+  const nodeAfter = $position.nodeAfter;
+
+  if (isCodeBlockNode(nodeBefore)) {
+    return {
+      node: nodeBefore,
+      pos: normalizedPos - nodeBefore.nodeSize,
+    };
+  }
+
+  if (isCodeBlockNode(nodeAfter)) {
+    return {
+      node: nodeAfter,
+      pos: normalizedPos,
+    };
+  }
+
+  return null;
+}
+
 function updateCodeBlockAttrsAtPos(editor: Editor, pos: number, attrs: Record<string, unknown>) {
   const context = getCodeBlockContextAtPos(editor.state, pos);
 
@@ -159,58 +212,100 @@ function updateCodeBlockAttrsAtPos(editor: Editor, pos: number, attrs: Record<st
 }
 
 function getCodeBlockContextForElement(view: EditorView, codeBlockElement: HTMLElement): CodeBlockContext | null {
-  let context: CodeBlockContext | null = null;
+  try {
+    const domPos = view.posAtDOM(codeBlockElement, 0);
+    const context = getCodeBlockContextAtDocumentPosition(view.state, domPos);
 
-  view.state.doc.descendants((node, pos) => {
-    if (!isCodeBlockNode(node)) {
-      return true;
+    if (context && view.nodeDOM(context.pos) === codeBlockElement) {
+      return context;
     }
+  } catch {
+    // A detached or foreign DOM node is not a valid editor target.
+  }
 
-    if (view.nodeDOM(pos) === codeBlockElement) {
-      context = { node, pos };
-      return false;
-    }
+  return null;
+}
 
-    return false;
+function setCodeBlockCollapsed(tr: Transaction, pos: number, key: string, collapsed: boolean) {
+  return tr.setMeta(codeBlockCollapsePluginKey, { type: "set", key, pos, collapsed } satisfies CodeBlockCollapsePluginMeta);
+}
+
+function toggleCodeBlockCollapsed(tr: Transaction, pos: number, key: string) {
+  return tr.setMeta(codeBlockCollapsePluginKey, { type: "toggle", key, pos } satisfies CodeBlockCollapsePluginMeta);
+}
+
+function createCodeBlockCollapseDecoration(pos: number, node: ProseMirrorNode) {
+  const language = normalizeCodeBlockLanguage(node.attrs.language);
+
+  return Decoration.node(pos, pos + node.nodeSize, {
+    "data-markweave-collapsed": "true",
+    "data-markweave-collapsed-language": formatCodeBlockCollapsedLanguage(language),
+    "data-markweave-collapsed-lines": formatCodeBlockCollapsedLines(node.textContent),
   });
-
-  return context;
 }
 
-function setCodeBlockCollapsed(tr: Transaction, key: string, collapsed: boolean) {
-  return tr.setMeta(codeBlockCollapsePluginKey, { type: "set", key, collapsed } satisfies CodeBlockCollapsePluginMeta);
-}
+function createCodeBlockCollapseDecorations(
+  doc: ProseMirrorNode,
+  blocksByPos: ReadonlyMap<number, CollapsedCodeBlockSnapshot>,
+) {
+  if (blocksByPos.size === 0) {
+    return DecorationSet.empty;
+  }
 
-function toggleCodeBlockCollapsed(tr: Transaction, key: string) {
-  return tr.setMeta(codeBlockCollapsePluginKey, { type: "toggle", key } satisfies CodeBlockCollapsePluginMeta);
-}
-
-function createCodeBlockCollapseDecorations(state: EditorState, collapsedCodeBlocks: ReadonlySet<string>) {
   const decorations: Decoration[] = [];
 
-  state.doc.descendants((node, pos) => {
-    if (!isCodeBlockNode(node)) {
-      return true;
-    }
-
-    const key = getCodeBlockCollapseKey(pos, node);
-
-    if (collapsedCodeBlocks.has(key)) {
-      const language = normalizeCodeBlockLanguage(node.attrs.language);
-
-      decorations.push(
-        Decoration.node(pos, pos + node.nodeSize, {
-          "data-markweave-collapsed": "true",
-          "data-markweave-collapsed-language": formatCodeBlockCollapsedLanguage(language),
-          "data-markweave-collapsed-lines": formatCodeBlockCollapsedLines(node.textContent),
-        }),
-      );
-    }
-
-    return false;
+  blocksByPos.forEach(({ node }, pos) => {
+    decorations.push(createCodeBlockCollapseDecoration(pos, node));
   });
 
-  return DecorationSet.create(state.doc, decorations);
+  return DecorationSet.create(doc, decorations);
+}
+
+function createCodeBlockCollapsePluginState(
+  blocksByPos: ReadonlyMap<number, CollapsedCodeBlockSnapshot>,
+  decorations: DecorationSet,
+) {
+  const keys = new Set<string>();
+
+  blocksByPos.forEach(({ node }, pos) => {
+    keys.add(getCodeBlockCollapseKey(pos, node));
+  });
+
+  Object.defineProperties(keys, {
+    blocksByPos: {
+      enumerable: false,
+      value: blocksByPos,
+    },
+    decorations: {
+      enumerable: false,
+      value: decorations,
+    },
+  });
+
+  return keys as unknown as MarkweaveCodeBlockCollapsePluginState;
+}
+
+function mapCollapsedCodeBlocks(
+  transaction: Transaction,
+  previous: MarkweaveCodeBlockCollapsePluginState,
+) {
+  const blocksByPos = new Map<number, CollapsedCodeBlockSnapshot>();
+  let requiresRebuild = false;
+
+  previous.blocksByPos.forEach((snapshot, oldPos) => {
+    const mappedPos = transaction.mapping.map(oldPos, 1);
+    const node = transaction.doc.nodeAt(mappedPos);
+
+    if (!isCodeBlockNode(node)) {
+      requiresRebuild = true;
+      return;
+    }
+
+    blocksByPos.set(mappedPos, { node });
+    requiresRebuild = requiresRebuild || node !== snapshot.node;
+  });
+
+  return { blocksByPos, requiresRebuild };
 }
 
 export const MarkweaveCodeBlockCollapse = Extension.create({
@@ -219,37 +314,57 @@ export const MarkweaveCodeBlockCollapse = Extension.create({
 
   addProseMirrorPlugins() {
     return [
-      new Plugin<ReadonlySet<string>>({
+      new Plugin<MarkweaveCodeBlockCollapsePluginState>({
         key: codeBlockCollapsePluginKey,
         state: {
-          init: () => new Set<string>(),
+          init: () => createCodeBlockCollapsePluginState(new Map(), DecorationSet.empty),
           apply(transaction, previous) {
             const meta = transaction.getMeta(codeBlockCollapsePluginKey) as CodeBlockCollapsePluginMeta | undefined;
+            const documentLoadMeta = getMarkweaveDocumentLoadMeta(transaction);
 
-            if (!meta) {
+            if (documentLoadMeta) {
+              return createCodeBlockCollapsePluginState(new Map(), DecorationSet.empty);
+            }
+
+            if (!meta && !transaction.docChanged) {
               return previous;
             }
 
-            const next = new Set(previous);
+            const mapped = transaction.docChanged
+              ? mapCollapsedCodeBlocks(transaction, previous)
+              : {
+                  blocksByPos: new Map(previous.blocksByPos),
+                  requiresRebuild: false,
+                };
+            const blocksByPos = mapped.blocksByPos;
+            let requiresRebuild = mapped.requiresRebuild;
 
-            if (meta.type === "toggle") {
-              if (next.has(meta.key)) {
-                next.delete(meta.key);
+            if (meta) {
+              const node = transaction.doc.nodeAt(meta.pos);
+              const currentlyCollapsed = blocksByPos.has(meta.pos) || previous.has(meta.key);
+              const shouldCollapse = meta.type === "toggle" ? !currentlyCollapsed : Boolean(meta.collapsed);
+
+              if (shouldCollapse && isCodeBlockNode(node)) {
+                blocksByPos.set(meta.pos, { node });
               } else {
-                next.add(meta.key);
+                blocksByPos.delete(meta.pos);
               }
-            } else if (meta.collapsed) {
-              next.add(meta.key);
-            } else {
-              next.delete(meta.key);
+
+              requiresRebuild = true;
             }
 
-            return next;
+            const decorations = blocksByPos.size === 0
+              ? DecorationSet.empty
+              : requiresRebuild
+                ? createCodeBlockCollapseDecorations(transaction.doc, blocksByPos)
+                : previous.decorations.map(transaction.mapping, transaction.doc);
+
+            return createCodeBlockCollapsePluginState(blocksByPos, decorations);
           },
         },
         props: {
           decorations(state) {
-            return createCodeBlockCollapseDecorations(state, codeBlockCollapsePluginKey.getState(state) ?? new Set());
+            return codeBlockCollapsePluginKey.getState(state)?.decorations ?? DecorationSet.empty;
           },
         },
       }),
@@ -271,7 +386,7 @@ export const MarkweaveCodeBlockClickFocus = Extension.create({
     return [
       new Plugin({
         props: {
-          handleClick(view, _pos, event) {
+          handleClick(view, pos, event) {
             const target = event.target;
 
             if (!(target instanceof HTMLElement)) {
@@ -285,7 +400,9 @@ export const MarkweaveCodeBlockClickFocus = Extension.create({
             }
 
             if (codeBlockElement.getAttribute("data-markweave-collapsed") === "true") {
-              const collapsedContext = getCodeBlockContextForElement(view, codeBlockElement);
+              const collapsedContext =
+                getCodeBlockContextAtDocumentPosition(view.state, pos) ??
+                getCodeBlockContextForElement(view, codeBlockElement);
 
               if (!collapsedContext) {
                 return false;
@@ -293,7 +410,10 @@ export const MarkweaveCodeBlockClickFocus = Extension.create({
 
               const key = getCodeBlockCollapseKey(collapsedContext.pos, collapsedContext.node);
               const selectionPosition = collapsedContext.pos + 1;
-              view.dispatch(setCodeBlockCollapsed(view.state.tr, key, false).setSelection(TextSelection.create(view.state.doc, selectionPosition)));
+              view.dispatch(
+                setCodeBlockCollapsed(view.state.tr, collapsedContext.pos, key, false)
+                  .setSelection(TextSelection.create(view.state.doc, selectionPosition)),
+              );
               view.focus();
               return true;
             }
@@ -369,7 +489,7 @@ export function setActiveCodeBlockLanguage(editor: Editor, language: MarkweaveCo
     return false;
   }
 
-  return editor.chain().focus().updateAttributes("codeBlock", { language }).run();
+  return editor.chain().focus(undefined, { scrollIntoView: false }).updateAttributes("codeBlock", { language }).run();
 }
 
 export function setCodeBlockLanguageAtPosition(editor: Editor, pos: number, language: MarkweaveCodeBlockLanguage) {
@@ -383,7 +503,7 @@ export function setActiveCodeBlockMermaidPreviewMode(editor: Editor, mode: Merma
     return false;
   }
 
-  return editor.chain().focus().updateAttributes("codeBlock", { mermaidPreviewMode: mode }).run();
+  return editor.chain().focus(undefined, { scrollIntoView: false }).updateAttributes("codeBlock", { mermaidPreviewMode: mode }).run();
 }
 
 export function setCodeBlockMermaidPreviewModeAtPosition(editor: Editor, pos: number, mode: MermaidPreviewMode) {
@@ -415,7 +535,7 @@ export function setActiveCodeBlockCollapsed(editor: Editor, collapsed: boolean) 
   }
 
   const key = getCodeBlockCollapseKey(context.pos, context.node);
-  editor.view.dispatch(setCodeBlockCollapsed(editor.state.tr, key, collapsed));
+  editor.view.dispatch(setCodeBlockCollapsed(editor.state.tr, context.pos, key, collapsed));
   editor.view.focus();
   return true;
 }
@@ -428,7 +548,7 @@ export function setCodeBlockCollapsedAtPosition(editor: Editor, codeBlockPos: nu
   }
 
   const key = getCodeBlockCollapseKey(context.pos, context.node);
-  editor.view.dispatch(setCodeBlockCollapsed(editor.state.tr, key, collapsed));
+  editor.view.dispatch(setCodeBlockCollapsed(editor.state.tr, context.pos, key, collapsed));
   editor.view.focus();
   return true;
 }
@@ -441,7 +561,7 @@ export function toggleActiveCodeBlockCollapsed(editor: Editor) {
   }
 
   const key = getCodeBlockCollapseKey(context.pos, context.node);
-  editor.view.dispatch(toggleCodeBlockCollapsed(editor.state.tr, key));
+  editor.view.dispatch(toggleCodeBlockCollapsed(editor.state.tr, context.pos, key));
   editor.view.focus();
   return true;
 }
