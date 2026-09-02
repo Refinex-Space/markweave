@@ -139,9 +139,10 @@ export function parseMarkweaveDocument(
     }
     const parsed = editor.markdown?.parse(content);
     if (!parsed) throw new Error("Markdown parser is unavailable.");
-    const document = editor.schema.nodeFromJSON(parsed as JSONContent);
-    document.check();
-    return document;
+    return createCheckedMarkweaveMarkdownDocument(
+      editor,
+      parsed as JSONContent,
+    );
   }
 
   const normalized =
@@ -168,6 +169,63 @@ interface MarkdownWorkerMessage {
 
 let markdownWorkerRequestId = 0;
 
+function normalizeMarkweaveMarkdownNode(
+  editor: Editor,
+  node: JSONContent,
+): JSONContent[] {
+  if (node.content) {
+    node.content = node.content.flatMap((child) =>
+      normalizeMarkweaveMarkdownNode(editor, child),
+    );
+  }
+
+  if (node.type !== "paragraph" || !node.content) {
+    return [node];
+  }
+
+  const siblings: JSONContent[] = [];
+  let inlineContent: JSONContent[] = [];
+  const flushInlineContent = () => {
+    const first = inlineContent[0];
+    if (first?.type === "text" && first.text) {
+      first.text = first.text.trimStart();
+      if (!first.text) inlineContent.shift();
+    }
+    const last = inlineContent[inlineContent.length - 1];
+    if (last?.type === "text" && last.text) {
+      last.text = last.text.trimEnd();
+      if (!last.text) inlineContent.pop();
+    }
+    const content = inlineContent;
+    inlineContent = [];
+    if (content.length) siblings.push({ ...node, content });
+  };
+
+  for (const child of node.content) {
+    if (editor.schema.nodes[child.type as string]?.isBlock) {
+      flushInlineContent();
+      siblings.push(child);
+    } else {
+      inlineContent.push(child);
+    }
+  }
+  if (!siblings.length) return [node];
+  flushInlineContent();
+
+  return siblings;
+}
+
+export function createCheckedMarkweaveMarkdownDocument(
+  editor: Editor,
+  content: JSONContent,
+) {
+  const document = editor.schema.nodeFromJSON(
+    normalizeMarkweaveMarkdownNode(editor, content)[0]!,
+  );
+  document.check();
+  return document;
+}
+
 function parseMarkweaveMarkdownTokens(
   editor: Editor,
   tokens: readonly MarkdownToken[],
@@ -176,12 +234,10 @@ function parseMarkweaveMarkdownTokens(
   if (!manager?.parseTokens) {
     throw new Error("Markdown token parser is unavailable.");
   }
-  const document = editor.schema.nodeFromJSON({
+  return createCheckedMarkweaveMarkdownDocument(editor, {
     type: "doc",
     content: manager.parseTokens(tokens, true),
   });
-  document.check();
-  return document;
 }
 
 async function lexMarkweaveMarkdownInWorker(

@@ -50,4 +50,34 @@ describe("React document load bridge", () => {
     expect(container.querySelector('[data-testid="markweave-editor-frame"]')?.getAttribute("data-markweave-performance-tier")).toBe("large");
     expect(onUpdate).not.toHaveBeenCalled();
   });
+
+  it("keeps an auto-tier large mixed-media document editable", async () => {
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    activeRoot = createRoot(container);
+    const states: MarkweaveDocumentLoadState[] = [];
+    const image = "![](fixture-asset://asset)";
+    const markdown = [
+      image,
+      "Following text.",
+      "",
+      `${image} ${image}`,
+      "",
+      "padding ".repeat(30_000),
+    ].join("\n");
+
+    await act(async () => {
+      activeRoot?.render(createElement(MarkweaveEditor, {
+        defaultContent: markdown,
+        onDocumentLoadStateChange: (state) => states.push(state),
+      }));
+    });
+    await waitUntil(() => states.at(-1)?.phase === "ready");
+
+    expect(states.some((state) => state.phase === "error")).toBe(false);
+    expect(states.at(-1)?.tier).toBe("large");
+    expect(container.querySelectorAll('[data-testid="markweave-image-node"]')).toHaveLength(3);
+    expect(container.textContent).toContain("Following text.");
+    expect(container.querySelector('[contenteditable="true"]')).not.toBeNull();
+  }, 15_000);
 });

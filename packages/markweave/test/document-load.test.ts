@@ -5,6 +5,7 @@ import { describe, expect, it, vi } from "vitest";
 import { createMarkweaveEditorExtensions } from "../src/editor-core/create-editor-extensions";
 import { markweaveMarkdownParserWorkerSource } from "../src/editor-core/markdown-parser-worker-source.generated";
 import {
+  createCheckedMarkweaveMarkdownDocument,
   loadMarkweaveDocument,
   parseMarkweaveDocument,
   profileMarkweaveDocument,
@@ -53,6 +54,7 @@ describe("document load coordinator", () => {
       "```",
       "",
       "![image](asset://image)",
+      "Image-adjacent text.",
       "",
       '<a href="asset://file" data-markweave-attachment data-markweave-attachment-name="file.txt">file.txt</a>',
       "",
@@ -77,11 +79,50 @@ describe("document load coordinator", () => {
     const manager = editor.markdown as unknown as {
       parseTokens(tokens: readonly MarkdownToken[], implicitEmptyParagraphs: boolean): JSONContent[];
     };
-    const workerDocument = editor.schema.nodeFromJSON({
+    const workerDocument = createCheckedMarkweaveMarkdownDocument(editor, {
       type: "doc",
       content: manager.parseTokens(posted[0]?.tokens ?? [], true),
     });
     expect(workerDocument.eq(canonical)).toBe(true);
+    editor.destroy();
+  });
+
+  it("lifts block images out of mixed Markdown paragraphs without losing adjacent text", () => {
+    const editor = createEditor();
+    const image = "![](markune-asset://asset)";
+    const markdown = [
+      image,
+      "Following text.",
+      "",
+      `${image} ${image}`,
+      "",
+      `${image}Same-line text.`,
+      "",
+      `Leading text. ${image}`,
+    ].join("\n");
+
+    const document = parseMarkweaveDocument(editor, markdown, "markdown");
+
+    expect(Array.from({ length: document.childCount }, (_, index) =>
+      document.child(index).type.name,
+    )).toEqual([
+      "image",
+      "paragraph",
+      "image",
+      "image",
+      "image",
+      "paragraph",
+      "paragraph",
+      "image",
+    ]);
+    expect(document.child(1).textContent).toBe("Following text.");
+    expect(document.child(5).textContent).toBe("Same-line text.");
+    expect(document.child(6).textContent).toBe("Leading text.");
+    expect(() => document.check()).not.toThrow();
+
+    editor.commands.setContent(document.toJSON(), { emitUpdate: false });
+    expect(editor.getMarkdown()).toContain(`${image}\n\nFollowing text.`);
+    expect(editor.getMarkdown()).toContain(`${image}\n\n${image}`);
     editor.destroy();
   });
 

@@ -1,6 +1,6 @@
 ---
 owner: refinex
-updated: 2026-09-01
+updated: 2026-09-02
 status: active
 referenced_by: AGENTS.md#knowledge-map
 ---
@@ -75,7 +75,7 @@ Shared adapter behavior belongs in small framework-neutral helpers before it rea
 
 ## Large-document Runtime
 
-All adapters use the shared `DocumentLoadCoordinator`. A document is parsed exactly once into one canonical ProseMirror document; Markweave never parses independent Markdown chunks because doing so changes reference-link, blank-line, and custom-token semantics. For large built-in Markdown documents, a build-generated ES2019 Blob Worker lexes the complete source and the editor's canonical Markdown manager converts those tokens to the final ProseMirror JSON. Worker/CSP failure falls back to the same whole-document main-thread parser. Unknown host Markdown tokenizers always use that safe main-thread path. Standard documents mount atomically. Large and extreme documents with built-in extensions mount the already-parsed top-level nodes in bounded, history-disabled batches while the editor remains read-only. Unknown host `editorExtensions` stay atomic unless the host explicitly opts into `editorExtensionsLoadPolicy="transactional-safe"`.
+All adapters use the shared `DocumentLoadCoordinator`. A document is parsed exactly once into one canonical ProseMirror document; Markweave never parses independent Markdown chunks because doing so changes reference-link, blank-line, and custom-token semantics. Before strict Schema validation, Markdown paragraphs that contain block media are normalized into ordered sibling blocks: surrounding inline content remains in paragraphs while each block image keeps its original attributes and position. This keeps the coordinated path aligned with Markweave's block-image schema for soft-line image text, adjacent images, and same-line image text instead of accepting an invalid ProseMirror document. For large built-in Markdown documents, a build-generated ES2019 Blob Worker lexes the complete source and the editor's canonical Markdown manager converts those tokens to the final ProseMirror JSON. Worker/CSP failure falls back to the same whole-document main-thread parser. Unknown host Markdown tokenizers always use that safe main-thread path. Standard documents mount atomically. Large and extreme documents with built-in extensions mount the already-parsed top-level nodes in bounded, history-disabled batches while the editor remains read-only. Unknown host `editorExtensions` stay atomic unless the host explicitly opts into `editorExtensionsLoadPolicy="transactional-safe"`.
 
 `performancePolicy="auto"` derives a `standard | large | extreme` tier from source length and structural counts for top-level blocks, nodes, table cells, code, Mermaid, math, and media. The tier is recomputed after controlled replacement, imperative `setContent`, and idle document changes. React, Vue 2, and Vue 3 publish the same load phases, `aria-busy` state, runtime performance snapshot, search-controller lifecycle, cancellation, autofocus, and ready boundary.
 

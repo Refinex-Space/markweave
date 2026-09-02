@@ -7,6 +7,7 @@ import { MarkweaveEditor } from "@markweave/react";
 import {
   initialPlaygroundDocument,
   largeDocumentPerformanceFixture,
+  largeMixedMediaPerformanceFixture,
   largeMissingMediaPerformanceFixture,
   largeTextPerformanceFixture,
   largeValidMediaPerformanceFixture,
@@ -100,7 +101,15 @@ describe("playground fixtures", () => {
     expect(largeTextPerformanceFixture.length).toBeGreaterThanOrEqual(250_000);
     expect(largeValidMediaPerformanceFixture.length).toBeGreaterThanOrEqual(250_000);
     expect(largeMissingMediaPerformanceFixture.length).toBeGreaterThanOrEqual(250_000);
+    expect(largeMixedMediaPerformanceFixture.length).toBeGreaterThanOrEqual(250_000);
     expect(stressDocumentPerformanceFixture.length).toBeGreaterThanOrEqual(1_000_000);
+
+    expect(largeMixedMediaPerformanceFixture).toContain(
+      "![Mixed media first](fixture-asset://asset-0)\nText after a block image",
+    );
+    expect(largeMixedMediaPerformanceFixture).toContain(
+      "![Mixed media second](fixture-asset://asset-1) ![Mixed media third](fixture-asset://asset-2)",
+    );
 
     const validReferences = [...largeValidMediaPerformanceFixture.matchAll(/fixture-asset:\/\/asset-(\d+)/g)];
     const missingReferences = [...largeMissingMediaPerformanceFixture.matchAll(/missing-asset:\/\/asset-(\d+)/g)];
