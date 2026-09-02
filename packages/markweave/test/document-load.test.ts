@@ -87,6 +87,47 @@ describe("document load coordinator", () => {
     editor.destroy();
   });
 
+  it("bypasses Blob Workers on custom desktop protocols", async () => {
+    const editor = createEditor();
+    const originalWindow = window;
+    const Worker = vi.fn();
+    const desktopWindow = new Proxy(originalWindow, {
+      get(target, property) {
+        if (property === "location") return { protocol: "tauri:" };
+        if (property === "Worker") return Worker;
+        const value = Reflect.get(target, property, target) as unknown;
+        return typeof value === "function" ? value.bind(target) : value;
+      },
+    });
+    vi.stubGlobal("window", desktopWindow);
+
+    try {
+      const states: string[] = [];
+      const markdown = [
+        "![](markune-asset://asset)",
+        "Following text.",
+        "",
+        "padding ".repeat(30_000),
+      ].join("\n");
+
+      const result = await loadMarkweaveDocument(editor, {
+        allowBuiltInMarkdownWorker: true,
+        content: markdown,
+        format: "markdown",
+        onStateChange: (state) => states.push(state.phase),
+      });
+
+      expect(Worker).not.toHaveBeenCalled();
+      expect(states.at(-1)).toBe("ready");
+      expect(result.tier).toBe("large");
+      expect(result.document.child(0).type.name).toBe("image");
+      expect(result.document.child(1).textContent).toBe("Following text.");
+    } finally {
+      vi.stubGlobal("window", originalWindow);
+      editor.destroy();
+    }
+  });
+
   it("lifts block images out of mixed Markdown paragraphs without losing adjacent text", () => {
     const editor = createEditor();
     const image = "![](markune-asset://asset)";

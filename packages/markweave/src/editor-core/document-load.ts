@@ -245,8 +245,13 @@ async function lexMarkweaveMarkdownInWorker(
   signal?: AbortSignal,
 ) {
   const ownerWindow = typeof window === "undefined" ? null : window;
-  if (!ownerWindow?.Worker || !ownerWindow.Blob || !ownerWindow.URL?.createObjectURL) {
-    return Promise.resolve<readonly MarkdownToken[] | null>(null);
+  if (
+    !ownerWindow?.Worker ||
+    !/^https?:$/.test(ownerWindow.location.protocol) ||
+    !ownerWindow.Blob ||
+    !ownerWindow.URL?.createObjectURL
+  ) {
+    return null;
   }
 
   let workerSource: string;
@@ -269,7 +274,7 @@ async function lexMarkweaveMarkdownInWorker(
     );
     worker = new ownerWindow.Worker(objectUrl);
   } catch {
-    return Promise.resolve(null);
+    return null;
   }
 
   return new Promise<readonly MarkdownToken[] | null>((resolve, reject) => {
@@ -290,8 +295,9 @@ async function lexMarkweaveMarkdownInWorker(
     worker.onerror = fallback;
     worker.onmessage = (event: MessageEvent<MarkdownWorkerMessage>) => {
       if (event.data.id !== id) return;
-      if (event.data.type === "result" && event.data.tokens) {
-        finish(() => resolve(event.data.tokens ?? []));
+      const tokens = event.data.tokens;
+      if (event.data.type === "result" && tokens) {
+        finish(() => resolve(tokens));
       } else {
         fallback();
       }
