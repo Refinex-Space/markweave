@@ -27,6 +27,7 @@ import {
   flakyMediaRecoveryFixture,
   initialPlaygroundDocument,
   largeDocumentPerformanceFixture,
+  largeMixedMediaPerformanceFixture,
   largeMissingMediaPerformanceFixture,
   largeTextPerformanceFixture,
   largeValidMediaPerformanceFixture,
@@ -290,6 +291,9 @@ export function MarkweaveEditorPlayground() {
           </button>
           <button type="button" onClick={() => loadFixture(largeMissingMediaPerformanceFixture)}>
             250k Missing Media Fixture
+          </button>
+          <button type="button" onClick={() => loadFixture(largeMixedMediaPerformanceFixture)}>
+            250k Mixed Media Fixture
           </button>
           <button type="button" onClick={() => loadFixture(stressDocumentPerformanceFixture)}>
             1MB Stress Fixture

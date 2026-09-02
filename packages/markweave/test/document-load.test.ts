@@ -5,6 +5,7 @@ import { describe, expect, it, vi } from "vitest";
 import { createMarkweaveEditorExtensions } from "../src/editor-core/create-editor-extensions";
 import { markweaveMarkdownParserWorkerSource } from "../src/editor-core/markdown-parser-worker-source.generated";
 import {
+  createCheckedMarkweaveMarkdownDocument,
   loadMarkweaveDocument,
   parseMarkweaveDocument,
   profileMarkweaveDocument,
@@ -53,6 +54,7 @@ describe("document load coordinator", () => {
       "```",
       "",
       "![image](asset://image)",
+      "Image-adjacent text.",
       "",
       '<a href="asset://file" data-markweave-attachment data-markweave-attachment-name="file.txt">file.txt</a>',
       "",
@@ -77,11 +79,91 @@ describe("document load coordinator", () => {
     const manager = editor.markdown as unknown as {
       parseTokens(tokens: readonly MarkdownToken[], implicitEmptyParagraphs: boolean): JSONContent[];
     };
-    const workerDocument = editor.schema.nodeFromJSON({
+    const workerDocument = createCheckedMarkweaveMarkdownDocument(editor, {
       type: "doc",
       content: manager.parseTokens(posted[0]?.tokens ?? [], true),
     });
     expect(workerDocument.eq(canonical)).toBe(true);
+    editor.destroy();
+  });
+
+  it("bypasses Blob Workers on custom desktop protocols", async () => {
+    const editor = createEditor();
+    const originalWindow = window;
+    const Worker = vi.fn();
+    const desktopWindow = new Proxy(originalWindow, {
+      get(target, property) {
+        if (property === "location") return { protocol: "tauri:" };
+        if (property === "Worker") return Worker;
+        const value = Reflect.get(target, property, target) as unknown;
+        return typeof value === "function" ? value.bind(target) : value;
+      },
+    });
+    vi.stubGlobal("window", desktopWindow);
+
+    try {
+      const states: string[] = [];
+      const markdown = [
+        "![](markune-asset://asset)",
+        "Following text.",
+        "",
+        "padding ".repeat(30_000),
+      ].join("\n");
+
+      const result = await loadMarkweaveDocument(editor, {
+        allowBuiltInMarkdownWorker: true,
+        content: markdown,
+        format: "markdown",
+        onStateChange: (state) => states.push(state.phase),
+      });
+
+      expect(Worker).not.toHaveBeenCalled();
+      expect(states.at(-1)).toBe("ready");
+      expect(result.tier).toBe("large");
+      expect(result.document.child(0).type.name).toBe("image");
+      expect(result.document.child(1).textContent).toBe("Following text.");
+    } finally {
+      vi.stubGlobal("window", originalWindow);
+      editor.destroy();
+    }
+  });
+
+  it("lifts block images out of mixed Markdown paragraphs without losing adjacent text", () => {
+    const editor = createEditor();
+    const image = "![](markune-asset://asset)";
+    const markdown = [
+      image,
+      "Following text.",
+      "",
+      `${image} ${image}`,
+      "",
+      `${image}Same-line text.`,
+      "",
+      `Leading text. ${image}`,
+    ].join("\n");
+
+    const document = parseMarkweaveDocument(editor, markdown, "markdown");
+
+    expect(Array.from({ length: document.childCount }, (_, index) =>
+      document.child(index).type.name,
+    )).toEqual([
+      "image",
+      "paragraph",
+      "image",
+      "image",
+      "image",
+      "paragraph",
+      "paragraph",
+      "image",
+    ]);
+    expect(document.child(1).textContent).toBe("Following text.");
+    expect(document.child(5).textContent).toBe("Same-line text.");
+    expect(document.child(6).textContent).toBe("Leading text.");
+    expect(() => document.check()).not.toThrow();
+
+    editor.commands.setContent(document.toJSON(), { emitUpdate: false });
+    expect(editor.getMarkdown()).toContain(`${image}\n\nFollowing text.`);
+    expect(editor.getMarkdown()).toContain(`${image}\n\n${image}`);
     editor.destroy();
   });
 

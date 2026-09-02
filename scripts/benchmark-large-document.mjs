@@ -13,6 +13,7 @@ const fixtures = fixtureNames.length
       "250k Text Fixture",
       "250k Valid Media Fixture",
       "250k Missing Media Fixture",
+      "250k Mixed Media Fixture",
       "1MB Stress Fixture",
     ];
 if (!process.env.MARKWEAVE_BENCHMARK_URL && production) {

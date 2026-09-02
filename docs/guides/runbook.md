@@ -1,6 +1,6 @@
 ---
 owner: refinex
-updated: 2026-09-01
+updated: 2026-09-02
 status: active
 referenced_by: AGENTS.md#knowledge-map
 ---
@@ -90,7 +90,7 @@ MARKWEAVE_BENCHMARK_PROFILE=1 pnpm benchmark:large-document "250k Text Fixture"
 
 By default the script builds and serves the production React playground, then uses Playwright with bundled Chromium or the installed stable Chrome fallback. Each fixture runs three consecutive times; `results` contains per-field medians and `samples` retains the raw runs. The report includes first-ready mount time, per-key input-to-paint P95/P99, long tasks, heap/DOM/media counts, exact search-ready and search-locate latency, projected search decorations, and a real top-to-end scroll with target visibility checks. Set `MARKWEAVE_BENCHMARK_RUNS` to override the repetition count and `MARKWEAVE_BENCHMARK_DEV=1` only for source-level profiling. This benchmark does not replace final WKWebView/WebView2 acceptance; rebuild `markweave` and `@markweave/react` before measuring package-source changes.
 
-The core build regenerates the self-contained ES2019 Markdown lexer Worker string before TypeScript compilation. Large Markdown documents without host `editorExtensions` use that Worker; CSP or Worker startup failure automatically returns to the canonical whole-document main-thread parser. When diagnosing the fallback path, keep the host extension set and the document load-state timeline in the benchmark record.
+The core build regenerates the self-contained ES2019 Markdown lexer Worker string before TypeScript compilation. Large Markdown documents without host `editorExtensions` use that Worker on HTTP(S) pages; custom desktop protocols such as `tauri:` immediately use the canonical whole-document main-thread parser because WKWebView may construct a Blob Worker without completing or raising `error`. CSP or ordinary Worker startup failure still uses the timed fallback. When diagnosing the fallback path, keep the page protocol, host extension set, and document load-state timeline in the benchmark record.
 
 ## Media Resolution Recovery
 

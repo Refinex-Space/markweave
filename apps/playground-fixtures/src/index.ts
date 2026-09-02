@@ -369,6 +369,14 @@ export const largeMissingMediaPerformanceFixture = createLargeDocumentPerformanc
   media: "missing",
   mediaCount: 426,
 });
+export const largeMixedMediaPerformanceFixture = [
+  "![Mixed media first](fixture-asset://asset-0)",
+  "Text after a block image without a blank line.",
+  "",
+  "![Mixed media second](fixture-asset://asset-1) ![Mixed media third](fixture-asset://asset-2)",
+  "",
+  largeTextPerformanceFixture,
+].join("\n");
 export const stressDocumentPerformanceFixture = createLargeDocumentPerformanceFixture({ sections: 2_500 });
 
 export const flakyMediaRecoveryFixture = [
