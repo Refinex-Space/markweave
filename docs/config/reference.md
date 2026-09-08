@@ -1,6 +1,6 @@
 ---
 owner: refinex
-updated: 2026-09-02
+updated: 2026-09-08
 status: active
 referenced_by: AGENTS.md#knowledge-map
 ---
@@ -63,7 +63,7 @@ Adapter packages externalize `markweave`, `markweave/internal/*`, their Tiptap f
 
 ### Tiptap Runtime Alignment
 
-All published `@tiptap/*` runtime dependencies are pinned to the same exact version (`3.29.2` for Markweave `0.10.3`). Markweave's direct `prosemirror-model`, `prosemirror-state`, and `prosemirror-view` dependencies are also pinned to the versions resolved by that Tiptap suite. This prevents consumers from installing multiple Tiptap or ProseMirror versions when an adapter package and `markweave` are installed together; the Webpack stats gate separately proves that one version is bundled from only one runtime root.
+All published `@tiptap/*` runtime dependencies are pinned to the same exact version (`3.29.2` for Markweave `0.10.4`). Markweave's direct `prosemirror-model`, `prosemirror-state`, and `prosemirror-view` dependencies are also pinned to the versions resolved by that Tiptap suite. This prevents consumers from installing multiple Tiptap or ProseMirror versions when an adapter package and `markweave` are installed together; the Webpack stats gate separately proves that one version is bundled from only one runtime root.
 
 The workspace root enforces those ProseMirror versions through `pnpm-workspace.yaml` `overrides`. This is a test/build invariant, not permission to bundle ProseMirror into a legacy artifact; published manifests still declare the exact runtime versions so npm consumers can deduplicate the same graph.
 
@@ -153,7 +153,7 @@ Local usage details live in `apps/playground-vue3/README.md`.
 
 With `MARKWEAVE_VUE2_LEGACY=1`, the playground removes the source-package aliases, applies `@markweave/vue2/webpack4`, consumes the generated physical package artifacts, and writes the reusable Babel cache under its project-local `.cache`. `pnpm build:vue2-legacy` verifies this workspace boundary and emits Webpack stats. `pnpm verify:vue2-packed` separately packs and installs real tarballs under Vue `2.6.12` / Vue CLI `4.4.6` and Vue `2.7.16` / Vue CLI `4.5.19`, both with Webpack `4.47.0`, then runs deterministic browser smoke checks.
 
-The stats gate allows at most one runtime root for Vue, `@tiptap/core`, `@tiptap/vue-2`, `@tiptap/pm`, `prosemirror-model`, `prosemirror-state`, and `prosemirror-view`. Current hard budgets are 2.3 MiB for the app entrypoint, 6 MiB for emitted JavaScript, 4 MiB for the largest asset, and 1.75 MiB for the packed Vue 2 tarball.
+The stats gate allows at most one runtime root for Vue, `@tiptap/core`, `@tiptap/vue-2`, `@tiptap/pm`, `prosemirror-model`, `prosemirror-state`, and `prosemirror-view`. Current hard budgets are 2.3 MiB for the app entrypoint, 6 MiB + 2 KiB for emitted JavaScript, 4 MiB for the largest asset, and 1.75 MiB for the packed Vue 2 tarball. The 2 KiB allowance covers the shared Markdown block/list normalization and lossless serialization fix: the Vue 2.7 / Vue CLI 4.5.19 baseline emitted 6,291,430 JavaScript bytes, only 26 bytes below the former 6 MiB limit; the fix adds approximately 1.26 KiB in the same consumer matrix. Runtime identity and the remaining size limits are unchanged.
 
 The Vue 2 dev server is bound to `127.0.0.1:5175`.
 

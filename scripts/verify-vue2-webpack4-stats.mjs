@@ -15,7 +15,9 @@ const runtimePackages = [
 
 const defaultBudgets = {
   entrypointBytes: 2.3 * 1024 * 1024,
-  javascriptBytes: 6 * 1024 * 1024,
+  // The Vue 2.7 baseline had 26 bytes of headroom; reserve 2 KiB for the shared
+  // Markdown block/list normalization and lossless serialization fix.
+  javascriptBytes: 6 * 1024 * 1024 + 2 * 1024,
   largestAssetBytes: 4 * 1024 * 1024,
 };
 

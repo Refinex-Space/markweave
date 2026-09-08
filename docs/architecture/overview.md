@@ -1,6 +1,6 @@
 ---
 owner: refinex
-updated: 2026-09-02
+updated: 2026-09-08
 status: active
 referenced_by: AGENTS.md#knowledge-map
 ---
@@ -21,6 +21,8 @@ Markweave is a Markdown-first WYSIWYG editor package family. The workspace has e
 | `apps/playground-fixtures` | Private shared Markdown fixture package for playground parity. |
 
 ## Public Surface
+
+Markdown initialization, subsequent Markdown commands, and coordinated large-document loading share `plugins/markdown/normalize-markdown-document.ts`. It lifts block media out of mixed paragraphs without losing adjacent text or marks, and preserves the leading paragraph required by list-item schemas. Worker token output passes through the same normalization before strict document validation. Documents with image-first list items therefore do not require source edits or image extraction to load. Serialization uses the existing native HTML fallback for bullet lists with required empty leading paragraphs and table cells containing block media, preserving their structure when saved and reopened.
 
 The core package root exports from `packages/markweave/src/index.ts` are framework-neutral:
 
