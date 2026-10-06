@@ -87,20 +87,17 @@ describe("editor style boundary", () => {
     expect(packageJson.sideEffects).toContain("**/*.css");
   });
 
-  it("renders inline link source as text without input chrome", () => {
+  it("keeps the link address editor out of document flow and wraps long targets", () => {
     const sourceRule = editorCss.match(/\.markweave-inline-link-source\s*\{([\s\S]*?)\n\}/)?.[1];
     const targetRule = editorCss.match(/\.markweave-inline-link-source-target\s*\{([\s\S]*?)\n\}/)?.[1];
     const focusRule = editorCss.match(/\.markweave-inline-link-source-target:focus\s*\{([\s\S]*?)\n\}/)?.[1];
 
-    expect(sourceRule).toContain("display: inline;");
-    expect(targetRule).toContain("display: inline;");
-    expect(targetRule).toContain("border: 0;");
-    expect(targetRule).toContain("background: transparent;");
-    expect(targetRule).toContain("padding: 0;");
-    expect(targetRule).toContain("box-shadow: none;");
-    expect(targetRule).toContain("white-space: pre;");
-    expect(focusRule).toContain("background: transparent;");
-    expect(focusRule).toContain("box-shadow: none;");
+    expect(sourceRule).toContain("position: fixed;");
+    expect(sourceRule).toContain("overflow: auto;");
+    expect(targetRule).toContain("display: block;");
+    expect(targetRule).toContain("overflow-wrap: anywhere;");
+    expect(targetRule).toContain("white-space: pre-wrap;");
+    expect(focusRule).toContain("border-color:");
   });
 
   it("uses one border layer for table cell selections without synthetic grid lines", () => {
@@ -340,7 +337,12 @@ describe("editor style boundary", () => {
     expect(editorCss).toContain("right: 28px");
     expect(editorCss).toContain('data-markweave-inner-toc-placement="container"');
     expect(editorCss).toContain("--markweave-inner-toc-gutter: 232px");
-    expect(editorCss).toContain("--markweave-inner-toc-panel-width: 184px");
+    expect(editorCss).toContain("width: var(--markweave-inner-toc-panel-width, max-content)");
+    expect(editorCss).toContain("max-width: var(--markweave-inner-toc-panel-max-width)");
+    expect(editorCss).toMatch(/\.markweave-inner-toc-list\s*\{[^}]*overflow:\s*auto;/s);
+    expect(editorCss).toMatch(/\.markweave-inner-toc-list::-webkit-scrollbar\s*\{[^}]*height:\s*8px;/s);
+    expect(editorCss).toMatch(/\.markweave-inner-toc-item\s*\{[^}]*width:\s*max-content;[^}]*min-width:\s*100%;/s);
+    expect(editorCss.match(/\.markweave-inner-toc-item\s*\{[^}]*\}/s)?.[0]).not.toContain("text-overflow: ellipsis");
     expect(editorCss).toContain("padding-inline: var(--markweave-inner-toc-gutter)");
     expect(editorCss).toContain('data-markweave-inner-toc-compact="true"');
     expect(editorCss).not.toContain("@container (max-width: 900px)");

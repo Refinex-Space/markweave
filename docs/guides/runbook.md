@@ -1,6 +1,6 @@
 ---
 owner: refinex
-updated: 2026-09-02
+updated: 2026-10-06
 status: active
 referenced_by: AGENTS.md#knowledge-map
 ---
@@ -121,6 +121,8 @@ Run `pnpm verify:vue2-packed` before release. It creates temporary tarballs and 
 The playground production build can emit Vite large-chunk warnings because Mermaid and diagram assets are bundled into the demo app. Treat those warnings as a package-size signal, not as a Harness failure.
 
 ## Release Prep
+
+The current local release candidate is `0.10.7` across all four publishable packages. It makes the built-in outline panel adapt to heading widths within viewport limits and exposes a bottom horizontal scrollbar for long titles without ellipsis. Verify short and long headings, deep indentation, simultaneous horizontal/vertical scrolling, and narrow-window placement. The previous `0.10.6` bounded inline-link address popover and `0.10.5` local-link parser compatibility remain unchanged. Preparing these manifests does not publish the packages or upgrade consuming applications.
 
 Markweave publishes four npm packages in this order:
 

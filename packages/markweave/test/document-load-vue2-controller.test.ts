@@ -26,6 +26,43 @@ async function waitUntil(predicate: () => boolean) {
 }
 
 describe("Vue 2 document load bridge", () => {
+  it.each(["standard", "large"])("loads an unchanged image-first list using the automatic %s path", async (size) => {
+    const states: MarkweaveDocumentLoadState[] = [];
+    const onUpdate = vi.fn();
+    const markdown = [
+      "# Original document",
+      "",
+      "- ![Preview](asset://preview)[Open prototype](https://example.com/prototype)",
+      "- Next item",
+      "",
+      size === "large" ? "Document body. ".repeat(16_000) : "Document body.",
+    ].join("\n");
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    activeVm = new Vue({
+      render(createElement) {
+        return createElement(MarkweaveEditor as never, {
+          props: {
+            defaultContent: markdown,
+            mode: "view",
+            editable: false,
+            onDocumentLoadStateChange: (state: MarkweaveDocumentLoadState) => states.push(state),
+            onUpdate,
+          },
+        });
+      },
+    });
+    activeVm.$mount(container);
+    await waitUntil(() => states.at(-1)?.phase === "ready");
+
+    expect(states.some((state) => state.phase === "error")).toBe(false);
+    expect(states.at(-1)?.tier).toBe(size);
+    expect(activeVm.$el.querySelector("li img")).not.toBeNull();
+    expect(activeVm.$el.querySelector("li a")?.textContent).toBe("Open prototype");
+    expect(activeVm.$el.textContent).toContain("Next item");
+    expect(onUpdate).not.toHaveBeenCalled();
+  });
+
   it("shares canonical loading and search-controller lifecycle", async () => {
     const states: MarkweaveDocumentLoadState[] = [];
     const searchControllers: Array<MarkweaveSearchController | null> = [];

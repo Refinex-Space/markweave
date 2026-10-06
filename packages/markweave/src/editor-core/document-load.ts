@@ -5,6 +5,7 @@ import {
   type MarkdownToken,
 } from "@tiptap/core";
 import { Fragment, type Node as ProseMirrorNode } from "@tiptap/pm/model";
+import { normalizeMarkweaveMarkdownDocument } from "../plugins/markdown/normalize-markdown-document";
 import type {
   MarkweaveContentFormat,
   MarkweaveContentValue,
@@ -169,58 +170,12 @@ interface MarkdownWorkerMessage {
 
 let markdownWorkerRequestId = 0;
 
-function normalizeMarkweaveMarkdownNode(
-  editor: Editor,
-  node: JSONContent,
-): JSONContent[] {
-  if (node.content) {
-    node.content = node.content.flatMap((child) =>
-      normalizeMarkweaveMarkdownNode(editor, child),
-    );
-  }
-
-  if (node.type !== "paragraph" || !node.content) {
-    return [node];
-  }
-
-  const siblings: JSONContent[] = [];
-  let inlineContent: JSONContent[] = [];
-  const flushInlineContent = () => {
-    const first = inlineContent[0];
-    if (first?.type === "text" && first.text) {
-      first.text = first.text.trimStart();
-      if (!first.text) inlineContent.shift();
-    }
-    const last = inlineContent[inlineContent.length - 1];
-    if (last?.type === "text" && last.text) {
-      last.text = last.text.trimEnd();
-      if (!last.text) inlineContent.pop();
-    }
-    const content = inlineContent;
-    inlineContent = [];
-    if (content.length) siblings.push({ ...node, content });
-  };
-
-  for (const child of node.content) {
-    if (editor.schema.nodes[child.type as string]?.isBlock) {
-      flushInlineContent();
-      siblings.push(child);
-    } else {
-      inlineContent.push(child);
-    }
-  }
-  if (!siblings.length) return [node];
-  flushInlineContent();
-
-  return siblings;
-}
-
 export function createCheckedMarkweaveMarkdownDocument(
   editor: Editor,
   content: JSONContent,
 ) {
   const document = editor.schema.nodeFromJSON(
-    normalizeMarkweaveMarkdownNode(editor, content)[0]!,
+    normalizeMarkweaveMarkdownDocument(editor.schema, content),
   );
   document.check();
   return document;

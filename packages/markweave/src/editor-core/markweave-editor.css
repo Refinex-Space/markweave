@@ -169,7 +169,6 @@
 
 .markweave-editor-frame[data-markweave-inner-toc="true"][data-markweave-inner-toc-placement="container"] {
   --markweave-inner-toc-gutter: 232px;
-  --markweave-inner-toc-panel-width: 184px;
 }
 
 .markweave-editor-frame[data-markweave-inner-toc="true"][data-markweave-inner-toc-placement="container"] .markweave-editor-surface {
@@ -256,10 +255,13 @@
 }
 
 .markweave-inner-toc-panel {
+  --markweave-inner-toc-panel-max-width: min(420px, calc(100vw - var(--markweave-inner-toc-right, 28px) - 50px));
   position: absolute;
   top: 50%;
   right: 18px;
-  width: var(--markweave-inner-toc-panel-width, 232px);
+  width: var(--markweave-inner-toc-panel-width, max-content);
+  min-width: min(184px, var(--markweave-inner-toc-panel-max-width));
+  max-width: var(--markweave-inner-toc-panel-max-width);
   max-height: min(52vh, 420px);
   overflow: hidden;
   border: 1px solid #d8dde5;
@@ -282,18 +284,34 @@
 }
 
 .markweave-inner-toc-list {
-  max-height: min(52vh, 420px);
-  overflow-y: auto;
+  max-height: calc(min(52vh, 420px) - 2px);
+  overflow: auto;
   padding: 10px 8px;
-  scrollbar-color: #c7ccd4 transparent;
-  scrollbar-width: thin;
+  scrollbar-color: auto;
+  scrollbar-width: auto;
+}
+
+.markweave-inner-toc-list::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.markweave-inner-toc-list::-webkit-scrollbar-thumb {
+  border: 2px solid transparent;
+  border-radius: 8px;
+  background: #c7ccd4;
+  background-clip: padding-box;
+}
+
+.markweave-inner-toc-list::-webkit-scrollbar-corner {
+  background: transparent;
 }
 
 .markweave-inner-toc-item {
   display: block;
-  width: 100%;
+  width: max-content;
+  min-width: 100%;
   min-height: 26px;
-  overflow: hidden;
   border: 0;
   border-radius: 5px;
   background: transparent;
@@ -302,7 +320,6 @@
   font-size: 12px;
   line-height: 1.35;
   text-align: left;
-  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
@@ -2136,48 +2153,52 @@
   text-underline-offset: 2px;
 }
 
-.markweave-inline-link-source,
-.markweave-inline-link-source-markup {
-  color: #7b8495;
-  font-family: inherit;
-  font-size: inherit;
-  font-weight: 400;
-  text-decoration: none;
-  white-space: nowrap;
+.markweave-inline-link-source {
+  position: fixed;
+  z-index: 1000;
+  box-sizing: border-box;
+  overflow: auto;
+  padding: 10px;
+  border: 1px solid var(--markweave-border, #dce1e8);
+  border-radius: 8px;
+  background: var(--markweave-surface, #fff);
+  color: var(--markweave-text, #172033);
+  box-shadow: 0 8px 24px rgb(15 23 42 / 14%);
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-size: 13px;
+  line-height: 1.5;
 }
 
-.markweave-inline-link-source {
-  display: inline;
-  vertical-align: baseline;
+.markweave-inline-link-source-label {
+  margin-bottom: 6px;
+  color: var(--markweave-text-muted, #7b8495);
+  font-size: 11px;
 }
 
 .markweave-inline-link-source-target {
-  display: inline;
-  margin: 0;
-  border: 0;
-  outline: 0;
-  background: transparent;
-  padding: 0;
-  color: inherit;
+  display: block;
+  box-sizing: border-box;
+  min-width: 0;
+  max-height: 8rem;
+  overflow: auto;
+  padding: 6px 8px;
+  border: 1px solid var(--markweave-border, #dce1e8);
+  border-radius: 4px;
+  outline: none;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
   font: inherit;
-  line-height: inherit;
-  box-shadow: none;
-  caret-color: currentColor;
-  vertical-align: baseline;
-  white-space: pre;
+  color: inherit;
+  cursor: text;
 }
 
 .markweave-inline-link-source-target:focus {
-  background: transparent;
-  box-shadow: none;
+  border-color: var(--markweave-focus, #2f62d9);
 }
 
 .markweave-inline-link-source[data-invalid="true"] .markweave-inline-link-source-target {
-  background: transparent;
-  color: #b42318;
+  border-color: #b42318;
   text-decoration: underline wavy #b42318;
-  text-underline-offset: 2px;
-  box-shadow: none;
 }
 
 .markweave-highlight {

@@ -60,6 +60,14 @@ export function needsMarkweaveInlineNodeHtmlFallback(node: JSONContent) {
   return (node.content ?? []).some((child) => child.type !== "text" && Boolean(child.marks?.length));
 }
 
+export function needsMarkweaveListHtmlFallback(node: JSONContent): boolean {
+  if (node.type === "listItem" && node.content && node.content.length > 1 &&
+      node.content[0]?.type === "paragraph" && !node.content[0].content?.length) {
+    return true;
+  }
+  return node.content?.some(needsMarkweaveListHtmlFallback) ?? false;
+}
+
 export function needsMarkweaveTableHtmlFallback(node: JSONContent) {
   let requiresFallback = false;
   const visit = (current: JSONContent) => {
@@ -79,7 +87,8 @@ export function needsMarkweaveTableHtmlFallback(node: JSONContent) {
         (typeof attrs.textAlign === "string" && textAlignmentValues.has(attrs.textAlign) && attrs.textAlign !== "left") ||
         (typeof attrs.verticalAlign === "string" && tableVerticalAlignmentValues.has(attrs.verticalAlign) && attrs.verticalAlign !== "middle");
 
-      if (hasSpans || hasCellStyle) {
+      const hasBlockContent = current.content?.some((child) => child.type !== "paragraph") ?? false;
+      if (hasSpans || hasCellStyle || hasBlockContent) {
         requiresFallback = true;
         return;
       }

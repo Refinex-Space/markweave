@@ -1,10 +1,10 @@
 import { flattenExtensions, mergeAttributes, Node, type AnyExtension, type Extensions, type JSONContent, type MarkdownRendererHelpers, type MarkdownTokenizer, type RenderContext } from "@tiptap/core";
 import Emoji, { emojis } from "@tiptap/extension-emoji";
+import BulletList from "@tiptap/extension-bullet-list";
 import Highlight from "@tiptap/extension-highlight";
 import { Heading } from "@tiptap/extension-heading";
 import HorizontalRule from "@tiptap/extension-horizontal-rule";
 import Link from "@tiptap/extension-link";
-import { Markdown } from "@tiptap/markdown";
 import Mathematics, { BlockMath, InlineMath } from "@tiptap/extension-mathematics";
 import OrderedList from "@tiptap/extension-ordered-list";
 import { Paragraph } from "@tiptap/extension-paragraph";
@@ -38,11 +38,14 @@ import {
   type MarkweaveInternalLinkCardConfig,
 } from "../plugins/internal-link-card/internal-link-card";
 import { MarkweaveLinkCard } from "../plugins/link-card/link-card-node";
+import { localDocumentLinkTokenizer } from "../plugins/markdown/local-document-link";
 import { MarkweaveMarkdownInput } from "../plugins/markdown/markdown-input";
+import { MarkweaveMarkdown } from "../plugins/markdown/markdown-extension";
 import { installMarkweaveMarkdownSyntaxEscape } from "../plugins/markdown/markdown-syntax-escape";
 import {
   createMarkweaveHtmlFallbackRenderer,
   needsMarkweaveInlineNodeHtmlFallback,
+  needsMarkweaveListHtmlFallback,
   needsMarkweaveTableHtmlFallback,
   normalizeMarkweaveHtmlColor,
 } from "../plugins/markdown/lossless-html";
@@ -71,7 +74,7 @@ import { MarkweaveCommands } from "../commands/command-runtime";
 
 export interface CreateMarkweaveEditorExtensionsOptions {
   readonly lang?: MarkweaveLang;
-  /** Reveals normalized inline link Markdown while the link is active in Live mode. */
+  /** Opens a non-reflowing address popover on an explicit inline-link click in Live mode. */
   readonly revealLinkMarkdown?: boolean;
   readonly mediaExtensions?: Extensions;
   readonly linkCardExtension?: AnyExtension;
@@ -393,6 +396,13 @@ export function createMarkweaveEditorExtensions(options: CreateMarkweaveEditorEx
   const messages = getMarkweaveMessages(options.lang);
   let extensions: Extensions = [];
   const htmlFallback = createMarkweaveHtmlFallbackRenderer(() => extensions);
+  const markweaveBulletList = BulletList.extend({
+    renderMarkdown(node, helpers, context) {
+      return needsMarkweaveListHtmlFallback(node)
+        ? htmlFallback.renderBlock(node)
+        : BulletList.config.renderMarkdown!(node, helpers, context);
+    },
+  });
   const markweaveTextStyle = TextStyle.extend({
     renderMarkdown(node, helpers) {
       const color = normalizeMarkweaveHtmlColor(node.attrs?.color);
@@ -482,13 +492,14 @@ export function createMarkweaveEditorExtensions(options: CreateMarkweaveEditorEx
       filterPlaceholder: messages.slash.filterPlaceholder,
     }),
     MarkweaveTocProjection,
-    Markdown.configure({
+    MarkweaveMarkdown.configure({
       markedOptions: {
         breaks: false,
         gfm: true,
       },
     }),
     StarterKit.configure({
+      bulletList: false,
       heading: false,
       paragraph: false,
       codeBlock: false,
@@ -498,6 +509,7 @@ export function createMarkweaveEditorExtensions(options: CreateMarkweaveEditorEx
       underline: false,
     }),
     markweaveParagraph,
+    markweaveBulletList,
     markweaveHeading.configure({
       levels: [1, 2, 3, 4, 5, 6],
     }),
@@ -534,7 +546,7 @@ export function createMarkweaveEditorExtensions(options: CreateMarkweaveEditorEx
         spellcheck: "false",
       },
     }),
-    Link.configure({
+    Link.extend({ markdownTokenizer: localDocumentLinkTokenizer }).configure({
       openOnClick: false,
       autolink: true,
       linkOnPaste: true,

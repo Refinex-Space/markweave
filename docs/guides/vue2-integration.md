@@ -1,6 +1,6 @@
 ---
 owner: refinex
-updated: 2026-09-01
+updated: 2026-10-06
 status: active
 referenced_by: docs/README.md#knowledge-map
 ---
@@ -191,7 +191,7 @@ export default {
 | `theme` | `"light"` | `"light"` or `"dark"`. The theme is scoped to this editor frame and can change at runtime without recreating document content. |
 | `canvasColor` | theme default | Optional CSS color/value for the editor canvas only. The defaults are `transparent` in light mode and `#181A1F` in dark mode. For example, pass `"#000"` or `"var(--app-canvas)"`. Runtime changes do not recreate the editor. |
 | `editable` | `true` | Compatibility lock. Effective editable state is `mode === "live" && editable !== false`. |
-| `reveal-link-markdown` | `true` | In editable Live mode, clicking or moving the caret into an inline link reveals normalized `[label](target "title")` source. Enter or blur commits a safe target edit, Escape discards it, and Ctrl/Cmd-click opens the link. The projection is canonical, not byte-exact original Markdown. |
+| `reveal-link-markdown` | `true` | In editable Live mode, an explicit inline-link click opens a floating address editor without changing document layout. Caret movement and reference insertion do not open it automatically. Enter or blur commits safe address edits; Escape discards them; Ctrl/Cmd-click opens the link. The option name is retained for compatibility. |
 | `lang` | `"zh"` | UI language. Supported values are `"zh"` and `"en"`. Re-mount the editor when switching language dynamically. |
 | `inner-toc` | `true` | Renders the built-in right-side outline. Set `:inner-toc="false"` to render your own TOC from `on-toc-change` or `runtimeSnapshot.toc`. |
 | `inner-toc-placement` | `"container"` | The default keeps the outline vertically centered in the visual viewport and centers the writing column with symmetric TOC gutters. It hides the built-in outline when the actual editor container is narrow, preserving readable content width. Set `inner-toc-placement="viewport"` only when a fixed viewport-side outline is required. |
