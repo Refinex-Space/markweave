@@ -169,7 +169,6 @@
 
 .markweave-editor-frame[data-markweave-inner-toc="true"][data-markweave-inner-toc-placement="container"] {
   --markweave-inner-toc-gutter: 232px;
-  --markweave-inner-toc-panel-width: 184px;
 }
 
 .markweave-editor-frame[data-markweave-inner-toc="true"][data-markweave-inner-toc-placement="container"] .markweave-editor-surface {
@@ -256,10 +255,13 @@
 }
 
 .markweave-inner-toc-panel {
+  --markweave-inner-toc-panel-max-width: min(420px, calc(100vw - var(--markweave-inner-toc-right, 28px) - 50px));
   position: absolute;
   top: 50%;
   right: 18px;
-  width: var(--markweave-inner-toc-panel-width, 232px);
+  width: var(--markweave-inner-toc-panel-width, max-content);
+  min-width: min(184px, var(--markweave-inner-toc-panel-max-width));
+  max-width: var(--markweave-inner-toc-panel-max-width);
   max-height: min(52vh, 420px);
   overflow: hidden;
   border: 1px solid #d8dde5;
@@ -282,18 +284,34 @@
 }
 
 .markweave-inner-toc-list {
-  max-height: min(52vh, 420px);
-  overflow-y: auto;
+  max-height: calc(min(52vh, 420px) - 2px);
+  overflow: auto;
   padding: 10px 8px;
-  scrollbar-color: #c7ccd4 transparent;
-  scrollbar-width: thin;
+  scrollbar-color: auto;
+  scrollbar-width: auto;
+}
+
+.markweave-inner-toc-list::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.markweave-inner-toc-list::-webkit-scrollbar-thumb {
+  border: 2px solid transparent;
+  border-radius: 8px;
+  background: #c7ccd4;
+  background-clip: padding-box;
+}
+
+.markweave-inner-toc-list::-webkit-scrollbar-corner {
+  background: transparent;
 }
 
 .markweave-inner-toc-item {
   display: block;
-  width: 100%;
+  width: max-content;
+  min-width: 100%;
   min-height: 26px;
-  overflow: hidden;
   border: 0;
   border-radius: 5px;
   background: transparent;
@@ -302,7 +320,6 @@
   font-size: 12px;
   line-height: 1.35;
   text-align: left;
-  text-overflow: ellipsis;
   white-space: nowrap;
 }
 

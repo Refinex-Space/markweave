@@ -337,7 +337,12 @@ describe("editor style boundary", () => {
     expect(editorCss).toContain("right: 28px");
     expect(editorCss).toContain('data-markweave-inner-toc-placement="container"');
     expect(editorCss).toContain("--markweave-inner-toc-gutter: 232px");
-    expect(editorCss).toContain("--markweave-inner-toc-panel-width: 184px");
+    expect(editorCss).toContain("width: var(--markweave-inner-toc-panel-width, max-content)");
+    expect(editorCss).toContain("max-width: var(--markweave-inner-toc-panel-max-width)");
+    expect(editorCss).toMatch(/\.markweave-inner-toc-list\s*\{[^}]*overflow:\s*auto;/s);
+    expect(editorCss).toMatch(/\.markweave-inner-toc-list::-webkit-scrollbar\s*\{[^}]*height:\s*8px;/s);
+    expect(editorCss).toMatch(/\.markweave-inner-toc-item\s*\{[^}]*width:\s*max-content;[^}]*min-width:\s*100%;/s);
+    expect(editorCss.match(/\.markweave-inner-toc-item\s*\{[^}]*\}/s)?.[0]).not.toContain("text-overflow: ellipsis");
     expect(editorCss).toContain("padding-inline: var(--markweave-inner-toc-gutter)");
     expect(editorCss).toContain('data-markweave-inner-toc-compact="true"');
     expect(editorCss).not.toContain("@container (max-width: 900px)");

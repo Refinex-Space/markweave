@@ -122,7 +122,7 @@ The playground production build can emit Vite large-chunk warnings because Merma
 
 ## Release Prep
 
-The current local release candidate is `0.10.6` across all four publishable packages. It replaces in-flow inline-link source widgets with a shared, bounded address popover and prevents `[[` insertion or caret movement from opening that popover automatically. Verify that paragraphs retain their screen coordinates before, during and after address editing, including long paths, scroll containers, Enter/Escape, and subsequent text clicks. The previous `0.10.5` local-link parser compatibility remains unchanged. Preparing these manifests does not publish the packages or upgrade consuming applications.
+The current local release candidate is `0.10.7` across all four publishable packages. It makes the built-in outline panel adapt to heading widths within viewport limits and exposes a bottom horizontal scrollbar for long titles without ellipsis. Verify short and long headings, deep indentation, simultaneous horizontal/vertical scrolling, and narrow-window placement. The previous `0.10.6` bounded inline-link address popover and `0.10.5` local-link parser compatibility remain unchanged. Preparing these manifests does not publish the packages or upgrade consuming applications.
 
 Markweave publishes four npm packages in this order:
 

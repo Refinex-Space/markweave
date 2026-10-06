@@ -1,6 +1,6 @@
 {
   "name": "@markweave/react",
-  "version": "0.10.6",
+  "version": "0.10.7",
   "type": "module",
   "description": "React adapter for the Markweave Markdown-first WYSIWYG editor.",
   "license": "MIT",
