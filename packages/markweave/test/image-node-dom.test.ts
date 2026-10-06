@@ -164,6 +164,36 @@ async function insertEmptyImage(controller: MarkweaveEditorController) {
   await flushReact();
 }
 
+async function renderRapidImage() {
+  installStalledIntersectionObserver();
+  vi.stubGlobal("requestIdleCallback", vi.fn(() => 1));
+  vi.stubGlobal("cancelIdleCallback", vi.fn());
+  let scrollY = 0;
+  vi.spyOn(window, "scrollY", "get").mockImplementation(() => scrollY);
+  lightweightImageRect = createRect(0, window.innerHeight * 8, 400, 240);
+  const resolver = vi.fn<MarkweaveMediaSourceResolver>(() => ({ src: "asset://resolved/rapid.png" }));
+  const controller = await renderEditor(
+    '<p>Before</p><img src="markweave-asset://rapid" alt="Rapid">',
+    undefined, undefined, "view", resolver,
+  );
+  const coordinator = getMarkweaveDocumentViewportCoordinatorForElement(getByTestId("markweave-image-node"))!;
+  const schedule = coordinator.visualWork.schedule.bind(coordinator.visualWork);
+  const handles: ReturnType<typeof schedule>[] = [];
+  vi.spyOn(coordinator.visualWork, "schedule").mockImplementation((task) => {
+    // author: refinex — bound the pre-fix microtask loop so a regression fails instead of hanging Vitest.
+    if (handles.length >= 20) controller.editor?.destroy();
+    const handle = schedule(task);
+    handles.push(handle);
+    return handle;
+  });
+  window.dispatchEvent(new Event("scroll"));
+  scrollY = 100;
+  window.dispatchEvent(new Event("scroll"));
+  expect(coordinator.snapshot.state).toBe("rapid");
+  lightweightImageRect = createRect(0, window.innerHeight * 2, 400, 240);
+  return { coordinator, controller, handles, resolver };
+}
+
 function getByTestId<T extends HTMLElement = HTMLElement>(testId: string) {
   const element = document.querySelector<T>(`[data-testid="${testId}"]`);
 
@@ -941,6 +971,109 @@ describe("image node view", () => {
       await vi.advanceTimersByTimeAsync(0);
     });
     expect(resolveMediaSource).toHaveBeenCalledTimes(1);
+  });
+
+  it("coalesces repeated nearby wakeups during rapid scrolling without starving timers", async () => {
+    const { coordinator, handles, resolver } = await renderRapidImage();
+    window.dispatchEvent(new Event("focus"));
+    window.dispatchEvent(new Event("pageshow"));
+    await flushReact();
+    expect(handles).toHaveLength(2);
+    expect(handles[0].promise).toBe(handles[1].promise);
+    expect(coordinator.visualWork.pendingCount).toBe(1);
+    expect(resolver).not.toHaveBeenCalled();
+    await act(async () => { await new Promise((resolve) => window.setTimeout(resolve, 160)); });
+    await flushReact();
+    expect(resolver).toHaveBeenCalledTimes(1);
+    await completeLightweightImageLoad();
+    expect(getByTestId("markweave-image-node").dataset.mediaState).toBe("resolved");
+    expect(coordinator.visualWork.pendingCount).toBe(0);
+  });
+
+  it("ignores obsolete cancellation callbacks when document edits move a queued image", async () => {
+    const { coordinator, controller, handles, resolver } = await renderRapidImage();
+    window.dispatchEvent(new Event("focus"));
+    await act(async () => {
+      controller.editor!.commands.insertContentAt(0, "<p>Inserted before image</p>");
+      window.dispatchEvent(new Event("focus"));
+    });
+    await flushReact();
+    expect(handles).toHaveLength(2);
+    expect(await handles[0].promise).toBe("cancelled");
+    expect(handles[0].promise).not.toBe(handles[1].promise);
+    expect(coordinator.visualWork.pendingCount).toBe(1);
+    await act(async () => { await new Promise((resolve) => window.setTimeout(resolve, 160)); });
+    await flushReact();
+    expect(resolver).toHaveBeenCalledTimes(1);
+    await completeLightweightImageLoad();
+    expect(coordinator.visualWork.pendingCount).toBe(0);
+  });
+
+  it("does not requeue itself if scrolling becomes rapid before a scheduled resolver runs", async () => {
+    const { coordinator, handles, resolver } = await renderRapidImage();
+    const frames: Array<() => void> = [];
+    vi.spyOn(coordinator, "scheduleFrameTask").mockImplementation((callback) => {
+      frames.push(callback);
+      return () => undefined;
+    });
+    window.dispatchEvent(new Event("focus"));
+    // author: refinex — model rapid re-entry between choosing the job and its Promise continuation.
+    coordinator.visualWork.setSuspended(false);
+    expect(frames).toHaveLength(1);
+    await act(async () => { frames.shift()!(); });
+    expect(coordinator.snapshot.state).toBe("rapid");
+    expect(handles).toHaveLength(1);
+    expect(resolver).toHaveBeenCalledTimes(1);
+    expect(await handles[0].promise).toBe("completed");
+    expect(coordinator.visualWork.pendingCount).toBe(0);
+    await completeLightweightImageLoad();
+  });
+
+  it("yields cancellation recovery to the idle backstop when the scheduler is destroyed", async () => {
+    const { coordinator, handles, resolver } = await renderRapidImage();
+    window.dispatchEvent(new Event("focus"));
+    coordinator.visualWork.destroy();
+    await flushReact();
+    expect(handles).toHaveLength(1);
+    expect(await handles[0].promise).toBe("cancelled");
+    expect(resolver).not.toHaveBeenCalled();
+    // The 300ms watchdog must still run even when requestIdleCallback never fires.
+    await act(async () => { await new Promise((resolve) => window.setTimeout(resolve, 340)); });
+    await flushReact();
+    expect(handles).toHaveLength(1);
+    expect(resolver).toHaveBeenCalledTimes(1);
+    await completeLightweightImageLoad();
+    expect(getByTestId("markweave-image-node").dataset.mediaState).toBe("resolved");
+  });
+
+  it.each(["visible", "source", "destroy"] as const)("invalidates deferred work on %s changes", async (change) => {
+    const { coordinator, controller, handles, resolver } = await renderRapidImage();
+    window.dispatchEvent(new Event("focus"));
+    await act(async () => {
+      if (change === "destroy") {
+        controller.editor!.destroy();
+      } else if (change === "visible") {
+        lightweightImageRect = createRect(0, 20, 400, 240);
+        window.dispatchEvent(new Event("focus"));
+      } else {
+        let pos = 0;
+        controller.editor!.state.doc.descendants((node, offset) => { if (node.type.name === "image") pos = offset; });
+        const node = controller.editor!.state.doc.nodeAt(pos)!;
+        controller.editor!.view.dispatch(controller.editor!.state.tr.setNodeMarkup(pos, undefined, { ...node.attrs, src: "markweave-asset://replacement" }));
+      }
+    });
+    await flushReact();
+    expect(await handles[0].promise).toBe("cancelled");
+    await act(async () => { await new Promise((resolve) => window.setTimeout(resolve, 340)); });
+    await flushReact();
+    expect(resolver).toHaveBeenCalledTimes(change === "destroy" ? 0 : 1);
+    if (change !== "destroy") {
+      expect(resolver).toHaveBeenLastCalledWith(expect.objectContaining({
+        src: change === "source" ? "markweave-asset://replacement" : "markweave-asset://rapid",
+      }));
+      await completeLightweightImageLoad();
+    }
+    expect(coordinator.visualWork.pendingCount).toBe(0);
   });
 
   it("recovers after the visual scheduler aborts a running nearby resolver", async () => {

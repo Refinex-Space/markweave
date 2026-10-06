@@ -2,6 +2,7 @@ import type { NodeViewRenderer, NodeViewRendererProps } from "@tiptap/core";
 import { NodeSelection } from "@tiptap/pm/state";
 import type { NodeView } from "@tiptap/pm/view";
 import type { MarkweaveMessages } from "../../i18n";
+import type { MarkweaveVisualWorkHandle } from "../../core/visual-work-scheduler";
 import {
   getMarkweaveEditorModeState,
   isMarkweaveEditorLiveEditable,
@@ -228,7 +229,7 @@ class MarkweaveLightweightImageNodeView implements NodeView {
   private mountCheckTimer: number | null = null;
   private unsubscribeViewportWake: (() => void) | null = null;
   private unenrollBackstop: (() => void) | null = null;
-  private cancelVisualWork: (() => void) | null = null;
+  private visualWorkHandle: MarkweaveVisualWorkHandle | null = null;
   private unsubscribeRecoveryLayout: (() => void) | null = null;
   private readonly resolutionWaiters = new Set<() => void>();
   private previewTrigger: HTMLButtonElement | null = null;
@@ -333,8 +334,7 @@ class MarkweaveLightweightImageNodeView implements NodeView {
     this.destroyed = true;
     this.clearRetryTimer();
     this.cancelActiveAttempt("destroy", true);
-    this.cancelVisualWork?.();
-    this.cancelVisualWork = null;
+    this.cancelScheduledVisualWork();
     this.observer?.disconnect();
     this.clearMountedProximityCheck();
     this.stopViewportWakeListeners();
@@ -553,10 +553,10 @@ class MarkweaveLightweightImageNodeView implements NodeView {
     }
     const viewportCoordinator = getMarkweaveDocumentViewportCoordinatorForElement(this.dom);
     if (
+      !schedulerSignal &&
       priority !== "visible" &&
       viewportCoordinator?.snapshot.state === "rapid"
     ) {
-      this.cancelVisualWork?.();
       let rawPos: number | undefined;
       try {
         const candidatePos = this.props.getPos?.();
@@ -565,7 +565,7 @@ class MarkweaveLightweightImageNodeView implements NodeView {
         rawPos = undefined;
       }
       const handle = viewportCoordinator.visualWork.schedule({
-        key: `image:${this.nodeViewId}:${rawPos ?? "detached"}`,
+        key: `image:${this.nodeViewId}`,
         lane: priority === "nearby" ? "nearby" : "idle",
         pos: rawPos,
         revision: this.props.editor.state.doc.content.size,
@@ -577,13 +577,16 @@ class MarkweaveLightweightImageNodeView implements NodeView {
           bypassRecoveryCooldown,
         ),
       });
-      const cancelVisualWork = handle.cancel;
-      this.cancelVisualWork = cancelVisualWork;
+      // author: refinex — the scheduler owns deduplication and supersession for this NodeView.
+      if (this.visualWorkHandle?.promise === handle.promise) {
+        return handle.promise.then(() => undefined);
+      }
+      this.visualWorkHandle = handle;
       void handle.promise.then((result) => {
-        if (this.cancelVisualWork === cancelVisualWork) {
-          this.cancelVisualWork = null;
-          this.notifyResolutionStateChanged();
-        }
+        // author: refinex — an obsolete cancellation must never cancel/requeue its replacement.
+        if (this.visualWorkHandle !== handle) return;
+        this.visualWorkHandle = null;
+        this.notifyResolutionStateChanged();
         if (
           result !== "completed" &&
           !this.destroyed &&
@@ -592,16 +595,15 @@ class MarkweaveLightweightImageNodeView implements NodeView {
           this.resolvedSource !== src &&
           stringAttribute(this.node.attrs.src) === src
         ) {
+          // author: refinex — recover in a later idle slice, not a self-perpetuating microtask chain.
           this.enrollResolutionBackstop();
-          this.scheduleMountedProximityCheck();
         }
       });
       this.notifyResolutionStateChanged();
       return handle.promise.then(() => undefined);
     }
     if (!schedulerSignal) {
-      this.cancelVisualWork?.();
-      this.cancelVisualWork = null;
+      this.cancelScheduledVisualWork();
     }
     if (priority === "visible" || reason === "output") {
       this.clearRetryTimer();
@@ -937,7 +939,7 @@ class MarkweaveLightweightImageNodeView implements NodeView {
       (
         this.activeAttempt === null &&
         this.retryTimer === null &&
-        this.cancelVisualWork === null &&
+        this.visualWorkHandle === null &&
         this.dom.dataset.mediaState !== "pending"
       );
     if (settled()) return Promise.resolve();
@@ -976,12 +978,17 @@ class MarkweaveLightweightImageNodeView implements NodeView {
     this.notifyResolutionStateChanged();
   }
 
+  private cancelScheduledVisualWork() {
+    const handle = this.visualWorkHandle;
+    this.visualWorkHandle = null;
+    handle?.cancel();
+  }
+
   private resetForSourceChange() {
     this.sourceGeneration += 1;
     this.clearRetryTimer();
     this.cancelActiveAttempt("source-change", true);
-    this.cancelVisualWork?.();
-    this.cancelVisualWork = null;
+    this.cancelScheduledVisualWork();
     this.dropResolutionBackstop();
     this.stopRecoveryLayoutSubscription();
     this.clearResolvedState();
