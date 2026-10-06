@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 
+import { markweaveInlineLinkSourcePluginKey } from "../src/editor-core/link-click";
 import { Editor } from "@tiptap/core";
 import { afterEach, describe, expect, it } from "vitest";
 import { createMarkweaveEditorExtensions } from "../src/editor-core/create-editor-extensions";
@@ -94,6 +95,8 @@ describe("markweave reference suggestion", () => {
     );
 
     expect(editor.getText()).toBe("AgentScope 介绍");
+    expect(markweaveInlineLinkSourcePluginKey.getState(editor.state)).toBeNull();
+    expect(document.querySelector(".markweave-inline-link-source")).toBeNull();
     expect(markAttrsForText(editor, "AgentScope 介绍", "link")).toMatchObject({
       href: "notes/agentscope.md",
     });

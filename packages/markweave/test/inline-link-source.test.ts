@@ -26,9 +26,14 @@ function createEditor(
 }
 
 function sourceTarget(editor: Editor) {
-  return editor.view.dom.querySelector<HTMLElement>(
+  return editor.view.dom.ownerDocument.querySelector<HTMLElement>(
     ".markweave-inline-link-source-target",
   );
+}
+
+function openAddress(editor: Editor, pos = 7) {
+  editor.commands.setTextSelection(pos);
+  editor.view.dispatch(editor.state.tr.setMeta(markweaveInlineLinkSourcePluginKey, { type: "activate", pos }));
 }
 
 afterEach(() => {
@@ -38,15 +43,67 @@ afterEach(() => {
 });
 
 describe("inline link Markdown source", () => {
-  it("reveals normalized Markdown without changing the document", () => {
+  it("opens an address portal without inserting layout-changing source into the document", () => {
     const editor = createEditor();
     const markdownBefore = editor.getMarkdown();
 
-    editor.commands.setTextSelection(7);
+    openAddress(editor);
 
-    expect(editor.view.dom.textContent).toContain('[Target](notes/a.md "Alpha")');
+    expect(editor.view.dom.textContent).toBe("See Target end");
+    expect(editor.view.dom.querySelector(".markweave-inline-link-source")).toBeNull();
+    expect(sourceTarget(editor)?.closest(".markweave-inline-link-source")?.parentElement).toBe(document.body);
     expect(sourceTarget(editor)?.textContent).toBe("notes/a.md");
     expect(editor.getMarkdown()).toBe(markdownBefore);
+  });
+
+  it("does not open the address editor merely by placing the caret inside a link", () => {
+    const editor = createEditor();
+    editor.commands.setTextSelection(7);
+    expect(sourceTarget(editor)).toBeNull();
+    expect(editor.view.dom.textContent).toBe("See Target end");
+  });
+
+  it("keeps the address field mounted during edits and does not consume outside pointer events", () => {
+    const editor = createEditor();
+    openAddress(editor);
+    const input = sourceTarget(editor)!;
+    input.textContent = "notes/updated.md";
+    input.dispatchEvent(new InputEvent("input", { bubbles: true }));
+    expect(sourceTarget(editor)).toBe(input);
+    const outside = document.createElement("button");
+    document.body.append(outside);
+    const pointer = new Event("pointerdown", { bubbles: true, cancelable: true });
+    outside.dispatchEvent(pointer);
+    expect(pointer.defaultPrevented).toBe(false);
+    expect(sourceTarget(editor)).toBeNull();
+    expect(editor.getMarkdown()).toContain("notes/updated.md");
+  });
+
+  it("closes the portal when a retained editor becomes inactive", async () => {
+    const editor = createEditor();
+    openAddress(editor);
+    editor.view.dom.parentElement!.setAttribute("aria-hidden", "true");
+    await new Promise(resolve => window.setTimeout(resolve, 40));
+    expect(sourceTarget(editor)).toBeNull();
+    expect(markweaveInlineLinkSourcePluginKey.getState(editor.state)).toBeNull();
+  });
+
+  it("removes its body portal when the editor is destroyed", () => {
+    const editor = createEditor();
+    openAddress(editor);
+    const popup = sourceTarget(editor)!.closest(".markweave-inline-link-source")!;
+    editor.destroy();
+    activeEditors.splice(activeEditors.indexOf(editor), 1);
+    expect(popup.isConnected).toBe(false);
+  });
+
+  it("closes on Escape from the document without editing its content", () => {
+    const editor = createEditor();
+    const before = editor.getMarkdown();
+    openAddress(editor);
+    editor.view.dom.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }));
+    expect(sourceTarget(editor)).toBeNull();
+    expect(editor.getMarkdown()).toBe(before);
   });
 
   it("shows a human-readable relative Unicode target", () => {
@@ -55,7 +112,7 @@ describe("inline link Markdown source", () => {
       "Before [测试](./嘿嘿) after",
       "markdown",
     );
-    editor.commands.setTextSelection(10);
+    openAddress(editor, 10);
 
     expect(sourceTarget(editor)?.textContent).toBe("./嘿嘿");
     expect(sourceTarget(editor)?.tagName).toBe("SPAN");
@@ -68,7 +125,7 @@ describe("inline link Markdown source", () => {
       createMarkweaveEditorExtensions(),
       '<p>Before <a href="./%E5%98%BF%E5%98%BF">测试</a> after</p>',
     );
-    editor.commands.setTextSelection(10);
+    openAddress(editor, 10);
 
     expect(sourceTarget(editor)?.textContent).toBe("./嘿嘿");
   });
@@ -84,7 +141,7 @@ describe("inline link Markdown source", () => {
       createMarkweaveEditorExtensions(),
       '<p>Before <a href="./%E5%98%BF%E5%98%BF">测试</a> after</p>',
     );
-    editor.commands.setTextSelection(10);
+    openAddress(editor, 10);
     const input = sourceTarget(editor)!;
 
     input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
@@ -121,7 +178,7 @@ describe("inline link Markdown source", () => {
 
   it("commits a safe edited address on Enter and preserves other link attributes", () => {
     const editor = createEditor();
-    editor.commands.setTextSelection(7);
+    openAddress(editor);
     const input = sourceTarget(editor);
     expect(input).not.toBeNull();
 
@@ -138,7 +195,7 @@ describe("inline link Markdown source", () => {
   it("discards unsafe edits and closes on Escape without changing storage", () => {
     const editor = createEditor();
     const markdownBefore = editor.getMarkdown();
-    editor.commands.setTextSelection(7);
+    openAddress(editor);
     const input = sourceTarget(editor)!;
 
     input.textContent = "javascript:alert(1)";
@@ -152,7 +209,7 @@ describe("inline link Markdown source", () => {
 
   it("collapses when the selection leaves the link", () => {
     const editor = createEditor();
-    editor.commands.setTextSelection(7);
+    openAddress(editor);
     expect(sourceTarget(editor)).not.toBeNull();
 
     editor.commands.setTextSelection(2);
@@ -193,7 +250,7 @@ describe("inline link Markdown source", () => {
     setMarkweaveEditorModeState(editor, { mode: "view", editable: false });
     editor.setEditable(false);
 
-    editor.commands.setTextSelection(7);
+    openAddress(editor);
 
     expect(sourceTarget(editor)).toBeNull();
   });
@@ -206,7 +263,7 @@ describe("inline link Markdown source", () => {
 
     for (const factory of factories) {
       const editor = createEditor(factory({ revealLinkMarkdown: false }));
-      editor.commands.setTextSelection(7);
+      openAddress(editor);
       expect(sourceTarget(editor)).toBeNull();
     }
   });

@@ -1,7 +1,8 @@
 import { Extension, getMarkRange, type Editor } from "@tiptap/core";
 import type { MarkType } from "@tiptap/pm/model";
 import { Plugin, PluginKey, type EditorState } from "@tiptap/pm/state";
-import { Decoration, DecorationSet, type EditorView } from "@tiptap/pm/view";
+import type { EditorView } from "@tiptap/pm/view";
+import { getMarkweaveVisibleBoundaryRect } from "../core/visible-boundary";
 import {
   getMarkweaveEditorModeState,
   isMarkweaveEditorLiveEditable,
@@ -115,11 +116,6 @@ function sameLink(
   return mappedFrom === next.from && mappedTo === next.to;
 }
 
-function markdownTitleSuffix(attrs: Readonly<Record<string, unknown>>) {
-  const title = typeof attrs.title === "string" ? attrs.title : "";
-  return title ? ` \"${title.replaceAll("\\", "\\\\").replaceAll('"', '\\"')}\"` : "";
-}
-
 function getEditableHref(element: HTMLElement) {
   return element.textContent ?? "";
 }
@@ -188,109 +184,182 @@ function commitInlineLinkSource(view: EditorView, refocus: boolean) {
   return true;
 }
 
-function createSourceDecorations(
+function createLinkAddressPopover(
   view: EditorView,
   active: ActiveInlineLinkSource,
   options: MarkweaveLinkClickOptions,
+  isCurrent: () => boolean,
 ) {
-  const prefix = Decoration.widget(
-    active.from,
-    () => {
-      const element = document.createElement("span");
-      element.className = "markweave-inline-link-source-markup";
-      element.contentEditable = "false";
-      element.setAttribute("aria-hidden", "true");
-      element.textContent = "[";
-      return element;
-    },
-    { key: "markweave-inline-link-source-prefix", side: -1 },
-  );
+  const container = view.dom.ownerDocument.createElement("div");
+  container.className = "markweave-inline-link-source";
+  container.dataset.markweaveLinkSourceUi = "true";
+  container.setAttribute("role", "group");
+  container.setAttribute("aria-label", options.addressLabel);
+  const label = view.dom.ownerDocument.createElement("div");
+  label.className = "markweave-inline-link-source-label";
+  label.textContent = options.addressLabel;
+  const target = view.dom.ownerDocument.createElement("span");
+  target.className = "markweave-inline-link-source-target";
+  target.setAttribute("contenteditable", "plaintext-only");
+  target.setAttribute("role", "textbox");
+  target.setAttribute("aria-label", options.addressLabel);
+  target.setAttribute("aria-multiline", "false");
+  target.autocapitalize = "off";
+  target.spellcheck = false;
+  target.textContent = active.draftHref;
+  setEditableHrefValidity(target, options.invalidAddress);
 
-  const suffix = Decoration.widget(
-    active.to,
-    () => {
-      const container = document.createElement("span");
-      container.className = "markweave-inline-link-source";
-      container.contentEditable = "false";
-      container.dataset.markweaveLinkSourceUi = "true";
+  let composing = false;
+  const publishDraft = () => {
+    dispatchMeta(view, { type: "draft", href: getEditableHref(target) });
+    setEditableHrefValidity(target, options.invalidAddress);
+  };
+  target.addEventListener("compositionstart", () => {
+    composing = true;
+  });
+  target.addEventListener("compositionend", () => {
+    composing = false;
+    publishDraft();
+  });
+  target.addEventListener("beforeinput", (event) => {
+    if (event.inputType === "insertParagraph" || event.inputType === "insertLineBreak") {
+      event.preventDefault();
+    }
+  });
+  target.addEventListener("input", () => {
+    if (!composing) {
+      publishDraft();
+    }
+  });
+  target.addEventListener("paste", (event) => {
+    event.preventDefault();
+    insertPlainTextAtSelection(target, event.clipboardData?.getData("text/plain") ?? "");
+    publishDraft();
+  });
+  target.addEventListener("keydown", (event) => {
+    if (event.key === "Enter" && !composing) {
+      event.preventDefault();
+      event.stopPropagation();
+      commitInlineLinkSource(view, true);
+    } else if (event.key === "Escape") {
+      event.preventDefault();
+      event.stopPropagation();
+      dispatchMeta(view, { type: "close" });
+      view.focus();
+    }
+  });
+  target.addEventListener("blur", () => {
+    if (isCurrent()) commitInlineLinkSource(view, false);
+  });
+  container.append(label, target);
+  return container;
+}
 
-      const opening = document.createElement("span");
-      opening.className = "markweave-inline-link-source-markup";
-      opening.setAttribute("aria-hidden", "true");
-      opening.textContent = "](";
+function createLinkAddressView(editor: Editor, view: EditorView, options: MarkweaveLinkClickOptions) {
+  const ownerDocument = view.dom.ownerDocument;
+  const window = ownerDocument.defaultView!;
+  const frame = view.dom.closest<HTMLElement>(".markweave-editor-frame") ?? view.dom;
+  let popup: HTMLElement | null = null;
+  let key = "";
+  let scheduled: number | null = null;
+  let observer: ResizeObserver | null = null;
+  let visibilityObserver: MutationObserver | null = null;
 
-      const target = document.createElement("span");
-      target.className = "markweave-inline-link-source-target";
-      target.setAttribute("contenteditable", "plaintext-only");
-      target.setAttribute("role", "textbox");
-      target.setAttribute("aria-label", options.addressLabel);
-      target.setAttribute("aria-multiline", "false");
-      target.autocapitalize = "off";
-      target.spellcheck = false;
-      target.textContent = active.draftHref;
-      setEditableHrefValidity(target, options.invalidAddress);
-
-      let composing = false;
-      const publishDraft = () => {
-        dispatchMeta(view, { type: "draft", href: getEditableHref(target) });
-        setEditableHrefValidity(target, options.invalidAddress);
-      };
-      target.addEventListener("compositionstart", () => {
-        composing = true;
-      });
-      target.addEventListener("compositionend", () => {
-        composing = false;
-        publishDraft();
-      });
-      target.addEventListener("beforeinput", (event) => {
-        if (event.inputType === "insertParagraph" || event.inputType === "insertLineBreak") {
-          event.preventDefault();
-        }
-      });
-      target.addEventListener("input", () => {
-        if (!composing) {
-          publishDraft();
-        }
-      });
-      target.addEventListener("paste", (event) => {
-        event.preventDefault();
-        insertPlainTextAtSelection(target, event.clipboardData?.getData("text/plain") ?? "");
-        publishDraft();
-      });
-      target.addEventListener("keydown", (event) => {
-        if (event.key === "Enter" && !composing) {
-          event.preventDefault();
-          event.stopPropagation();
-          commitInlineLinkSource(view, true);
-        } else if (event.key === "Escape") {
-          event.preventDefault();
-          event.stopPropagation();
-          dispatchMeta(view, { type: "close" });
-          view.focus();
-        }
-      });
-      target.addEventListener("blur", () => {
-        commitInlineLinkSource(view, false);
-      });
-
-      const title = document.createElement("span");
-      title.className = "markweave-inline-link-source-markup";
-      title.setAttribute("aria-hidden", "true");
-      title.textContent = `${markdownTitleSuffix(active.attrs)})`;
-
-      container.append(opening, target, title);
-      return container;
-    },
-    {
-      key: "markweave-inline-link-source-suffix",
-      side: 1,
-      stopEvent: (event) =>
-        event.target instanceof Element &&
-        Boolean(event.target.closest("[data-markweave-link-source-ui]")),
-    },
-  );
-
-  return DecorationSet.create(view.state.doc, [prefix, suffix]);
+  const anchorFor = (active: ActiveInlineLinkSource) => {
+    const node = view.domAtPos(Math.min(active.from + 1, active.to)).node;
+    const element = node instanceof Element ? node : node.parentElement;
+    return element?.closest<HTMLAnchorElement>("a[href]") ?? null;
+  };
+  const position = () => {
+    scheduled = null;
+    const active = markweaveInlineLinkSourcePluginKey.getState(view.state);
+    if (!popup || !active) return;
+    const anchor = anchorFor(active);
+    const boundary = getMarkweaveVisibleBoundaryRect(frame);
+    const rect = anchor?.getBoundingClientRect();
+    const theme = window.getComputedStyle(frame);
+    if (theme.visibility === "hidden" || frame.closest('[hidden], [inert], [aria-hidden="true"]')) {
+      dispatchMeta(view, { type: "close" });
+      return;
+    }
+    if (!rect || boundary.width <= 0 || boundary.height <= 0 ||
+        rect.bottom <= boundary.top || rect.top >= boundary.top + boundary.height ||
+        rect.right <= boundary.left || rect.left >= boundary.left + boundary.width) {
+      popup.style.visibility = "hidden";
+      return;
+    }
+    for (const token of ["--markweave-text", "--markweave-text-muted", "--markweave-surface", "--markweave-border", "--markweave-focus"]) {
+      popup.style.setProperty(token, theme.getPropertyValue(token));
+    }
+    const margin = 8;
+    popup.style.width = `${Math.max(0, Math.min(360, boundary.width - margin * 2))}px`;
+    popup.style.maxHeight = `${Math.max(0, boundary.height - margin * 2)}px`;
+    const height = popup.getBoundingClientRect().height;
+    const width = popup.getBoundingClientRect().width;
+    const left = Math.max(boundary.left + margin, Math.min(rect.left, boundary.left + boundary.width - width - margin));
+    const below = rect.bottom + margin;
+    const top = below + height <= boundary.top + boundary.height - margin
+      ? below
+      : Math.max(boundary.top + margin, rect.top - height - margin);
+    popup.style.left = `${Math.round(left)}px`;
+    popup.style.top = `${Math.round(top)}px`;
+    popup.style.visibility = "visible";
+  };
+  const schedulePosition = () => {
+    if (popup && scheduled === null) scheduled = window.requestAnimationFrame(position);
+  };
+  const closePopup = () => {
+    const previous = popup;
+    popup = null;
+    key = "";
+    previous?.remove();
+    observer?.disconnect();
+    observer = null;
+    visibilityObserver?.disconnect();
+    visibilityObserver = null;
+    if (scheduled !== null) window.cancelAnimationFrame(scheduled);
+    scheduled = null;
+    ownerDocument.removeEventListener("scroll", schedulePosition, true);
+    window.removeEventListener("resize", schedulePosition);
+    ownerDocument.removeEventListener("pointerdown", outsidePointerDown, true);
+  };
+  const outsidePointerDown = (event: PointerEvent) => {
+    if (!popup || !(event.target instanceof Node) || popup.contains(event.target)) return;
+    const active = markweaveInlineLinkSourcePluginKey.getState(view.state);
+    if (active && anchorFor(active)?.contains(event.target)) return;
+    commitInlineLinkSource(view, false);
+  };
+  const update = () => {
+    const active = markweaveInlineLinkSourcePluginKey.getState(view.state);
+    if (!active || !isMarkweaveEditorLiveEditable(getMarkweaveEditorModeState(editor))) {
+      closePopup();
+      return;
+    }
+    const nextKey = `${active.from}:${active.to}:${String(active.attrs.href)}`;
+    if (!popup || nextKey !== key) {
+      closePopup();
+      const element = createLinkAddressPopover(view, active, options, () => popup === element);
+      popup = element;
+      key = nextKey;
+      ownerDocument.body.append(element);
+      const ResizeObserverClass = window.ResizeObserver ?? globalThis.ResizeObserver;
+      observer = ResizeObserverClass ? new ResizeObserverClass(schedulePosition) : null;
+      observer?.observe(frame);
+      observer?.observe(element);
+      visibilityObserver = new window.MutationObserver(schedulePosition);
+      for (let ancestor: HTMLElement | null = frame; ancestor; ancestor = ancestor.parentElement) {
+        visibilityObserver.observe(ancestor, {
+          attributes: true,
+          attributeFilter: ["class", "style", "hidden", "inert", "aria-hidden", "data-markweave-theme"],
+        });
+      }
+      ownerDocument.addEventListener("scroll", schedulePosition, true);
+      window.addEventListener("resize", schedulePosition);
+      ownerDocument.addEventListener("pointerdown", outsidePointerDown, true);
+    }
+    position();
+  };
+  return { update, destroy: closePopup };
 }
 
 /**
@@ -391,21 +460,21 @@ export const MarkweaveLinkClick = Extension.create<MarkweaveLinkClickOptions>({
 
             const next = activeLinkAtSelection(nextState, linkType);
             if (!next) return null;
-            if (!previous) return transaction.selectionSet ? next : null;
+            if (!previous) return null;
 
             const mappedFrom = transaction.mapping.map(previous.from, -1);
             const mappedTo = transaction.mapping.map(previous.to, 1);
             return sameLink(previous, next, mappedFrom, mappedTo)
               ? { ...next, draftHref: previous.draftHref }
-              : next;
+              : null;
           },
         },
         props: {
-          decorations: (state) => {
-            const active = markweaveInlineLinkSourcePluginKey.getState(state);
-            return active && isMarkweaveEditorLiveEditable(getMarkweaveEditorModeState(editor))
-              ? createSourceDecorations(editor.view, active, options)
-              : null;
+          handleKeyDown: (view, event) => {
+            if (event.key !== "Escape" || !markweaveInlineLinkSourcePluginKey.getState(view.state)) return false;
+            event.preventDefault();
+            dispatchMeta(view, { type: "close" });
+            return true;
           },
           handleDOMEvents: {
             click: (view, event) => {
@@ -440,6 +509,7 @@ export const MarkweaveLinkClick = Extension.create<MarkweaveLinkClickOptions>({
         },
         view: (view) => {
           let destroyed = false;
+          const popover = createLinkAddressView(editor, view, options);
           const unsubscribe = subscribeToMarkweaveEditorMode(editor, () => {
             if (
               !destroyed &&
@@ -450,7 +520,9 @@ export const MarkweaveLinkClick = Extension.create<MarkweaveLinkClickOptions>({
             }
           });
           return {
+            update: () => popover.update(),
             destroy() {
+              popover.destroy();
               destroyed = true;
               unsubscribe();
             },

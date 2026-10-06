@@ -74,7 +74,7 @@ import { MarkweaveCommands } from "../commands/command-runtime";
 
 export interface CreateMarkweaveEditorExtensionsOptions {
   readonly lang?: MarkweaveLang;
-  /** Reveals normalized inline link Markdown while the link is active in Live mode. */
+  /** Opens a non-reflowing address popover on an explicit inline-link click in Live mode. */
   readonly revealLinkMarkdown?: boolean;
   readonly mediaExtensions?: Extensions;
   readonly linkCardExtension?: AnyExtension;

@@ -388,7 +388,7 @@ export interface MarkweaveVue3EditorControllerOptions {
   readonly editorExtensionsLoadPolicy?: MarkweaveEditorExtensionsLoadPolicy;
   readonly lang?: MarkweaveLang;
   readonly ariaLabel?: string;
-  /** Reveals normalized `[label](target)` source for the active inline link in Live mode. */
+  /** Opens a non-reflowing address popover on an explicit inline-link click in Live mode. */
   readonly revealLinkMarkdown?: boolean;
   readonly autoFocusFirstTableBodyCell?: boolean;
   readonly onUpdate?: (payload: MarkweaveEditorUpdatePayload) => void;
