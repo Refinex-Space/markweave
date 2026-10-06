@@ -2,6 +2,7 @@ import { Extension, type MarkdownTokenizer } from "@tiptap/core";
 import OrderedList from "@tiptap/extension-ordered-list";
 import { Table } from "@tiptap/extension-table";
 import { MarkdownManager } from "@tiptap/markdown";
+import { localDocumentLinkTokenizer } from "../plugins/markdown/local-document-link";
 
 interface MarkdownParserWorkerRequest {
   readonly id: number;
@@ -127,6 +128,7 @@ const tableTokenizer = (
 ).markdownTokenizer;
 
 const tokenizers: MarkdownTokenizer[] = [
+  localDocumentLinkTokenizer,
   taskListTokenizer,
   {
     ...orderedListTokenizer,

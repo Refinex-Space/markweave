@@ -38,6 +38,7 @@ import {
   type MarkweaveInternalLinkCardConfig,
 } from "../plugins/internal-link-card/internal-link-card";
 import { MarkweaveLinkCard } from "../plugins/link-card/link-card-node";
+import { localDocumentLinkTokenizer } from "../plugins/markdown/local-document-link";
 import { MarkweaveMarkdownInput } from "../plugins/markdown/markdown-input";
 import { MarkweaveMarkdown } from "../plugins/markdown/markdown-extension";
 import { installMarkweaveMarkdownSyntaxEscape } from "../plugins/markdown/markdown-syntax-escape";
@@ -545,7 +546,7 @@ export function createMarkweaveEditorExtensions(options: CreateMarkweaveEditorEx
         spellcheck: "false",
       },
     }),
-    Link.configure({
+    Link.extend({ markdownTokenizer: localDocumentLinkTokenizer }).configure({
       openOnClick: false,
       autolink: true,
       linkOnPaste: true,
